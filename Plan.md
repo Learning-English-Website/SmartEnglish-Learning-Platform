@@ -5174,16 +5174,18 @@ interface StudyApi {
 |---|---|---|
 | Express project setup, env config | React + Vite + Bootstrap setup | Android project setup, Hilt DI |
 | MongoDB connection, Redis setup | React Router, layout (Navbar, Sidebar, Footer) | Network module: Retrofit, OkHttp, Interceptors |
-| User model + Auth APIs (register, login, JWT, refresh, Google OAuth) | Auth pages: Login, Register, Forgot PW | Room database setup, entity classes |
-| Middleware: auth, error, validation, rate limiter | AuthContext, ProtectedRoute, token interceptor | Auth screens: Login, Register (Compose) |
-| FlashcardSet + Flashcard + Tag models | Home page skeleton | Google Sign-In integration |
-| Course, Unit, Lesson, Exercise models | -- | Token manager (EncryptedSharedPreferences) |
-| Folder, Note, MistakeLog models | -- | Bottom navigation + screen routes |
+| User model + Auth APIs (register, login, JWT, refresh, Google OAuth) | Auth pages: Login, Register, ForgotPassword | Room database setup, entity classes |
+| Forgot Password API (send reset email) | AuthContext, ProtectedRoute, token interceptor | Auth screens: Login, Register, ForgotPassword (Compose) |
+| Middleware: auth, error, validation, rate limiter | Home page skeleton | Google Sign-In integration |
+| User Profile APIs (GET /users/me, PUT /users/me) | Profile page + EditProfile page | Token manager (EncryptedSharedPreferences) |
+| FlashcardSet + Flashcard + Tag models | -- | Profile screen + EditProfile screen |
+| Course, Unit, Lesson, Exercise models | -- | Bottom navigation + screen routes |
+| Folder, Note, MistakeLog models | -- | -- |
 | UserProgress, Achievement, LearningPreferences models | -- | -- |
 | DailyQuest, LeaderboardEntry, LearningHistory, Notification models | -- | -- |
 | Deploy staging API (Docker on VPS) | -- | -- |
 
-**Milestone Week 1:** Auth API working. Web + Android can register/login. Staging API deployed.
+**Milestone Week 1:** Auth API working (register, login, forgot password). EditProfile working. Web + Android can register/login/edit profile. Staging API deployed.
 
 ### WEEK 2: Quizlet Core + Vocabulary
 
