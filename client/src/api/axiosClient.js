@@ -4,19 +4,8 @@ const axiosClient = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
   timeout: 10000,
   headers: { 'Content-Type': 'application/json' },
+  withCredentials: true, // ✅ Gửi HttpOnly cookies tự động trong mọi request
 });
-
-// ── Request Interceptor: attach access token ──────────────────────────────────
-axiosClient.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('accessToken');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
 
 // ── Response Interceptor: handle 401 + auto refresh ──────────────────────────
 axiosClient.interceptors.response.use(
@@ -27,24 +16,18 @@ axiosClient.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
       try {
-        const refreshToken = localStorage.getItem('refreshToken');
-        if (!refreshToken) throw new Error('No refresh token');
-
-        const { data } = await axios.post(
+        // Refresh token nằm trong HttpOnly cookie — chỉ cần gọi endpoint
+        // Server sẽ tự đọc cookie refreshToken và trả về cookie mới
+        await axios.post(
           `${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/auth/refresh`,
-          { refreshToken }
+          {}, // body rỗng, server đọc từ cookie
+          { withCredentials: true }
         );
 
-        const newAccess = data.data.accessToken;
-        const newRefresh = data.data.refreshToken;
-
-        localStorage.setItem('accessToken', newAccess);
-        localStorage.setItem('refreshToken', newRefresh);
-
-        originalRequest.headers.Authorization = `Bearer ${newAccess}`;
+        // Thử lại request gốc (cookie mới đã được set bởi server)
         return axiosClient(originalRequest);
       } catch {
-        localStorage.clear();
+        // Refresh thất bại → logout
         window.location.href = '/login';
       }
     }
@@ -54,3 +37,4 @@ axiosClient.interceptors.response.use(
 );
 
 export default axiosClient;
+

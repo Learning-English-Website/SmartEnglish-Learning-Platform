@@ -6,7 +6,7 @@ import { authAPI } from '../api/auth.api';
 
 /**
  * useAuth — provides login, register, logout, and forgotPassword actions.
- * All actions handle loading state, error handling, and success toasts.
+ * Tokens are stored in HttpOnly cookies set by the server — NO localStorage.
  */
 export function useAuth() {
   const { user, isAuthenticated, loading, error, dispatch } = useAuthContext();
@@ -16,9 +16,8 @@ export function useAuth() {
     dispatch({ type: 'AUTH_LOADING' });
     try {
       const res = await authAPI.login({ email, password });
-      const { user, accessToken, refreshToken } = res.data;
-      localStorage.setItem('accessToken', accessToken);
-      localStorage.setItem('refreshToken', refreshToken);
+      // Server đã set HttpOnly cookies — chỉ cần lưu user vào state
+      const { user } = res.data;
       dispatch({ type: 'LOGIN_SUCCESS', payload: user });
       toast.success(`Welcome back, ${user.username}! 👋`);
       navigate('/dashboard');
@@ -33,9 +32,8 @@ export function useAuth() {
     dispatch({ type: 'AUTH_LOADING' });
     try {
       const res = await authAPI.register({ email, username, password });
-      const { user, accessToken, refreshToken } = res.data;
-      localStorage.setItem('accessToken', accessToken);
-      localStorage.setItem('refreshToken', refreshToken);
+      // Server đã set HttpOnly cookies — chỉ cần lưu user vào state
+      const { user } = res.data;
       dispatch({ type: 'LOGIN_SUCCESS', payload: user });
       toast.success(`Welcome to Memoris, ${user.username}! 🎉`);
       navigate('/dashboard');
@@ -48,11 +46,10 @@ export function useAuth() {
 
   const logout = useCallback(async () => {
     try {
-      await authAPI.logout();
+      await authAPI.logout(); // Server sẽ clearCookie + xóa Redis
     } catch {
       // ignore errors — always clear local state
     } finally {
-      localStorage.clear();
       dispatch({ type: 'LOGOUT' });
       toast.success('Logged out successfully');
       navigate('/login');
@@ -73,3 +70,4 @@ export function useAuth() {
 
   return { user, isAuthenticated, loading, error, login, register, logout, forgotPassword };
 }
+

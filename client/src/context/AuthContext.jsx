@@ -36,20 +36,15 @@ export function AuthProvider({ children }) {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
   /**
-   * On mount: check localStorage for tokens and load the user profile.
-   * Keeps the user logged in across page refreshes.
+   * On mount: gọi /api/users/me để kiểm tra phiên đăng nhập.
+   * Cookie HttpOnly được gửi tự động bởi axiosClient (withCredentials: true).
    */
   const loadUser = useCallback(async () => {
-    const token = localStorage.getItem('accessToken');
-    if (!token) {
-      dispatch({ type: 'LOAD_DONE' });
-      return;
-    }
     try {
       const res = await authAPI.getMe();
       dispatch({ type: 'SET_USER', payload: res.data });
     } catch {
-      localStorage.clear();
+      // Chưa đăng nhập hoặc cookie hết hạn
       dispatch({ type: 'LOGOUT' });
     }
   }, []);

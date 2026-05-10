@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const cookieParser = require('cookie-parser');
 const { errorHandler } = require('./middleware/error.middleware');
 
 const app = express();
@@ -16,6 +17,7 @@ app.use(cors({
 // ── Body Parsing (must be BEFORE routes and rate limiters) ───────────────────
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser()); // ✅ Parse HttpOnly cookies từ request
 
 // ── Logging ───────────────────────────────────────────────────────────────────
 if (process.env.NODE_ENV !== 'test') {
@@ -31,6 +33,7 @@ if (process.env.NODE_ENV !== 'test') {
 app.get('/api/health', (req, res) =>
   res.json({ status: 'ok', timestamp: new Date(), environment: process.env.NODE_ENV })
 );
+app.get('/', (req, res) => res.json({ message: 'Welcome to SmartEnglish API' }));
 
 // ── Routes ────────────────────────────────────────────────────────────────────
 app.use('/api/auth', require('./modules/auth/auth.routes'));

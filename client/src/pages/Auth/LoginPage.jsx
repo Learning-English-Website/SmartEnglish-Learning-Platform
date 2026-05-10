@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Form, Button } from 'react-bootstrap';
 import { FiMail, FiLock, FiEye, FiEyeOff } from 'react-icons/fi';
 import { FcGoogle } from 'react-icons/fc';
@@ -8,6 +8,14 @@ import { useAuth } from '../../hooks/useAuth';
 import './Auth.css';
 
 export default function LoginPage() {
+  const navigate = useNavigate();
+  const handleGoogleLogin = () => {
+    // VITE_API_URL already contains /api (e.g. http://localhost:5000/api)
+    // Strip /api to get the base server URL
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+    const backendUrl = apiUrl.replace(/\/api$/, '');
+    window.location.href = `${backendUrl}/api/auth/google`;
+  };
   const { login } = useAuth();
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
@@ -57,7 +65,8 @@ export default function LoginPage() {
         </div>
 
         {/* Google Button */}
-        <Button className="btn-google" variant="outline-secondary" disabled>
+        {/* Google Button */}
+        <Button className="btn-google" variant="outline-secondary" onClick={handleGoogleLogin}>
           <FcGoogle size={20} />
           Sign in with Google
         </Button>

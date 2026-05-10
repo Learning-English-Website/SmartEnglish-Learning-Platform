@@ -9,6 +9,7 @@ const HomePage = lazy(() => import('./pages/Home/HomePage'));
 const LoginPage = lazy(() => import('./pages/Auth/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/Auth/RegisterPage'));
 const ForgotPasswordPage = lazy(() => import('./pages/Auth/ForgotPasswordPage'));
+const OAuthCallbackPage = lazy(() => import('./pages/Auth/OAuthCallbackPage'));
 const DashboardPage = lazy(() => import('./pages/Dashboard/DashboardPage'));
 const ProfilePage = lazy(() => import('./pages/Profile/ProfilePage'));
 const EditProfilePage = lazy(() => import('./pages/Profile/EditProfilePage'));
@@ -29,6 +30,7 @@ const router = createBrowserRouter([
       { path: '/login', element: withSuspense(<LoginPage />) },
       { path: '/register', element: withSuspense(<RegisterPage />) },
       { path: '/forgot-password', element: withSuspense(<ForgotPasswordPage />) },
+      { path: '/oauth/callback', element: withSuspense(<OAuthCallbackPage />) },
       {
         path: '/dashboard',
         element: withSuspense(

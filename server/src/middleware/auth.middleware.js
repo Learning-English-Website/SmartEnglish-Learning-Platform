@@ -9,14 +9,20 @@ const User = require('../modules/user/user.model');
  */
 const authenticate = async (req, res, next) => {
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    // Ưu tiên đọc từ HttpOnly cookie, fallback sang Authorization header
+    let token = req.cookies?.accessToken;
+    if (!token) {
+      const authHeader = req.headers.authorization;
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.split(' ')[1];
+      }
+    }
+
+    if (!token) {
       return next(new AppError('No token provided', 401));
     }
 
-    const token = authHeader.split(' ')[1];
     const decoded = verifyAccessToken(token);
-
     const user = await User.findById(decoded.sub).select('-password');
     if (!user) {
       return next(new AppError('User no longer exists', 401));

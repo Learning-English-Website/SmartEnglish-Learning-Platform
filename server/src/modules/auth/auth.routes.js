@@ -4,6 +4,8 @@ const router = express.Router();
 const { register, login, refreshToken, logout, forgotPassword } = require('./auth.controller');
 const { validate } = require('../../middleware/validation.middleware');
 const { authenticate } = require('../../middleware/auth.middleware');
+const { loginRateLimiter } = require('../../middleware/rateLimiter.middleware');
+const passport = require('../../config/passport');
 const {
   registerSchema,
   loginSchema,
@@ -12,10 +14,23 @@ const {
 } = require('./auth.validation');
 
 // POST /api/auth/register
-router.post('/register', validate(registerSchema), register);
+router.post('/register', loginRateLimiter, validate(registerSchema), register);
 
+// Google OAuth entry point
+router.get('/google', loginRateLimiter, passport.authenticate('google', { scope: ['profile', 'email'] }));
+
+// Google OAuth callback – set cookies rồi redirect về frontend (KHÔNG truyền token qua URL)
+router.get('/google/callback', passport.authenticate('google', { session: false, failureRedirect: `${process.env.CLIENT_URL}/login?error=google_failed` }), (req, res) => {
+  const { accessToken, refreshToken } = req.user;
+  // Set HttpOnly cookies (giống login thường)
+  const isProd = process.env.NODE_ENV === 'production';
+  res.cookie('accessToken', accessToken, { httpOnly: true, secure: isProd, sameSite: 'strict', maxAge: 15 * 60 * 1000 });
+  res.cookie('refreshToken', refreshToken, { httpOnly: true, secure: isProd, sameSite: 'strict', maxAge: 7 * 24 * 60 * 60 * 1000 });
+  // Redirect về frontend — KHÔNG kèm token trong URL
+  res.redirect(`${process.env.CLIENT_URL}/oauth/callback`);
+});
 // POST /api/auth/login  (rate limited — loginRateLimiter disabled: express-rate-limit v8 + Express 5 incompatibility)
-router.post('/login', validate(loginSchema), login);
+router.post('/login', loginRateLimiter, validate(loginSchema), login);
 
 // POST /api/auth/refresh
 router.post('/refresh', validate(refreshTokenSchema), refreshToken);
