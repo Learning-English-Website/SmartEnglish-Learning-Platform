@@ -1,0 +1,231 @@
+/* Glassline — tokens from design.md (fog neutrals + single cobalt accent; flat, no gradients) */
+
+:root,
+[data-theme='light'] {
+  --gl-primary: #0f1419;
+  --gl-secondary: #4a5568;
+  --gl-tertiary: #2c5ef5;
+  --gl-neutral: #f1f3f5;
+  --gl-surface: #ffffff;
+  --gl-on-primary: #ffffff;
+
+  --gl-radius-sm: 6px;
+  --gl-radius-md: 10px;
+  --gl-radius-lg: 16px;
+  --gl-space-sm: 8px;
+  --gl-space-md: 16px;
+  --gl-space-lg: 32px;
+
+  --bg-page: var(--gl-neutral);
+  --bg-elevated: var(--gl-surface);
+  --text-heading: var(--gl-primary);
+  --text-body: var(--gl-primary);
+  --text-muted: var(--gl-secondary);
+  --border-subtle: rgba(15, 20, 25, 0.1);
+
+  --font-sans: 'Geist Variable', 'Geist', system-ui, -apple-system, sans-serif;
+  --font-mono: 'Geist Mono Variable', 'Geist Mono', ui-monospace, monospace;
+
+  /* Legacy aliases (older components) */
+  --bg-primary: var(--bg-page);
+  --text-primary: var(--text-body);
+  --text-secondary: var(--text-muted);
+  --border: var(--border-subtle);
+  --accent: var(--gl-tertiary);
+}
+
+[data-theme='dark'] {
+  --gl-primary-fg: #e8eaed;
+  --bg-page: #0b0e12;
+  --bg-elevated: #151922;
+  --text-heading: #f1f3f5;
+  --text-body: #f1f3f5;
+  --text-muted: #868e96;
+  --border-subtle: rgba(255, 255, 255, 0.1);
+
+  --bg-primary: var(--bg-page);
+  --text-primary: var(--text-body);
+  --text-secondary: var(--text-muted);
+  --border: var(--border-subtle);
+
+  --gl-neutral: var(--bg-page);
+  --gl-surface: var(--bg-elevated);
+}
+
+/* ── Reset ──────────────────────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+  font-size: 16px;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+  line-height: 1.55;
+  font-weight: 400;
+  background: var(--bg-page);
+  color: var(--text-body);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Typography — design.md */
+.display-text {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  font-size: clamp(2rem, 4vw, 3.75rem);
+  line-height: 1.08;
+  color: var(--text-heading);
+}
+
+h1,
+.typ-h1 {
+  font-family: var(--font-sans);
+  font-size: clamp(1.85rem, 3vw, 2.25rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  color: var(--text-heading);
+}
+
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--text-heading);
+}
+
+p {
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+
+.type-label,
+label.form-label {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+a {
+  color: var(--gl-tertiary);
+  transition: opacity 0.15s ease, color 0.15s ease;
+}
+
+a:hover {
+  opacity: 0.88;
+}
+
+/* Single-accent emphasis (flat — replaces gradient-text) */
+.text-accent {
+  color: var(--gl-tertiary);
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(44, 94, 245, 0.25);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(44, 94, 245, 0.45);
+}
+
+/* Bootstrap tweaks */
+.form-control.is-invalid {
+  background-image: none !important;
+  padding-right: inherit !important;
+}
+
+.invalid-feedback {
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  margin-top: 0.3rem;
+  padding-left: 0.25rem;
+}
+
+.badge {
+  font-weight: 600;
+}
+
+/* Buttons — primary CTA: design button-primary */
+.btn-glassline-primary {
+  background: var(--gl-tertiary) !important;
+  color: var(--gl-on-primary) !important;
+  border: none !important;
+  border-radius: var(--gl-radius-md) !important;
+  padding: 12px 20px !important;
+  font-weight: 600 !important;
+  font-size: 0.95rem !important;
+}
+
+.btn-glassline-primary:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+
+.btn-glassline-primary:active:not(:disabled) {
+  filter: brightness(0.96);
+}
+
+/* Card shell — design.md card */
+.surface-card {
+  background: var(--gl-surface);
+  color: var(--gl-primary);
+  border-radius: var(--gl-radius-lg);
+  padding: 24px;
+  border: 1px solid var(--border-subtle);
+}
+
+[data-theme='dark'] .surface-card {
+  color: var(--text-body);
+}
+
+.page-shell {
+  min-height: 100vh;
+  padding-top: 88px;
+  padding-bottom: var(--gl-space-lg);
+  background: var(--bg-page);
+}
+
+.gradient-text {
+  color: var(--gl-tertiary);
+  -webkit-background-clip: unset;
+  -webkit-text-fill-color: unset;
+  background: none;
+}
+
+.glass {
+  background: var(--gl-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--gl-radius-lg);
+}
+
+.page-padded {
+  padding-top: 90px;
+}
