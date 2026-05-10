@@ -13,6 +13,7 @@ const envSchema = Joi.object({
   SMTP_PORT: Joi.number().default(587),
   SMTP_USER: Joi.string().optional(),
   SMTP_PASS: Joi.string().optional(),
+  SMTP_FROM: Joi.string().optional(),
   CLIENT_URL: Joi.string().default('http://localhost:5173'),
 }).unknown();
 

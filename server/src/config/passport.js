@@ -19,49 +19,51 @@ passport.deserializeUser(async (id, done) => {
 // Helper to store refresh token in Redis
 const REFRESH_KEY = (uid) => `refresh:${uid}`;
 
-passport.use(
-  new GoogleStrategy(
-    {
-      clientID: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL: process.env.GOOGLE_CALLBACK_URL,
-      scope: ['profile', 'email'],
-    },
-    async (accessToken, refreshToken, profile, done) => {
-      try {
-        const email = profile.emails?.[0]?.value;
-        if (!email) return done(new AppError('Google account has no email', 400));
-        // Find existing user by email
-        let user = await User.findOne({ email });
-        if (user) {
-          // Attach Google ID if not already stored
-          if (!user.oauth?.googleId) {
-            user.oauth = user.oauth || {};
-            user.oauth.googleId = profile.id;
-            await user.save();
+if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET && process.env.GOOGLE_CALLBACK_URL) {
+  passport.use(
+    new GoogleStrategy(
+      {
+        clientID: process.env.GOOGLE_CLIENT_ID,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+        callbackURL: process.env.GOOGLE_CALLBACK_URL,
+        scope: ['profile', 'email'],
+      },
+      async (accessToken, refreshToken, profile, done) => {
+        try {
+          const email = profile.emails?.[0]?.value;
+          if (!email) return done(new AppError('Google account has no email', 400));
+          // Find existing user by email
+          let user = await User.findOne({ email });
+          if (user) {
+            // Attach Google ID if not already stored
+            if (!user.oauth?.googleId) {
+              user.oauth = user.oauth || {};
+              user.oauth.googleId = profile.id;
+              await user.save();
+            }
+          } else {
+            // Create a new user with Google info
+            user = await User.create({
+              email,
+              username: profile.displayName.replace(/\s+/g, ''),
+              password: undefined, // No local password
+              oauth: { googleId: profile.id },
+              provider: 'google',
+              avatar: profile.photos?.[0]?.value,
+            });
           }
-        } else {
-          // Create a new user with Google info
-          user = await User.create({
-            email,
-            username: profile.displayName.replace(/\s+/g, ''),
-            password: undefined, // No local password
-            oauth: { googleId: profile.id },
-            provider: 'google',
-            avatar: profile.photos?.[0]?.value,
-          });
+          // Generate JWTs
+          const accessJwt = generateAccessToken(user);
+          const refreshJwt = generateRefreshToken(user);
+          // Store refresh token in Redis (7 days TTL)
+          await redis.set(REFRESH_KEY(user._id), refreshJwt, 'EX', 7 * 24 * 60 * 60);
+          return done(null, { user, accessToken: accessJwt, refreshToken: refreshJwt });
+        } catch (err) {
+          return done(err);
         }
-        // Generate JWTs
-        const accessJwt = generateAccessToken(user);
-        const refreshJwt = generateRefreshToken(user);
-        // Store refresh token in Redis (7 days TTL)
-        await redis.set(REFRESH_KEY(user._id), refreshJwt, 'EX', 7 * 24 * 60 * 60);
-        return done(null, { user, accessToken: accessJwt, refreshToken: refreshJwt });
-      } catch (err) {
-        return done(err);
       }
-    }
-  )
-);
+    )
+  );
+}
 
 module.exports = passport;

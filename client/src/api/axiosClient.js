@@ -12,14 +12,20 @@ axiosClient.interceptors.response.use(
   (response) => response.data, // unwrap .data automatically
   async (error) => {
     const originalRequest = error.config;
+    const refreshUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/auth/refresh`;
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (
+      error.response?.status === 401 &&
+      !originalRequest?._retry &&
+      originalRequest?.url !== '/auth/refresh' &&
+      originalRequest?.url !== refreshUrl
+    ) {
       originalRequest._retry = true;
       try {
         // Refresh token nằm trong HttpOnly cookie — chỉ cần gọi endpoint
         // Server sẽ tự đọc cookie refreshToken và trả về cookie mới
         await axios.post(
-          `${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/auth/refresh`,
+          refreshUrl,
           {}, // body rỗng, server đọc từ cookie
           { withCredentials: true }
         );
@@ -27,8 +33,7 @@ axiosClient.interceptors.response.use(
         // Thử lại request gốc (cookie mới đã được set bởi server)
         return axiosClient(originalRequest);
       } catch {
-        // Refresh thất bại → logout
-        window.location.href = '/login';
+        // Refresh failed: let caller handle unauthorized state
       }
     }
 

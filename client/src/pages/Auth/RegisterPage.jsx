@@ -21,11 +21,13 @@ function vietnamesePasswordRuleMessage(pw) {
 }
 
 export default function RegisterPage() {
-  const { register } = useAuth();
+  const { register, verifyEmailOtp } = useAuth();
   const [formData, setFormData] = useState({ email: '', username: '', password: '', confirm: '' });
+  const [otp, setOtp] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
+  const [otpStep, setOtpStep] = useState(false);
 
   const validate = () => {
     const errs = {};
@@ -48,6 +50,22 @@ export default function RegisterPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (otpStep) {
+      if (!/^\d{6}$/.test(otp)) {
+        setErrors({ otp: 'Nhập OTP 6 chữ số.' });
+        toast.error('Nhập OTP 6 chữ số.');
+        return;
+      }
+      setErrors({});
+      setSubmitting(true);
+      try {
+        await verifyEmailOtp({ email: formData.email, otp });
+      } finally {
+        setSubmitting(false);
+      }
+      return;
+    }
+
     const errs = validate();
     if (Object.keys(errs).length > 0) {
       setErrors(errs);
@@ -71,7 +89,10 @@ export default function RegisterPage() {
     const { confirm, ...submitData } = formData;
     setSubmitting(true);
     try {
-      await register(submitData);
+      const result = await register(submitData);
+      if (result?.requiresEmailVerification) {
+        setOtpStep(true);
+      }
     } finally {
       setSubmitting(false);
     }
@@ -104,17 +125,46 @@ export default function RegisterPage() {
         <div className="auth-header">
           <div className="auth-logo">🧠</div>
           <h1 className="auth-title">Create account</h1>
-          <p className="auth-subtitle">Start your learning journey today</p>
+          <p className="auth-subtitle">
+            {otpStep ? `Enter OTP sent to ${formData.email}` : 'Start your learning journey today'}
+          </p>
         </div>
 
-        <Button className="btn-google" variant="outline-secondary" disabled>
-          <FcGoogle size={20} />
-          Sign up with Google
-        </Button>
+        {!otpStep ? (
+          <>
+            <Button className="btn-google" variant="outline-secondary" disabled>
+              <FcGoogle size={20} />
+              Sign up with Google
+            </Button>
 
-        <div className="auth-divider"><span>or</span></div>
+            <div className="auth-divider"><span>or</span></div>
+          </>
+        ) : null}
 
         <Form onSubmit={handleSubmit} noValidate>
+          {otpStep ? (
+            <Form.Group className="mb-3">
+              <div className="input-wrapper">
+                <FiMail className="input-icon" />
+                <Form.Control
+                  type="text"
+                  name="otp"
+                  id="register-otp"
+                  placeholder="6-digit OTP"
+                  value={otp}
+                  onChange={(e) => {
+                    setOtp(e.target.value.replace(/\D/g, '').slice(0, 6));
+                    if (errors.otp) setErrors(prev => ({ ...prev, otp: '' }));
+                  }}
+                  isInvalid={!!errors.otp}
+                  className="auth-input"
+                  autoComplete="one-time-code"
+                />
+              </div>
+              {errors.otp ? <div className="auth-field-error" role="alert">{errors.otp}</div> : null}
+            </Form.Group>
+          ) : (
+            <>
           {/* Email */}
           <Form.Group className="mb-3">
             <div className="input-wrapper">
@@ -205,6 +255,8 @@ export default function RegisterPage() {
             </div>
             {errors.confirm ? <div className="auth-field-error" role="alert">{errors.confirm}</div> : null}
           </Form.Group>
+            </>
+          )}
 
           <Button
             type="submit"
@@ -213,7 +265,7 @@ export default function RegisterPage() {
             id="register-submit"
           >
             {submitting && <span className="spinner-border spinner-border-sm me-2" />}
-            {submitting ? 'Creating account...' : 'Create Account'}
+            {submitting ? (otpStep ? 'Verifying OTP...' : 'Creating account...') : (otpStep ? 'Verify OTP' : 'Create Account')}
           </Button>
         </Form>
 

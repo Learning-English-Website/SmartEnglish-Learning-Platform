@@ -25,11 +25,7 @@ function setAuthCookies(res, { accessToken, refreshToken }) {
 
 const register = async (req, res) => {
   const result = await authService.register(req.body);
-  // result includes { user, accessToken, refreshToken }
-  setAuthCookies(res, result);
-  // Do not expose tokens in body for security; only send user profile
-  const { accessToken, refreshToken, ...rest } = result;
-  res.status(201).json(ApiResponse.success(rest, 'Registration successful'));
+  res.status(201).json(ApiResponse.success(result, 'OTP sent. Verify your email to activate account.'));
 };
 
 const login = async (req, res) => {
@@ -41,11 +37,10 @@ const login = async (req, res) => {
 };
 
 const refreshToken = async (req, res) => {
-  // Đọc refresh token từ HttpOnly cookie (không dùng body)
-  const token = req.cookies?.refreshToken || req.body?.refreshToken;
+  // Read refresh token from HttpOnly cookie only
+  const token = req.cookies?.refreshToken;
   if (!token) throw new AppError('No refresh token provided', 401);
   const result = await authService.refreshToken(token);
-  // Set cookies mới
   setAuthCookies(res, result);
   res.status(200).json(ApiResponse.success(null, 'Token refreshed'));
 };
@@ -64,4 +59,25 @@ const forgotPassword = async (req, res) => {
   res.status(200).json(ApiResponse.success(null, result.message));
 };
 
-module.exports = { register, login, refreshToken, logout, forgotPassword };
+const verifyEmailOtp = async (req, res) => {
+  const { email, otp } = req.body;
+  const result = await authService.verifyEmailOtp(email, otp);
+  setAuthCookies(res, result);
+  const { accessToken, refreshToken, ...rest } = result;
+  res.status(200).json(ApiResponse.success(rest, result.message));
+};
+
+const resetPasswordWithOtp = async (req, res) => {
+  const result = await authService.resetPasswordWithOtp(req.body);
+  res.status(200).json(ApiResponse.success(null, result.message));
+};
+
+module.exports = {
+  register,
+  login,
+  refreshToken,
+  logout,
+  forgotPassword,
+  verifyEmailOtp,
+  resetPasswordWithOtp,
+};

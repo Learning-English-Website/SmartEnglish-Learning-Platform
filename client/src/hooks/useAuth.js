@@ -6,7 +6,7 @@ import { authAPI } from '../api/auth.api';
 
 /**
  * useAuth — provides login, register, logout, and forgotPassword actions.
- * Tokens are stored in HttpOnly cookies set by the server — NO localStorage.
+ * All actions handle loading state, error handling, and success toasts.
  */
 export function useAuth() {
   const { user, isAuthenticated, loading, error, dispatch } = useAuthContext();
@@ -16,7 +16,6 @@ export function useAuth() {
     dispatch({ type: 'AUTH_LOADING' });
     try {
       const res = await authAPI.login({ email, password });
-      // Server đã set HttpOnly cookies — chỉ cần lưu user vào state
       const { user } = res.data;
       dispatch({ type: 'LOGIN_SUCCESS', payload: user });
       toast.success(`Welcome back, ${user.username}! 👋`);
@@ -29,24 +28,39 @@ export function useAuth() {
   }, [dispatch, navigate]);
 
   const register = useCallback(async ({ email, username, password }) => {
-    dispatch({ type: 'AUTH_LOADING' });
     try {
       const res = await authAPI.register({ email, username, password });
-      // Server đã set HttpOnly cookies — chỉ cần lưu user vào state
-      const { user } = res.data;
-      dispatch({ type: 'LOGIN_SUCCESS', payload: user });
-      toast.success(`Welcome to Memoris, ${user.username}! 🎉`);
-      navigate('/dashboard');
+      toast.success('OTP sent to your email. Verify to activate account.');
+      dispatch({ type: 'LOAD_DONE' });
+      return res.data;
     } catch (err) {
       const msg = err.response?.data?.error?.message || 'Registration failed';
       dispatch({ type: 'AUTH_ERROR', payload: msg });
       toast.error(msg);
+      return null;
+    }
+  }, [dispatch]);
+
+  const verifyEmailOtp = useCallback(async ({ email, otp }) => {
+    dispatch({ type: 'AUTH_LOADING' });
+    try {
+      const res = await authAPI.verifyEmailOtp({ email, otp });
+      const { user } = res.data;
+      dispatch({ type: 'LOGIN_SUCCESS', payload: user });
+      toast.success('Email verified! Account activated.');
+      navigate('/dashboard');
+      return true;
+    } catch (err) {
+      const msg = err.response?.data?.error?.message || 'OTP verification failed';
+      dispatch({ type: 'AUTH_ERROR', payload: msg });
+      toast.error(msg);
+      return false;
     }
   }, [dispatch, navigate]);
 
   const logout = useCallback(async () => {
     try {
-      await authAPI.logout(); // Server sẽ clearCookie + xóa Redis
+      await authAPI.logout();
     } catch {
       // ignore errors — always clear local state
     } finally {
@@ -59,15 +73,39 @@ export function useAuth() {
   const forgotPassword = useCallback(async ({ email }) => {
     try {
       await authAPI.forgotPassword({ email });
-      toast.success('Reset link sent! Check your email 📧');
+      toast.success('OTP sent! Check your email 📧');
       return true;
     } catch (err) {
-      const msg = err.response?.data?.error?.message || 'Failed to send reset link';
+      const msg = err.response?.data?.error?.message || 'Failed to send reset OTP';
       toast.error(msg);
       return false;
     }
   }, []);
 
-  return { user, isAuthenticated, loading, error, login, register, logout, forgotPassword };
+  const resetPasswordOtp = useCallback(async ({ email, otp, newPassword }) => {
+    try {
+      await authAPI.resetPasswordOtp({ email, otp, newPassword });
+      toast.success('Password reset successful. Please sign in.');
+      navigate('/login');
+      return true;
+    } catch (err) {
+      const msg = err.response?.data?.error?.message || 'Failed to reset password';
+      toast.error(msg);
+      return false;
+    }
+  }, [navigate]);
+
+  return {
+    user,
+    isAuthenticated,
+    loading,
+    error,
+    login,
+    register,
+    verifyEmailOtp,
+    logout,
+    forgotPassword,
+    resetPasswordOtp,
+  };
 }
 

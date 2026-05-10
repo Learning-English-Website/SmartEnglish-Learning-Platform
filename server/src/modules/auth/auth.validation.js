@@ -34,10 +34,41 @@ const forgotPasswordSchema = Joi.object({
   }),
 });
 
-const refreshTokenSchema = Joi.object({
-  refreshToken: Joi.string().required().messages({
-    'any.required': 'Refresh token is required',
+const verifyEmailOtpSchema = Joi.object({
+  email: Joi.string().email().required().messages({
+    'string.email': 'Please provide a valid email address',
+    'any.required': 'Email is required',
+  }),
+  otp: Joi.string().pattern(/^\d{6}$/).required().messages({
+    'string.pattern.base': 'OTP must be a 6-digit code',
+    'any.required': 'OTP is required',
   }),
 });
 
-module.exports = { registerSchema, loginSchema, forgotPasswordSchema, refreshTokenSchema };
+const resetPasswordOtpSchema = Joi.object({
+  email: Joi.string().email().required().messages({
+    'string.email': 'Please provide a valid email address',
+    'any.required': 'Email is required',
+  }),
+  otp: Joi.string().pattern(/^\d{6}$/).required().messages({
+    'string.pattern.base': 'OTP must be a 6-digit code',
+    'any.required': 'OTP is required',
+  }),
+  newPassword: Joi.string()
+    .min(8)
+    .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
+    .required()
+    .messages({
+      'string.min': 'Password must be at least 8 characters',
+      'string.pattern.base': 'Password must contain at least one uppercase letter, one lowercase letter, and one number',
+      'any.required': 'New password is required',
+    }),
+});
+
+module.exports = {
+  registerSchema,
+  loginSchema,
+  forgotPasswordSchema,
+  verifyEmailOtpSchema,
+  resetPasswordOtpSchema,
+};
