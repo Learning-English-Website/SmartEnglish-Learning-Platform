@@ -56,6 +56,18 @@ const router = createBrowserRouter([
         ),
       },
       {
+        path: '/user/profile',
+        element: withSuspense(
+          <ProtectedRoute><ProfilePage /></ProtectedRoute>
+        ),
+      },
+      {
+        path: '/admin/profile',
+        element: withSuspense(
+          <ProtectedRoute><ProfilePage /></ProtectedRoute>
+        ),
+      },
+      {
         path: '/profile/edit',
         element: withSuspense(
           <ProtectedRoute><EditProfilePage /></ProtectedRoute>

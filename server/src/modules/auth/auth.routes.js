@@ -23,10 +23,10 @@ const {
 } = require('./auth.validation');
 
 // POST /api/auth/register
-router.post('/register', loginRateLimiter, validate(registerSchema), register);
+router.post('/register', validate(registerSchema), register);
 
 // Google OAuth entry point
-router.get('/google', loginRateLimiter, passport.authenticate('google', { scope: ['profile', 'email'] }));
+router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 
 // Google OAuth callback – set cookies rồi redirect về frontend (KHÔNG truyền token qua URL)
 router.get('/google/callback', passport.authenticate('google', { session: false, failureRedirect: `${process.env.CLIENT_URL}/login?error=google_failed` }), (req, res) => {
@@ -38,7 +38,7 @@ router.get('/google/callback', passport.authenticate('google', { session: false,
   // Redirect về frontend — KHÔNG kèm token trong URL
   res.redirect(`${process.env.CLIENT_URL}/oauth/callback`);
 });
-// POST /api/auth/login  (rate limited — loginRateLimiter disabled: express-rate-limit v8 + Express 5 incompatibility)
+// POST /api/auth/login (rate limited)
 router.post('/login', loginRateLimiter, validate(loginSchema), login);
 
 // POST /api/auth/refresh
