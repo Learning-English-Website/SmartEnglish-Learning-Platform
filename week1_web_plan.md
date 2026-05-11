@@ -501,37 +501,9 @@ services:
 **Bước 4: Deploy lên VPS hoặc Cloud Platform:**
 
 <details>
-<summary><b>Tuỳ chọn A: Deploy lên VPS (Ubuntu)</b></summary>
-
-```bash
-# SSH vào VPS
-ssh user@your-vps-ip
-
-# Cài đặt Docker
-curl -fsSL https://get.docker.com | sh
-sudo usermod -aG docker $USER
-
-# Clone/pull code
-cd /var/www/memoris-api
-git pull origin main
-
-# Tạo .env từ .env.production
-cp .env.example .env
-nano .env  # paste cloud URIs và secrets
-
-# Build và chạy
-docker compose -f docker-compose.prod.yml up -d --build
-
-# Kiểm tra logs
-docker compose -f docker-compose.prod.yml logs -f
-
-# Verify health
-curl https://api.yourdomain.com/api/health
-```
-</details>
 
 <details>
-<summary><b>Tuỳ chọn B: Deploy lên Railway (Khuyến nghị - dễ nhất)</b></summary>
+<summary><b>T Deploy lên Railway (Khuyến nghị - dễ nhất)</b></summary>
 
 ```bash
 # Cài Railway CLI
@@ -670,6 +642,30 @@ echo https://api.your-staging-domain.com/api
 
 ### ✅ Deliverable
 Backend: Staging deployed. Web: Home + Profile + EditProfile hoạt động với real data.
+
+---
+
+## 🔄 CI/CD Pipeline
+
+GitHub Actions tự động deploy khi push lên `main`:
+
+### Backend (Render)
+- Trigger: push vào `server/**`
+- File: `.github/workflows/backend.yml`
+- Secrets cần thiết: `RENDER_API_KEY`
+- Env vars set trong Render Dashboard (xem DEPLOY.md)
+
+### Frontend (Vercel)
+- Trigger: push vào `client/**`
+- File: `.github/workflows/frontend.yml`
+- Secrets cần thiết: `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`
+
+### Setup
+1. Thêm GitHub Secrets trong repo Settings → Secrets
+2. Tạo Render service + set env vars trong Render Dashboard
+3. Push code → CI/CD tự chạy
+
+Chi tiết: [DEPLOY.md](./DEPLOY.md)
 
 ---
 

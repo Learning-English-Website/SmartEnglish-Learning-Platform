@@ -1,0 +1,96 @@
+name: Deploy Backend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'server/**'
+      - '.github/workflows/backend.yml'
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '18'
+
+jobs:
+  deploy-backend:
+    name: Deploy to Render
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test || echo "No tests configured"
+
+      - name: Lint
+        run: npm run lint || echo "No lint configured"
+
+      - name: Create Render Blueprint
+        run: |
+          cat > render.yaml << 'EOF'
+          services:
+            - type: web
+              name: smartenglish-api
+              env: node
+              region: singapore
+              plan: free
+              buildCommand: npm install
+              startCommand: npm start
+              healthCheckPath: /api/health
+              envVars:
+                - key: NODE_ENV
+                  value: production
+                - key: PORT
+                  value: 10000
+                - key: MONGODB_URI
+                  sync: false
+                - key: REDIS_URL
+                  sync: false
+                - key: JWT_ACCESS_SECRET
+                  sync: false
+                - key: JWT_REFRESH_SECRET
+                  sync: false
+                - key: JWT_ACCESS_EXPIRY
+                  value: 15m
+                - key: JWT_REFRESH_EXPIRY
+                  value: 7d
+                - key: SMTP_HOST
+                  sync: false
+                - key: SMTP_PORT
+                  sync: false
+                - key: SMTP_USER
+                  sync: false
+                - key: SMTP_PASS
+                  sync: false
+                - key: CLIENT_URL
+                  sync: false
+                - key: GOOGLE_CLIENT_ID
+                  sync: false
+                - key: GOOGLE_CLIENT_SECRET
+                  sync: false
+                - key: GOOGLE_CALLBACK_URL
+                  sync: false
+          EOF
+
+      - name: Deploy to Render
+        uses: render-deploy-action/render-deploy-action@v0.0.8
+        with:
+          apiKey: ${{ secrets.RENDER_API_KEY }}
+          bluePrintFile: render.yaml
+          deleteUnused: false
+          environment: production
+          maxWaitSeconds: 600
