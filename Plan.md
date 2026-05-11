@@ -3839,15 +3839,18 @@ NODE_ENV=development
 PORT=5000
 API_VERSION=v1
 
-# MongoDB
-MONGO_URI=mongodb://localhost:27017/englearndb
+# MongoDB Atlas (cloud)
+# Lay connection string tu: MongoDB Atlas -> Clusters -> Connect -> Connect your application
+MONGODB_URI=mongodb+srv://<username>:<password>@<cluster-name>.mongodb.net/englearndb?retryWrites=true&w=majority
 
-# Redis
-REDIS_URL=redis://localhost:6379
+# Redis Cloud (cloud)
+# Lay connection string tu: Redis Cloud -> Database -> Connection Details
+# Dung rediss:// cho TLS connection
+REDIS_URL=rediss://<username>:<password>@<hostname>.redis.cloud:<port>
 
 # JWT
-JWT_ACCESS_SECRET=your_access_secret_here
-JWT_REFRESH_SECRET=your_refresh_secret_here
+JWT_ACCESS_SECRET=your_access_secret_here_minimum_32_chars
+JWT_REFRESH_SECRET=your_refresh_secret_here_minimum_32_chars
 JWT_ACCESS_EXPIRES_IN=15m
 JWT_REFRESH_EXPIRES_IN=7d
 
@@ -3873,11 +3876,15 @@ FIREBASE_PRIVATE_KEY=your_private_key
 FIREBASE_CLIENT_EMAIL=your_client_email
 
 # Frontend URL (for CORS)
-CLIENT_URL=http://localhost:3000
+CLIENT_URL=http://localhost:5173
 
 # Sentry
 SENTRY_DSN=your_sentry_dsn
 ```
+
+> **Cloud Setup Notes:**
+> - **MongoDB Atlas:** Tạo cluster free tại [cloud.mongodb.com](https://www.mongodb.com/cloud/atlas), whitelist IP `0.0.0.0/0` cho dev
+> - **Redis Cloud:** Tạo free database tại [redis.com/cloud](https://redis.com/cloud), dùng public endpoint
 
 **Environment-specific config -- `src/config/env.js`:**
 ```javascript
@@ -4067,6 +4074,8 @@ server {
 
 ### 13.6 Docker Compose
 
+> **Lưu ý:** MongoDB Atlas + Redis Cloud được dùng cho cả development và production. Không cần local Docker containers cho database.
+
 **`docker-compose.yml`** -- Development:
 ```yaml
 version: '3.8'
@@ -4077,57 +4086,55 @@ services:
       dockerfile: Dockerfile
     ports:
       - '5000:5000'
-    depends_on:
-      mongo:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
     env_file: ./server/.env.development
+    environment:
+      - NODE_ENV=development
     volumes:
       - ./server/src:/app/src    # hot reload in dev
     restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:5000/api/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   client:
     build:
       context: ./client
       dockerfile: Dockerfile
       args:
-        VITE_API_URL: http://localhost:5000
+        VITE_API_URL: http://localhost:5000/api
     ports:
       - '3000:80'
     depends_on:
       - server
     restart: unless-stopped
 
-  mongo:
-    image: mongo:7
-    ports:
-      - '27017:27017'
-    volumes:
-      - mongo_data:/data/db
-    healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongosh --quiet
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    restart: unless-stopped
+# MongoDB Atlas + Redis Cloud: ket noi qua env variables
+# MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/db
+# REDIS_URL=rediss://user:pass@host.redis.cloud:port
+# Khong can local containers
+```
 
-  redis:
-    image: redis:7-alpine
+**`docker-compose.staging.yml`** -- Staging:
+```yaml
+version: '3.8'
+services:
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
     ports:
-      - '6379:6379'
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ['CMD', 'redis-cli', 'ping']
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      - '5000:5000'
+    env_file: ./server/.env.staging
+    environment:
+      - NODE_ENV=staging
     restart: unless-stopped
-
-volumes:
-  mongo_data:
-  redis_data:
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:5000/api/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
 ```
 
 **`docker-compose.prod.yml`** -- Production (override):
@@ -4164,18 +4171,15 @@ services:
       - server
       - client
     restart: unless-stopped
-
-  # Production dung MongoDB Atlas + Redis Cloud, khong chay local
-  mongo:
-    profiles: ['dev-only']    # chi chay trong dev
-  redis:
-    profiles: ['dev-only']
 ```
 
 **Commands:**
 ```bash
 # Development
-docker compose up -d
+docker compose up -d --build
+
+# Staging
+docker compose -f docker-compose.yml -f docker-compose.staging.yml up -d --build
 
 # Production
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
@@ -4185,6 +4189,13 @@ docker compose up -d --build server
 
 # Xem logs
 docker compose logs -f server
+```
+
+**Environment Variables cần thiết:**
+```env
+# .env.development / .env.staging / .env.production
+MONGODB_URI=mongodb+srv://<username>:<password>@<cluster>.mongodb.net/englearn?retryWrites=true&w=majority
+REDIS_URL=rediss://<username>:<password>@<redis-host>.redis.cloud:<port>
 ```
 
 ### 13.7 CI/CD Pipeline -- Backend + Web (GitHub Actions)
@@ -4248,11 +4259,13 @@ jobs:
         working-directory: server
         env:
           NODE_ENV: test
-          MONGO_URI: mongodb://localhost:27017/englearn_test
-          REDIS_URL: redis://localhost:6379
+          # Dung MongoDB Atlas free tier cho CI testing
+          MONGO_URI: mongodb+srv://<ci_user>:<ci_password>@<cluster>.mongodb.net/englearn_test?retryWrites=true&w=majority
+          # Dung Redis Cloud free tier cho CI testing
+          REDIS_URL: rediss://<ci_user>:<ci_password>@<host>.redis.cloud:<port>
           JWT_ACCESS_SECRET: test_access_secret_32chars_long!!
           JWT_REFRESH_SECRET: test_refresh_secret_32chars_long!
-          CLIENT_URL: http://localhost:3000
+          CLIENT_URL: http://localhost:5173
 
       - name: Upload coverage
         uses: codecov/codecov-action@v4
@@ -5170,10 +5183,12 @@ interface StudyApi {
 
 ### WEEK 1: Foundation
 
+> **Lưu ý:** MongoDB Atlas (cloud) + Redis Cloud (cloud) được sử dụng cho cả development và staging, không cần local Docker.
+
 | Dev A (Backend) | Dev B (Web) | Dev C (Android) |
 |---|---|---|
 | Express project setup, env config | React + Vite + Bootstrap setup | Android project setup, Hilt DI |
-| MongoDB connection, Redis setup | React Router, layout (Navbar, Sidebar, Footer) | Network module: Retrofit, OkHttp, Interceptors |
+| MongoDB Atlas connection, Redis Cloud setup | React Router, layout (Navbar, Sidebar, Footer) | Network module: Retrofit, OkHttp, Interceptors |
 | User model + Auth APIs (register, login, JWT, refresh, Google OAuth) | Auth pages: Login, Register, ForgotPassword | Room database setup, entity classes |
 | Forgot Password API (send reset email) | AuthContext, ProtectedRoute, token interceptor | Auth screens: Login, Register, ForgotPassword (Compose) |
 | Middleware: auth, error, validation, rate limiter | Home page skeleton | Google Sign-In integration |
@@ -5183,7 +5198,7 @@ interface StudyApi {
 | Folder, Note, MistakeLog models | -- | -- |
 | UserProgress, Achievement, LearningPreferences models | -- | -- |
 | DailyQuest, LeaderboardEntry, LearningHistory, Notification models | -- | -- |
-| Deploy staging API (Docker on VPS) | -- | -- |
+| Deploy staging API (Railway/VPS + Cloud DB) | -- | -- |
 
 **Milestone Week 1:** Auth API working (register, login, forgot password). EditProfile working. Web + Android can register/login/edit profile. Staging API deployed.
 

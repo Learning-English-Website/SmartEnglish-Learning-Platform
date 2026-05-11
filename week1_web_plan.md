@@ -2,6 +2,7 @@
 
 > **Backend:** Node.js + Express + MongoDB (Mongoose) + Redis (ioredis) + JWT + Docker
 > **Frontend:** React 18 + Vite + Bootstrap 5 + Axios + React Router v6
+> **Database:** MongoDB Atlas (cloud) + Redis Cloud (cloud)
 > **Mục tiêu:** Auth API đầy đủ (Register, Login, ForgotPassword, EditProfile), 19 Mongoose models, deploy staging. Web auth flow + layout + Home/Profile hoàn chỉnh.
 
 ---
@@ -423,24 +424,215 @@ Backend: User APIs + 19 models. Web: Login + Register + ForgotPassword hoạt đ
 
 ## 📆 NGÀY 5 — Home + Profile + EditProfile + Deploy
 
-### ⚙️ Backend — Deploy Staging
+### ⚙️ Backend — Deploy Staging (MongoDB + Redis Cloud)
 
-- [ ] Tạo `Dockerfile`:
-  ```dockerfile
-  FROM node:20-alpine
-  WORKDIR /app
-  COPY package*.json ./
-  RUN npm ci --only=production
-  COPY . .
-  EXPOSE 5000
-  CMD ["node", "src/server.js"]
-  ```
-- [ ] Tạo `docker-compose.prod.yml` (api + mongo + redis)
-- [ ] Deploy lên VPS: SSH → clone → `.env.production` → `docker compose up -d`
-- [ ] Verify: `curl https://staging.yourdomain.com/api/health` → 200
-- [ ] **Share staging URL cho Dev C**
+> **Lưu ý:** MongoDB và Redis đã chạy trên cloud (MongoDB Atlas + Redis Cloud), không cần Docker cho database.
 
-### 🌐 Web — Home + Profile + EditProfile
+**Bước 1: Cập nhật `.env.production` với cloud URLs:**
+
+```env
+NODE_ENV=production
+PORT=5000
+# MongoDB Atlas Connection String
+MONGODB_URI=mongodb+srv://<username>:<password>@cluster0.xxxxx.mongodb.net/memoris?retryWrites=true&w=majority
+# Redis Cloud Connection String  
+REDIS_URL=rediss://<username>:<password>@<redis-host>:<port>
+JWT_ACCESS_SECRET=your_production_access_secret_here
+JWT_REFRESH_SECRET=your_production_refresh_secret_here
+JWT_ACCESS_EXPIRY=15m
+JWT_REFRESH_EXPIRY=7d
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your_email@gmail.com
+SMTP_PASS=your_app_password
+CLIENT_URL=https://your-web-staging.vercel.app
+```
+
+**Bước 2: Tạo `Dockerfile` cho API (chỉ cần container hóa Node.js app):**
+
+```dockerfile
+# Build stage
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build  # nếu có build step
+
+# Production stage
+FROM node:20-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --only=production && npm cache clean --force
+COPY --from=builder /app/dist ./dist
+COPY . .
+EXPOSE 5000
+CMD ["node", "src/server.js"]
+```
+
+**Bước 3: Tạo `docker-compose.prod.yml` (chỉ API, không có mongo/redis):**
+
+```yaml
+version: '3.8'
+services:
+  api:
+    build: .
+    ports:
+      - '5000:5000'
+    environment:
+      - NODE_ENV=production
+      - MONGODB_URI=${MONGODB_URI}
+      - REDIS_URL=${REDIS_URL}
+      - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS}
+      - CLIENT_URL=${CLIENT_URL}
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:5000/api/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+```
+
+**Bước 4: Deploy lên VPS hoặc Cloud Platform:**
+
+<details>
+<summary><b>Tuỳ chọn A: Deploy lên VPS (Ubuntu)</b></summary>
+
+```bash
+# SSH vào VPS
+ssh user@your-vps-ip
+
+# Cài đặt Docker
+curl -fsSL https://get.docker.com | sh
+sudo usermod -aG docker $USER
+
+# Clone/pull code
+cd /var/www/memoris-api
+git pull origin main
+
+# Tạo .env từ .env.production
+cp .env.example .env
+nano .env  # paste cloud URIs và secrets
+
+# Build và chạy
+docker compose -f docker-compose.prod.yml up -d --build
+
+# Kiểm tra logs
+docker compose -f docker-compose.prod.yml logs -f
+
+# Verify health
+curl https://api.yourdomain.com/api/health
+```
+</details>
+
+<details>
+<summary><b>Tuỳ chọn B: Deploy lên Railway (Khuyến nghị - dễ nhất)</b></summary>
+
+```bash
+# Cài Railway CLI
+npm install -g @railway/cli
+
+# Login
+railway login
+
+# Init project trong thư mục server
+cd server
+railway init
+railway add --variable MONGODB_URI
+railway add --variable REDIS_URL
+railway add --variable JWT_ACCESS_SECRET
+railway add --variable JWT_REFRESH_SECRET
+# ... các biến khác
+
+# Deploy
+railway up
+
+# Get URL
+railway domain
+```
+</details>
+
+**Bước 5: Cập nhật Web Frontend `VITE_API_URL`:**
+
+```bash
+# Tạo .env.production cho web
+echo "VITE_API_URL=https://api.your-staging-domain.com/api" > .env.production
+echo "VITE_APP_NAME=Memoris" >> .env.production
+```
+
+**Bước 6: Verify deployment:**
+
+```bash
+# Health check API
+curl https://api.yourdomain.com/api/health
+# → {"status":"ok","timestamp":"2026-..."}
+
+# Test register (Postman)
+POST https://api.yourdomain.com/api/auth/register
+# → 201 Created
+
+# Test login
+POST https://api.yourdomain.com/api/auth/login
+# → 200 + tokens
+```
+
+> [!IMPORTANT]
+> **Dev C (Android):** Cung cấp staging API URL và Postman collection ngay sau bước này!
+
+> [!TIP]
+> **MongoDB Atlas Tips:**
+> - Whitelist IP: `0.0.0.0/0` (hoặc IP của VPS/Railway)
+> - Dùng username/password trong connection string
+> - Bật "Connect your application" để lấy driver connection string chuẩn
+>
+> **Redis Cloud Tips:**
+> - Public endpoint: `redis-xxxxx.cNNN.uswN-1-1.ec2.cloud.redislabs.com:xxxxx`
+> - Hoặc dùng TLS: `rediss://` prefix
+> - Database password trong connection string
+
+### 🌐 Web — Home + Profile + EditProfile + Deploy Vercel
+
+**Bước 1: Cập nhật `VITE_API_URL` sang staging:**
+
+```bash
+# Tạo .env.staging cho web
+VITE_API_URL=https://api.your-staging-domain.com/api
+VITE_APP_NAME=Memoris
+```
+
+**Bước 2: Deploy lên Vercel:**
+
+```bash
+# Cài Vercel CLI
+npm i -g vercel
+
+# Login
+vercel login
+
+# Deploy từ thư mục gốc (không phải server/)
+vercel
+
+# Sau khi deploy xong, set production environment variables:
+vercel env add VITE_API_URL
+vercel env add VITE_APP_NAME
+
+# Deploy lại với env vars
+vercel --prod
+```
+
+**Hoặc qua GitHub + Vercel Dashboard:**
+
+1. Push code lên GitHub
+2. Import project trên [vercel.com/dashboard](https://vercel.com/dashboard)
+3. Set Environment Variables trong Settings → Environment Variables
+4. Deploy
+
+**Bước 3: Implement các pages:**
 
 - [ ] Tạo `pages/Home/HomePage.jsx`:
   - Welcome + user name
@@ -455,12 +647,26 @@ Backend: User APIs + 19 models. Web: Login + Register + ForgotPassword hoạt đ
   - "Save Changes" → `PUT /api/users/me` → success toast
   - "Cancel" → back to `/profile`
 - [ ] Tạo `ErrorBoundary/ErrorBoundary.jsx`
-- [ ] **Test EditProfile:** sửa username → save → Profile hiện username mới
-- [ ] Switch `VITE_API_URL` sang staging URL
+
+**Bước 4: Test end-to-end với staging:**
+
+- [ ] Register → user trong MongoDB Atlas → dashboard
+- [ ] Login → redirect dashboard, Navbar hiện username
+- [ ] EditProfile → save → Profile hiện username mới
 - [ ] Responsive test: mobile, tablet, desktop
 
+**Bước 5: Verify URLs:**
+
+```bash
+# Web staging URL
+echo https://memoris-staging.vercel.app
+
+# API staging URL  
+echo https://api.your-staging-domain.com/api
+```
+
 > [!IMPORTANT]
-> **SYNC POINT:** Share staging URL cho Dev C ngay!
+> **SYNC POINT:** Share cả Web staging URL và API staging URL cho Dev C (Android)!
 
 ### ✅ Deliverable
 Backend: Staging deployed. Web: Home + Profile + EditProfile hoạt động với real data.
@@ -522,22 +728,24 @@ Backend + Web stable. Auth flow hoàn chỉnh. Sẵn sàng Week 2.
 
 ## ✅ MILESTONE CHECKLIST
 
+> **Progress:** Ngày 4 ✅ hoàn thành. Còn lại: Ngày 5 → 7
+
 | # | Checkpoint | Type | Status |
 |---|---|---|---|
-| 1 | Server chạy, MongoDB + Redis connected | ⚙️ | ⬜ |
-| 2 | `POST /api/auth/register` → 201 | ⚙️ | ⬜ |
-| 3 | `POST /api/auth/login` → 200 | ⚙️ | ⬜ |
-| 4 | `POST /api/auth/refresh` → 200 | ⚙️ | ⬜ |
-| 5 | `POST /api/auth/forgot-password` → 200 | ⚙️ | ⬜ |
-| 6 | `GET /api/users/me` → 200 | ⚙️ | ⬜ |
-| 7 | `PUT /api/users/me` → 200 | ⚙️ | ⬜ |
-| 8 | 19 Mongoose models tạo xong | ⚙️ | ⬜ |
-| 9 | Staging API deployed | ⚙️ | ⬜ |
-| 10 | Web: Login → API → dashboard | 🌐 | ⬜ |
-| 11 | Web: Register → API → dashboard | 🌐 | ⬜ |
+| 1 | Server chạy, MongoDB Atlas + Redis Cloud connected | ⚙️ | ✅ |
+| 2 | `POST /api/auth/register` → 201 | ⚙️ | ✅ |
+| 3 | `POST /api/auth/login` → 200 | ⚙️ | ✅ |
+| 4 | `POST /api/auth/refresh` → 200 | ⚙️ | ✅ |
+| 5 | `POST /api/auth/forgot-password` → 200 | ⚙️ | ✅ |
+| 6 | `GET /api/users/me` → 200 | ⚙️ | ✅ |
+| 7 | `PUT /api/users/me` → 200 | ⚙️ | ✅ |
+| 8 | 19 Mongoose models tạo xong | ⚙️ | ✅ |
+| 9 | Staging API deployed (VPS/Railway) | ⚙️ | ⬜ |
+| 10 | Web: Login → API → dashboard | 🌐 | ✅ |
+| 11 | Web: Register → API → dashboard | 🌐 | ✅ |
 | 12 | Web: ForgotPassword → send email | 🌐 | ⬜ |
 | 13 | Web: EditProfile → save → updated | 🌐 | ⬜ |
-| 14 | Web: Token persist sau refresh | 🌐 | ⬜ |
+| 14 | Web: Token persist sau refresh | 🌐 | ✅ |
 | 15 | Web: Home + Profile với real data | 🌐 | ⬜ |
 | 16 | Web: Dark/light mode | 🌐 | ⬜ |
 | 17 | Web: Responsive + cross-browser | 🌐 | ⬜ |
@@ -545,16 +753,23 @@ Backend + Web stable. Auth flow hoàn chỉnh. Sẵn sàng Week 2.
 
 ---
 
-## 🔗 API Endpoints Tuần 1
+## 🔗 API Endpoints (Production/Staging)
 
 ```
-POST   /api/auth/register          { email, username, password }
-POST   /api/auth/login             { email, password }
-POST   /api/auth/refresh           { refreshToken }
-POST   /api/auth/logout            (Bearer token)
-POST   /api/auth/forgot-password   { email }
-GET    /api/users/me               (Bearer token)
-PUT    /api/users/me               (Bearer token) + { username?, avatar? }
-DELETE /api/users/me               (Bearer token)
-GET    /api/health
+Base URL: https://api.your-staging-domain.com/api
+
+POST   /auth/register          { email, username, password }
+POST   /auth/login             { email, password }
+POST   /auth/refresh           { refreshToken }
+POST   /auth/logout            (Bearer token)
+POST   /auth/forgot-password   { email }
+GET    /users/me               (Bearer token)
+PUT    /users/me               (Bearer token) + { username?, avatar? }
+DELETE /users/me               (Bearer token)
+GET    /health
+```
+
+**Development (local):**
+```
+Base URL: http://localhost:5000/api
 ```
