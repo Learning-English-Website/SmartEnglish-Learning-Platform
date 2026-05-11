@@ -4,22 +4,24 @@ const { AppError } = require('../../shared/errors/AppError');
 
 // Express 5 natively catches async errors — no asyncHandler wrapper needed
 
-// Helper to set JWT cookies (HttpOnly, sameSite=Strict)
+// Helper to set JWT cookies (HttpOnly)
 function setAuthCookies(res, { accessToken, refreshToken }) {
   const isProd = process.env.NODE_ENV === 'production';
+  // Development: lax (works across subdomains/ports). Production: none + secure
+  const sameSite = isProd ? 'none' : 'lax';
   // Access token – short lived (15m)
   res.cookie('accessToken', accessToken, {
     httpOnly: true,
     secure: isProd,
-    sameSite: 'strict',
-    maxAge: 15 * 60 * 1000, // 15 minutes
+    sameSite,
+    maxAge: 15 * 60 * 1000,
   });
   // Refresh token – long lived (7d)
   res.cookie('refreshToken', refreshToken, {
     httpOnly: true,
     secure: isProd,
-    sameSite: 'strict',
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    sameSite,
+    maxAge: 7 * 24 * 60 * 60 * 1000,
   });
 }
 

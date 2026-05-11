@@ -2,12 +2,12 @@ const rateLimit = require('express-rate-limit');
 const { ApiResponse } = require('../shared/utils/apiResponse');
 
 /**
- * Strict rate limiter for login endpoint: 5 requests per 15 minutes.
+ * Strict rate limiter for login endpoint: 20 requests per 15 minutes.
  * Protects against brute-force attacks.
  */
 const loginRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5,
+  max: 20,
   standardHeaders: true,
   legacyHeaders: false,
   handler: (req, res) => {

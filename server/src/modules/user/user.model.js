@@ -23,9 +23,12 @@ const UserSchema = new Schema(
     },
     password: {
       type: String,
-      required: [true, 'Password is required'],
+      required: function() {
+        // OAuth users (Google, Facebook) don't have a password
+        return !this.oauth?.googleId && !this.oauth?.facebookId;
+      },
       minlength: [8, 'Password must be at least 8 characters'],
-      select: false, // never return password in queries by default
+      select: false,
     },
     role: {
       type: String,

@@ -103,6 +103,12 @@ export default function RegisterPage() {
     if (errors[e.target.name]) setErrors(prev => ({ ...prev, [e.target.name]: '' }));
   };
 
+  const handleGoogleLogin = () => {
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+    const backendUrl = apiUrl.replace(/\/api$/, '');
+    window.location.href = `${backendUrl}/api/auth/google`;
+  };
+
   // Password strength indicator
   const getStrength = () => {
     const p = formData.password;
@@ -132,7 +138,7 @@ export default function RegisterPage() {
 
         {!otpStep ? (
           <>
-            <Button className="btn-google" variant="outline-secondary" disabled>
+            <Button className="btn-google" variant="outline-secondary" onClick={handleGoogleLogin}>
               <FcGoogle size={20} />
               Sign up with Google
             </Button>

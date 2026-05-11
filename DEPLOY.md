@@ -2,100 +2,458 @@
 
 ## Overview
 
-This project uses GitHub Actions for continuous deployment:
-- **Backend**: Automatically deploys to Render when changes are pushed to `server/`
-- **Frontend**: Automatically deploys to Vercel when changes are pushed to `client/`
+This project uses GitHub Actions for automatic CI/CD deployment.
 
-## Prerequisites
+### Frontend
+- Deploy platform: Vercel
+- Source folder: `client/`
+- Auto deploys whenever code is pushed to:
+  ```bash
+  client/**
+  ```
 
-### For Render (Backend)
-1. Create account at [render.com](https://render.com)
-2. Get Render API Key from Account Settings
+### Backend
+- Deploy platform: Render
+- Source folder: `server/`
+- Auto deploys whenever code is pushed to:
+  ```bash
+  server/**
+  ```
 
-### For Vercel (Frontend)
-1. Get Vercel token from [vercel.com/account/tokens](https://vercel.com/account/tokens)
-2. Create a new Vercel project and get Org ID and Project ID
+---
 
-## Setup GitHub Secrets
+# Project Architecture
 
-Go to your GitHub repo → Settings → Secrets and add these secrets:
+```text
+root/
+├── client/                 # Frontend (React + Vite)
+├── server/                 # Backend (Node.js + Express)
+├── .github/
+│   └── workflows/
+│       ├── frontend.yml
+│       └── backend.yml
+```
 
-### Render Secrets
-| Secret Name | Value |
-|-------------|-------|
-| `RENDER_API_KEY` | Your Render API key from Account Settings |
+---
 
-### Backend Environment Variables (set in Render Dashboard)
+# Prerequisites
+
+## Required Accounts
+
+### Frontend
+- GitHub account
+- Vercel account
+
+### Backend
+- Render account
+- MongoDB Atlas account
+- Redis Cloud account
+
+---
+
+# 1. Setup Frontend (Vercel)
+
+## Step 1 — Import GitHub Repository
+
+Go to:
+
+```text
+https://vercel.com
+```
+
+Then:
+
+```text
+Add New
+→ Project
+→ Import Git Repository
+```
+
+Select repository:
+
+```text
+SmartEnglish-Learning-Platform
+```
+
+---
+
+## Step 2 — Configure Project
+
+### Framework Preset
+
+```text
+Vite
+```
+
+### Root Directory
+
+```text
+client
+```
+
+### Build Command
+
+```bash
+npm run build
+```
+
+### Output Directory
+
+```text
+dist
+```
+
+---
+
+## Step 3 — Add Environment Variables
+
+Inside Vercel:
+
+```text
+Project
+→ Settings
+→ Environment Variables
+```
+
+Add:
+
+| Key | Value |
+|---|---|
+| `VITE_API_URL` | `https://smartenglish-api-1iby.onrender.com/api` |
+
+---
+
+## Step 4 — Deploy
+
+Click:
+
+```text
+Deploy
+```
+
+After deployment, frontend URL will look like:
+
+```text
+https://smart-english-learning-platform.vercel.app
+```
+
+---
+
+# 2. Setup Backend (Render)
+
+## Step 1 — Create Blueprint Deployment
+
+Go to:
+
+```text
+https://dashboard.render.com
+```
+
+Then:
+
+```text
+New +
+→ Blueprint
+```
+
+Select repository:
+
+```text
+SmartEnglish-Learning-Platform
+```
+
+---
+
+## Step 2 — Configure Blueprint
+
+### Blueprint Name
+
+```text
+smartenglish-api
+```
+
+### Branch
+
+```text
+dev
+```
+
+(or `main` for production)
+
+### Blueprint Path
+
+```text
+server/render.yaml
+```
+
+---
+
+## Step 3 — Create New Service
+
+Select:
+
+```text
+Create all as new services
+```
+
+Then click:
+
+```text
+Deploy Blueprint
+```
+
+---
+
+## Step 4 — Configure Environment Variables
+
+Inside Render:
+
+```text
+Service
+→ Environment
+```
+
+Add:
+
 | Variable | Value |
-|----------|-------|
+|---|---|
 | `NODE_ENV` | `production` |
 | `PORT` | `10000` |
-| `MONGODB_URI` | Your MongoDB Atlas connection string |
-| `REDIS_URL` | Your Redis Cloud URL |
-| `JWT_ACCESS_SECRET` | Your JWT access token secret |
-| `JWT_REFRESH_SECRET` | Your JWT refresh token secret |
-| `JWT_ACCESS_EXPIRY` | `15m` |
-| `JWT_REFRESH_EXPIRY` | `7d` |
-| `SMTP_HOST` | Your SMTP server host |
-| `SMTP_PORT` | Your SMTP server port |
-| `SMTP_USER` | Your SMTP username |
-| `SMTP_PASS` | Your SMTP password |
-| `CLIENT_URL` | Frontend URL (e.g., https://your-app.vercel.app) |
-| `GOOGLE_CLIENT_ID` | Your Google OAuth client ID |
-| `GOOGLE_CLIENT_SECRET` | Your Google OAuth client secret |
-| `GOOGLE_CALLBACK_URL` | `https://your-backend.onrender.com/api/auth/google/callback` |
+| `MONGODB_URI` | MongoDB Atlas connection string |
+| `REDIS_URL` | Redis Cloud URL |
+| `JWT_ACCESS_SECRET` | `dev_access_secret_memoris_2024` |
+| `JWT_REFRESH_SECRET` | `dev_refresh_secret_memoris_2024` |
+| `CLIENT_URL` | `https://smart-english-learning-platform.vercel.app` |
 
-### Vercel Secrets
-| Secret Name | Value |
-|-------------|-------|
-| `VERCEL_TOKEN` | Your Vercel API token |
-| `VERCEL_ORG_ID` | Your Vercel organization ID |
-| `VERCEL_PROJECT_ID` | Your Vercel project ID |
-| `VERCEL_PROJECT_NAME` | Your Vercel project name |
-| `VITE_API_URL` | Backend API URL (e.g., https://smartenglish-api.onrender.com/api) |
+---
 
-## Manual Deployment
+## Optional Variables
 
-### Deploy Backend Only
-```bash
-# Push changes to server/
-git add server/
-git commit -m "Update backend"
-git push origin main
+### Google OAuth
+
+| Variable | Value |
+|---|---|
+| `GOOGLE_CLIENT_ID` | Google OAuth Client ID |
+| `GOOGLE_CLIENT_SECRET` | Google OAuth Client Secret |
+
+### SMTP
+
+| Variable | Value |
+|---|---|
+| `SMTP_HOST` | smtp.gmail.com |
+| `SMTP_PORT` | 587 |
+| `SMTP_USER` | Your Gmail |
+| `SMTP_PASS` | Gmail App Password |
+
+---
+
+# 3. MongoDB Atlas Configuration
+
+## Fix Atlas IP Whitelist
+
+Render servers must be allowed to access MongoDB Atlas.
+
+Go to:
+
+```text
+MongoDB Atlas
+→ Security
+→ Network Access
 ```
 
-### Deploy Frontend Only
+Click:
+
+```text
+Add IP Address
+```
+
+Add:
+
+```text
+0.0.0.0/0
+```
+
+This allows Render cloud servers to connect.
+
+---
+
+# 4. Setup GitHub Secrets
+
+Go to:
+
+```text
+GitHub Repository
+→ Settings
+→ Secrets and variables
+→ Actions
+```
+
+---
+
+## Render Secret
+
+| Secret | Value |
+|---|---|
+| `RENDER_API_KEY` | Render API Key |
+
+Create API key at:
+
+```text
+Render
+→ Account Settings
+→ API Keys
+```
+
+---
+
+## Vercel Secrets
+
+| Secret | Value |
+|---|---|
+| `VERCEL_TOKEN` | Vercel token |
+| `VERCEL_ORG_ID` | Team ID |
+| `VERCEL_PROJECT_ID` | Project ID |
+| `VERCEL_PROJECT_NAME` | Vercel project name |
+| `VITE_API_URL` | `https://smartenglish-api-1iby.onrender.com/api` |
+
+---
+
+# 5. GitHub Actions Workflows
+
+## frontend.yml
+
+Location:
+
+```text
+.github/workflows/frontend.yml
+```
+
+### Features
+- Runs automatically on frontend changes
+- Installs dependencies
+- Runs tests
+- Builds Vite project
+- Deploys to Vercel
+
+Triggered when:
+
+```text
+client/**
+```
+
+changes are pushed.
+
+---
+
+## backend.yml
+
+Location:
+
+```text
+.github/workflows/backend.yml
+```
+
+### Features
+- Runs automatically on backend changes
+- Installs dependencies
+- Runs tests
+- Deploys backend to Render
+
+Triggered when:
+
+```text
+server/**
+```
+
+changes are pushed.
+
+---
+
+# 6. Manual Deployment
+
+## Deploy Frontend
+
 ```bash
-# Push changes to client/
 git add client/
-git commit -m "Update frontend"
-git push origin main
+git commit -m "update frontend"
+git push
 ```
 
-### Manual Trigger (via GitHub UI)
-1. Go to Actions tab in your GitHub repo
-2. Select "Deploy Backend" or "Deploy Frontend"
-3. Click "Run workflow"
-4. Select branch and click "Run workflow"
+---
 
-## Workflows
+## Deploy Backend
 
-### backend.yml
-- Runs on push to `server/**` or manual trigger
-- Steps: checkout → install → test → lint → deploy to Render
+```bash
+git add server/
+git commit -m "update backend"
+git push
+```
 
-### frontend.yml
-- Runs on push to `client/**` or manual trigger
-- Steps: checkout → install → test → lint → build → deploy to Vercel
+---
 
-## Render Free Tier Notes
+# 7. Check Deployment Status
 
-- Web service sleeps after 15 minutes of inactivity
-- First deploy takes 30-60 seconds
-- After sleep, cold start takes ~30 seconds
-- 512MB RAM, 0.5 CPU
+## GitHub Actions
 
-## URLs
+Go to:
 
-- **Production Backend**: https://smartenglish-api.onrender.com
-- **Production Frontend**: https://smartenglish-learning-platform.vercel.app
+```text
+GitHub Repository
+→ Actions
+```
+
+You should see:
+
+```text
+Deploy Frontend
+Deploy Backend
+```
+
+with green success status.
+
+---
+
+# 8. Production URLs
+
+## Frontend
+
+```text
+https://smart-english-learning-platform.vercel.app
+```
+
+## Backend
+
+```text
+https://smartenglish-api-1iby.onrender.com
+```
+
+## Health Check
+
+```text
+https://smartenglish-api-1iby.onrender.com/api/health
+```
+
+---
+
+# 9. Render Free Tier Notes
+
+- Render free services sleep after inactivity
+- First request after sleeping may take 30–60 seconds
+- Free plan resources:
+  - 512MB RAM
+  - 0.5 CPU
+
+---
+
+# 10. Final CI/CD Flow
+
+```text
+git push
+    ↓
+GitHub Actions
+    ↓
+Frontend → Vercel Deploy
+Backend → Render Deploy
+    ↓
+Production Updated Automatically
+```

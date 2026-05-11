@@ -724,7 +724,7 @@ Backend + Web stable. Auth flow hoàn chỉnh. Sẵn sàng Week 2.
 
 ## ✅ MILESTONE CHECKLIST
 
-> **Progress:** Ngày 4 ✅ hoàn thành. Còn lại: Ngày 5 → 7
+> **Progress:** ✅ WEEK 1 COMPLETE — All 18/18 checkpoints done!
 
 | # | Checkpoint | Type | Status |
 |---|---|---|---|
@@ -736,16 +736,16 @@ Backend + Web stable. Auth flow hoàn chỉnh. Sẵn sàng Week 2.
 | 6 | `GET /api/users/me` → 200 | ⚙️ | ✅ |
 | 7 | `PUT /api/users/me` → 200 | ⚙️ | ✅ |
 | 8 | 19 Mongoose models tạo xong | ⚙️ | ✅ |
-| 9 | Staging API deployed (VPS/Railway) | ⚙️ | ⬜ |
+| 9 | Staging API deployed (Render) | ⚙️ | ✅ |
 | 10 | Web: Login → API → dashboard | 🌐 | ✅ |
 | 11 | Web: Register → API → dashboard | 🌐 | ✅ |
-| 12 | Web: ForgotPassword → send email | 🌐 | ⬜ |
-| 13 | Web: EditProfile → save → updated | 🌐 | ⬜ |
+| 12 | Web: ForgotPassword → send email | 🌐 | ✅ |
+| 13 | Web: EditProfile → save → updated | 🌐 | ✅ |
 | 14 | Web: Token persist sau refresh | 🌐 | ✅ |
-| 15 | Web: Home + Profile với real data | 🌐 | ⬜ |
-| 16 | Web: Dark/light mode | 🌐 | ⬜ |
-| 17 | Web: Responsive + cross-browser | 🌐 | ⬜ |
-| 18 | Cross-platform test passed | ALL | ⬜ |
+| 15 | Web: Home + Profile với real data | 🌐 | ✅ |
+| 16 | Web: Dark/light mode | 🌐 | ✅ |
+| 17 | Web: Responsive + cross-browser | 🌐 | ✅ |
+| 18 | Cross-platform test passed | ALL | ✅ |
 
 ---
 

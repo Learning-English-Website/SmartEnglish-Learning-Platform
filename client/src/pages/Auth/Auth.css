@@ -1,5 +1,28 @@
-/* Glassline auth — neutral page, surface card, flat cobalt primary CTA (design.md) */
+/* ── Animations ──────────────────────────────────────── */
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%       { transform: translateX(-6px); }
+  40%       { transform: translateX(6px); }
+  60%       { transform: translateX(-4px); }
+  80%       { transform: translateX(4px); }
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.6; }
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
 
+/* ── Page & Card ─────────────────────────────────────── */
 .auth-page {
   min-height: 100vh;
   display: flex;
@@ -20,33 +43,30 @@
   max-width: 440px;
   position: relative;
   z-index: 1;
-  animation: slideUp 0.35s ease;
+  animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   box-shadow: 0 1px 3px rgba(15, 20, 25, 0.06);
+  transition: box-shadow 0.2s ease;
+}
+
+.auth-card:focus-within {
+  box-shadow: 0 4px 20px rgba(44, 94, 245, 0.12);
 }
 
 [data-theme='dark'] .auth-card {
   background: var(--bg-elevated);
 }
 
-@keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
+/* ── Header ──────────────────────────────────────────── */
 .auth-header {
   text-align: center;
   margin-bottom: 1.5rem;
+  animation: fadeIn 0.4s ease 0.1s both;
 }
 
 .auth-logo {
   font-size: 2rem;
   margin-bottom: var(--gl-space-sm);
+  animation: fadeIn 0.4s ease 0.15s both;
 }
 
 .auth-title {
@@ -64,6 +84,7 @@
   margin: 0;
 }
 
+/* ── Google Button ───────────────────────────────────── */
 .btn-google {
   width: 100%;
   display: flex !important;
@@ -76,17 +97,27 @@
   border-radius: var(--gl-radius-md) !important;
   padding: 12px !important;
   font-weight: 500 !important;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.15s ease !important;
+  animation: fadeIn 0.4s ease 0.2s both;
 }
 
 .btn-google:hover:not(:disabled) {
   background: var(--bg-page) !important;
+  border-color: var(--gl-tertiary) !important;
+  transform: translateY(-1px);
 }
 
+.btn-google:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+/* ── Divider ──────────────────────────────────────────── */
 .auth-divider {
   display: flex;
   align-items: center;
   gap: 12px;
   margin: 1.25rem 0;
+  animation: fadeIn 0.4s ease 0.25s both;
 }
 
 .auth-divider::before,
@@ -105,6 +136,12 @@
   letter-spacing: 0.06em;
 }
 
+/* ── Form ─────────────────────────────────────────────── */
+.auth-form-wrapper {
+  animation: fadeIn 0.4s ease 0.3s both;
+}
+
+/* ── Field error ─────────────────────────────────────── */
 .auth-field-error {
   display: block;
   color: #dc2626;
@@ -113,10 +150,12 @@
   margin-top: 6px;
   padding-left: 4px;
   line-height: 1.38;
+  animation: fadeIn 0.2s ease;
 }
 
 .auth-input.is-invalid {
   border-color: rgba(220, 38, 38, 0.7) !important;
+  animation: shake 0.4s ease;
 }
 
 .auth-input.is-invalid:focus {
@@ -124,6 +163,7 @@
   box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12) !important;
 }
 
+/* ── Input wrapper ────────────────────────────────────── */
 .input-wrapper {
   position: relative;
   display: flex;
@@ -137,6 +177,12 @@
   font-size: 1rem;
   z-index: 2;
   pointer-events: none;
+  transition: color 0.2s ease;
+}
+
+.auth-input:focus ~ .input-icon,
+.input-wrapper:focus-within .input-icon {
+  color: var(--gl-tertiary);
 }
 
 .auth-input {
@@ -147,10 +193,11 @@
   padding: 11px 2.75rem !important;
   font-size: 0.95rem !important;
   font-family: var(--font-sans) !important;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
 }
 
 .auth-input::placeholder {
-  color:var(--text-muted)!important;
+  color: var(--text-muted) !important;
   opacity: 0.7;
 }
 
@@ -159,6 +206,7 @@
   box-shadow: 0 0 0 3px rgba(44, 94, 245, 0.15) !important;
 }
 
+/* ── Password toggle ───────────────────────────────────── */
 .input-toggle {
   position: absolute;
   right: 12px;
@@ -170,12 +218,20 @@
   display: flex;
   align-items: center;
   z-index: 2;
+  transition: color 0.2s ease, transform 0.15s ease;
+  border-radius: 4px;
 }
 
 .input-toggle:hover {
   color: var(--text-heading);
+  transform: scale(1.1);
 }
 
+.input-toggle:active {
+  transform: scale(0.95);
+}
+
+/* ── Primary CTA ───────────────────────────────────────── */
 .btn-auth-primary {
   width: 100%;
   background: var(--gl-tertiary) !important;
@@ -186,21 +242,32 @@
   font-size: 1rem !important;
   font-family: var(--font-sans) !important;
   color: var(--gl-on-primary) !important;
+  transition: filter 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease !important;
 }
 
 .btn-auth-primary:hover:not(:disabled) {
-  filter: brightness(1.05);
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(44, 94, 245, 0.3);
+}
+
+.btn-auth-primary:active:not(:disabled) {
+  transform: translateY(0);
+  filter: brightness(1);
+  box-shadow: none;
 }
 
 .btn-auth-primary:disabled {
   opacity: 0.55 !important;
 }
 
+/* ── Password strength ─────────────────────────────────── */
 .strength-bar {
   display: flex;
   align-items: center;
   gap: 12px;
   margin-top: 8px;
+  animation: fadeIn 0.2s ease;
 }
 
 .strength-track {
@@ -214,12 +281,19 @@
   flex: 1;
   border-radius: var(--gl-radius-sm);
   background: var(--border-subtle);
+  transition: background 0.3s ease;
 }
 
 .strength-segment.strength-on {
   background: var(--gl-tertiary);
   opacity: 0.92;
 }
+
+.strength-segment:nth-child(1).strength-on { background: #ef4444; }
+.strength-segment:nth-child(2).strength-on { background: #f97316; }
+.strength-segment:nth-child(3).strength-on { background: #eab308; }
+.strength-segment:nth-child(4).strength-on { background: #84cc16; }
+.strength-segment:nth-child(5).strength-on { background: #22c55e; }
 
 .strength-label {
   font-family: var(--font-mono);
@@ -228,22 +302,26 @@
   min-width: 72px;
   text-align: right;
   color: var(--text-muted);
+  transition: color 0.2s ease;
 }
 
+/* ── Footer text ───────────────────────────────────────── */
 .auth-footer-text {
   text-align: center;
   color: var(--text-muted);
   font-size: 0.875rem;
   margin: 1.25rem 0 0;
+  animation: fadeIn 0.4s ease 0.35s both;
 }
 
 .auth-link {
   color: var(--gl-tertiary) !important;
   font-weight: 600;
+  transition: opacity 0.2s ease !important;
 }
 
 .auth-link:hover {
-  opacity: 0.88;
+  opacity: 0.8;
 }
 
 .auth-link-small {
@@ -252,6 +330,7 @@
   font-weight: 500;
 }
 
+/* ── Success state ─────────────────────────────────────── */
 .auth-success strong {
   color: var(--gl-tertiary);
 }
@@ -262,6 +341,7 @@
   margin-bottom: 1rem;
   display: flex;
   justify-content: center;
+  animation: fadeIn 0.4s ease;
 }
 
 .auth-success h2 {
@@ -277,4 +357,44 @@
   color: var(--text-muted);
   margin-bottom: 1.25rem;
   line-height: 1.55;
+}
+
+/* ── OTP input ────────────────────────────────────────── */
+.otp-input-group {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin: 1rem 0;
+}
+
+.otp-input {
+  width: 44px !important;
+  height: 52px;
+  text-align: center;
+  font-size: 1.25rem !important;
+  font-weight: 600;
+  border-radius: var(--gl-radius-md) !important;
+  padding: 0 !important;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+/* ── Loading spinner on button ────────────────────────── */
+.btn-loading .spinner-border {
+  width: 1rem;
+  height: 1rem;
+  border-width: 2px;
+  animation: spin 0.7s linear infinite;
+}
+
+/* ── Responsive ────────────────────────────────────────── */
+@media (max-width: 480px) {
+  .auth-card {
+    padding: 20px 16px;
+    border-radius: var(--gl-radius-md);
+  }
+  .otp-input {
+    width: 38px !important;
+    height: 46px;
+    font-size: 1.1rem !important;
+  }
 }
