@@ -74,8 +74,8 @@ const UserSchema = new Schema(
 );
 
 // ── Indexes ────────────────────────────────────────────────────────────────────
-UserSchema.index({ email: 1 });
-UserSchema.index({ username: 1 });
+// NOTE: email and username indexes are auto-created by `unique: true` in schema fields.
+// Explicit schema.index() calls below are for non-unique compound indexes only.
 UserSchema.index({ 'oauth.googleId': 1 });
 UserSchema.index({ 'oauth.facebookId': 1 });
 

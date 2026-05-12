@@ -7,8 +7,7 @@ export const loadUser = createAsyncThunk(
   'auth/loadUser',
   async (_, { rejectWithValue }) => {
     try {
-      const res = await authAPI.getMe();
-      return res.data;
+      return await authAPI.getMe();
     } catch (err) {
       return rejectWithValue(err.response?.data?.error?.message || 'Failed to load user');
     }
@@ -20,7 +19,7 @@ export const loginUser = createAsyncThunk(
   async ({ email, password }, { rejectWithValue }) => {
     try {
       const res = await authAPI.login({ email, password });
-      return res.data.user;
+      return res.user;
     } catch (err) {
       return rejectWithValue(err.response?.data?.error?.message || 'Login failed');
     }
@@ -31,8 +30,7 @@ export const registerUser = createAsyncThunk(
   'auth/register',
   async ({ email, username, password }, { rejectWithValue }) => {
     try {
-      const res = await authAPI.register({ email, username, password });
-      return res.data;
+      return await authAPI.register({ email, username, password });
     } catch (err) {
       return rejectWithValue(err.response?.data?.error?.message || 'Registration failed');
     }
@@ -44,7 +42,7 @@ export const verifyEmailOtp = createAsyncThunk(
   async ({ email, otp }, { rejectWithValue }) => {
     try {
       const res = await authAPI.verifyEmailOtp({ email, otp });
-      return res.data.user;
+      return res.user;
     } catch (err) {
       return rejectWithValue(err.response?.data?.error?.message || 'OTP verification failed');
     }
@@ -90,8 +88,7 @@ export const updateProfile = createAsyncThunk(
   'auth/updateProfile',
   async ({ username, avatar }, { rejectWithValue }) => {
     try {
-      const res = await authAPI.updateProfile({ username, ...(avatar ? { avatar } : {}) });
-      return res.data;
+      return await authAPI.updateProfile({ username, ...(avatar ? { avatar } : {}) });
     } catch (err) {
       return rejectWithValue(err.response?.data?.error?.message || 'Failed to update profile');
     }
