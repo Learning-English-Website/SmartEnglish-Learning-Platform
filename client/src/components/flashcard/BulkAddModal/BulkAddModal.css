@@ -1,0 +1,211 @@
+/* ── BulkAddModal ─────────────────────────────────────────────────────── */
+.bulk-modal .modal-content {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 14px;
+  color: var(--text-body);
+}
+
+.bulk-modal-header {
+  border-bottom: 1px solid var(--border-subtle) !important;
+  padding: 18px 24px !important;
+}
+
+.bulk-modal-title {
+  font-size: 1rem !important;
+  font-weight: 700 !important;
+  color: var(--text-heading) !important;
+}
+
+.bulk-modal-body {
+  padding: 20px 24px !important;
+}
+
+/* Instructions */
+.bulk-instructions p {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.bulk-format {
+  display: inline-block;
+  padding: 4px 12px;
+  background: rgba(44, 94, 245, 0.08);
+  color: var(--gl-tertiary);
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-family: var(--font-mono);
+  margin-bottom: 12px;
+}
+
+.bulk-example-label {
+  font-size: 0.78rem !important;
+  font-weight: 600 !important;
+  color: var(--text-muted) !important;
+  margin-bottom: 4px !important;
+}
+
+.bulk-example {
+  background: var(--bg-page);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 0.825rem;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  margin-bottom: 16px;
+  white-space: pre;
+}
+
+/* Textarea */
+.bulk-textarea {
+  width: 100%;
+  padding: 14px 16px;
+  font-size: 0.9rem;
+  font-family: var(--font-mono);
+  color: var(--text-body);
+  background: var(--bg-page);
+  border: 1.5px solid var(--border-subtle);
+  border-radius: 10px;
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.15s ease;
+  line-height: 1.6;
+}
+
+.bulk-textarea:focus {
+  border-color: var(--gl-tertiary);
+  box-shadow: 0 0 0 3px rgba(44, 94, 245, 0.1);
+}
+
+.bulk-textarea::placeholder {
+  color: var(--text-muted);
+  opacity: 0.5;
+}
+
+/* Error */
+.bulk-parse-error {
+  font-size: 0.8rem;
+  color: #f59e0b;
+  margin-top: 8px;
+  margin-bottom: 0;
+  font-weight: 500;
+}
+
+/* Preview */
+.bulk-preview-header {
+  margin-bottom: 14px;
+}
+
+.bulk-preview-count {
+  font-size: 0.9rem;
+  color: var(--text-body);
+  margin: 0;
+}
+
+.bulk-preview-table-wrap {
+  max-height: 320px;
+  overflow-y: auto;
+  border-radius: 10px;
+  border: 1px solid var(--border-subtle);
+}
+
+.bulk-preview-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.bulk-preview-table thead th {
+  padding: 10px 14px;
+  background: var(--bg-page);
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.07em;
+  color: var(--text-muted);
+  font-weight: 700;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--border-subtle);
+  position: sticky;
+  top: 0;
+}
+
+.bulk-preview-table tbody td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-body);
+  vertical-align: top;
+}
+
+.bulk-preview-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.bulk-preview-table tbody tr:hover td {
+  background: rgba(44, 94, 245, 0.03);
+}
+
+.bulk-preview-num {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-muted) !important;
+  width: 36px;
+  text-align: center;
+}
+
+/* Footer */
+.bulk-modal-footer {
+  border-top: 1px solid var(--border-subtle) !important;
+  padding: 14px 24px !important;
+  gap: 8px;
+}
+
+/* Footer buttons */
+.bulk-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 18px;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s ease;
+}
+
+.bulk-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.bulk-btn--preview {
+  background: rgba(44, 94, 245, 0.1);
+  color: var(--gl-tertiary);
+}
+
+.bulk-btn--preview:hover:not(:disabled) {
+  background: rgba(44, 94, 245, 0.18);
+}
+
+.bulk-btn--back {
+  background: none;
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+}
+
+.bulk-btn--back:hover:not(:disabled) {
+  border-color: var(--gl-tertiary);
+  color: var(--gl-tertiary);
+}
+
+.bulk-btn--confirm {
+  background: var(--gl-tertiary);
+  color: #fff;
+}
+
+.bulk-btn--confirm:hover:not(:disabled) {
+  filter: brightness(1.08);
+}

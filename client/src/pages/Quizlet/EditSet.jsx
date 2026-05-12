@@ -1,0 +1,281 @@
+import { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { Container, Form } from 'react-bootstrap';
+import { FiArrowLeft, FiSave, FiTrash2, FiEdit2 } from 'react-icons/fi';
+import { toast } from 'react-hot-toast';
+import { setService } from '../../api/setService';
+import { ConfirmModal } from '../../components/common/Modal/Modal';
+import { LoadingSpinner } from '../../components/common';
+import './SetForm.css';
+
+const LANGUAGES = [
+  { value: 'English', label: '🇬🇧 English' },
+  { value: 'Vietnamese', label: '🇻🇳 Vietnamese' },
+  { value: 'Japanese', label: '🇯🇵 Japanese' },
+  { value: 'Korean', label: '🇰🇷 Korean' },
+  { value: 'Chinese', label: '🇨🇳 Chinese' },
+  { value: 'French', label: '🇫🇷 French' },
+  { value: 'Spanish', label: '🇪🇸 Spanish' },
+  { value: 'German', label: '🇩🇪 German' },
+  { value: 'Other', label: '🌐 Other' },
+];
+
+export default function EditSet() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+
+  const [form, setForm] = useState(null);
+  const [errors, setErrors] = useState({ title: '' });
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  // Fetch existing set data
+  useEffect(() => {
+    if (!id) return;
+    setLoading(true);
+    setService.getById(id)
+      .then((data) => {
+        const set = data?.set ?? data?.data ?? data;
+        setForm({
+          title: set.title ?? '',
+          description: set.description ?? '',
+          language: set.language ?? 'English',
+          isPublic: set.isPublic ?? false,
+          tags: Array.isArray(set.tags) ? set.tags.join(', ') : '',
+        });
+      })
+      .catch(() => {
+        toast.error('Không thể tải thông tin set.');
+        navigate('/flashcards');
+      })
+      .finally(() => setLoading(false));
+  }, [id, navigate]);
+
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setForm((prev) => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
+    if (name === 'title') setErrors((prev) => ({ ...prev, title: '' }));
+  };
+
+  const validate = () => {
+    const newErrors = { title: '' };
+    if (!form.title.trim()) {
+      newErrors.title = 'Tiêu đề không được để trống.';
+    } else if (form.title.trim().length < 3) {
+      newErrors.title = 'Tiêu đề phải có ít nhất 3 ký tự.';
+    }
+    setErrors(newErrors);
+    return !newErrors.title;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!validate()) return;
+    setSubmitting(true);
+    try {
+      const payload = {
+        title: form.title.trim(),
+        description: form.description.trim(),
+        language: form.language,
+        isPublic: form.isPublic,
+        tags: form.tags
+          .split(',')
+          .map((t) => t.trim())
+          .filter(Boolean),
+      };
+      await setService.update(id, payload);
+      toast.success('Cập nhật thành công! ✏️');
+      navigate(`/flashcards/sets/${id}`);
+    } catch (err) {
+      console.error(err);
+      const msg = err?.response?.data?.message || 'Cập nhật thất bại.';
+      toast.error(msg);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      await setService.delete(id);
+      toast.success('Đã xóa set thành công.');
+      navigate('/flashcards');
+    } catch {
+      toast.error('Xóa thất bại. Vui lòng thử lại.');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  // ── Render ────────────────────────────────────────────────────────────────
+  if (loading) {
+    return (
+      <div className="page-shell" style={{ display: 'flex', justifyContent: 'center', paddingTop: 160 }}>
+        <LoadingSpinner text="Đang tải..." />
+      </div>
+    );
+  }
+
+  return (
+    <div className="page-shell set-form-page">
+      <Container>
+        {/* Back */}
+        <button className="set-form-back" onClick={() => navigate(`/flashcards/sets/${id}`)}>
+          <FiArrowLeft size={16} /> Quay lại Set
+        </button>
+
+        <div className="set-form-card surface-card">
+          {/* Heading */}
+          <div className="set-form-heading">
+            <div className="set-form-heading-icon set-form-heading-icon--edit">
+              <FiEdit2 size={20} />
+            </div>
+            <div>
+              <h1>Chỉnh Sửa Flashcard Set</h1>
+              <p>Cập nhật thông tin cho bộ từ vựng của bạn.</p>
+            </div>
+          </div>
+
+          <Form onSubmit={handleSubmit} noValidate>
+            {/* Title */}
+            <Form.Group className="set-form-group" controlId="edit-set-title">
+              <Form.Label className="type-label">Tiêu đề *</Form.Label>
+              <Form.Control
+                type="text"
+                name="title"
+                value={form.title}
+                onChange={handleChange}
+                isInvalid={!!errors.title}
+                className="set-form-input"
+                autoFocus
+              />
+              <Form.Control.Feedback type="invalid">{errors.title}</Form.Control.Feedback>
+            </Form.Group>
+
+            {/* Description */}
+            <Form.Group className="set-form-group" controlId="edit-set-description">
+              <Form.Label className="type-label">Mô tả</Form.Label>
+              <Form.Control
+                as="textarea"
+                name="description"
+                value={form.description}
+                onChange={handleChange}
+                rows={3}
+                className="set-form-input"
+              />
+            </Form.Group>
+
+            {/* Language + isPublic */}
+            <div className="set-form-row">
+              <Form.Group className="set-form-group" controlId="edit-set-language">
+                <Form.Label className="type-label">Ngôn ngữ</Form.Label>
+                <Form.Select
+                  name="language"
+                  value={form.language}
+                  onChange={handleChange}
+                  className="set-form-input"
+                >
+                  {LANGUAGES.map((l) => (
+                    <option key={l.value} value={l.value}>{l.label}</option>
+                  ))}
+                </Form.Select>
+              </Form.Group>
+
+              <Form.Group className="set-form-group set-form-group--public" controlId="edit-set-public">
+                <Form.Label className="type-label">Hiển thị</Form.Label>
+                <div className="set-form-toggle">
+                  <input
+                    type="checkbox"
+                    id="edit-set-public"
+                    name="isPublic"
+                    checked={form.isPublic}
+                    onChange={handleChange}
+                    className="set-form-checkbox"
+                  />
+                  <label htmlFor="edit-set-public" className="set-form-toggle-label">
+                    <span className="set-form-toggle-track" />
+                    <span className="set-form-toggle-text">
+                      {form.isPublic ? '🌐 Công khai' : '🔒 Riêng tư'}
+                    </span>
+                  </label>
+                </div>
+              </Form.Group>
+            </div>
+
+            {/* Tags */}
+            <Form.Group className="set-form-group" controlId="edit-set-tags">
+              <Form.Label className="type-label">Tags (phân cách bằng dấu phẩy)</Form.Label>
+              <Form.Control
+                type="text"
+                name="tags"
+                value={form.tags}
+                onChange={handleChange}
+                placeholder="ielts, vocabulary, academic, ..."
+                className="set-form-input"
+              />
+              {form.tags.trim() && (
+                <div className="set-form-tags-preview">
+                  {form.tags.split(',').filter((t) => t.trim()).map((tag, i) => (
+                    <span key={i} className="set-card-tag">{tag.trim()}</span>
+                  ))}
+                </div>
+              )}
+            </Form.Group>
+
+            {/* Actions */}
+            <div className="set-form-actions set-form-actions--edit">
+              {/* Delete button on the left */}
+              <button
+                type="button"
+                className="set-form-btn-delete"
+                onClick={() => setShowDelete(true)}
+                disabled={submitting}
+              >
+                <FiTrash2 size={14} /> Xóa Set
+              </button>
+
+              <div className="set-form-actions-right">
+                <button
+                  type="button"
+                  className="set-form-btn-cancel"
+                  onClick={() => navigate(`/flashcards/sets/${id}`)}
+                  disabled={submitting}
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  className="btn-glassline-primary set-form-btn-submit"
+                  disabled={submitting}
+                >
+                  {submitting ? (
+                    <span className="spinner-border spinner-border-sm" />
+                  ) : (
+                    <>
+                      <FiSave size={15} /> Lưu Thay Đổi
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </Form>
+        </div>
+      </Container>
+
+      {/* Delete Confirmation */}
+      <ConfirmModal
+        show={showDelete}
+        onHide={() => setShowDelete(false)}
+        onConfirm={handleDelete}
+        title="Xóa Flashcard Set"
+        message="Bạn có chắc muốn xóa set này? Tất cả flashcards trong set cũng sẽ bị xóa. Hành động này không thể hoàn tác."
+        confirmText="Xóa Vĩnh Viễn"
+        confirmVariant="danger"
+        loading={deleting}
+      />
+    </div>
+  );
+}

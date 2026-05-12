@@ -1,14 +1,13 @@
-import { Container } from 'react-bootstrap';
-import '../AppPlaceholder/AppPlaceholderPages.css';
+import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 
+/**
+ * /quizlet redirects to the main Flashcards page (MySets)
+ */
 export default function QuizletHomePage() {
-  return (
-    <div className="app-placeholder-page">
-      <Container className="app-placeholder-inner">
-        <div className="app-placeholder-chip">Week 2</div>
-        <h1>Flashcards</h1>
-        <p>Set CRUD, study modes, and spaced repetition arrive in the next milestone.</p>
-      </Container>
-    </div>
-  );
+  const navigate = useNavigate();
+  useEffect(() => {
+    navigate('/flashcards', { replace: true });
+  }, [navigate]);
+  return null;
 }
