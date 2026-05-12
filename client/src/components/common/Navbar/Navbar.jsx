@@ -22,7 +22,7 @@ export default function AppNavbar({ darkMode, onToggleDark }) {
           {isAuthenticated && (
             <Nav className="me-auto nav-links">
               <Nav.Link as={NavLink} to="/dashboard">Dashboard</Nav.Link>
-              <Nav.Link as={NavLink} to="/quizlet">Flashcards</Nav.Link>
+              <Nav.Link as={NavLink} to="/flashcards">Flashcards</Nav.Link>
               <Nav.Link as={NavLink} to="/duolingo">Practice</Nav.Link>
             </Nav>
           )}

@@ -1,0 +1,504 @@
+/* ── FlashcardViewer ──────────────────────────────────────────────────── */
+.fcv-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  width: 100%;
+  padding: 8px 0;
+}
+
+.fcv-empty {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 48px 0;
+}
+
+/* ── Controls bar ─────────────────────────────────────────────────────── */
+.fcv-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 820px;
+}
+
+.fcv-progress {
+  font-size: 0.8rem;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.fcv-progress-sep {
+  opacity: 0.5;
+  margin: 0 3px;
+}
+
+.fcv-control-btns {
+  display: flex;
+  gap: 8px;
+}
+
+.fcv-ctrl-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  font-family: var(--font-sans);
+  border: 1.5px solid var(--border-subtle);
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.fcv-ctrl-btn:hover {
+  border-color: var(--gl-tertiary);
+  color: var(--gl-tertiary);
+}
+
+.fcv-ctrl-btn.active {
+  background: rgba(44, 94, 245, 0.1);
+  border-color: var(--gl-tertiary);
+  color: var(--gl-tertiary);
+}
+
+/* ── Progress bar ─────────────────────────────────────────────────────── */
+.fcv-progress-bar {
+  width: 100%;
+  max-width: 820px;
+  height: 3px;
+  background: var(--border-subtle);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.fcv-progress-fill {
+  height: 100%;
+  background: var(--gl-tertiary);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+/* ── Card ─────────────────────────────────────────────────────────────── */
+.fcv-card-wrap {
+  width: 100%;
+  max-width: 820px;
+  height: 340px;
+  perspective: 1200px;
+  cursor: pointer;
+  outline: none;
+  transition: transform 0.12s ease;
+}
+
+.fcv-card-wrap:focus-visible {
+  outline: 2px solid var(--gl-tertiary);
+  outline-offset: 4px;
+  border-radius: 16px;
+}
+
+/* Slide animation */
+@keyframes slideLeft {
+  from { opacity: 0; transform: translateX(40px) rotateY(8deg); }
+  to   { opacity: 1; transform: translateX(0) rotateY(0); }
+}
+@keyframes slideRight {
+  from { opacity: 0; transform: translateX(-40px) rotateY(-8deg); }
+  to   { opacity: 1; transform: translateX(0) rotateY(0); }
+}
+
+.fcv-slide-left  { animation: slideLeft  0.18s ease forwards; }
+.fcv-slide-right { animation: slideRight 0.18s ease forwards; }
+
+/* 3D flip */
+.fcv-card {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 16px;
+}
+
+.fcv-card.flipped {
+  transform: rotateY(180deg);
+}
+
+.fcv-card-face {
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  text-align: center;
+  gap: 12px;
+  border: 1.5px solid var(--border-subtle);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  transition: box-shadow 0.2s ease;
+}
+
+.fcv-card-wrap:hover .fcv-card-face {
+  box-shadow: 0 12px 40px rgba(44, 94, 245, 0.12);
+  border-color: rgba(44, 94, 245, 0.2);
+}
+
+/* Front face */
+.fcv-front {
+  background: var(--bg-elevated);
+}
+
+/* Back face */
+.fcv-back {
+  background: linear-gradient(135deg, #1a2545 0%, #0f1a3d 100%);
+  border-color: rgba(44, 94, 245, 0.4);
+  transform: rotateY(180deg);
+}
+
+[data-theme='light'] .fcv-back {
+  background: linear-gradient(135deg, #eef2ff 0%, #dbe4ff 100%);
+  border-color: rgba(44, 94, 245, 0.25);
+}
+
+.fcv-face-label {
+  font-size: 0.62rem;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: 20px;
+  background: rgba(44, 94, 245, 0.12);
+  color: var(--gl-tertiary);
+}
+
+.fcv-back .fcv-face-label {
+  background: rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+[data-theme='light'] .fcv-back .fcv-face-label {
+  background: rgba(44, 94, 245, 0.15);
+  color: var(--gl-tertiary);
+}
+
+.fcv-word {
+  font-size: clamp(1.5rem, 3vw, 2.2rem);
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--text-heading);
+  margin: 0;
+}
+
+.fcv-back .fcv-word {
+  color: #ffffff;
+}
+
+[data-theme='light'] .fcv-back .fcv-word {
+  color: var(--text-heading);
+}
+
+.fcv-pronunciation {
+  font-size: 1rem;
+  color: var(--gl-tertiary);
+  font-family: var(--font-mono);
+  margin: 0;
+}
+
+/* Phonetic + audio row */
+.fcv-phonetic-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* Audio button in FlashcardViewer */
+.fcv-audio-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(44, 94, 245, 0.3);
+  background: rgba(44, 94, 245, 0.08);
+  color: var(--gl-tertiary);
+  cursor: pointer;
+  transition: all 0.18s ease;
+  flex-shrink: 0;
+}
+
+.fcv-audio-btn:hover:not(:disabled) {
+  background: rgba(44, 94, 245, 0.18);
+  border-color: var(--gl-tertiary);
+  transform: scale(1.05);
+}
+
+.fcv-audio-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.fcv-audio-btn.playing {
+  background: var(--gl-tertiary);
+  border-color: var(--gl-tertiary);
+  color: #fff;
+  animation: fcv-pulse 0.9s ease infinite alternate;
+}
+
+.fcv-audio-btn.loading {
+  animation: fcv-spin 0.8s linear infinite;
+}
+
+@keyframes fcv-pulse {
+  from { box-shadow: 0 0 0 0 rgba(44, 94, 245, 0.4); }
+  to   { box-shadow: 0 0 0 8px rgba(44, 94, 245, 0); }
+}
+
+@keyframes fcv-spin {
+  to { transform: rotate(360deg); }
+}
+
+.fcv-example {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  font-style: italic;
+  margin: 0;
+  max-width: 480px;
+}
+
+.fcv-note {
+  font-size: 0.825rem;
+  color: rgba(255, 255, 255, 0.7);
+  margin: 0;
+}
+
+[data-theme='light'] .fcv-note {
+  color: var(--text-muted);
+}
+
+.fcv-hint {
+  position: absolute;
+  bottom: 14px;
+  font-size: 0.68rem;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+
+.fcv-back .fcv-hint {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* ── Know buttons ─────────────────────────────────────────────────────── */
+.fcv-know-btns {
+  display: flex;
+  gap: 16px;
+  width: 100%;
+  max-width: 400px;
+}
+
+.fcv-know-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  border: 2px solid;
+  transition: all 0.15s ease;
+}
+
+.fcv-dont-know {
+  background: rgba(248, 113, 113, 0.08);
+  border-color: rgba(248, 113, 113, 0.4);
+  color: #f87171;
+}
+
+.fcv-dont-know:hover {
+  background: rgba(248, 113, 113, 0.18);
+  border-color: #f87171;
+}
+
+.fcv-know {
+  background: rgba(52, 211, 153, 0.08);
+  border-color: rgba(52, 211, 153, 0.4);
+  color: #34d399;
+}
+
+.fcv-know:hover {
+  background: rgba(52, 211, 153, 0.18);
+  border-color: #34d399;
+}
+
+/* ── Navigation ───────────────────────────────────────────────────────── */
+.fcv-nav {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.fcv-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border-subtle);
+  background: var(--bg-elevated);
+  color: var(--text-body);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.fcv-nav-btn:hover:not(:disabled) {
+  border-color: var(--gl-tertiary);
+  color: var(--gl-tertiary);
+  box-shadow: 0 4px 12px rgba(44, 94, 245, 0.15);
+}
+
+.fcv-nav-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.fcv-nav-label {
+  font-size: 0.875rem;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  min-width: 52px;
+  text-align: center;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .fcv-card-wrap { height: 260px; }
+  .fcv-word { font-size: 1.4rem; }
+}
+
+/* ── Split layout: term left / image right ────────────────────────────── */
+
+/* Front split: flex-row */
+.fcv-front--split {
+  flex-direction: row !important;
+  align-items: stretch !important;
+  justify-content: flex-start !important;
+  text-align: left !important;
+  padding: 0 !important;
+  gap: 0 !important;
+  overflow: hidden;
+}
+
+/* Back split mirrors the layout */
+.fcv-back--split {
+  flex-direction: row !important;
+  align-items: stretch !important;
+  justify-content: flex-start !important;
+  text-align: left !important;
+  padding: 0 !important;
+  gap: 0 !important;
+  overflow: hidden;
+}
+
+/* Left content pane */
+.fcv-front-content,
+.fcv-back-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 12px;
+  padding: 32px 32px 40px;
+  min-width: 0;
+}
+
+/* Adjust font & hint position for split */
+.fcv-front--split .fcv-word,
+.fcv-back--split .fcv-word {
+  font-size: clamp(1.3rem, 2.5vw, 1.9rem);
+}
+
+.fcv-front--split .fcv-hint,
+.fcv-back--split .fcv-hint {
+  position: static;
+  margin-top: auto;
+}
+
+.fcv-front--split .fcv-phonetic-row {
+  justify-content: flex-start;
+}
+
+/* Right image pane */
+.fcv-front-image,
+.fcv-back-image {
+  flex: 0 0 45%;
+  max-width: 45%;
+  overflow: hidden;
+  border-left: 1px solid var(--border-subtle);
+  position: relative;
+  background: var(--bg-page);
+}
+
+.fcv-card-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  animation: fcv-img-fadein 0.4s ease;
+}
+
+@keyframes fcv-img-fadein {
+  from { opacity: 0; transform: scale(1.03); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* Back image pane — slightly dimmed */
+.fcv-back-image {
+  border-left-color: rgba(255,255,255,0.1);
+}
+
+.fcv-back-image .fcv-card-img {
+  opacity: 0.85;
+}
+
+/* Responsive: stack vertically on small screens */
+@media (max-width: 600px) {
+  .fcv-front--split,
+  .fcv-back--split {
+    flex-direction: column !important;
+    text-align: center !important;
+    align-items: center !important;
+  }
+
+  .fcv-front-content,
+  .fcv-back-content {
+    align-items: center;
+    padding: 16px 20px 12px;
+  }
+
+  .fcv-front-image,
+  .fcv-back-image {
+    flex: 0 0 40%;
+    max-width: 100%;
+    width: 100%;
+    border-left: none;
+    border-top: 1px solid var(--border-subtle);
+  }
+}

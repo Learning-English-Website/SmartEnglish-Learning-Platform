@@ -51,6 +51,8 @@ app.get('/', (req, res) => res.json({ message: 'Welcome to SmartEnglish API' }))
 // ── Routes ────────────────────────────────────────────────────────────────────
 app.use('/api/auth', require('./modules/auth/auth.routes'));
 app.use('/api/users', require('./modules/user/user.routes'));
+app.use('/api/flashcard-sets', require('./modules/flashcard-sets/flashcardSet.routes'));
+app.use('/api/flashcards', require('./modules/flashcard-sets/flashcard.routes'));
 
 // ── 404 Handler ───────────────────────────────────────────────────────────────
 app.use('/{*path}', (req, res) => {

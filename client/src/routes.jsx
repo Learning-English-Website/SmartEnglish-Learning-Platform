@@ -14,6 +14,10 @@ const DashboardPage = lazy(() => import('./pages/Dashboard/DashboardPage'));
 const ProfilePage = lazy(() => import('./pages/Profile/ProfilePage'));
 const EditProfilePage = lazy(() => import('./pages/Profile/EditProfilePage'));
 const QuizletHomePage = lazy(() => import('./pages/Quizlet/QuizletHomePage'));
+const MySets = lazy(() => import('./pages/Quizlet/MySets'));
+const CreateSet = lazy(() => import('./pages/Quizlet/CreateSet'));
+const EditSet = lazy(() => import('./pages/Quizlet/EditSet'));
+const SetDetail = lazy(() => import('./pages/Quizlet/SetDetail'));
 const DuolingoHomePage = lazy(() => import('./pages/Duolingo/DuolingoHomePage'));
 
 const withSuspense = (element) => (
@@ -41,6 +45,30 @@ const router = createBrowserRouter([
         path: '/quizlet',
         element: withSuspense(
           <ProtectedRoute><QuizletHomePage /></ProtectedRoute>
+        ),
+      },
+      {
+        path: '/flashcards',
+        element: withSuspense(
+          <ProtectedRoute><MySets /></ProtectedRoute>
+        ),
+      },
+      {
+        path: '/flashcards/sets/create',
+        element: withSuspense(
+          <ProtectedRoute><CreateSet /></ProtectedRoute>
+        ),
+      },
+      {
+        path: '/flashcards/sets/:id',
+        element: withSuspense(
+          <ProtectedRoute><SetDetail /></ProtectedRoute>
+        ),
+      },
+      {
+        path: '/flashcards/sets/:id/edit',
+        element: withSuspense(
+          <ProtectedRoute><EditSet /></ProtectedRoute>
         ),
       },
       {

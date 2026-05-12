@@ -1,0 +1,565 @@
+/* ============================================================
+   CreateSet — Quizlet-style layout
+   ============================================================ */
+
+/* Draft restore banner */
+.cs-draft-banner {
+  position: fixed;
+  top: 68px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 18px;
+  background: var(--bg-elevated);
+  border: 1.5px solid rgba(44, 94, 245, 0.4);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(44, 94, 245, 0.15);
+  font-size: 0.85rem;
+  color: var(--text-body);
+  white-space: nowrap;
+}
+
+.cs-draft-btn {
+  padding: 4px 12px;
+  background: var(--gl-tertiary);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: var(--font-sans);
+}
+
+.cs-draft-dismiss {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+/* Shortcut hints in topbar */
+.cs-shortcut-hints {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: 8px;
+}
+
+.cs-shortcut-hints span {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Saved label active state */
+.cs-saved-label--active {
+  color: #34d399 !important;
+  font-weight: 600;
+}
+
+/* kbd styles */
+kbd {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 5px;
+  border-radius: 4px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  line-height: 1.4;
+  box-shadow: 0 1px 0 var(--border-subtle);
+}
+
+/* Page wrapper */
+.cs-page {
+  min-height: 100vh;
+  padding-top: 64px; /* under navbar */
+  background: var(--bg-page);
+  font-family: var(--font-sans);
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Top Bar ──────────────────────────────────────────────────────────── */
+.cs-topbar {
+  position: sticky;
+  top: 64px;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 32px;
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border-subtle);
+  gap: 16px;
+}
+
+.cs-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.cs-back-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--border-subtle);
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.cs-back-btn:hover {
+  border-color: var(--gl-tertiary);
+  color: var(--gl-tertiary);
+}
+
+.cs-topbar-title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--text-heading);
+  margin: 0;
+}
+
+.cs-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Buttons */
+.cs-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 20px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.18s ease;
+  white-space: nowrap;
+}
+
+.cs-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.cs-btn--outline {
+  background: var(--bg-page);
+  border: 1.5px solid var(--border-subtle);
+  color: var(--text-body);
+}
+
+.cs-btn--outline:hover:not(:disabled) {
+  border-color: var(--gl-tertiary);
+  color: var(--gl-tertiary);
+}
+
+.cs-btn--primary {
+  background: var(--gl-tertiary);
+  color: #fff;
+}
+
+.cs-btn--primary:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.cs-btn--lg {
+  padding: 13px 32px;
+  font-size: 1rem;
+}
+
+/* ── Body ─────────────────────────────────────────────────────────────── */
+.cs-body {
+  flex: 1;
+  max-width: 860px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 32px 24px 64px;
+}
+
+/* Title error */
+.cs-title-error {
+  color: #ef4444;
+  font-size: 0.825rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+  margin-top: 0;
+}
+
+/* Meta row: visibility + saved */
+.cs-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.cs-visibility-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1.5px solid var(--border-subtle);
+  background: var(--bg-elevated);
+  transition: all 0.15s ease;
+  font-family: var(--font-sans);
+}
+
+.cs-visibility-btn.public {
+  border-color: rgba(44, 94, 245, 0.4);
+  color: var(--gl-tertiary);
+  background: rgba(44, 94, 245, 0.06);
+}
+
+.cs-visibility-btn.private {
+  color: var(--text-muted);
+}
+
+.cs-visibility-btn:hover {
+  border-color: var(--gl-tertiary);
+}
+
+.cs-saved-label {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+/* Title input */
+.cs-title-input {
+  display: block;
+  width: 100%;
+  padding: 16px 18px;
+  font-size: 1rem;
+  font-family: var(--font-sans);
+  color: var(--text-body);
+  background: var(--bg-elevated);
+  border: 1.5px solid var(--border-subtle);
+  border-radius: 10px;
+  outline: none;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+  margin-bottom: 10px;
+}
+
+.cs-title-input:focus {
+  border-color: var(--gl-tertiary);
+  box-shadow: 0 0 0 3px rgba(44, 94, 245, 0.1);
+}
+
+.cs-title-input--error {
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important;
+}
+
+.cs-title-input::placeholder {
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+/* Description input */
+.cs-desc-input {
+  display: block;
+  width: 100%;
+  padding: 12px 18px;
+  font-size: 0.9rem;
+  font-family: var(--font-sans);
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  border-bottom: 1.5px solid var(--border-subtle);
+  border-radius: 0;
+  outline: none;
+  transition: border-color 0.18s ease;
+  margin-bottom: 20px;
+}
+
+.cs-desc-input:focus {
+  border-bottom-color: var(--gl-tertiary);
+  color: var(--text-body);
+}
+
+.cs-desc-input::placeholder {
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+/* Options row */
+.cs-options-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 28px;
+}
+
+.cs-lang-select {
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: 1.5px solid var(--border-subtle);
+  background: var(--bg-elevated);
+  color: var(--text-body);
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.cs-lang-select:focus {
+  border-color: var(--gl-tertiary);
+}
+
+/* ── Card List ────────────────────────────────────────────────────────── */
+.cs-cards-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+/* Individual card row */
+.cs-card-row {
+  background: var(--bg-elevated);
+  border: 1.5px solid var(--border-subtle);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.cs-card-row:hover {
+  border-color: rgba(44, 94, 245, 0.3);
+  box-shadow: 0 4px 20px rgba(44, 94, 245, 0.07);
+}
+
+/* Card top bar */
+.cs-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-page);
+}
+
+.cs-card-index {
+  font-size: 0.825rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.cs-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cs-card-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 7px;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.cs-card-icon-btn:hover {
+  background: rgba(44, 94, 245, 0.08);
+  color: var(--gl-tertiary);
+}
+
+.cs-card-icon-btn--delete:hover {
+  background: rgba(239, 68, 68, 0.08);
+  color: #ef4444;
+}
+
+/* Term + Definition fields */
+.cs-card-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 0;
+  align-items: stretch;
+}
+
+.cs-card-field {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border-subtle);
+}
+
+.cs-card-field:last-of-type {
+  border-right: none;
+}
+
+.cs-card-input {
+  flex: 1;
+  padding: 18px 18px 28px;
+  font-size: 0.9375rem;
+  font-family: var(--font-sans);
+  color: var(--text-body);
+  background: transparent;
+  border: none;
+  outline: none;
+  resize: none;
+  width: 100%;
+  transition: background 0.15s;
+}
+
+.cs-card-input:focus {
+  background: rgba(44, 94, 245, 0.03);
+}
+
+.cs-card-input::placeholder {
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+
+.cs-card-field-label {
+  position: absolute;
+  bottom: 10px;
+  left: 18px;
+  font-size: 0.65rem;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+/* Image button */
+.cs-card-image-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 0 16px;
+  background: none;
+  border: none;
+  border-left: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.65rem;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  letter-spacing: 0.04em;
+  transition: color 0.15s;
+  min-width: 72px;
+}
+
+.cs-card-image-btn:hover {
+  color: var(--gl-tertiary);
+}
+
+/* ── Add card button ──────────────────────────────────────────────────── */
+.cs-add-card-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  padding: 18px;
+  margin-top: 4px;
+  background: var(--bg-elevated);
+  border: 2px dashed var(--border-subtle);
+  border-radius: 12px;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  font-weight: 700;
+  font-family: var(--font-sans);
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.cs-add-card-btn:hover {
+  border-color: var(--gl-tertiary);
+  color: var(--gl-tertiary);
+  background: rgba(44, 94, 245, 0.04);
+}
+
+.cs-add-card-plus {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--gl-tertiary);
+  color: #fff;
+  flex-shrink: 0;
+}
+
+/* ── Footer ───────────────────────────────────────────────────────────── */
+.cs-footer {
+  display: flex;
+  justify-content: flex-start;
+  padding-top: 32px;
+}
+
+/* ── Responsive ───────────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .cs-topbar {
+    padding: 12px 16px;
+  }
+
+  .cs-topbar-title {
+    font-size: 0.9rem;
+  }
+
+  .cs-topbar-right .cs-btn:first-child {
+    display: none; /* hide "Create" outline btn on mobile */
+  }
+
+  .cs-body {
+    padding: 20px 16px 48px;
+  }
+
+  .cs-card-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .cs-card-field {
+    border-right: none;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .cs-card-image-btn {
+    border-left: none;
+    border-top: 1px solid var(--border-subtle);
+    flex-direction: row;
+    padding: 12px 16px;
+    justify-content: flex-start;
+    min-width: unset;
+  }
+}

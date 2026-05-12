@@ -9,6 +9,8 @@ const flashcardSchema = new Schema(
     back: { type: String, required: true },
     pronunciation: { type: String, default: null },
     example: { type: String, default: null },
+    note: { type: String, default: null },
+    imageUrl: { type: String, default: null },
     difficulty: { type: Number, min: 0, max: 5, default: 0 },
     nextReviewAt: { type: Date, default: null },
   },

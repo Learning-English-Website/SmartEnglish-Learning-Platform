@@ -5,3 +5,4 @@ export { default as Badge } from './Badge/Badge';
 export { default as LoadingSpinner } from './LoadingSpinner/LoadingSpinner';
 export { default as Navbar } from './Navbar/Navbar';
 export { default as Footer } from './Footer/Footer';
+export { default as SetCard } from './SetCard/SetCard';
