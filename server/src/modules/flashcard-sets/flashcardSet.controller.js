@@ -25,6 +25,10 @@ const getPublicSets = async (req, res) => {
   const { search, tags, page = 1, limit = 20 } = req.query;
 
   const filter = { isPublic: true };
+  if (req.user && req.user._id) {
+    filter.user = { $ne: req.user._id };
+  }
+
   if (search) {
     filter.$or = [
       { title: { $regex: search, $options: 'i' } },

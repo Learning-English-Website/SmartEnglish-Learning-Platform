@@ -7,6 +7,7 @@ import {
   FiGrid, FiList, FiRefreshCw, FiBookOpen, FiCommand,
 } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
+import { useAuth } from '../../hooks/useAuth';
 
 // DnD-kit
 import {
@@ -42,6 +43,7 @@ const LAYOUT = { LIST: 'list', GRID: 'grid' };
 export default function SetDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user: currentUser } = useAuth();
 
   const [set, setSet]         = useState(null);
   const [cards, setCards]     = useState([]);
@@ -85,10 +87,19 @@ export default function SetDetail() {
   const fetchSet = useCallback(() => {
     setLoading(true);
     setService.getById(id)
-      .then((res) => setSet(res?.data ?? res))
+      .then((res) => {
+        const fetchedSet = res?.data ?? res;
+        setSet(fetchedSet);
+        // Default to study view if not owner
+        const currentUserId = currentUser?._id || currentUser?.id;
+        const setUserId = fetchedSet?.user?._id || fetchedSet?.user?.id || fetchedSet?.user;
+        if (currentUserId && setUserId && currentUserId !== setUserId) {
+          setView(VIEW.STUDY);
+        }
+      })
       .catch(() => setError('Could not load set.'))
       .finally(() => setLoading(false));
-  }, [id]);
+  }, [id, currentUser]);
 
   const fetchCards = useCallback(() => {
     setCardsLoading(true);
@@ -103,10 +114,18 @@ export default function SetDetail() {
 
   useEffect(() => { fetchSet(); fetchCards(); }, [fetchSet, fetchCards]);
 
+  /* ── Ownership Check ─────────────────────────────────────────────────── */
+  const isOwner = useMemo(() => {
+    if (!set || !currentUser) return false;
+    const setUserId = set.user?._id || set.user?.id || set.user;
+    const currentUserId = currentUser?._id || currentUser?.id;
+    return String(setUserId) === String(currentUserId);
+  }, [set, currentUser]);
+
   /* ── Keyboard shortcuts ──────────────────────────────────────────────── */
   const shortcuts = useMemo(() => ({
     'ctrl+n': (e) => {
-      if (view !== VIEW.CARDS) return;
+      if (view !== VIEW.CARDS || !isOwner) return;
       e.preventDefault();
       setShowAddCard(true);
       setEditingCard(null);
@@ -257,11 +276,13 @@ export default function SetDetail() {
 
         {/* ── Keyboard shortcut hints ───────────────────────────────── */}
         <div className="sd-shortcut-bar">
-          <span className="sd-shortcut-item"><kbd>Ctrl</kbd>+<kbd>N</kbd> Add card</span>
+          {isOwner && <span className="sd-shortcut-item"><kbd>Ctrl</kbd>+<kbd>N</kbd> Add card</span>}
           <span className="sd-shortcut-item"><kbd>Esc</kbd> Cancel</span>
-          <span className="sd-shortcut-item sd-shortcut-item--drag">
-            <FiCommand size={11} /> Drag rows to reorder
-          </span>
+          {isOwner && (
+            <span className="sd-shortcut-item sd-shortcut-item--drag">
+              <FiCommand size={11} /> Drag rows to reorder
+            </span>
+          )}
         </div>
 
         {/* ── Set Header ──────────────────────────────────────────────── */}
@@ -304,20 +325,24 @@ export default function SetDetail() {
                 <FiPlay size={15} />
                 {view === VIEW.STUDY ? 'Back to Cards' : 'Study'}
               </button>
-              <button
-                className="sd-btn sd-btn--outline"
-                onClick={() => navigate(`/flashcards/sets/${id}/edit`)}
-                id="sd-edit-btn"
-              >
-                <FiEdit2 size={15} /> Edit Set
-              </button>
-              <button
-                className="sd-btn sd-btn--danger-icon"
-                onClick={() => setShowDeleteSet(true)}
-                id="sd-delete-btn"
-              >
-                <FiTrash2 size={15} />
-              </button>
+              {isOwner && (
+                <>
+                  <button
+                    className="sd-btn sd-btn--outline"
+                    onClick={() => navigate(`/flashcards/sets/${id}/edit`)}
+                    id="sd-edit-btn"
+                  >
+                    <FiEdit2 size={15} /> Edit Set
+                  </button>
+                  <button
+                    className="sd-btn sd-btn--danger-icon"
+                    onClick={() => setShowDeleteSet(true)}
+                    id="sd-delete-btn"
+                  >
+                    <FiTrash2 size={15} />
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -355,26 +380,30 @@ export default function SetDetail() {
                     <FiGrid size={15} />
                   </button>
                 </div>
-                <button
-                  className="sd-btn sd-btn--bulk"
-                  onClick={() => setShowBulk(true)}
-                  id="sd-bulk-add-btn"
-                >
-                  <FiRefreshCw size={14} /> Bulk Add
-                </button>
-                <button
-                  className="sd-btn sd-btn--primary"
-                  onClick={() => { setShowAddCard(true); setEditingCard(null); }}
-                  id="sd-add-card-btn"
-                  title="Add card (Ctrl+N)"
-                >
-                  <FiPlus size={14} /> Add Card
-                </button>
+                {isOwner && (
+                  <>
+                    <button
+                      className="sd-btn sd-btn--bulk"
+                      onClick={() => setShowBulk(true)}
+                      id="sd-bulk-add-btn"
+                    >
+                      <FiRefreshCw size={14} /> Bulk Add
+                    </button>
+                    <button
+                      className="sd-btn sd-btn--primary"
+                      onClick={() => { setShowAddCard(true); setEditingCard(null); }}
+                      id="sd-add-card-btn"
+                      title="Add card (Ctrl+N)"
+                    >
+                      <FiPlus size={14} /> Add Card
+                    </button>
+                  </>
+                )}
               </div>
             </div>
 
             {/* Inline Add Card form */}
-            {showAddCard && (
+            {isOwner && showAddCard && (
               <div className="sd-add-card-form">
                 <CardEditor
                   onSave={handleAddCard}
@@ -392,48 +421,69 @@ export default function SetDetail() {
             ) : cards.length === 0 ? (
               <div className="sd-cards-empty">
                 <div className="sd-cards-empty-icon">🃏</div>
-                <p>No cards yet. Press <kbd>Ctrl+N</kbd> or click Add Card.</p>
-                <button
-                  className="btn-glassline-primary"
-                  onClick={() => setShowAddCard(true)}
-                >
-                  <FiPlus size={14} /> Add Card
-                </button>
+                {isOwner ? (
+                  <>
+                    <p>No cards yet. Press <kbd>Ctrl+N</kbd> or click Add Card.</p>
+                    <button
+                      className="btn-glassline-primary"
+                      onClick={() => setShowAddCard(true)}
+                    >
+                      <FiPlus size={14} /> Add Card
+                    </button>
+                  </>
+                ) : (
+                  <p>This set has no cards yet.</p>
+                )}
               </div>
             ) : layout === LAYOUT.LIST ? (
 
               /* ── LIST VIEW with Drag & Drop ── */
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragEnd={handleDragEnd}
-              >
-                <SortableContext items={cardIds} strategy={verticalListSortingStrategy}>
-                  <div className="sd-cards-list">
-                    {cards.map((card, idx) => (
-                      <div key={card._id}>
-                        {editingCard?._id === card._id ? (
-                          <div className="sd-inline-edit">
-                            <CardEditor
+              isOwner ? (
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd}
+                >
+                  <SortableContext items={cardIds} strategy={verticalListSortingStrategy}>
+                    <div className="sd-cards-list">
+                      {cards.map((card, idx) => (
+                        <div key={card._id}>
+                          {editingCard?._id === card._id ? (
+                            <div className="sd-inline-edit">
+                              <CardEditor
+                                card={card}
+                                onSave={handleSaveEdit}
+                                onCancel={() => setEditingCard(null)}
+                                loading={savingEdit}
+                              />
+                            </div>
+                          ) : (
+                            <SortableCardRow
                               card={card}
-                              onSave={handleSaveEdit}
-                              onCancel={() => setEditingCard(null)}
-                              loading={savingEdit}
+                              index={idx + 1}
+                              onEdit={() => { setEditingCard(card); setShowAddCard(false); }}
+                              onDelete={() => setDeleteCardId(card._id)}
+                              readonly={!isOwner}
                             />
-                          </div>
-                        ) : (
-                          <SortableCardRow
-                            card={card}
-                            index={idx + 1}
-                            onEdit={() => { setEditingCard(card); setShowAddCard(false); }}
-                            onDelete={() => setDeleteCardId(card._id)}
-                          />
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </SortableContext>
-              </DndContext>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </SortableContext>
+                </DndContext>
+              ) : (
+                <div className="sd-cards-list">
+                  {cards.map((card, idx) => (
+                    <div key={card._id}>
+                      <SortableCardRow
+                        card={card}
+                        index={idx + 1}
+                        readonly={true}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )
 
             ) : (
 
@@ -455,20 +505,22 @@ export default function SetDetail() {
                     </div>
                     <div className="sd-grid-card-footer">
                       <span className="sd-grid-num">{idx + 1}</span>
-                      <div className="sd-card-actions sd-card-actions--always">
-                        <button
-                          className="sd-card-btn sd-card-btn--edit"
-                          onClick={() => { setEditingCard(card); setLayout(LAYOUT.LIST); setShowAddCard(false); }}
-                        >
-                          <FiEdit2 size={13} />
-                        </button>
-                        <button
-                          className="sd-card-btn sd-card-btn--delete"
-                          onClick={() => setDeleteCardId(card._id)}
-                        >
-                          <FiTrash2 size={13} />
-                        </button>
-                      </div>
+                      {isOwner && (
+                        <div className="sd-card-actions sd-card-actions--always">
+                          <button
+                            className="sd-card-btn sd-card-btn--edit"
+                            onClick={() => { setEditingCard(card); setLayout(LAYOUT.LIST); setShowAddCard(false); }}
+                          >
+                            <FiEdit2 size={13} />
+                          </button>
+                          <button
+                            className="sd-card-btn sd-card-btn--delete"
+                            onClick={() => setDeleteCardId(card._id)}
+                          >
+                            <FiTrash2 size={13} />
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}

@@ -12,7 +12,7 @@ import './SortableCardRow.css';
  *   onEdit()   — called to start editing
  *   onDelete() — called to delete
  */
-export default function SortableCardRow({ card, index, onEdit, onDelete }) {
+export default function SortableCardRow({ card, index, onEdit, onDelete, readonly = false }) {
   const {
     attributes,
     listeners,
@@ -31,20 +31,22 @@ export default function SortableCardRow({ card, index, onEdit, onDelete }) {
 
   return (
     <div
-      ref={setNodeRef}
+      ref={readonly ? null : setNodeRef}
       style={style}
-      className={`scr-row surface-card ${isDragging ? 'scr-dragging' : ''}`}
+      className={`scr-row surface-card ${isDragging ? 'scr-dragging' : ''} ${readonly ? 'scr-readonly' : ''}`}
     >
       {/* Drag handle */}
-      <button
-        className="scr-drag-handle"
-        {...attributes}
-        {...listeners}
-        aria-label="Drag to reorder"
-        title="Drag to reorder"
-      >
-        <FiMenu size={15} />
-      </button>
+      {!readonly && (
+        <button
+          className="scr-drag-handle"
+          {...attributes}
+          {...listeners}
+          aria-label="Drag to reorder"
+          title="Drag to reorder"
+        >
+          <FiMenu size={15} />
+        </button>
+      )}
 
       {/* Index */}
       <span className="scr-num">{index}</span>
@@ -71,24 +73,26 @@ export default function SortableCardRow({ card, index, onEdit, onDelete }) {
       </div>
 
       {/* Actions */}
-      <div className="scr-actions">
-        <button
-          className="scr-btn scr-btn--edit"
-          onClick={onEdit}
-          title="Edit card"
-          aria-label="Edit card"
-        >
-          <FiEdit2 size={13} />
-        </button>
-        <button
-          className="scr-btn scr-btn--delete"
-          onClick={onDelete}
-          title="Delete card"
-          aria-label="Delete card"
-        >
-          <FiTrash2 size={13} />
-        </button>
-      </div>
+      {!readonly && (
+        <div className="scr-actions">
+          <button
+            className="scr-btn scr-btn--edit"
+            onClick={onEdit}
+            title="Edit card"
+            aria-label="Edit card"
+          >
+            <FiEdit2 size={13} />
+          </button>
+          <button
+            className="scr-btn scr-btn--delete"
+            onClick={onDelete}
+            title="Delete card"
+            aria-label="Delete card"
+          >
+            <FiTrash2 size={13} />
+          </button>
+        </div>
+      )}
     </div>
   );
 }
