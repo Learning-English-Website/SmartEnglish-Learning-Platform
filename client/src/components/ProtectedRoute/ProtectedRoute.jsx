@@ -1,5 +1,6 @@
 import { Navigate } from 'react-router-dom';
-import { useAuthContext } from '../../context/AuthContext';
+import { useSelector } from 'react-redux';
+import { selectIsAuthenticated, selectAuthLoading } from '../../store/slices/authSlice';
 import LoadingSpinner from '../common/LoadingSpinner/LoadingSpinner';
 
 /**
@@ -8,7 +9,8 @@ import LoadingSpinner from '../common/LoadingSpinner/LoadingSpinner';
  * Redirects to /login if not authenticated.
  */
 export default function ProtectedRoute({ children }) {
-  const { isAuthenticated, loading } = useAuthContext();
+  const isAuthenticated = useSelector(selectIsAuthenticated);
+  const loading = useSelector(selectAuthLoading);
 
   if (loading) {
     return <LoadingSpinner fullScreen text="Loading..." />;

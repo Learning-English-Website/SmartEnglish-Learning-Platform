@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useAuthContext } from '../../context/AuthContext';
+import { useDispatch } from 'react-redux';
+import { setUser, loadUser } from '../../store/slices/authSlice';
 import { authAPI } from '../../api/auth.api';
 import LoadingSpinner from '../../components/common/LoadingSpinner/LoadingSpinner';
 
@@ -12,23 +13,18 @@ import LoadingSpinner from '../../components/common/LoadingSpinner/LoadingSpinne
 export default function OAuthCallbackPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { dispatch } = useAuthContext();
+  const dispatch = useDispatch();
 
   useEffect(() => {
-    // Kiểm tra nếu backend redirect kèm lỗi
     const error = searchParams.get('error');
     if (error) {
       navigate('/login?error=oauth_failed', { replace: true });
       return;
     }
 
-    dispatch({ type: 'AUTH_LOADING' });
-
-    // Cookie đã được set bởi backend — axiosClient tự gửi cookie (withCredentials: true)
-    authAPI.getMe()
-      .then((res) => {
-        if (res.success && res.data) {
-          dispatch({ type: 'SET_USER', payload: res.data });
+    dispatch(loadUser())
+      .then((result) => {
+        if (loadUser.fulfilled.match(result) && result.payload) {
           navigate('/dashboard', { replace: true });
         } else {
           navigate('/login?error=oauth_failed', { replace: true });
@@ -41,4 +37,3 @@ export default function OAuthCallbackPage() {
 
   return <LoadingSpinner fullScreen text="Đang đăng nhập bằng Google..." />;
 }
-

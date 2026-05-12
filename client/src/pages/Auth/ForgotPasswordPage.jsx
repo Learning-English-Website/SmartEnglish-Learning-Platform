@@ -2,20 +2,23 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Form, Button } from 'react-bootstrap';
 import { FiMail, FiArrowLeft, FiCheckCircle, FiLock } from 'react-icons/fi';
+import { useSelector } from 'react-redux';
 import { useAuth } from '../../hooks/useAuth';
+import { selectAuthLoading } from '../../store/slices/authSlice';
 import './Auth.css';
 
 const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
 
 export default function ForgotPasswordPage() {
   const { forgotPassword, resetPasswordOtp } = useAuth();
+  const loading = useSelector(selectAuthLoading);
+
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [errors, setErrors] = useState({});
   const [sent, setSent] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
 
   const handleRequestOtp = async (e) => {
     e.preventDefault();
@@ -28,13 +31,8 @@ export default function ForgotPasswordPage() {
       return;
     }
     setErrors({});
-    setSubmitting(true);
-    try {
-      const success = await forgotPassword({ email });
-      if (success) setSent(true);
-    } finally {
-      setSubmitting(false);
-    }
+    const success = await forgotPassword({ email });
+    if (success) setSent(true);
   };
 
   const handleResetPassword = async (e) => {
@@ -53,12 +51,7 @@ export default function ForgotPasswordPage() {
     }
 
     setErrors({});
-    setSubmitting(true);
-    try {
-      await resetPasswordOtp({ email, otp, newPassword });
-    } finally {
-      setSubmitting(false);
-    }
+    await resetPasswordOtp({ email, otp, newPassword });
   };
 
   const renderRequestForm = () => (
@@ -87,9 +80,9 @@ export default function ForgotPasswordPage() {
           {errors.email ? <div className="auth-field-error">{errors.email}</div> : null}
         </Form.Group>
 
-        <Button type="submit" className="btn-auth-primary" disabled={submitting} id="forgot-submit">
-          {submitting && <span className="spinner-border spinner-border-sm me-2" />}
-          {submitting ? 'Sending...' : 'Send Reset OTP'}
+        <Button type="submit" className="btn-auth-primary" disabled={loading} id="forgot-submit">
+          {loading && <span className="spinner-border spinner-border-sm me-2" />}
+          {loading ? 'Sending...' : 'Send Reset OTP'}
         </Button>
       </Form>
     </>
@@ -153,9 +146,9 @@ export default function ForgotPasswordPage() {
           {errors.confirmPassword ? <div className="auth-field-error">{errors.confirmPassword}</div> : null}
         </Form.Group>
 
-        <Button type="submit" className="btn-auth-primary" disabled={submitting}>
-          {submitting && <span className="spinner-border spinner-border-sm me-2" />}
-          {submitting ? 'Resetting...' : 'Reset Password'}
+        <Button type="submit" className="btn-auth-primary" disabled={loading}>
+          {loading && <span className="spinner-border spinner-border-sm me-2" />}
+          {loading ? 'Resetting...' : 'Reset Password'}
         </Button>
       </Form>
     </div>

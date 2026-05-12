@@ -1,10 +1,10 @@
 import { Link } from 'react-router-dom';
 import { Container } from 'react-bootstrap';
-import { useAuthContext } from '../../context/AuthContext';
+import { useAuth } from '../../hooks/useAuth';
 import './DashboardPage.css';
 
 export default function DashboardPage() {
-  const { user } = useAuthContext();
+  const { user } = useAuth();
 
   const stats = [
     { label: 'Day Streak', value: '1', icon: '🔥' },

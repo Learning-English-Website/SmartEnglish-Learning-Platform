@@ -1,67 +1,30 @@
-import { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
-import { authAPI } from '../api/auth.api';
+/**
+ * AuthContext — now a thin wrapper around Redux.
+ * Kept for backwards compatibility with existing components.
+ * All auth state and actions are now managed by Redux (authSlice).
+ *
+ * New code should use the `useAuth` hook instead.
+ */
+import { useSelector, useDispatch } from 'react-redux';
+import { selectAuth, setUser, clearError } from '../store/slices/authSlice';
 
-// ── Initial State ─────────────────────────────────────────────────────────────
-const initialState = {
-  user: null,
-  isAuthenticated: false,
-  loading: true,
-  error: null,
-};
+// Re-export actions for convenience
+export { clearError, setUser, resetAuth } from '../store/slices/authSlice';
+export { loadUser, loginUser, registerUser, verifyEmailOtp, logoutUser, forgotPassword, resetPasswordOtp, updateProfile } from '../store/slices/authSlice';
 
-// ── Reducer ───────────────────────────────────────────────────────────────────
-function authReducer(state, action) {
-  switch (action.type) {
-    case 'AUTH_LOADING':
-      return { ...state, loading: true, error: null };
-    case 'LOGIN_SUCCESS':
-      return { ...state, user: action.payload, isAuthenticated: true, loading: false, error: null };
-    case 'AUTH_ERROR':
-      return { ...state, error: action.payload, loading: false };
-    case 'LOGOUT':
-      return { ...initialState, loading: false };
-    case 'SET_USER':
-      return { ...state, user: action.payload, isAuthenticated: true, loading: false };
-    case 'LOAD_DONE':
-      return { ...state, loading: false };
-    default:
-      return state;
-  }
-}
-
-// ── Context ───────────────────────────────────────────────────────────────────
-export const AuthContext = createContext(null);
-
-export function AuthProvider({ children }) {
-  const [state, dispatch] = useReducer(authReducer, initialState);
-
-  /**
-   * On mount: gọi /api/users/me để kiểm tra phiên đăng nhập.
-   * Cookie HttpOnly được gửi tự động bởi axiosClient (withCredentials: true).
-   */
-  const loadUser = useCallback(async () => {
-    try {
-      const res = await authAPI.getMe();
-      dispatch({ type: 'SET_USER', payload: res.data });
-    } catch {
-      // Chưa đăng nhập hoặc cookie hết hạn
-      dispatch({ type: 'LOGOUT' });
-    }
-  }, []);
-
-  useEffect(() => {
-    loadUser();
-  }, [loadUser]);
-
-  return (
-    <AuthContext.Provider value={{ ...state, dispatch, loadUser }}>
-      {children}
-    </AuthContext.Provider>
-  );
-}
-
+// Selectors
 export const useAuthContext = () => {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuthContext must be used within AuthProvider');
-  return ctx;
+  const dispatch = useDispatch();
+  const auth = useSelector(selectAuth);
+
+  return {
+    ...auth,
+    dispatch,
+  };
 };
+
+// Provider — now just renders children (Redux Provider is in App.jsx)
+// Kept for backwards compatibility
+export function AuthProvider({ children }) {
+  return children;
+}

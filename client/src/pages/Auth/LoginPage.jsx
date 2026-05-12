@@ -3,24 +3,22 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Form, Button } from 'react-bootstrap';
 import { FiMail, FiLock, FiEye, FiEyeOff } from 'react-icons/fi';
 import { FcGoogle } from 'react-icons/fc';
-import toast from 'react-hot-toast';
 import { useAuth } from '../../hooks/useAuth';
 import './Auth.css';
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const { login, loading } = useAuth();
+
   const handleGoogleLogin = () => {
-    // VITE_API_URL already contains /api (e.g. http://localhost:5000/api)
-    // Strip /api to get the base server URL
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
     const backendUrl = apiUrl.replace(/\/api$/, '');
     window.location.href = `${backendUrl}/api/auth/google`;
   };
-  const { login } = useAuth();
+
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
-  const [submitting, setSubmitting] = useState(false);
 
   const validate = () => {
     const errs = {};
@@ -35,18 +33,10 @@ export default function LoginPage() {
     const errs = validate();
     if (Object.keys(errs).length > 0) {
       setErrors(errs);
-      toast.error(Object.values(errs)[0]);
-      const sid = errs.email ? 'login-email' : 'login-password';
-      document.getElementById(sid)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }
     setErrors({});
-    setSubmitting(true);
-    try {
-      await login(formData);
-    } finally {
-      setSubmitting(false);
-    }
+    await login(formData);
   };
 
   const handleChange = (e) => {
@@ -64,7 +54,6 @@ export default function LoginPage() {
           <p className="auth-subtitle">Sign in to continue learning</p>
         </div>
 
-        {/* Google Button */}
         {/* Google Button */}
         <Button className="btn-google" variant="outline-secondary" onClick={handleGoogleLogin}>
           <FcGoogle size={20} />
@@ -126,13 +115,13 @@ export default function LoginPage() {
           <Button
             type="submit"
             className="btn-auth-primary"
-            disabled={submitting}
+            disabled={loading}
             id="login-submit"
           >
-            {submitting ? (
+            {loading ? (
               <span className="spinner-border spinner-border-sm me-2" />
             ) : null}
-            {submitting ? 'Signing in...' : 'Sign In'}
+            {loading ? 'Signing in...' : 'Sign In'}
           </Button>
         </Form>
 

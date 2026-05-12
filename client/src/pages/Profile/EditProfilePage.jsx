@@ -2,19 +2,23 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Form, Button, Container } from 'react-bootstrap';
 import { FiUser, FiLink, FiArrowLeft } from 'react-icons/fi';
+import { useDispatch, useSelector } from 'react-redux';
 import toast from 'react-hot-toast';
-import { authAPI } from '../../api/auth.api';
-import { useAuthContext } from '../../context/AuthContext';
+import { useAuth } from '../../hooks/useAuth';
+import { selectAuthLoading } from '../../store/slices/authSlice';
+import { updateProfile } from '../../store/slices/authSlice';
 import './ProfilePage.css';
 
 export default function EditProfilePage() {
-  const { user, dispatch } = useAuthContext();
+  const { user } = useAuth();
+  const dispatch = useDispatch();
   const navigate = useNavigate();
+  const loading = useSelector(selectAuthLoading);
+
   const [formData, setFormData] = useState({
     username: user?.username || '',
     avatar: user?.avatar || '',
   });
-  const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
 
   const validate = () => {
@@ -30,20 +34,17 @@ export default function EditProfilePage() {
     e.preventDefault();
     const errs = validate();
     if (Object.keys(errs).length > 0) { setErrors(errs); return; }
-    setLoading(true);
-    try {
-      const res = await authAPI.updateProfile({
-        username: formData.username,
-        ...(formData.avatar ? { avatar: formData.avatar } : {}),
-      });
-      dispatch({ type: 'SET_USER', payload: res.data });
+
+    const result = await dispatch(updateProfile({
+      username: formData.username,
+      ...(formData.avatar ? { avatar: formData.avatar } : {}),
+    }));
+
+    if (updateProfile.fulfilled.match(result)) {
       toast.success('Profile updated! ✅');
       navigate('/profile');
-    } catch (err) {
-      const msg = err.response?.data?.error?.message || 'Update failed';
-      toast.error(msg);
-    } finally {
-      setLoading(false);
+    } else {
+      toast.error(result.payload || 'Update failed');
     }
   };
 
