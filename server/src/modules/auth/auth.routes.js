@@ -30,11 +30,12 @@ router.get('/google', passport.authenticate('google', { scope: ['profile', 'emai
 
 // Google OAuth callback – set cookies rồi redirect về frontend (KHÔNG truyền token qua URL)
 router.get('/google/callback', passport.authenticate('google', { session: false, failureRedirect: `${process.env.CLIENT_URL}/login?error=google_failed` }), (req, res) => {
-  const { accessToken, refreshToken } = req.user;
-  // Set HttpOnly cookies (giống login thường)
+  const tokens = req.user;
+  // Dùng cùng helper với login thường để đảm bảo sameSite='none' trong production
   const isProd = process.env.NODE_ENV === 'production';
-  res.cookie('accessToken', accessToken, { httpOnly: true, secure: isProd, sameSite: 'strict', maxAge: 15 * 60 * 1000 });
-  res.cookie('refreshToken', refreshToken, { httpOnly: true, secure: isProd, sameSite: 'strict', maxAge: 7 * 24 * 60 * 60 * 1000 });
+  const sameSite = isProd ? 'none' : 'lax';
+  res.cookie('accessToken', tokens.accessToken, { httpOnly: true, secure: isProd, sameSite, maxAge: 15 * 60 * 1000 });
+  res.cookie('refreshToken', tokens.refreshToken, { httpOnly: true, secure: isProd, sameSite, maxAge: 7 * 24 * 60 * 60 * 1000 });
   // Redirect về frontend — KHÔNG kèm token trong URL
   res.redirect(`${process.env.CLIENT_URL}/oauth/callback`);
 });
