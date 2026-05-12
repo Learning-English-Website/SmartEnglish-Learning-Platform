@@ -1945,10 +1945,16 @@ classDiagram
         +Role role
         +String avatar
         +PremiumStatus premium
+        +OAuthInfo oauth
+        +Boolean isVerified
         +Date updatedAt
         +register()
         +login()
         +updateProfile()
+    }
+
+    class OAuthInfo {
+        +String googleId
     }
 
     class FlashcardSet {

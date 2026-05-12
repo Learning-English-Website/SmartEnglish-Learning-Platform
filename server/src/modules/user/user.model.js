@@ -3,6 +3,11 @@ const bcrypt = require('bcryptjs');
 
 const { Schema } = mongoose;
 
+// ── Enums ──────────────────────────────────────────────────────────────────────
+const ROLE_ENUM = ['admin', 'student', 'teacher'];
+const PREMIUM_ENUM = ['free', 'trial', 'premium'];
+
+// ── User Schema ────────────────────────────────────────────────────────────────
 const UserSchema = new Schema(
   {
     email: {
@@ -23,8 +28,7 @@ const UserSchema = new Schema(
     },
     password: {
       type: String,
-      required: function() {
-        // OAuth users (Google, Facebook) don't have a password
+      required: function () {
         return !this.oauth?.googleId && !this.oauth?.facebookId;
       },
       minlength: [8, 'Password must be at least 8 characters'],
@@ -32,7 +36,7 @@ const UserSchema = new Schema(
     },
     role: {
       type: String,
-      enum: ['admin', 'student', 'teacher'],
+      enum: ROLE_ENUM,
       default: 'student',
     },
     avatar: {
@@ -41,7 +45,7 @@ const UserSchema = new Schema(
     },
     premium: {
       type: String,
-      enum: ['free', 'trial', 'premium'],
+      enum: PREMIUM_ENUM,
       default: 'free',
     },
     oauth: {
@@ -56,22 +60,12 @@ const UserSchema = new Schema(
       type: Date,
       default: null,
     },
-    resetPasswordToken: {
-      type: String,
-      default: null,
-    },
-    resetPasswordExpires: {
-      type: Date,
-      default: null,
-    },
   },
   {
     timestamps: true,
     toJSON: {
       transform(doc, ret) {
         delete ret.password;
-        delete ret.resetPasswordToken;
-        delete ret.resetPasswordExpires;
         delete ret.__v;
         return ret;
       },
@@ -79,19 +73,21 @@ const UserSchema = new Schema(
   }
 );
 
-// ── Indexes ──────────────────────────────────────────────────────────────────
-// email and username already indexed via unique:true in schema definition
+// ── Indexes ────────────────────────────────────────────────────────────────────
+UserSchema.index({ email: 1 });
+UserSchema.index({ username: 1 });
 UserSchema.index({ 'oauth.googleId': 1 });
+UserSchema.index({ 'oauth.facebookId': 1 });
 
-// ── Pre-save Hook: Hash password ──────────────────────────────────────────────
+// ── Pre-save Hook: Hash password ───────────────────────────────────────────────
 UserSchema.pre('save', async function () {
-  if (!this.isModified('password')) return;
+  if (!this.isModified('password') || !this.password) return;
   this.password = await bcrypt.hash(this.password, 12);
 });
 
-// ── Instance Methods ──────────────────────────────────────────────────────────
-UserSchema.methods.comparePassword = async function (candidate) {
-  return bcrypt.compare(candidate, this.password);
+// ── Instance Methods ───────────────────────────────────────────────────────────
+UserSchema.methods.comparePassword = async function (candidatePassword) {
+  return bcrypt.compare(candidatePassword, this.password);
 };
 
 UserSchema.methods.toPublicProfile = function () {
@@ -103,15 +99,29 @@ UserSchema.methods.toPublicProfile = function () {
     avatar: this.avatar,
     premium: this.premium,
     isVerified: this.isVerified,
-    lastLoginAt: this.lastLoginAt,
     createdAt: this.createdAt,
+    updatedAt: this.updatedAt,
   };
 };
 
-// ── Static Methods ────────────────────────────────────────────────────────────
+UserSchema.methods.isOAuthUser = function () {
+  return !!(this.oauth?.googleId || this.oauth?.facebookId);
+};
+
+// ── Static Methods ─────────────────────────────────────────────────────────────
 UserSchema.statics.findByEmail = function (email) {
   return this.findOne({ email }).select('+password');
 };
 
+UserSchema.statics.findByGoogleId = function (googleId) {
+  return this.findOne({ 'oauth.googleId': googleId });
+};
+
+UserSchema.statics.findByFacebookId = function (facebookId) {
+  return this.findOne({ 'oauth.facebookId': facebookId });
+};
+
+// ── Export ─────────────────────────────────────────────────────────────────────
 const User = mongoose.model('User', UserSchema);
+
 module.exports = User;
