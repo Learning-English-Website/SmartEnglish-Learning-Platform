@@ -1,11 +1,11 @@
 import { Link } from 'react-router-dom';
 import { Container, Button } from 'react-bootstrap';
 import { FiEdit2, FiMail, FiUser, FiShield, FiStar, FiCalendar } from 'react-icons/fi';
-import { useAuthContext } from '../../context/AuthContext';
+import { useAuth } from '../../hooks/useAuth';
 import './ProfilePage.css';
 
 export default function ProfilePage() {
-  const { user } = useAuthContext();
+  const { user } = useAuth();
 
   if (!user) return null;
 

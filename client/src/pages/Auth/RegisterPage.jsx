@@ -3,13 +3,11 @@ import { Link } from 'react-router-dom';
 import { Form, Button } from 'react-bootstrap';
 import { FiMail, FiLock, FiUser, FiEye, FiEyeOff } from 'react-icons/fi';
 import { FcGoogle } from 'react-icons/fc';
-import toast from 'react-hot-toast';
 import { useAuth } from '../../hooks/useAuth';
 import './Auth.css';
 
 const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
 
-/** Tiếng Việt — nêu cụ thể rule nào thiếu (thanh độ mạnh vẫn có thể "Fair" nếu thiếu chữ HOA) */
 function vietnamesePasswordRuleMessage(pw) {
   const p = pw || '';
   const parts = [];
@@ -21,12 +19,11 @@ function vietnamesePasswordRuleMessage(pw) {
 }
 
 export default function RegisterPage() {
-  const { register, verifyEmailOtp } = useAuth();
+  const { register, verifyEmailOtp, loading } = useAuth();
   const [formData, setFormData] = useState({ email: '', username: '', password: '', confirm: '' });
   const [otp, setOtp] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
-  const [submitting, setSubmitting] = useState(false);
   const [otpStep, setOtpStep] = useState(false);
 
   const validate = () => {
@@ -53,48 +50,23 @@ export default function RegisterPage() {
     if (otpStep) {
       if (!/^\d{6}$/.test(otp)) {
         setErrors({ otp: 'Nhập OTP 6 chữ số.' });
-        toast.error('Nhập OTP 6 chữ số.');
         return;
       }
       setErrors({});
-      setSubmitting(true);
-      try {
-        await verifyEmailOtp({ email: formData.email, otp });
-      } finally {
-        setSubmitting(false);
-      }
+      await verifyEmailOtp({ email: formData.email, otp });
       return;
     }
 
     const errs = validate();
     if (Object.keys(errs).length > 0) {
       setErrors(errs);
-      const firstMsg = Object.values(errs)[0];
-      toast.error(firstMsg);
-      const scrollOrder = [
-        ['email', 'register-email'],
-        ['username', 'register-username'],
-        ['password', 'register-password'],
-        ['confirm', 'register-confirm'],
-      ];
-      for (const [key, domId] of scrollOrder) {
-        if (errs[key]) {
-          document.getElementById(domId)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          break;
-        }
-      }
       return;
     }
     setErrors({});
     const { confirm, ...submitData } = formData;
-    setSubmitting(true);
-    try {
-      const result = await register(submitData);
-      if (result?.requiresEmailVerification) {
-        setOtpStep(true);
-      }
-    } finally {
-      setSubmitting(false);
+    const result = await register(submitData);
+    if (result?.requiresEmailVerification) {
+      setOtpStep(true);
     }
   };
 
@@ -171,107 +143,107 @@ export default function RegisterPage() {
             </Form.Group>
           ) : (
             <>
-          {/* Email */}
-          <Form.Group className="mb-3">
-            <div className="input-wrapper">
-              <FiMail className="input-icon" />
-              <Form.Control
-                type="email"
-                name="email"
-                id="register-email"
-                placeholder="Email address"
-                value={formData.email}
-                onChange={handleChange}
-                isInvalid={!!errors.email}
-                className="auth-input"
-                autoComplete="email"
-              />
-            </div>
-            {errors.email ? <div className="auth-field-error" role="alert">{errors.email}</div> : null}
-          </Form.Group>
+              {/* Email */}
+              <Form.Group className="mb-3">
+                <div className="input-wrapper">
+                  <FiMail className="input-icon" />
+                  <Form.Control
+                    type="email"
+                    name="email"
+                    id="register-email"
+                    placeholder="Email address"
+                    value={formData.email}
+                    onChange={handleChange}
+                    isInvalid={!!errors.email}
+                    className="auth-input"
+                    autoComplete="email"
+                  />
+                </div>
+                {errors.email ? <div className="auth-field-error" role="alert">{errors.email}</div> : null}
+              </Form.Group>
 
-          {/* Username */}
-          <Form.Group className="mb-3">
-            <div className="input-wrapper">
-              <FiUser className="input-icon" />
-              <Form.Control
-                type="text"
-                name="username"
-                id="register-username"
-                placeholder="Username (3-30 chars, letters & numbers)"
-                value={formData.username}
-                onChange={handleChange}
-                isInvalid={!!errors.username}
-                className="auth-input"
-                autoComplete="username"
-              />
-            </div>
-            {errors.username ? <div className="auth-field-error" role="alert">{errors.username}</div> : null}
-          </Form.Group>
+              {/* Username */}
+              <Form.Group className="mb-3">
+                <div className="input-wrapper">
+                  <FiUser className="input-icon" />
+                  <Form.Control
+                    type="text"
+                    name="username"
+                    id="register-username"
+                    placeholder="Username (3-30 chars, letters & numbers)"
+                    value={formData.username}
+                    onChange={handleChange}
+                    isInvalid={!!errors.username}
+                    className="auth-input"
+                    autoComplete="username"
+                  />
+                </div>
+                {errors.username ? <div className="auth-field-error" role="alert">{errors.username}</div> : null}
+              </Form.Group>
 
-          {/* Password */}
-          <Form.Group className="mb-1">
-            <div className="input-wrapper">
-              <FiLock className="input-icon" />
-              <Form.Control
-                type={showPassword ? 'text' : 'password'}
-                name="password"
-                id="register-password"
-                placeholder="Password"
-                value={formData.password}
-                onChange={handleChange}
-                isInvalid={!!errors.password}
-                className="auth-input"
-                autoComplete="new-password"
-              />
-              <button type="button" className="input-toggle" onClick={() => setShowPassword(p => !p)} tabIndex={-1}>
-                {showPassword ? <FiEyeOff /> : <FiEye />}
-              </button>
-            </div>
-            {errors.password ? <div className="auth-field-error" role="alert">{errors.password}</div> : null}
-          </Form.Group>
+              {/* Password */}
+              <Form.Group className="mb-1">
+                <div className="input-wrapper">
+                  <FiLock className="input-icon" />
+                  <Form.Control
+                    type={showPassword ? 'text' : 'password'}
+                    name="password"
+                    id="register-password"
+                    placeholder="Password"
+                    value={formData.password}
+                    onChange={handleChange}
+                    isInvalid={!!errors.password}
+                    className="auth-input"
+                    autoComplete="new-password"
+                  />
+                  <button type="button" className="input-toggle" onClick={() => setShowPassword(p => !p)} tabIndex={-1}>
+                    {showPassword ? <FiEyeOff /> : <FiEye />}
+                  </button>
+                </div>
+                {errors.password ? <div className="auth-field-error" role="alert">{errors.password}</div> : null}
+              </Form.Group>
 
-          {/* Strength bar */}
-          {formData.password && (
-            <div className="strength-bar mb-3">
-              <div className="strength-track">
-                {[1, 2, 3, 4, 5].map(i => (
-                  <div key={i} className={`strength-segment ${i <= strength ? 'strength-on' : ''}`} />
-                ))}
-              </div>
-              <span className="strength-label">{strengthLabel}</span>
-            </div>
-          )}
+              {/* Strength bar */}
+              {formData.password && (
+                <div className="strength-bar mb-3">
+                  <div className="strength-track">
+                    {[1, 2, 3, 4, 5].map(i => (
+                      <div key={i} className={`strength-segment ${i <= strength ? 'strength-on' : ''}`} />
+                    ))}
+                  </div>
+                  <span className="strength-label">{strengthLabel}</span>
+                </div>
+              )}
 
-          {/* Confirm password */}
-          <Form.Group className="mb-3">
-            <div className="input-wrapper">
-              <FiLock className="input-icon" />
-              <Form.Control
-                type={showPassword ? 'text' : 'password'}
-                name="confirm"
-                id="register-confirm"
-                placeholder="Confirm password"
-                value={formData.confirm}
-                onChange={handleChange}
-                isInvalid={!!errors.confirm}
-                className="auth-input"
-                autoComplete="new-password"
-              />
-            </div>
-            {errors.confirm ? <div className="auth-field-error" role="alert">{errors.confirm}</div> : null}
-          </Form.Group>
+              {/* Confirm password */}
+              <Form.Group className="mb-3">
+                <div className="input-wrapper">
+                  <FiLock className="input-icon" />
+                  <Form.Control
+                    type={showPassword ? 'text' : 'password'}
+                    name="confirm"
+                    id="register-confirm"
+                    placeholder="Confirm password"
+                    value={formData.confirm}
+                    onChange={handleChange}
+                    isInvalid={!!errors.confirm}
+                    className="auth-input"
+                    autoComplete="new-password"
+                  />
+                </div>
+                {errors.confirm ? <div className="auth-field-error" role="alert">{errors.confirm}</div> : null}
+              </Form.Group>
             </>
           )}
 
           <Button
             type="submit"
             className="btn-auth-primary"
-            disabled={submitting}
+            disabled={loading}
             id="register-submit"
           >
-            {submitting && <span className="spinner-border spinner-border-sm me-2" />}
-            {submitting ? (otpStep ? 'Verifying OTP...' : 'Creating account...') : (otpStep ? 'Verify OTP' : 'Create Account')}
+            {loading && <span className="spinner-border spinner-border-sm me-2" />}
+            {loading ? (otpStep ? 'Verifying OTP...' : 'Creating account...') : (otpStep ? 'Verify OTP' : 'Create Account')}
           </Button>
         </Form>
 

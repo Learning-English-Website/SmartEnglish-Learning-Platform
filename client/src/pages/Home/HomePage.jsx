@@ -1,11 +1,11 @@
 import { Link } from 'react-router-dom';
 import { Container, Button } from 'react-bootstrap';
 import { FiArrowRight } from 'react-icons/fi';
-import { useAuthContext } from '../../context/AuthContext';
+import { useAuth } from '../../hooks/useAuth';
 import './HomePage.css';
 
 export default function HomePage() {
-  const { isAuthenticated, user } = useAuthContext();
+  const { isAuthenticated, user } = useAuth();
 
   return (
     <div className="home-page">

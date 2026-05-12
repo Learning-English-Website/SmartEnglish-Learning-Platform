@@ -1,8 +1,10 @@
 import { RouterProvider } from 'react-router-dom';
+import { Provider } from 'react-redux';
 import { Toaster } from 'react-hot-toast';
-import { AuthProvider } from './context/AuthContext';
+import { store } from './store/store';
 import { DarkModeProvider, useDarkMode } from './context/DarkModeContext';
 import ErrorBoundary from './components/ErrorBoundary/ErrorBoundary';
+import AppInitializer from './components/AppInitializer/AppInitializer';
 import router from './routes';
 
 function ToasterWithTheme() {
@@ -31,12 +33,14 @@ function ToasterWithTheme() {
 export default function App() {
   return (
     <ErrorBoundary>
-      <DarkModeProvider>
-        <AuthProvider>
-          <RouterProvider router={router} />
-          <ToasterWithTheme />
-        </AuthProvider>
-      </DarkModeProvider>
+      <Provider store={store}>
+        <DarkModeProvider>
+          <AppInitializer>
+            <RouterProvider router={router} />
+            <ToasterWithTheme />
+          </AppInitializer>
+        </DarkModeProvider>
+      </Provider>
     </ErrorBoundary>
   );
 }

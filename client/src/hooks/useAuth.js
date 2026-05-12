@@ -1,111 +1,112 @@
 import { useCallback } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { useAuthContext } from '../context/AuthContext';
-import { authAPI } from '../api/auth.api';
+import {
+  loginUser,
+  registerUser,
+  verifyEmailOtp,
+  logoutUser,
+  forgotPassword,
+  resetPasswordOtp,
+  loadUser,
+  clearError,
+  selectAuth,
+} from '../store/slices/authSlice';
 
 /**
- * useAuth — provides login, register, logout, and forgotPassword actions.
+ * useAuth — provides auth state and actions using Redux.
  * All actions handle loading state, error handling, and success toasts.
  */
 export function useAuth() {
-  const { user, isAuthenticated, loading, error, dispatch } = useAuthContext();
+  const dispatch = useDispatch();
   const navigate = useNavigate();
+  const { user, isAuthenticated, loading, error, requiresEmailVerification } = useSelector(selectAuth);
 
   const login = useCallback(async ({ email, password }) => {
-    dispatch({ type: 'AUTH_LOADING' });
-    try {
-      const res = await authAPI.login({ email, password });
-      const { user } = res.data;
-      dispatch({ type: 'LOGIN_SUCCESS', payload: user });
-      toast.success(`Welcome back, ${user.username}! 👋`);
+    dispatch(clearError());
+    const result = await dispatch(loginUser({ email, password }));
+    if (loginUser.fulfilled.match(result)) {
+      toast.success(`Welcome back, ${result.payload.username}! 👋`);
       navigate('/dashboard');
-    } catch (err) {
-      const msg = err.response?.data?.error?.message || 'Login failed';
-      dispatch({ type: 'AUTH_ERROR', payload: msg });
-      toast.error(msg);
+    } else {
+      toast.error(result.payload || 'Login failed');
     }
   }, [dispatch, navigate]);
 
   const register = useCallback(async ({ email, username, password }) => {
-    try {
-      const res = await authAPI.register({ email, username, password });
+    dispatch(clearError());
+    const result = await dispatch(registerUser({ email, username, password }));
+    if (registerUser.fulfilled.match(result)) {
       toast.success('OTP sent to your email. Verify to activate account.');
-      dispatch({ type: 'LOAD_DONE' });
-      return res.data;
-    } catch (err) {
-      const msg = err.response?.data?.error?.message || 'Registration failed';
-      dispatch({ type: 'AUTH_ERROR', payload: msg });
-      toast.error(msg);
+      return { requiresEmailVerification: true };
+    } else {
+      toast.error(result.payload || 'Registration failed');
       return null;
     }
   }, [dispatch]);
 
-  const verifyEmailOtp = useCallback(async ({ email, otp }) => {
-    dispatch({ type: 'AUTH_LOADING' });
-    try {
-      const res = await authAPI.verifyEmailOtp({ email, otp });
-      const { user } = res.data;
-      dispatch({ type: 'LOGIN_SUCCESS', payload: user });
+  const verifyEmailOtpAction = useCallback(async ({ email, otp }) => {
+    dispatch(clearError());
+    const result = await dispatch(verifyEmailOtp({ email, otp }));
+    if (verifyEmailOtp.fulfilled.match(result)) {
       toast.success('Email verified! Account activated.');
       navigate('/dashboard');
       return true;
-    } catch (err) {
-      const msg = err.response?.data?.error?.message || 'OTP verification failed';
-      dispatch({ type: 'AUTH_ERROR', payload: msg });
-      toast.error(msg);
+    } else {
+      toast.error(result.payload || 'OTP verification failed');
       return false;
     }
   }, [dispatch, navigate]);
 
   const logout = useCallback(async () => {
-    try {
-      await authAPI.logout();
-    } catch {
-      // ignore errors — always clear local state
-    } finally {
-      dispatch({ type: 'LOGOUT' });
-      toast.success('Logged out successfully');
-      navigate('/login');
-    }
+    await dispatch(logoutUser());
+    toast.success('Logged out successfully');
+    navigate('/login');
   }, [dispatch, navigate]);
 
-  const forgotPassword = useCallback(async ({ email }) => {
-    try {
-      await authAPI.forgotPassword({ email });
+  const forgotPasswordAction = useCallback(async ({ email }) => {
+    dispatch(clearError());
+    const result = await dispatch(forgotPassword({ email }));
+    if (forgotPassword.fulfilled.match(result)) {
       toast.success('OTP sent! Check your email 📧');
       return true;
-    } catch (err) {
-      const msg = err.response?.data?.error?.message || 'Failed to send reset OTP';
-      toast.error(msg);
+    } else {
+      toast.error(result.payload || 'Failed to send reset OTP');
       return false;
     }
-  }, []);
+  }, [dispatch]);
 
-  const resetPasswordOtp = useCallback(async ({ email, otp, newPassword }) => {
-    try {
-      await authAPI.resetPasswordOtp({ email, otp, newPassword });
+  const resetPasswordOtpAction = useCallback(async ({ email, otp, newPassword }) => {
+    dispatch(clearError());
+    const result = await dispatch(resetPasswordOtp({ email, otp, newPassword }));
+    if (resetPasswordOtp.fulfilled.match(result)) {
       toast.success('Password reset successful. Please sign in.');
       navigate('/login');
       return true;
-    } catch (err) {
-      const msg = err.response?.data?.error?.message || 'Failed to reset password';
-      toast.error(msg);
+    } else {
+      toast.error(result.payload || 'Failed to reset password');
       return false;
     }
-  }, [navigate]);
+  }, [dispatch, navigate]);
+
+  const loadCurrentUser = useCallback(() => {
+    dispatch(loadUser());
+  }, [dispatch]);
 
   return {
     user,
     isAuthenticated,
     loading,
     error,
+    requiresEmailVerification,
     login,
     register,
-    verifyEmailOtp,
+    verifyEmailOtp: verifyEmailOtpAction,
     logout,
-    forgotPassword,
-    resetPasswordOtp,
+    forgotPassword: forgotPasswordAction,
+    resetPasswordOtp: resetPasswordOtpAction,
+    loadUser: loadCurrentUser,
+    clearError: () => dispatch(clearError()),
   };
 }
-
