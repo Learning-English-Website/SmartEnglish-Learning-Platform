@@ -312,10 +312,20 @@ kbd {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
   margin-bottom: 28px;
+  flex-wrap: wrap;
 }
 
-.cs-lang-select {
+.cs-options-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.cs-lang-select,
+.cs-folder-select {
   padding: 7px 14px;
   border-radius: 8px;
   border: 1.5px solid var(--border-subtle);
@@ -326,10 +336,77 @@ kbd {
   cursor: pointer;
   outline: none;
   transition: border-color 0.15s;
+  min-width: 140px;
 }
 
-.cs-lang-select:focus {
+.cs-lang-select:focus,
+.cs-folder-select:focus {
   border-color: var(--gl-tertiary);
+}
+
+.cs-options-right {
+  flex: 1;
+  max-width: 300px;
+}
+
+/* Add card row */
+.cs-add-card-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+
+.cs-add-card-row .cs-add-card-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  background: var(--bg-elevated);
+  border: 1.5px dashed var(--border-subtle);
+  border-radius: 10px;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: var(--font-sans);
+  width: auto;
+  margin: 0;
+  letter-spacing: 0;
+}
+
+.cs-add-card-row .cs-add-card-btn:hover {
+  border-color: var(--gl-tertiary);
+  color: var(--gl-tertiary);
+  background: rgba(99, 102, 241, 0.05);
+}
+
+.cs-add-card-row .cs-add-card-plus {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cs-import-btn {
+  background: rgba(99, 102, 241, 0.05) !important;
+  border-color: var(--gl-tertiary) !important;
+  color: var(--gl-tertiary) !important;
+}
+
+.cs-import-btn:hover {
+  background: var(--gl-tertiary) !important;
+  color: #fff !important;
+}
+
+.cs-tags-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  font-family: var(--font-sans);
 }
 
 /* ── Card List ────────────────────────────────────────────────────────── */

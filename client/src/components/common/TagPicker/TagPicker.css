@@ -1,0 +1,122 @@
+.tag-picker {
+  position: relative;
+}
+
+.tag-picker-selected {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  padding: 0.5rem;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 0.375rem;
+  min-height: 42px;
+  background: var(--bs-body-bg);
+  cursor: text;
+}
+
+.tag-picker-selected:focus-within {
+  border-color: var(--bs-primary);
+  box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.25);
+}
+
+.tag-picker-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.tag-picker-remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: inherit;
+  padding: 0;
+  cursor: pointer;
+  opacity: 0.7;
+  margin-left: 0.125rem;
+}
+
+.tag-picker-remove:hover {
+  opacity: 1;
+}
+
+.tag-picker-input-wrapper {
+  flex: 1;
+  min-width: 120px;
+  display: flex;
+  align-items: center;
+}
+
+.tag-picker-input {
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0.125rem 0.25rem !important;
+  min-width: 120px;
+}
+
+.tag-picker-input:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.tag-picker-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 0.25rem;
+  background: var(--bs-body-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: 0.375rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1050;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.tag-picker-list {
+  padding: 0.25rem 0;
+}
+
+.tag-picker-option {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+
+.tag-picker-option:hover,
+.tag-picker-option.highlighted {
+  background: var(--bs-tertiary-bg);
+}
+
+.tag-picker-create {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  color: var(--bs-primary);
+  border-top: 1px solid var(--bs-border-color);
+}
+
+.tag-picker-create:hover,
+.tag-picker-create.highlighted {
+  background: var(--bs-tertiary-bg);
+}
+
+.tag-picker-empty {
+  padding: 0.75rem;
+  text-align: center;
+  color: var(--bs-secondary-color);
+  font-size: 0.875rem;
+}

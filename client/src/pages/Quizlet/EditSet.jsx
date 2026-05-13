@@ -6,19 +6,8 @@ import { toast } from 'react-hot-toast';
 import { setService } from '../../api/setService';
 import { ConfirmModal } from '../../components/common/Modal/Modal';
 import { LoadingSpinner } from '../../components/common';
+import TagPicker from '../../components/common/TagPicker/TagPicker';
 import './SetForm.css';
-
-const LANGUAGES = [
-  { value: 'English', label: '🇬🇧 English' },
-  { value: 'Vietnamese', label: '🇻🇳 Vietnamese' },
-  { value: 'Japanese', label: '🇯🇵 Japanese' },
-  { value: 'Korean', label: '🇰🇷 Korean' },
-  { value: 'Chinese', label: '🇨🇳 Chinese' },
-  { value: 'French', label: '🇫🇷 French' },
-  { value: 'Spanish', label: '🇪🇸 Spanish' },
-  { value: 'German', label: '🇩🇪 German' },
-  { value: 'Other', label: '🌐 Other' },
-];
 
 export default function EditSet() {
   const { id } = useParams();
@@ -41,9 +30,8 @@ export default function EditSet() {
         setForm({
           title: set.title ?? '',
           description: set.description ?? '',
-          language: set.language ?? 'English',
           isPublic: set.isPublic ?? false,
-          tags: Array.isArray(set.tags) ? set.tags.join(', ') : '',
+          tags: Array.isArray(set.tags) ? set.tags : [],
         });
       })
       .catch(() => {
@@ -78,19 +66,16 @@ export default function EditSet() {
       const payload = {
         title: form.title.trim(),
         description: form.description.trim(),
-        language: form.language,
         isPublic: form.isPublic,
-        tags: form.tags
-          .split(',')
-          .map((t) => t.trim())
-          .filter(Boolean),
+        tags: form.tags,
       };
+      console.log('Submitting with tags:', form.tags);
       await setService.update(id, payload);
       toast.success('Cập nhật thành công! ✏️');
       navigate(`/flashcards/sets/${id}`);
     } catch (err) {
-      console.error(err);
-      const msg = err?.response?.data?.message || 'Cập nhật thất bại.';
+      console.error('Update error:', err);
+      const msg = err?.response?.data?.message || err?.response?.data?.error || 'Cập nhật thất bại.';
       toast.error(msg);
     } finally {
       setSubmitting(false);
@@ -168,22 +153,8 @@ export default function EditSet() {
               />
             </Form.Group>
 
-            {/* Language + isPublic */}
+            {/* isPublic */}
             <div className="set-form-row">
-              <Form.Group className="set-form-group" controlId="edit-set-language">
-                <Form.Label className="type-label">Ngôn ngữ</Form.Label>
-                <Form.Select
-                  name="language"
-                  value={form.language}
-                  onChange={handleChange}
-                  className="set-form-input"
-                >
-                  {LANGUAGES.map((l) => (
-                    <option key={l.value} value={l.value}>{l.label}</option>
-                  ))}
-                </Form.Select>
-              </Form.Group>
-
               <Form.Group className="set-form-group set-form-group--public" controlId="edit-set-public">
                 <Form.Label className="type-label">Hiển thị</Form.Label>
                 <div className="set-form-toggle">
@@ -207,22 +178,12 @@ export default function EditSet() {
 
             {/* Tags */}
             <Form.Group className="set-form-group" controlId="edit-set-tags">
-              <Form.Label className="type-label">Tags (phân cách bằng dấu phẩy)</Form.Label>
-              <Form.Control
-                type="text"
-                name="tags"
-                value={form.tags}
-                onChange={handleChange}
-                placeholder="ielts, vocabulary, academic, ..."
-                className="set-form-input"
+              <Form.Label className="type-label">Tags</Form.Label>
+              <TagPicker
+                selectedTags={form.tags}
+                onChange={(tags) => setForm((prev) => ({ ...prev, tags }))}
+                placeholder="Add tags..."
               />
-              {form.tags.trim() && (
-                <div className="set-form-tags-preview">
-                  {form.tags.split(',').filter((t) => t.trim()).map((tag, i) => (
-                    <span key={i} className="set-card-tag">{tag.trim()}</span>
-                  ))}
-                </div>
-              )}
             </Form.Group>
 
             {/* Actions */}

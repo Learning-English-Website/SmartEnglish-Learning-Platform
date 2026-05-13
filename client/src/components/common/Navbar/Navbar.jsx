@@ -21,8 +21,9 @@ export default function AppNavbar({ darkMode, onToggleDark }) {
         <Navbar.Collapse id="main-nav">
           {isAuthenticated && (
             <Nav className="me-auto nav-links">
-              <Nav.Link as={NavLink} to="/dashboard">Dashboard</Nav.Link>
-              <Nav.Link as={NavLink} to="/flashcards">Flashcards</Nav.Link>
+              <Nav.Link as={NavLink} to="/dashboard" end>Dashboard</Nav.Link>
+              <Nav.Link as={NavLink} to="/flashcards" end>Flashcards</Nav.Link>
+              <Nav.Link as={NavLink} to="/flashcards/browse">Browse</Nav.Link>
               <Nav.Link as={NavLink} to="/duolingo">Practice</Nav.Link>
             </Nav>
           )}

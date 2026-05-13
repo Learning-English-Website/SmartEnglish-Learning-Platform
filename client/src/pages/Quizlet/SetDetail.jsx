@@ -5,6 +5,7 @@ import {
   FiArrowLeft, FiEdit2, FiTrash2, FiPlus,
   FiGlobe, FiLock, FiLayers, FiPlay,
   FiGrid, FiList, FiRefreshCw, FiBookOpen, FiCommand,
+  FiTag,
 } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../../hooks/useAuth';
@@ -31,6 +32,7 @@ import { cardService }      from '../../api/cardService';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import CardEditor       from '../../components/flashcard/CardEditor/CardEditor';
 import BulkAddModal     from '../../components/flashcard/BulkAddModal/BulkAddModal';
+import ImportModal      from '../../components/flashcard/ImportModal/ImportModal';
 import FlashcardViewer  from '../../components/flashcard/FlashcardViewer/FlashcardViewer';
 import SortableCardRow  from '../../components/flashcard/SortableCardRow/SortableCardRow';
 import { LoadingSpinner } from '../../components/common';
@@ -65,6 +67,9 @@ export default function SetDetail() {
   // Bulk add
   const [showBulk, setShowBulk]     = useState(false);
   const [bulkLoading, setBulkLoading] = useState(false);
+
+  // Import modal
+  const [showImport, setShowImport] = useState(false);
 
   // Delete set
   const [showDeleteSet, setShowDeleteSet] = useState(false);
@@ -121,6 +126,11 @@ export default function SetDetail() {
     const currentUserId = currentUser?._id || currentUser?.id;
     return String(setUserId) === String(currentUserId);
   }, [set, currentUser]);
+
+  /* ── Tag click → Browse with filter ────────────────────────────────── */
+  const handleTagClick = (tagName) => {
+    navigate(`/flashcards/browse?tag=${encodeURIComponent(tagName)}`);
+  };
 
   /* ── Keyboard shortcuts ──────────────────────────────────────────────── */
   const shortcuts = useMemo(() => ({
@@ -232,6 +242,20 @@ export default function SetDetail() {
     }
   };
 
+  /* ── Import Cards ───────────────────────────────────────────────────── */
+  const handleImport = async (cardsToImport) => {
+    try {
+      const res = await cardService.bulkCreate(id, cardsToImport);
+      const created = res?.data ?? res;
+      const createdArr = Array.isArray(created) ? created : [];
+      setCards((prev) => [...prev, ...createdArr]);
+      setSet((prev) => prev ? { ...prev, cardCount: (prev.cardCount ?? 0) + createdArr.length } : prev);
+      toast.success(`${createdArr.length} cards imported!`);
+    } catch {
+      toast.error('Import failed. Please try again.');
+    }
+  };
+
   /* ── Delete Set ──────────────────────────────────────────────────────── */
   const handleDeleteSet = async () => {
     setDeletingSet(true);
@@ -297,10 +321,18 @@ export default function SetDetail() {
                 </span>
               </div>
               {set.description && <p className="sd-desc">{set.description}</p>}
-              {set.tags?.length > 0 && (
+              {set.tagObjects?.length > 0 && (
                 <div className="sd-tags">
-                  {set.tags.map((tag) => (
-                    <span key={tag} className="sd-tag">{tag}</span>
+                  {set.tagObjects.map((tag) => (
+                    <button
+                      key={tag._id}
+                      className="sd-tag sd-tag--clickable"
+                      onClick={() => handleTagClick(tag.name)}
+                      title={`Browse sets with tag "${tag.name}"`}
+                    >
+                      <FiTag size={11} />
+                      {tag.name}
+                    </button>
                   ))}
                 </div>
               )}
@@ -388,6 +420,13 @@ export default function SetDetail() {
                       id="sd-bulk-add-btn"
                     >
                       <FiRefreshCw size={14} /> Bulk Add
+                    </button>
+                    <button
+                      className="sd-btn sd-btn--outline"
+                      onClick={() => setShowImport(true)}
+                      id="sd-import-btn"
+                    >
+                      <FiCommand size={14} /> Import CSV
                     </button>
                     <button
                       className="sd-btn sd-btn--primary"
@@ -536,6 +575,11 @@ export default function SetDetail() {
         onHide={() => setShowBulk(false)}
         onConfirm={handleBulkAdd}
         loading={bulkLoading}
+      />
+      <ImportModal
+        show={showImport}
+        onHide={() => setShowImport(false)}
+        onImport={handleImport}
       />
       <ConfirmModal
         show={showDeleteSet}

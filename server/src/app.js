@@ -53,6 +53,8 @@ app.use('/api/auth', require('./modules/auth/auth.routes'));
 app.use('/api/users', require('./modules/user/user.routes'));
 app.use('/api/flashcard-sets', require('./modules/flashcard-sets/flashcardSet.routes'));
 app.use('/api/flashcards', require('./modules/flashcard-sets/flashcard.routes'));
+app.use('/api/tags', require('./modules/tags/tag.routes'));
+app.use('/api/folders', require('./modules/folders/folder.routes'));
 
 // ── 404 Handler ───────────────────────────────────────────────────────────────
 app.use('/{*path}', (req, res) => {

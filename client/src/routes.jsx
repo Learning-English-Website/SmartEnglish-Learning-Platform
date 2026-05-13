@@ -19,6 +19,7 @@ const CreateSet = lazy(() => import('./pages/Quizlet/CreateSet'));
 const EditSet = lazy(() => import('./pages/Quizlet/EditSet'));
 const SetDetail = lazy(() => import('./pages/Quizlet/SetDetail'));
 const DuolingoHomePage = lazy(() => import('./pages/Duolingo/DuolingoHomePage'));
+const Browse = lazy(() => import('./pages/Quizlet/Browse'));
 
 const withSuspense = (element) => (
   <Suspense fallback={<LoadingSpinner fullScreen text="Loading..." />}>
@@ -57,6 +58,12 @@ const router = createBrowserRouter([
         path: '/flashcards/sets/create',
         element: withSuspense(
           <ProtectedRoute><CreateSet /></ProtectedRoute>
+        ),
+      },
+      {
+        path: '/flashcards/browse',
+        element: withSuspense(
+          <ProtectedRoute><Browse /></ProtectedRoute>
         ),
       },
       {
