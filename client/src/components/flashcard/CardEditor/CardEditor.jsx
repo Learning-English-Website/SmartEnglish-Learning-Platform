@@ -6,7 +6,7 @@ import './CardEditor.css';
 
 /**
  * CardEditor — Quizlet-style inline form.
- * - Phase 1 (auto): typing debounce → Datamuse word list  
+ * - Phase 1 (auto): typing debounce → Datamuse word list
  * - Phase 2 (click word / Suggest btn): lookup IPA + definitions
  */
 export default function CardEditor({ card, onSave, onCancel, loading = false, inlineMode = false }) {
@@ -39,10 +39,19 @@ export default function CardEditor({ card, onSave, onCancel, loading = false, in
   const audioRef    = useRef(null);
   const wrapRef     = useRef(null);
   const debounceRef = useRef(null);
+  const isPrefilledRef = useRef(false);
 
   /* ── Prefill on edit ─────────────────────────────────────────────── */
   useEffect(() => {
-    if (card && card.id !== form.id) {
+    // Always prefill when card prop changes - check all fields
+    if (card && (
+      card.id !== form.id ||
+      card.front !== form.front ||
+      card.back !== form.back ||
+      card.pronunciation !== form.pronunciation ||
+      card.example !== form.example ||
+      card.note !== form.note
+    )) {
       setForm({
         id:            card.id,
         front:         card.front         ?? '',
@@ -52,17 +61,21 @@ export default function CardEditor({ card, onSave, onCancel, loading = false, in
         note:          card.note          ?? '',
         imageUrl:      card.imageUrl      ?? '',
       });
+      isPrefilledRef.current = true;
+      setIsUserEdited(false); // Reset user edited flag on prefill
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [card?.id]);
+  }, [card]);
 
   /* ── Auto-sync (Inline Mode) ─────────────────────────────────────── */
+  // Only sync when user actually types (not during prefill)
+  const [isUserEdited, setIsUserEdited] = useState(false);
+
   useEffect(() => {
-    if (inlineMode) {
+    // Only sync after prefill AND after user has edited
+    if (inlineMode && isPrefilledRef.current && isUserEdited) {
       onSave(form);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form]);
+  }, [form, inlineMode, isUserEdited]);
 
   /* ── Close on outside click ──────────────────────────────────────── */
   useEffect(() => {
@@ -160,6 +173,8 @@ export default function CardEditor({ card, onSave, onCancel, loading = false, in
     setForm((prev) => ({ ...prev, [name]: value }));
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: '' }));
     if (name === 'front') triggerWordSearch(value);
+    // Mark as user edited for auto-sync
+    setIsUserEdited(true);
   };
 
   /* ── Validate + Submit ───────────────────────────────────────────── */
