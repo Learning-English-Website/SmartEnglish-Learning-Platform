@@ -34,6 +34,13 @@ const forgotPasswordSchema = Joi.object({
   }),
 });
 
+const resendVerificationOtpSchema = Joi.object({
+  email: Joi.string().email().required().messages({
+    'string.email': 'Please provide a valid email address',
+    'any.required': 'Email is required',
+  }),
+});
+
 const verifyEmailOtpSchema = Joi.object({
   email: Joi.string().email().required().messages({
     'string.email': 'Please provide a valid email address',
@@ -69,6 +76,7 @@ module.exports = {
   registerSchema,
   loginSchema,
   forgotPasswordSchema,
+  resendVerificationOtpSchema,
   verifyEmailOtpSchema,
   resetPasswordOtpSchema,
 };

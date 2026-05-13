@@ -6,12 +6,14 @@ import {
   loginUser,
   registerUser,
   verifyEmailOtp,
+  resendVerificationOtp,
   logoutUser,
   forgotPassword,
   resetPasswordOtp,
   loadUser,
   clearError,
   selectAuth,
+  resetAuth,
 } from '../store/slices/authSlice';
 
 /**
@@ -59,6 +61,18 @@ export function useAuth() {
     }
   }, [dispatch, navigate]);
 
+  const resendVerificationOtpAction = useCallback(async ({ email }) => {
+    dispatch(clearError());
+    const result = await dispatch(resendVerificationOtp({ email }));
+    if (resendVerificationOtp.fulfilled.match(result)) {
+      toast.success('A new OTP has been sent to your email.');
+      return true;
+    } else {
+      toast.error(result.payload || 'Failed to resend verification OTP');
+      return false;
+    }
+  }, [dispatch]);
+
   const logout = useCallback(async () => {
     await dispatch(logoutUser());
     toast.success('Logged out successfully');
@@ -103,10 +117,12 @@ export function useAuth() {
     login,
     register,
     verifyEmailOtp: verifyEmailOtpAction,
+    resendVerificationOtp: resendVerificationOtpAction,
     logout,
     forgotPassword: forgotPasswordAction,
     resetPasswordOtp: resetPasswordOtpAction,
     loadUser: loadCurrentUser,
     clearError: () => dispatch(clearError()),
+    resetAuth: () => dispatch(resetAuth()),
   };
 }

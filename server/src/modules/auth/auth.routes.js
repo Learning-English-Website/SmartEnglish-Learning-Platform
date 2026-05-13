@@ -3,6 +3,7 @@ const router = express.Router();
 
 const {
   register,
+  resendVerificationOtp,
   login,
   refreshToken,
   logout,
@@ -12,18 +13,26 @@ const {
 } = require('./auth.controller');
 const { validate } = require('../../middleware/validation.middleware');
 const { authenticate } = require('../../middleware/auth.middleware');
-const { loginRateLimiter } = require('../../middleware/rateLimiter.middleware');
+const {
+  loginRateLimiter,
+  verifyOtpRateLimiter,
+  resendOtpRateLimiter,
+} = require('../../middleware/rateLimiter.middleware');
 const passport = require('../../config/passport');
 const {
   registerSchema,
   loginSchema,
   forgotPasswordSchema,
+  resendVerificationOtpSchema,
   verifyEmailOtpSchema,
   resetPasswordOtpSchema,
 } = require('./auth.validation');
 
 // POST /api/auth/register
 router.post('/register', validate(registerSchema), register);
+
+// POST /api/auth/resend-verification-otp
+router.post('/resend-verification-otp', resendOtpRateLimiter, validate(resendVerificationOtpSchema), resendVerificationOtp);
 
 // Google OAuth entry point
 router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
@@ -52,7 +61,7 @@ router.post('/logout', authenticate, logout);
 router.post('/forgot-password', validate(forgotPasswordSchema), forgotPassword);
 
 // POST /api/auth/verify-email-otp
-router.post('/verify-email-otp', validate(verifyEmailOtpSchema), verifyEmailOtp);
+router.post('/verify-email-otp', verifyOtpRateLimiter, validate(verifyEmailOtpSchema), verifyEmailOtp);
 
 // POST /api/auth/reset-password-otp
 router.post('/reset-password-otp', validate(resetPasswordOtpSchema), resetPasswordWithOtp);

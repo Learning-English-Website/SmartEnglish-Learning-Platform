@@ -20,6 +20,36 @@ const loginRateLimiter = rateLimit({
   },
 });
 
+const verifyOtpRateLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    res.status(429).json(
+      ApiResponse.error(
+        'Too many OTP verification attempts. Please try again later.',
+        'RATE_LIMIT_EXCEEDED'
+      )
+    );
+  },
+});
+
+const resendOtpRateLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    res.status(429).json(
+      ApiResponse.error(
+        'Too many OTP resend attempts. Please wait before requesting another code.',
+        'RATE_LIMIT_EXCEEDED'
+      )
+    );
+  },
+});
+
 /**
  * General rate limiter: 100 requests per 15 minutes.
  * Applied globally to all API routes.
@@ -36,4 +66,9 @@ const generalRateLimiter = rateLimit({
   },
 });
 
-module.exports = { loginRateLimiter, generalRateLimiter };
+module.exports = {
+  loginRateLimiter,
+  verifyOtpRateLimiter,
+  resendOtpRateLimiter,
+  generalRateLimiter,
+};

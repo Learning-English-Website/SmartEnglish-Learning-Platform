@@ -7,7 +7,8 @@ export const loadUser = createAsyncThunk(
   'auth/loadUser',
   async (_, { rejectWithValue }) => {
     try {
-      return await authAPI.getMe();
+      const res = await authAPI.getMe();
+      return res.data || res;
     } catch (err) {
       return rejectWithValue(err.response?.data?.error?.message || 'Failed to load user');
     }
@@ -19,7 +20,7 @@ export const loginUser = createAsyncThunk(
   async ({ email, password }, { rejectWithValue }) => {
     try {
       const res = await authAPI.login({ email, password });
-      return res.user;
+      return res.data?.user || res.user || res.data || res;
     } catch (err) {
       return rejectWithValue(err.response?.data?.error?.message || 'Login failed');
     }
@@ -30,7 +31,8 @@ export const registerUser = createAsyncThunk(
   'auth/register',
   async ({ email, username, password }, { rejectWithValue }) => {
     try {
-      return await authAPI.register({ email, username, password });
+      const res = await authAPI.register({ email, username, password });
+      return res.data || res;
     } catch (err) {
       return rejectWithValue(err.response?.data?.error?.message || 'Registration failed');
     }
@@ -42,16 +44,28 @@ export const verifyEmailOtp = createAsyncThunk(
   async ({ email, otp }, { rejectWithValue }) => {
     try {
       const res = await authAPI.verifyEmailOtp({ email, otp });
-      return res.user;
+      return res.data?.user || res.user || res.data || res;
     } catch (err) {
       return rejectWithValue(err.response?.data?.error?.message || 'OTP verification failed');
     }
   }
 );
 
+export const resendVerificationOtp = createAsyncThunk(
+  'auth/resendVerificationOtp',
+  async ({ email }, { rejectWithValue }) => {
+    try {
+      await authAPI.resendVerificationOtp({ email });
+      return true;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.error?.message || 'Failed to resend verification OTP');
+    }
+  }
+);
+
 export const logoutUser = createAsyncThunk(
   'auth/logout',
-  async (_, { rejectWithValue }) => {
+  async () => {
     try {
       await authAPI.logout();
     } catch {
@@ -88,7 +102,8 @@ export const updateProfile = createAsyncThunk(
   'auth/updateProfile',
   async ({ username, avatar }, { rejectWithValue }) => {
     try {
-      return await authAPI.updateProfile({ username, ...(avatar ? { avatar } : {}) });
+      const res = await authAPI.updateProfile({ username, ...(avatar ? { avatar } : {}) });
+      return res.data || res;
     } catch (err) {
       return rejectWithValue(err.response?.data?.error?.message || 'Failed to update profile');
     }
@@ -114,7 +129,13 @@ const authSlice = createSlice({
     clearError: (state) => {
       state.error = null;
     },
-    resetAuth: () => initialState,
+    resetAuth: (state) => {
+      state.user = null;
+      state.isAuthenticated = false;
+      state.loading = false;
+      state.error = null;
+      state.requiresEmailVerification = false;
+    },
     setUser: (state, action) => {
       state.user = action.payload;
       state.isAuthenticated = true;
@@ -186,6 +207,20 @@ const authSlice = createSlice({
         state.requiresEmailVerification = false;
       })
       .addCase(verifyEmailOtp.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      });
+
+    // resendVerificationOtp
+    builder
+      .addCase(resendVerificationOtp.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(resendVerificationOtp.fulfilled, (state) => {
+        state.loading = false;
+      })
+      .addCase(resendVerificationOtp.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       });

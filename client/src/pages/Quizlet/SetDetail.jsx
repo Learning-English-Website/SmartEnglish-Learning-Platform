@@ -95,16 +95,16 @@ export default function SetDetail() {
       .then((res) => {
         const fetchedSet = res?.data ?? res;
         setSet(fetchedSet);
-        // Default to study view if not owner
+        // Redirect to community read-only view if user is NOT the owner
         const currentUserId = currentUser?._id || currentUser?.id;
         const setUserId = fetchedSet?.user?._id || fetchedSet?.user?.id || fetchedSet?.user;
-        if (currentUserId && setUserId && currentUserId !== setUserId) {
-          setView(VIEW.STUDY);
+        if (currentUserId && setUserId && String(currentUserId) !== String(setUserId)) {
+          navigate(`/community/sets/${id}`, { replace: true });
         }
       })
       .catch(() => setError('Could not load set.'))
       .finally(() => setLoading(false));
-  }, [id, currentUser]);
+  }, [id, currentUser, navigate]);
 
   const fetchCards = useCallback(() => {
     setCardsLoading(true);

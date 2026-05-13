@@ -12,7 +12,7 @@ import './SetCard.css';
 /**
  * SetCard — displays a FlashcardSet in the MySets grid.
  */
-export default function SetCard({ set, onEdit, onDelete, showActions = true }) {
+export default function SetCard({ set, onEdit, onDelete, showActions = true, linkUrl }) {
   const navigate = useNavigate();
 
   const formattedDate = set.createdAt
@@ -25,7 +25,7 @@ export default function SetCard({ set, onEdit, onDelete, showActions = true }) {
 
   const handleCardClick = (e) => {
     if (e.target.closest('.set-card-actions')) return;
-    navigate(`/flashcards/sets/${set._id}`);
+    navigate(linkUrl || `/flashcards/sets/${set._id}`);
   };
 
   return (

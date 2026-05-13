@@ -30,6 +30,11 @@ const register = async (req, res) => {
   res.status(201).json(ApiResponse.success(result, 'OTP sent. Verify your email to activate account.'));
 };
 
+const resendVerificationOtp = async (req, res) => {
+  const result = await authService.resendVerificationOtp(req.body.email);
+  res.status(200).json(ApiResponse.success(null, result.message));
+};
+
 const login = async (req, res) => {
   const { email, password } = req.body;
   const result = await authService.login(email, password);
@@ -76,6 +81,7 @@ const resetPasswordWithOtp = async (req, res) => {
 
 module.exports = {
   register,
+  resendVerificationOtp,
   login,
   refreshToken,
   logout,

@@ -239,6 +239,7 @@ export default function MySets() {
                   </div>
                 )}
 
+<<<<<<< Updated upstream
                 {/* ── My Sets Grid ─────────────────────────────────────────── */}
                 {mySets.length > 0 && (
                   <div className="my-sets-grid">
@@ -253,6 +254,27 @@ export default function MySets() {
                   </div>
                 )}
               </>
+=======
+            {/* ── Public / Community Sets Section ──────────────────────── */}
+            {publicSets.length > 0 && (
+              <div className="my-sets-community">
+                <div className="my-sets-section-header">
+                  <FiGlobe size={18} className="my-sets-title-icon" />
+                  <h2>Discover Community Sets</h2>
+                  <span className="my-sets-section-badge">{publicSets.length} sets</span>
+                </div>
+                <div className="my-sets-grid">
+                  {publicSets.map((set) => (
+                    <SetCard
+                      key={set._id}
+                      set={set}
+                      showActions={false}
+                      linkUrl={`/community/sets/${set._id}`}
+                    />
+                  ))}
+                </div>
+              </div>
+>>>>>>> Stashed changes
             )}
           </main>
         </div>

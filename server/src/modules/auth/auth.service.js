@@ -13,13 +13,14 @@ const OTP_TTL_SECONDS = 10 * 60;
 
 const generateOtpCode = () => String(Math.floor(100000 + Math.random() * 900000));
 const hashOtp = (otp) => crypto.createHash('sha256').update(otp).digest('hex');
+const normalizeEmail = (email) => email.trim().toLowerCase();
 
 class AuthService {
   /**
    * Register a new user and send verification OTP.
    */
   async register({ email, username, password }) {
-    const normalizedEmail = email.toLowerCase();
+    const normalizedEmail = normalizeEmail(email);
     // Check duplicates
     const existing = await User.findOne({ $or: [{ email: normalizedEmail }, { username }] });
     if (existing) {
@@ -68,7 +69,7 @@ class AuthService {
    * Login with email + password. Returns { user, accessToken, refreshToken }.
    */
   async login(email, password) {
-    const user = await User.findByEmail(email);
+    const user = await User.findByEmail(normalizeEmail(email));
     if (!user) throw new AppError('Invalid email or password', 401);
 
     const isMatch = await user.comparePassword(password);
@@ -125,8 +126,38 @@ class AuthService {
     await redis.del(REFRESH_KEY(userId));
   }
 
+  async resendVerificationOtp(email) {
+    const normalizedEmail = normalizeEmail(email);
+    const user = await User.findOne({ email: normalizedEmail });
+
+    if (!user) {
+      return { message: 'If that email exists and is pending verification, a new OTP has been sent.' };
+    }
+
+    if (user.isVerified) {
+      throw new AppError('Email is already verified. Please sign in.', 409);
+    }
+
+    const otp = generateOtpCode();
+    await redis.set(
+      EMAIL_VERIFY_OTP_KEY(normalizedEmail),
+      JSON.stringify({ otpHash: hashOtp(otp), userId: user._id.toString() }),
+      'EX',
+      OTP_TTL_SECONDS
+    );
+
+    eventBus.emit('user:registered', {
+      userId: user._id,
+      email: user.email,
+      username: user.username,
+      otp,
+    });
+
+    return { message: 'If that email exists and is pending verification, a new OTP has been sent.' };
+  }
+
   async verifyEmailOtp(email, otp) {
-    const normalizedEmail = email.toLowerCase();
+    const normalizedEmail = normalizeEmail(email);
     const key = EMAIL_VERIFY_OTP_KEY(normalizedEmail);
     const data = await redis.get(key);
     if (!data) throw new AppError('Invalid or expired OTP', 400);
@@ -159,13 +190,14 @@ class AuthService {
    * Forgot password: generate OTP, store in Redis (10 min TTL), and emit email event.
    */
   async forgotPassword(email) {
-    const user = await User.findOne({ email });
+    const normalizedEmail = normalizeEmail(email);
+    const user = await User.findOne({ email: normalizedEmail });
     // Always return success to prevent email enumeration
     if (!user) return { message: 'If that email exists, a reset OTP has been sent.' };
 
     const otp = generateOtpCode();
     await redis.set(
-      RESET_OTP_KEY(email),
+      RESET_OTP_KEY(normalizedEmail),
       JSON.stringify({ otpHash: hashOtp(otp), userId: user._id.toString() }),
       'EX',
       OTP_TTL_SECONDS
@@ -173,7 +205,7 @@ class AuthService {
 
     // Emit event for email sending
     eventBus.emit('user:passwordResetOtp', {
-      email,
+      email: normalizedEmail,
       username: user.username,
       otp,
     });
@@ -184,7 +216,8 @@ class AuthService {
   }
 
   async resetPasswordWithOtp({ email, otp, newPassword }) {
-    const key = RESET_OTP_KEY(email);
+    const normalizedEmail = normalizeEmail(email);
+    const key = RESET_OTP_KEY(normalizedEmail);
     const data = await redis.get(key);
     if (!data) throw new AppError('Invalid or expired OTP', 400);
 
