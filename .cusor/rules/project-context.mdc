@@ -1,0 +1,49 @@
+---
+description: Project architecture and engineering standards
+alwaysApply: true
+---
+
+Project Stack:
+- React frontend
+- Express.js backend
+- MongoDB database
+- JWT authentication
+- Bootstrap UI
+
+Architecture:
+- MVC + Service Layer architecture
+- Controllers only handle request/response
+- Business logic belongs in services
+- Models only manage schema/data logic
+- Frontend separated into pages/components/hooks/services
+- API-first development
+
+Backend Standards:
+- RESTful API design
+- Use async/await consistently
+- Centralized error handling
+- Validation middleware before controllers
+- Do not access database directly inside controllers
+- Use modular folder structure
+- Keep services loosely coupled
+
+Frontend Standards:
+- Reusable components
+- Avoid duplicated UI logic
+- Separate API calls into service layer
+- Keep components focused and small
+- Responsive design required
+
+Engineering Rules:
+- Prefer incremental safe edits
+- Avoid unnecessary refactors
+- Preserve existing functionality
+- Explain risky changes before implementing
+- Read related files before modifying code
+- Do not generate placeholder code unless requested
+
+Testing Expectations:
+- Consider edge cases
+- Validate API responses
+- Avoid regressions
+- Verify loading/error states in UI
