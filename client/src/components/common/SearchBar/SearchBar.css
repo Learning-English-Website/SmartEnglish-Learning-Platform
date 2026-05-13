@@ -2,56 +2,57 @@
   position: relative;
   display: flex;
   align-items: center;
-  max-width: 360px;
+  width: 100%;
 }
 
 .search-bar-icon {
-  background: var(--bg-page) !important;
-  border: 1px solid var(--border-subtle) !important;
-  border-right: none !important;
-  color: var(--text-muted);
-  border-radius: var(--gl-radius-md) 0 0 var(--gl-radius-md) !important;
-  padding: 0 12px !important;
+  position: absolute;
+  left: 1rem;
+  color: #94A3B8;
+  pointer-events: none;
 }
 
 .search-bar-input {
-  background: var(--bg-page) !important;
-  border: 1px solid var(--border-subtle) !important;
-  color: var(--text-body) !important;
-  border-radius: 0 var(--gl-radius-md) var(--gl-radius-md) 0 !important;
-  font-family: var(--font-sans) !important;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+  width: 100%;
+  padding: 0.75rem 1rem 0.75rem 3rem;
+  background: #FFFFFF;
+  border: 2px solid #E2E8F0;
+  border-radius: 12px;
+  font-family: Geist, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 0.9375rem;
+  color: #0F172A;
+  transition: all 0.2s ease;
 }
 
 .search-bar-input:focus {
-  border-color: var(--gl-tertiary) !important;
-  box-shadow: 0 0 0 3px rgba(44, 94, 245, 0.12) !important;
+  outline: none;
+  border-color: #2C5EF5;
+  box-shadow: 0 0 0 4px rgba(44, 94, 245, 0.1);
 }
 
 .search-bar-input::placeholder {
-  color: var(--text-muted) !important;
-  opacity: 0.7;
+  color: #94A3B8;
 }
 
-.search-bar-sm { padding: 6px 10px !important; font-size: 0.875rem !important; }
-.search-bar-md { padding: 9px 12px !important; font-size: 0.9375rem !important; }
-.search-bar-lg { padding: 11px 14px !important; font-size: 1rem !important; }
+.search-bar-md { padding-top: 0.75rem; padding-bottom: 0.75rem; }
+.search-bar-lg { padding-top: 0.875rem; padding-bottom: 0.875rem; font-size: 1rem; }
 
 .search-bar-clear {
   position: absolute;
-  right: 10px;
+  right: 0.75rem;
   background: transparent;
   border: none;
-  color: var(--text-muted);
+  color: #94A3B8;
   cursor: pointer;
-  padding: 4px;
+  padding: 0.375rem;
   display: flex;
   align-items: center;
-  border-radius: 4px;
-  z-index: 2;
-  transition: color 0.2s ease;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.2s ease;
 }
 
 .search-bar-clear:hover {
-  color: var(--text-heading);
+  background: #F1F5F9;
+  color: #64748B;
 }

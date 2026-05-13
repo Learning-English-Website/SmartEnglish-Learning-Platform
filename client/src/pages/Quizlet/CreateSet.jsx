@@ -3,26 +3,19 @@ import { useNavigate } from 'react-router-dom';
 import {
   FiPlus, FiSave, FiArrowLeft,
   FiGlobe, FiLock, FiInfo, FiTrash2,
+  FiUpload, FiFolder,
 } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import { setService } from '../../api/setService';
+import { folderService } from '../../api/folderService';
 import { useAutoSave } from '../../hooks/useAutoSave';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import CardEditor from '../../components/flashcard/CardEditor/CardEditor';
+import TagPicker from '../../components/common/TagPicker/TagPicker';
+import ImportModal from '../../components/flashcard/ImportModal/ImportModal';
 import './CreateSet.css';
 
 const DRAFT_KEY = 'create-set-draft';
-
-const LANGUAGES = [
-  { value: 'English',    label: '🇬🇧 English' },
-  { value: 'Vietnamese', label: '🇻🇳 Vietnamese' },
-  { value: 'Japanese',   label: '🇯🇵 Japanese' },
-  { value: 'Korean',     label: '🇰🇷 Korean' },
-  { value: 'Chinese',    label: '🇨🇳 Chinese' },
-  { value: 'French',     label: '🇫🇷 French' },
-  { value: 'Spanish',    label: '🇪🇸 Spanish' },
-  { value: 'Other',      label: '🌐 Other' },
-];
 
 let cardIdCounter = 1;
 
@@ -43,19 +36,48 @@ export default function CreateSet() {
 
   const [title, setTitle]           = useState('');
   const [description, setDescription] = useState('');
-  const [language, setLanguage]     = useState('English');
   const [isPublic, setIsPublic]     = useState(false);
+  const [tags, setTags]             = useState([]);
   const [cards, setCards]           = useState([makeCard(), makeCard(), makeCard()]);
+  const [selectedFolder, setSelectedFolder] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [titleError, setTitleError] = useState('');
   const [showDraftBanner, setShowDraftBanner] = useState(false);
-  const [savedAt, setSavedAt]       = useState(null);
+  const [savedAt, setSavedAt] = useState(null);
+  const [showImport, setShowImport] = useState(false);
+  const [folders, setFolders] = useState([]);
 
   const lastCardRef = useRef(null);
 
+  // Fetch folders for folder selector
+  useEffect(() => {
+    folderService.getAll()
+      .then((res) => {
+        const foldersData = Array.isArray(res) ? res : (res?.data ?? []);
+        setFolders(foldersData);
+      })
+      .catch(() => setFolders([]));
+  }, []);
+
+  // Handle import
+  const handleImport = (importedCards) => {
+    const newCards = importedCards.map((c) => ({
+      id: cardIdCounter++,
+      front: c.front || '',
+      back: c.back || '',
+      pronunciation: c.pronunciation || '',
+      example: c.example || '',
+      note: c.note || '',
+      imageUrl: '',
+    }));
+    setCards((prev) => [...prev, ...newCards]);
+    setShowImport(false);
+    toast.success(`Added ${importedCards.length} cards from file!`);
+  };
+
   /* ── Auto-save ─────────────────────────────────────────────────────── */
-  const draftData = useMemo(() => ({ title, description, language, isPublic, cards }), [
-    title, description, language, isPublic, cards,
+  const draftData = useMemo(() => ({ title, description, isPublic, cards }), [
+    title, description, isPublic, cards,
   ]);
 
   const isEmpty = useCallback(
@@ -88,7 +110,6 @@ export default function CreateSet() {
     if (!draft) return;
     setTitle(draft.title ?? '');
     setDescription(draft.description ?? '');
-    setLanguage(draft.language ?? 'English');
     setIsPublic(draft.isPublic ?? false);
     setCards(draft.cards?.length ? draft.cards : [makeCard(), makeCard(), makeCard()]);
     setShowDraftBanner(false);
@@ -151,13 +172,21 @@ export default function CreateSet() {
       const payload = {
         title: title.trim(),
         description: description.trim(),
-        language,
         isPublic,
-        tags: [],
+        tags,
       };
       const res     = await setService.create(payload);
       const created = res?.data ?? res;
       const newId   = created?._id ?? created?.id;
+
+      // Add set to selected folder
+      if (selectedFolder && newId) {
+        try {
+          await folderService.addSet(selectedFolder, newId);
+        } catch {
+          console.error('Failed to add set to folder');
+        }
+      }
 
       if (validCards.length > 0 && newId) {
         try {
@@ -191,167 +220,191 @@ export default function CreateSet() {
 
   /* ── Render ─────────────────────────────────────────────────────────── */
   return (
-    <div className="cs-page">
-      {/* Draft restore banner */}
-      {showDraftBanner && (
-        <div className="cs-draft-banner">
-          <FiInfo size={14} />
-          <span>You have an unsaved draft.</span>
-          <button className="cs-draft-btn" onClick={restoreDraft}>Restore</button>
-          <button className="cs-draft-dismiss" onClick={() => { setShowDraftBanner(false); clearDraft(); }}>✕</button>
-        </div>
-      )}
-
-      {/* Top Bar */}
-      <div className="cs-topbar">
-        <div className="cs-topbar-left">
-          <button className="cs-back-btn" onClick={() => navigate('/flashcards')}>
-            <FiArrowLeft size={18} />
-          </button>
-          <h1 className="cs-topbar-title">Create a new flashcard set</h1>
-          <div className="cs-shortcut-hints">
-            <span><kbd>Ctrl+N</kbd> Add card</span>
-            <span><kbd>Ctrl+Enter</kbd> Create</span>
+    <>
+      <div className="cs-page">
+        {/* Draft restore banner */}
+        {showDraftBanner && (
+          <div className="cs-draft-banner">
+            <FiInfo size={14} />
+            <span>You have an unsaved draft.</span>
+            <button className="cs-draft-btn" onClick={restoreDraft}>Restore</button>
+            <button className="cs-draft-dismiss" onClick={() => { setShowDraftBanner(false); clearDraft(); }}>✕</button>
           </div>
-        </div>
-        <div className="cs-topbar-right">
-          <button
-            className="cs-btn cs-btn--outline"
-            onClick={handleCreate}
-            disabled={submitting}
-            id="cs-create-btn"
-          >
-            {submitting ? <span className="spinner-border spinner-border-sm" /> : 'Create'}
-          </button>
-          <button
-            className="cs-btn cs-btn--primary"
-            onClick={handleCreate}
-            disabled={submitting}
-            id="cs-create-practice-btn"
-          >
-            {submitting ? <span className="spinner-border spinner-border-sm" /> : 'Create and practice'}
-          </button>
-        </div>
-      </div>
+        )}
 
-      {/* Body */}
-      <div className="cs-body">
-
-        {titleError && <p className="cs-title-error">{titleError}</p>}
-
-        {/* Visibility + saved indicator */}
-        <div className="cs-meta-row">
-          <button
-            className={`cs-visibility-btn ${isPublic ? 'public' : 'private'}`}
-            onClick={() => setIsPublic((v) => !v)}
-            type="button"
-          >
-            {isPublic ? <FiGlobe size={13} /> : <FiLock size={13} />}
-            {isPublic ? 'Public' : 'Private'}
-          </button>
-          {savedAt ? (
-            <span className="cs-saved-label cs-saved-label--active">
-              ✓ Draft saved {savedAt.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
-            </span>
-          ) : (
-            <span className="cs-saved-label">Auto-save enabled</span>
-          )}
-        </div>
-
-        {/* Title input */}
-        <input
-          id="cs-title-input"
-          className={`cs-title-input ${titleError ? 'cs-title-input--error' : ''}`}
-          type="text"
-          placeholder="Please enter a title to create your set."
-          value={title}
-          onChange={(e) => { setTitle(e.target.value); if (titleError) setTitleError(''); }}
-          autoFocus
-        />
-
-        {/* Description input */}
-        <input
-          className="cs-desc-input"
-          type="text"
-          placeholder="Add a description..."
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-        />
-
-        {/* Options row */}
-        <div className="cs-options-row">
-          <div className="cs-options-left">
-            <select
-              className="cs-lang-select"
-              value={language}
-              onChange={(e) => setLanguage(e.target.value)}
-              aria-label="Language"
+        {/* Top Bar */}
+        <div className="cs-topbar">
+          <div className="cs-topbar-left">
+            <button className="cs-back-btn" onClick={() => navigate('/flashcards')}>
+              <FiArrowLeft size={18} />
+            </button>
+            <h1 className="cs-topbar-title">Create a new flashcard set</h1>
+            <div className="cs-shortcut-hints">
+              <span><kbd>Ctrl+N</kbd> Add card</span>
+              <span><kbd>Ctrl+Enter</kbd> Create</span>
+            </div>
+          </div>
+          <div className="cs-topbar-right">
+            <button
+              className="cs-btn cs-btn--outline"
+              onClick={handleCreate}
+              disabled={submitting}
+              id="cs-create-btn"
             >
-              {LANGUAGES.map((l) => (
-                <option key={l.value} value={l.value}>{l.label}</option>
-              ))}
-            </select>
+              {submitting ? <span className="spinner-border spinner-border-sm" /> : 'Create'}
+            </button>
+            <button
+              className="cs-btn cs-btn--primary"
+              onClick={handleCreate}
+              disabled={submitting}
+              id="cs-create-practice-btn"
+            >
+              {submitting ? <span className="spinner-border spinner-border-sm" /> : 'Create and practice'}
+            </button>
           </div>
         </div>
 
-        {/* ── Card List using CardEditor ──────────────────────────────── */}
-        <div className="cs-cards-list">
-          {cards.map((card, idx) => {
-            const isLast = idx === cards.length - 1;
-            return (
-              <div
-                key={card.id}
-                className="cs-card-editor-wrap"
-                ref={isLast ? lastCardRef : null}
-              >
-                {/* Card index + delete */}
-                <div className="cs-card-editor-header">
-                  <span className="cs-card-index">{idx + 1}</span>
-                  <button
-                    className="cs-card-icon-btn cs-card-icon-btn--delete"
-                    onClick={() => deleteCard(card.id)}
-                    title="Delete card"
-                    aria-label="Delete card"
-                  >
-                    <FiTrash2 size={15} />
-                  </button>
-                </div>
+        {/* Body */}
+        <div className="cs-body">
 
-                {/* Reuse CardEditor with inline-mode: no cancel, save = update local state */}
-                <CardEditor
-                  card={card}
-                  onSave={(data) => handleCardSave(card.id, data)}
-                  onCancel={() => {}}   /* no-op for create flow */
-                  loading={false}
-                  inlineMode          /* hides Cancel button in create flow */
-                />
-              </div>
-            );
-          })}
-        </div>
+          {titleError && <p className="cs-title-error">{titleError}</p>}
 
-        {/* Add card button */}
-        <button className="cs-add-card-btn" onClick={addCard} id="cs-add-card-btn">
-          <span className="cs-add-card-plus"><FiPlus size={20} /></span>
-          <span>ADD CARD</span>
-        </button>
-
-        {/* Footer create button */}
-        <div className="cs-footer">
-          <button
-            className="cs-btn cs-btn--primary cs-btn--lg"
-            onClick={handleCreate}
-            disabled={submitting}
-          >
-            {submitting ? (
-              <span className="spinner-border spinner-border-sm" />
+          {/* Visibility + saved indicator */}
+          <div className="cs-meta-row">
+            <button
+              className={`cs-visibility-btn ${isPublic ? 'public' : 'private'}`}
+              onClick={() => setIsPublic((v) => !v)}
+              type="button"
+            >
+              {isPublic ? <FiGlobe size={13} /> : <FiLock size={13} />}
+              {isPublic ? 'Public' : 'Private'}
+            </button>
+            {savedAt ? (
+              <span className="cs-saved-label cs-saved-label--active">
+                ✓ Draft saved {savedAt.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+              </span>
             ) : (
-              <><FiSave size={16} /> Create Set</>
+              <span className="cs-saved-label">Auto-save enabled</span>
             )}
-          </button>
-        </div>
+          </div>
 
+          {/* Title input */}
+          <input
+            id="cs-title-input"
+            className={`cs-title-input ${titleError ? 'cs-title-input--error' : ''}`}
+            type="text"
+            placeholder="Please enter a title to create your set."
+            value={title}
+            onChange={(e) => { setTitle(e.target.value); if (titleError) setTitleError(''); }}
+            autoFocus
+          />
+
+          {/* Description input */}
+          <input
+            className="cs-desc-input"
+            type="text"
+            placeholder="Add a description..."
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+          />
+
+          {/* Options row */}
+          <div className="cs-options-row">
+            <div className="cs-options-left">
+              <select
+                className="cs-folder-select"
+                value={selectedFolder || ''}
+                onChange={(e) => setSelectedFolder(e.target.value || null)}
+                aria-label="Folder"
+              >
+                <option value="">No folder</option>
+                {folders.map((f) => (
+                  <option key={f._id} value={f._id}>{f.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="cs-options-right">
+              <label className="cs-tags-label">Tags</label>
+              <TagPicker
+                selectedTags={tags}
+                onChange={setTags}
+                placeholder="Add tags..."
+              />
+            </div>
+          </div>
+
+          {/* ── Card List using CardEditor ──────────────────────────────── */}
+          <div className="cs-cards-list">
+            {cards.map((card, idx) => {
+              const isLast = idx === cards.length - 1;
+              return (
+                <div
+                  key={card.id}
+                  className="cs-card-editor-wrap"
+                  ref={isLast ? lastCardRef : null}
+                >
+                  {/* Card index + delete */}
+                  <div className="cs-card-editor-header">
+                    <span className="cs-card-index">{idx + 1}</span>
+                    <button
+                      className="cs-card-icon-btn cs-card-icon-btn--delete"
+                      onClick={() => deleteCard(card.id)}
+                      title="Delete card"
+                      aria-label="Delete card"
+                    >
+                      <FiTrash2 size={15} />
+                    </button>
+                  </div>
+
+                  {/* Reuse CardEditor with inline-mode: no cancel, save = update local state */}
+                  <CardEditor
+                    card={card}
+                    onSave={(data) => handleCardSave(card.id, data)}
+                    onCancel={() => {}}
+                    loading={false}
+                    inlineMode
+                  />
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Add card buttons row */}
+          <div className="cs-add-card-row">
+            <button className="cs-add-card-btn" onClick={addCard} id="cs-add-card-btn">
+              <span className="cs-add-card-plus"><FiPlus size={20} /></span>
+              <span>ADD CARD</span>
+            </button>
+            <button className="cs-add-card-btn cs-import-btn" onClick={() => setShowImport(true)} id="cs-import-btn">
+              <span className="cs-add-card-plus"><FiUpload size={20} /></span>
+              <span>IMPORT FROM FILE</span>
+            </button>
+          </div>
+
+          {/* Footer create button */}
+          <div className="cs-footer">
+            <button
+              className="cs-btn cs-btn--primary cs-btn--lg"
+              onClick={handleCreate}
+              disabled={submitting}
+            >
+              {submitting ? (
+                <span className="spinner-border spinner-border-sm" />
+              ) : (
+                <><FiSave size={16} /> Create Set</>
+              )}
+            </button>
+          </div>
+
+        </div>
       </div>
-    </div>
+
+      {/* Import Modal */}
+      <ImportModal
+        show={showImport}
+        onHide={() => setShowImport(false)}
+        onImport={handleImport}
+      />
+    </>
   );
 }

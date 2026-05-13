@@ -1,5 +1,5 @@
-import { Form, InputGroup } from 'react-bootstrap';
 import { FiSearch, FiX } from 'react-icons/fi';
+import './SearchBar.css';
 
 export default function SearchBar({
   value,
@@ -13,22 +13,20 @@ export default function SearchBar({
   const handleClear = () => onChange({ target: { value: '' } });
 
   return (
-    <InputGroup className={`search-bar ${className}`}>
-      <InputGroup.Text className="search-bar-icon">
-        <FiSearch size={16} />
-      </InputGroup.Text>
-      <Form.Control
+    <div className={`search-bar ${className}`}>
+      <FiSearch className="search-bar-icon" size={18} />
+      <input
         type="text"
+        className={`search-bar-input search-bar-${size}`}
         value={value}
         onChange={onChange}
         placeholder={placeholder}
-        className={`search-bar-input search-bar-${size}`}
       />
       {showClear && value && (
-        <button type="button" className="search-bar-clear" onClick={handleClear} aria-label="Clear search">
-          <FiX size={14} />
+        <button type="button" className="search-bar-clear" onClick={handleClear}>
+          <FiX size={16} />
         </button>
       )}
-    </InputGroup>
+    </div>
   );
 }
