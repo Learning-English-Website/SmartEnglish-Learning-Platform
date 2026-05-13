@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Container } from 'react-bootstrap';
-import { FiPlus, FiBook, FiRefreshCw, FiFolder } from 'react-icons/fi';
+import { FiPlus, FiBook, FiRefreshCw, FiFolder, FiGlobe } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import { setService } from '../../api/setService';
 import { folderService } from '../../api/folderService';
@@ -14,104 +14,109 @@ import './MySets.css';
 export default function MySets() {
   const navigate = useNavigate();
 
-  const [mySets, setMySets] = useState([]);
   const [allSets, setAllSets] = useState([]);
+  const [publicSets, setPublicSets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
-  // Folder state
   const [folders, setFolders] = useState([]);
   const [selectedFolderId, setSelectedFolderId] = useState(null);
-  const [folderLoading, setFolderLoading] = useState(false);
   const [deleteFolderTarget, setDeleteFolderTarget] = useState(null);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
     setError(null);
+
     try {
-      const res = await setService.getMySets();
-      setAllSets(res?.data ?? (Array.isArray(res) ? res : []));
-      setMySets(res?.data ?? (Array.isArray(res) ? res : []));
+      const [mySetsResult, publicSetsResult] = await Promise.all([
+        setService.getMySets(),
+        setService.getPublicSets({ page: 1, pageSize: 6 }),
+      ]);
+
+      const mySetsData = mySetsResult?.data ?? (Array.isArray(mySetsResult) ? mySetsResult : []);
+      const publicSetsData = publicSetsResult?.data ?? (Array.isArray(publicSetsResult) ? publicSetsResult : []);
+
+      setAllSets(mySetsData);
+      setPublicSets(publicSetsData);
     } catch (err) {
       console.error(err);
-      setError('Không thể tải danh sách. Vui lòng thử lại.');
+      setError('Khong the tai danh sach. Vui long thu lai.');
+      setAllSets([]);
+      setPublicSets([]);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => { fetchAll(); }, [fetchAll]);
+  useEffect(() => {
+    Promise.resolve().then(fetchAll);
+  }, [fetchAll]);
 
-  // Fetch folders
   useEffect(() => {
     folderService.getAll()
       .then((res) => {
-        // axiosClient interceptor unwraps .data, so res is already the array
         const foldersData = Array.isArray(res) ? res : (res?.data ?? []);
-        setFolders(foldersData.map((f) => ({
-          ...f,
-          parentId: f.parentId || f.parent,
-          sets: f.sets || [],
+        setFolders(foldersData.map((folder) => ({
+          ...folder,
+          parentId: folder.parentId || folder.parent,
+          sets: folder.sets || [],
         })));
       })
       .catch(() => setFolders([]));
   }, []);
 
-  // Filter sets by selected folder
   const filteredSets = useMemo(() => {
     if (!selectedFolderId) {
       return allSets;
     }
-    // Get sets that are in the selected folder
-    const folder = folders.find((f) => f._id === selectedFolderId);
+
+    const folder = folders.find((item) => item._id === selectedFolderId);
     if (!folder || !folder.sets) {
       return allSets;
     }
-    const folderSetIds = folder.sets.map((s) => (typeof s === 'string' ? s : s.toString()));
+
+    const folderSetIds = folder.sets.map((setId) => (typeof setId === 'string' ? setId : setId.toString()));
     return allSets.filter((set) => folderSetIds.includes(set._id.toString()));
   }, [allSets, folders, selectedFolderId]);
 
-  // Update mySets when filteredSets changes
-  useEffect(() => {
-    setMySets(filteredSets);
-  }, [filteredSets]);
-
-  // Get selected folder info
-  const selectedFolder = useMemo(() => {
-    return folders.find((f) => f._id === selectedFolderId);
-  }, [folders, selectedFolderId]);
+  const selectedFolder = useMemo(
+    () => folders.find((folder) => folder._id === selectedFolderId),
+    [folders, selectedFolderId]
+  );
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
+
     setDeleting(true);
     try {
       await setService.delete(deleteTarget.id);
-      setMySets((prev) => prev.filter((s) => s._id !== deleteTarget.id));
-      toast.success(`Đã xóa "${deleteTarget.title}"`);
+      setAllSets((prev) => prev.filter((set) => set._id !== deleteTarget.id));
+      toast.success(`Da xoa "${deleteTarget.title}"`);
       setDeleteTarget(null);
     } catch {
-      toast.error('Xóa thất bại. Vui lòng thử lại.');
+      toast.error('Xoa that bai. Vui long thu lai.');
     } finally {
       setDeleting(false);
     }
   };
 
-  // Folder handlers
   const handleCreateFolder = async (name) => {
     try {
       const res = await folderService.create(name, null);
-      // folderService returns data directly (interceptor unwraps .data)
       const newFolder = res?.data ?? res;
+
       if (newFolder) {
-        const normalized = {
-          ...newFolder,
-          parentId: newFolder.parentId || newFolder.parent,
-          sets: newFolder.sets || [],
-        };
-        setFolders((prev) => [...prev, normalized]);
+        setFolders((prev) => [
+          ...prev,
+          {
+            ...newFolder,
+            parentId: newFolder.parentId || newFolder.parent,
+            sets: newFolder.sets || [],
+          },
+        ]);
         toast.success('Folder created!');
       }
     } catch {
@@ -123,7 +128,9 @@ export default function MySets() {
     try {
       const res = await folderService.update(folderId, name);
       const updated = res?.data ?? res;
-      setFolders((prev) => prev.map((f) => f._id === folderId ? { ...f, ...updated } : f));
+      setFolders((prev) => prev.map((folder) => (
+        folder._id === folderId ? { ...folder, ...updated } : folder
+      )));
       toast.success('Folder renamed');
     } catch {
       toast.error('Failed to rename folder');
@@ -132,10 +139,11 @@ export default function MySets() {
 
   const handleDeleteFolder = async () => {
     if (!deleteFolderTarget) return;
+
     setDeleting(true);
     try {
       await folderService.delete(deleteFolderTarget);
-      setFolders((prev) => prev.filter((f) => String(f._id) !== String(deleteFolderTarget)));
+      setFolders((prev) => prev.filter((folder) => String(folder._id) !== String(deleteFolderTarget)));
       if (selectedFolderId === deleteFolderTarget) {
         setSelectedFolderId(null);
       }
@@ -148,11 +156,9 @@ export default function MySets() {
     }
   };
 
-  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="page-shell my-sets-page">
       <Container>
-        {/* ── Header ──────────────────────────────────────────────────── */}
         <div className="my-sets-header">
           <div>
             <h1>
@@ -170,19 +176,21 @@ export default function MySets() {
             </h1>
             <p className="my-sets-subtitle">
               {loading ? '' : `${filteredSets.length} set${filteredSets.length !== 1 ? 's' : ''}`}
-              {selectedFolder && ` in folder`}
+              {selectedFolder ? ' in folder' : ''}
             </p>
           </div>
+
           <div className="my-sets-header-actions">
             <button
               className="my-sets-btn-refresh"
               onClick={fetchAll}
               disabled={loading}
-              title="Làm mới"
-              aria-label="Làm mới danh sách"
+              title="Lam moi"
+              aria-label="Lam moi danh sach"
             >
               <FiRefreshCw size={16} className={loading ? 'spin' : ''} />
             </button>
+
             <button
               className="btn-glassline-primary my-sets-btn-create"
               onClick={() => navigate('/flashcards/sets/create')}
@@ -194,9 +202,7 @@ export default function MySets() {
           </div>
         </div>
 
-        {/* ── Main Content: Sidebar + Grid ───────────────────────────── */}
         <div className="my-sets-content">
-          {/* Sidebar */}
           <aside className="my-sets-sidebar">
             <FolderTree
               folders={folders}
@@ -208,42 +214,37 @@ export default function MySets() {
             />
           </aside>
 
-          {/* Sets Grid */}
           <main className="my-sets-main">
-            {/* ── Loading ──────────────────────────────────────────────────── */}
             {loading ? (
               <div className="my-sets-loading">
-                <LoadingSpinner text="Đang tải..." />
+                <LoadingSpinner text="Dang tai..." />
               </div>
             ) : error ? (
               <div className="my-sets-error">
                 <p>{error}</p>
                 <button className="btn-glassline-primary" onClick={fetchAll}>
-                  <FiRefreshCw size={14} /> Thử lại
+                  <FiRefreshCw size={14} /> Thu lai
                 </button>
               </div>
             ) : (
               <>
-                {/* ── Empty State ─────────────────────────────────────────────── */}
-                {mySets.length === 0 && (
+                {filteredSets.length === 0 && (
                   <div className="my-sets-empty">
                     <div className="my-sets-empty-icon">📚</div>
-                    <h2>Bạn chưa có flashcard set nào</h2>
-                    <p>Tạo set đầu tiên để bắt đầu học!</p>
+                    <h2>Ban chua co flashcard set nao</h2>
+                    <p>Tao set dau tien de bat dau hoc!</p>
                     <button
                       className="btn-glassline-primary"
                       onClick={() => navigate('/flashcards/sets/create')}
                     >
-                      <FiPlus size={16} /> Tạo Set Đầu Tiên
+                      <FiPlus size={16} /> Tao Set Dau Tien
                     </button>
                   </div>
                 )}
 
-<<<<<<< Updated upstream
-                {/* ── My Sets Grid ─────────────────────────────────────────── */}
-                {mySets.length > 0 && (
+                {filteredSets.length > 0 && (
                   <div className="my-sets-grid">
-                    {mySets.map((set) => (
+                    {filteredSets.map((set) => (
                       <SetCard
                         key={set._id}
                         set={set}
@@ -253,53 +254,51 @@ export default function MySets() {
                     ))}
                   </div>
                 )}
+
+                {publicSets.length > 0 && (
+                  <div className="my-sets-community">
+                    <div className="my-sets-section-header">
+                      <FiGlobe size={18} className="my-sets-title-icon" />
+                      <h2>Discover Community Sets</h2>
+                      <span className="my-sets-section-badge">{publicSets.length} sets</span>
+                    </div>
+
+                    <div className="my-sets-grid">
+                      {publicSets.map((set) => (
+                        <SetCard
+                          key={set._id}
+                          set={set}
+                          showActions={false}
+                          linkUrl={`/community/sets/${set._id}`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
               </>
-=======
-            {/* ── Public / Community Sets Section ──────────────────────── */}
-            {publicSets.length > 0 && (
-              <div className="my-sets-community">
-                <div className="my-sets-section-header">
-                  <FiGlobe size={18} className="my-sets-title-icon" />
-                  <h2>Discover Community Sets</h2>
-                  <span className="my-sets-section-badge">{publicSets.length} sets</span>
-                </div>
-                <div className="my-sets-grid">
-                  {publicSets.map((set) => (
-                    <SetCard
-                      key={set._id}
-                      set={set}
-                      showActions={false}
-                      linkUrl={`/community/sets/${set._id}`}
-                    />
-                  ))}
-                </div>
-              </div>
->>>>>>> Stashed changes
             )}
           </main>
         </div>
       </Container>
 
-      {/* Delete Set Modal */}
       <ConfirmModal
         show={!!deleteTarget}
         onHide={() => setDeleteTarget(null)}
         onConfirm={handleDelete}
-        title="Xóa Flashcard Set"
-        message={`Bạn có chắc muốn xóa "${deleteTarget?.title}"? Hành động này không thể hoàn tác.`}
-        confirmText="Xóa"
+        title="Xoa Flashcard Set"
+        message={`Ban co chac muon xoa "${deleteTarget?.title}"? Hanh dong nay khong the hoan tac.`}
+        confirmText="Xoa"
         confirmVariant="danger"
         loading={deleting}
       />
 
-      {/* Delete Folder Modal */}
       <ConfirmModal
         show={!!deleteFolderTarget}
         onHide={() => setDeleteFolderTarget(null)}
         onConfirm={handleDeleteFolder}
-        title="Xóa Folder"
-        message={`Bạn có chắc muốn xóa folder này? Các folder con bên trong sẽ được chuyển ra ngoài.`}
-        confirmText="Xóa"
+        title="Xoa Folder"
+        message="Ban co chac muon xoa folder nay? Cac folder con ben trong se duoc chuyen ra ngoai."
+        confirmText="Xoa"
         confirmVariant="danger"
         loading={deleting}
       />
