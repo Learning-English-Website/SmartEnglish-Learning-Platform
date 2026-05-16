@@ -64,8 +64,8 @@
 }
 
 .set-form-heading-icon--edit {
-  background: rgba(251, 191, 36, 0.12);
-  color: #f59e0b;
+  background: rgba(44, 94, 245, 0.1);
+  color: var(--gl-tertiary);
 }
 
 /* Form Groups */

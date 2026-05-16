@@ -3048,8 +3048,6 @@ POST   /api/flashcard-sets/:id/cards/reorder   - Sắp xếp lại cards
 
 POST   /api/flashcard-sets/:id/share           - Chia sẻ set
 PUT    /api/flashcard-sets/:id/collaborators   - Quản lý collaborators
-POST   /api/flashcard-sets/:id/bookmark        - Bookmark set
-DELETE /api/flashcard-sets/:id/bookmark        - Bỏ bookmark
 ```
 
 ### 8.4 Study Session APIs
@@ -5217,8 +5215,8 @@ interface StudyApi {
 | Tag CRUD APIs + search/filter by tag | SetDetail page (card list, edit cards) | Add Word form (all fields: word, pronunciation, meaning, description, example, collocation, related, note) |
 | Folder CRUD APIs + organize sets into folders | Browse/Search public sets page (filter by tags) | Word Set detail screen (word list) |
 | Import service (Excel/CSV parser) | Import modal (file upload) | VocabularyViewModel + Repository |
-| Share + bookmark APIs | Folder management UI, Tag picker | Room DAO for offline word storage |
-| Study Session APIs (start, answer, complete) | Share modal, bookmark toggle | Sync logic (online/offline) |
+| Share APIs | Folder management UI, Tag picker | Room DAO for offline word storage |
+| Study Session APIs (start, answer, complete) | Share modal | Sync logic (online/offline) |
 | Note CRUD APIs (create notes, link to flashcards) | My Sets page + Folder view | -- |
 
 **Milestone Week 2:** Full flashcard CRUD on web + Android. Import CSV working. Search/browse functional.

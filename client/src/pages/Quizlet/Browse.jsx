@@ -33,12 +33,14 @@ export default function Browse() {
           pageSize: 12,
         };
         const result = await setService.getPublicSets(params);
+        // axiosClient already unwraps response.data, so result is the actual data
+        const setsData = Array.isArray(result) ? result : (result?.data || []);
         if (page === 1) {
-          setSets(result.data || result);
+          setSets(setsData);
         } else {
-          setSets((prev) => [...prev, ...(result.data || result)]);
+          setSets((prev) => [...prev, ...setsData]);
         }
-        setHasMore(result.pagination ? result.pagination.page < result.pagination.totalPages : false);
+        setHasMore(result?.pagination ? result.pagination.page < result.pagination.totalPages : false);
       } catch (err) {
         setError(err.response?.data?.error?.message || 'Failed to load sets');
         setSets([]);

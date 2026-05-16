@@ -3,12 +3,17 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Container } from 'react-bootstrap';
 import {
   FiArrowLeft, FiEdit2, FiTrash2, FiPlus,
-  FiGlobe, FiLock, FiLayers, FiPlay,
-  FiGrid, FiList, FiRefreshCw, FiBookOpen, FiCommand,
-  FiTag,
+  FiGlobe, FiLock, FiPlay, FiRefreshCw,
+  FiTag, FiShare2, FiBookmark, FiMoreHorizontal,
+  FiHeart, FiVolume2, FiMaximize, FiShuffle,
+  FiChevronLeft, FiChevronRight, FiList,
+  FiClock, FiUser, FiBookOpen, FiZap,
+  FiGrid, FiLayers, FiTarget, FiCopy, FiUsers,
 } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../../hooks/useAuth';
+import { useSelector } from 'react-redux';
+import { selectIsAuthenticated, selectAuthLoading } from '../../store/slices/authSlice';
 
 // DnD-kit
 import {
@@ -26,46 +31,47 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 
-
-import { setService }       from '../../api/setService';
-import { cardService }      from '../../api/cardService';
+import { setService } from '../../api/setService';
+import { cardService } from '../../api/cardService';
+import { noteService } from '../../api/noteService';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
-import CardEditor       from '../../components/flashcard/CardEditor/CardEditor';
-import BulkAddModal     from '../../components/flashcard/BulkAddModal/BulkAddModal';
-import ImportModal      from '../../components/flashcard/ImportModal/ImportModal';
-import FlashcardViewer  from '../../components/flashcard/FlashcardViewer/FlashcardViewer';
-import SortableCardRow  from '../../components/flashcard/SortableCardRow/SortableCardRow';
+import CardEditor from '../../components/flashcard/CardEditor/CardEditor';
+import BulkAddModal from '../../components/flashcard/BulkAddModal/BulkAddModal';
+import ImportModal from '../../components/flashcard/ImportModal/ImportModal';
+import SortableCardRow from '../../components/flashcard/SortableCardRow/SortableCardRow';
+import NoteCard from '../../components/common/NoteCard/NoteCard';
 import { LoadingSpinner } from '../../components/common';
-import { ConfirmModal }   from '../../components/common/Modal/Modal';
+import { ConfirmModal } from '../../components/common/Modal/Modal';
+import ShareModal from '../../components/common/ShareModal/ShareModal';
 import './SetDetail.css';
 
-const VIEW   = { CARDS: 'cards', STUDY: 'study' };
 const LAYOUT = { LIST: 'list', GRID: 'grid' };
 
 export default function SetDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user: currentUser } = useAuth();
+  const isAuthenticated = useSelector(selectIsAuthenticated);
+  const authLoading = useSelector(selectAuthLoading);
 
-  const [set, setSet]         = useState(null);
-  const [cards, setCards]     = useState([]);
+  const [set, setSet] = useState(null);
+  const [cards, setCards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [cardsLoading, setCardsLoading] = useState(true);
-  const [error, setError]     = useState(null);
+  const [error, setError] = useState(null);
 
-  const [view, setView]       = useState(VIEW.CARDS);
-  const [layout, setLayout]   = useState(LAYOUT.LIST);
+  const [layout, setLayout] = useState(LAYOUT.LIST);
 
   // Add card inline
   const [showAddCard, setShowAddCard] = useState(false);
-  const [addingCard, setAddingCard]   = useState(false);
+  const [addingCard, setAddingCard] = useState(false);
 
   // Edit card inline
   const [editingCard, setEditingCard] = useState(null);
-  const [savingEdit, setSavingEdit]   = useState(false);
+  const [savingEdit, setSavingEdit] = useState(false);
 
   // Bulk add
-  const [showBulk, setShowBulk]     = useState(false);
+  const [showBulk, setShowBulk] = useState(false);
   const [bulkLoading, setBulkLoading] = useState(false);
 
   // Import modal
@@ -73,20 +79,33 @@ export default function SetDetail() {
 
   // Delete set
   const [showDeleteSet, setShowDeleteSet] = useState(false);
-  const [deletingSet, setDeletingSet]     = useState(false);
+  const [deletingSet, setDeletingSet] = useState(false);
 
   // Delete card
   const [deleteCardId, setDeleteCardId] = useState(null);
   const [deletingCard, setDeletingCard] = useState(false);
 
+  // Share modal
+  const [showShare, setShowShare] = useState(false);
+
+  // Notes tab
+  const [selectedCardId, setSelectedCardId] = useState(null);
+  const [notes, setNotes] = useState([]);
+  const [notesLoading, setNotesLoading] = useState(false);
+  const [newNoteContent, setNewNoteContent] = useState('');
+  const [addingNote, setAddingNote] = useState(false);
+  const [activeTab, setActiveTab] = useState('terms');
+
   // Reorder save debounce
   const reorderTimerRef = useRef(null);
 
-  // DnD sensors
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  );
+  /* ── Auth check ──────────────────────────────────────────────────────── */
+  useEffect(() => {
+    if (authLoading) return;
+    if (!isAuthenticated) {
+      navigate(`/login?redirect=/flashcards/sets/${id}`, { replace: true });
+    }
+  }, [isAuthenticated, authLoading, navigate, id]);
 
   /* ── Fetch ──────────────────────────────────────────────────────────── */
   const fetchSet = useCallback(() => {
@@ -95,16 +114,10 @@ export default function SetDetail() {
       .then((res) => {
         const fetchedSet = res?.data ?? res;
         setSet(fetchedSet);
-        // Redirect to community read-only view if user is NOT the owner
-        const currentUserId = currentUser?._id || currentUser?.id;
-        const setUserId = fetchedSet?.user?._id || fetchedSet?.user?.id || fetchedSet?.user;
-        if (currentUserId && setUserId && String(currentUserId) !== String(setUserId)) {
-          navigate(`/community/sets/${id}`, { replace: true });
-        }
       })
       .catch(() => setError('Could not load set.'))
       .finally(() => setLoading(false));
-  }, [id, currentUser, navigate]);
+  }, [id]);
 
   const fetchCards = useCallback(() => {
     setCardsLoading(true);
@@ -127,7 +140,7 @@ export default function SetDetail() {
     return String(setUserId) === String(currentUserId);
   }, [set, currentUser]);
 
-  /* ── Tag click → Browse with filter ────────────────────────────────── */
+  /* ── Tag click ─────────────────────────────────────────────────────── */
   const handleTagClick = (tagName) => {
     navigate(`/flashcards/browse?tag=${encodeURIComponent(tagName)}`);
   };
@@ -135,7 +148,7 @@ export default function SetDetail() {
   /* ── Keyboard shortcuts ──────────────────────────────────────────────── */
   const shortcuts = useMemo(() => ({
     'ctrl+n': (e) => {
-      if (view !== VIEW.CARDS || !isOwner) return;
+      if (!isOwner) return;
       e.preventDefault();
       setShowAddCard(true);
       setEditingCard(null);
@@ -144,10 +157,7 @@ export default function SetDetail() {
       setShowAddCard(false);
       setEditingCard(null);
     },
-    'ctrl+enter': (e) => {
-      // Handled inside CardEditor forms — no global action needed
-    },
-  }), [view]);
+  }), [isOwner]);
 
   useKeyboardShortcuts(shortcuts);
 
@@ -160,14 +170,13 @@ export default function SetDetail() {
       const newIndex = prev.findIndex((c) => c._id === over.id);
       const reordered = arrayMove(prev, oldIndex, newIndex);
 
-      // Debounce reorder API call
       if (reorderTimerRef.current) clearTimeout(reorderTimerRef.current);
       reorderTimerRef.current = setTimeout(async () => {
         try {
           await cardService.reorder(id, reordered.map((c) => c._id));
           toast.success('Order saved', { duration: 1500, icon: '↕️' });
         } catch {
-          // Silently fail — order is already shown correctly in UI
+          // Silently fail
         }
       }, 800);
 
@@ -270,178 +279,255 @@ export default function SetDetail() {
     }
   };
 
+  /* ── Notes ──────────────────────────────────────────────────────────── */
+  const fetchNotes = useCallback(async (cardId) => {
+    setNotesLoading(true);
+    try {
+      const res = await noteService.getByCardId(cardId);
+      setNotes(res?.data ?? res);
+    } catch {
+      setNotes([]);
+    } finally {
+      setNotesLoading(false);
+    }
+  }, []);
+
+  const handleSelectCardForNotes = useCallback((cardId) => {
+    setSelectedCardId(cardId);
+    fetchNotes(cardId);
+  }, [fetchNotes]);
+
+  const handleAddNote = async (e) => {
+    e.preventDefault();
+    if (!newNoteContent.trim() || !selectedCardId) return;
+    setAddingNote(true);
+    try {
+      const res = await noteService.create(selectedCardId, newNoteContent.trim());
+      const newNote = res?.data ?? res;
+      setNotes((prev) => [newNote, ...prev]);
+      setNewNoteContent('');
+      toast.success('Note added!');
+    } catch {
+      toast.error('Failed to add note.');
+    } finally {
+      setAddingNote(false);
+    }
+  };
+
+  const handleUpdateNote = async (noteId, data) => {
+    try {
+      const res = await noteService.update(noteId, data);
+      const updated = res?.data ?? res;
+      setNotes((prev) => prev.map((n) => n._id === updated._id ? updated : n));
+      toast.success('Note updated!');
+    } catch {
+      toast.error('Failed to update note.');
+    }
+  };
+
+  const handleDeleteNote = async (noteId) => {
+    try {
+      await noteService.delete(noteId);
+      setNotes((prev) => prev.filter((n) => n._id !== noteId));
+      toast.success('Note deleted.');
+    } catch {
+      toast.error('Failed to delete note.');
+    }
+  };
+
   /* ── Card IDs for DnD ────────────────────────────────────────────────── */
   const cardIds = useMemo(() => cards.map((c) => c._id), [cards]);
 
+  /* ── Learning Groups ─────────────────────────────────────────────────── */
+  const learningGroups = useMemo(() => {
+    const learning = cards.filter(c => !c.mastered);
+    const mastered = cards.filter(c => c.mastered);
+    return { learning, mastered };
+  }, [cards]);
+
   /* ── Render ──────────────────────────────────────────────────────────── */
-  if (loading) return (
-    <div className="page-shell sd-loading-wrap">
+  if (authLoading || loading) return (
+    <div className="sd-modern-loading">
       <LoadingSpinner text="Loading set..." />
     </div>
   );
 
   if (error || !set) return (
-    <div className="page-shell sd-error-wrap">
+    <div className="sd-modern-loading">
       <p>{error ?? 'Set not found.'}</p>
-      <button className="btn-glassline-primary" onClick={() => navigate('/flashcards')}>
-        <FiArrowLeft size={14} /> Back
+      <button className="sd-btn-back" onClick={() => navigate('/flashcards')}>
+        <FiArrowLeft size={16} /> Back
       </button>
     </div>
   );
 
   return (
-    <div className="page-shell sd-page">
-      <Container>
-
-        {/* ── Breadcrumb ──────────────────────────────────────────────── */}
-        <button className="sd-back" onClick={() => navigate('/flashcards')}>
-          <FiArrowLeft size={16} /> My Flashcard Sets
-        </button>
-
-        {/* ── Keyboard shortcut hints ───────────────────────────────── */}
-        <div className="sd-shortcut-bar">
-          {isOwner && <span className="sd-shortcut-item"><kbd>Ctrl</kbd>+<kbd>N</kbd> Add card</span>}
-          <span className="sd-shortcut-item"><kbd>Esc</kbd> Cancel</span>
-          {isOwner && (
-            <span className="sd-shortcut-item sd-shortcut-item--drag">
-              <FiCommand size={11} /> Drag rows to reorder
-            </span>
-          )}
-        </div>
-
-        {/* ── Set Header ──────────────────────────────────────────────── */}
-        <div className="sd-header surface-card">
-          <div className="sd-header-main">
-            <div className="sd-header-info">
-              <div className="sd-header-title-row">
-                <h1 className="sd-title">{set.title}</h1>
-                <span className={`sd-visibility ${set.isPublic ? 'public' : 'private'}`}>
-                  {set.isPublic ? <FiGlobe size={12} /> : <FiLock size={12} />}
-                  {set.isPublic ? 'Public' : 'Private'}
-                </span>
-              </div>
-              {set.description && <p className="sd-desc">{set.description}</p>}
-              {set.tagObjects?.length > 0 && (
-                <div className="sd-tags">
-                  {set.tagObjects.map((tag) => (
-                    <button
-                      key={tag._id}
-                      className="sd-tag sd-tag--clickable"
-                      onClick={() => handleTagClick(tag.name)}
-                      title={`Browse sets with tag "${tag.name}"`}
-                    >
-                      <FiTag size={11} />
-                      {tag.name}
-                    </button>
-                  ))}
+    <div className="sd-modern-page">
+      {/* ── Top Header ──────────────────────────────────────────────── */}
+      <div className="sd-modern-header">
+        <Container>
+          <div className="sd-header-content">
+            <div className="sd-header-left">
+              <button className="sd-back-btn" onClick={() => navigate('/flashcards')}>
+                <FiArrowLeft size={18} />
+              </button>
+              <div className="sd-title-section">
+                <h1 className="sd-set-title">{set.title}</h1>
+                <div className="sd-set-meta">
+                  <span className="sd-meta-item">
+                    <FiLayers size={14} />
+                    {cards.length} thuật ngữ
+                  </span>
+                  {set.language && (
+                    <span className="sd-meta-item sd-meta-lang">{set.language}</span>
+                  )}
                 </div>
-              )}
-              <div className="sd-meta">
-                <span className="sd-meta-item">
-                  <FiLayers size={14} />
-                  <strong>{set.cardCount ?? cards.length}</strong> cards
-                </span>
-                {set.language && (
-                  <span className="sd-meta-item sd-meta-lang">{set.language}</span>
-                )}
               </div>
             </div>
-
             <div className="sd-header-actions">
-              <button
-                className={`sd-btn ${view === VIEW.STUDY ? 'sd-btn--primary' : 'sd-btn--outline'}`}
-                onClick={() => setView(view === VIEW.STUDY ? VIEW.CARDS : VIEW.STUDY)}
-                id="sd-study-btn"
-                disabled={cards.length === 0}
-              >
-                <FiPlay size={15} />
-                {view === VIEW.STUDY ? 'Back to Cards' : 'Study'}
+              <button className="sd-action-btn sd-action-btn--ghost" onClick={() => setShowShare(true)}>
+                <FiShare2 size={16} />
+                Chia sẻ
+              </button>
+              <button className="sd-action-btn sd-action-btn--ghost">
+                <FiBookmark size={16} />
+                Lưu
               </button>
               {isOwner && (
                 <>
-                  <button
-                    className="sd-btn sd-btn--outline"
-                    onClick={() => navigate(`/flashcards/sets/${id}/edit`)}
-                    id="sd-edit-btn"
-                  >
-                    <FiEdit2 size={15} /> Edit Set
+                  <button className="sd-action-btn sd-action-btn--ghost" onClick={() => navigate(`/flashcards/sets/${id}/edit`)}>
+                    <FiEdit2 size={16} />
+                    Chỉnh sửa
                   </button>
-                  <button
-                    className="sd-btn sd-btn--danger-icon"
-                    onClick={() => setShowDeleteSet(true)}
-                    id="sd-delete-btn"
-                  >
-                    <FiTrash2 size={15} />
+                  <button className="sd-action-btn sd-action-btn--icon" onClick={() => setShowDeleteSet(true)}>
+                    <FiTrash2 size={16} />
                   </button>
                 </>
               )}
             </div>
           </div>
-        </div>
+        </Container>
+      </div>
 
-        {/* ── Study Mode ──────────────────────────────────────────────── */}
-        {view === VIEW.STUDY && (
-          <div className="sd-study-section">
-            <FlashcardViewer cards={cards} />
-          </div>
-        )}
-
-        {/* ── Cards Section ───────────────────────────────────────────── */}
-        {view === VIEW.CARDS && (
-          <div className="sd-cards-section">
-            <div className="sd-cards-header">
-              <h2>
-                <FiBookOpen size={17} />
-                Cards
-                <span className="sd-cards-count">{cards.length}</span>
-              </h2>
-              <div className="sd-cards-header-right">
-                <div className="sd-layout-toggle">
-                  <button
-                    className={`sd-layout-btn ${layout === LAYOUT.LIST ? 'active' : ''}`}
-                    onClick={() => setLayout(LAYOUT.LIST)}
-                    title="List view"
-                  >
-                    <FiList size={15} />
-                  </button>
-                  <button
-                    className={`sd-layout-btn ${layout === LAYOUT.GRID ? 'active' : ''}`}
-                    onClick={() => setLayout(LAYOUT.GRID)}
-                    title="Grid view"
-                  >
-                    <FiGrid size={15} />
-                  </button>
+      {/* ── Main Content ─────────────────────────────────────────────── */}
+      <Container>
+        <div className="sd-modern-content">
+          
+          {/* ── Mode Cards Grid ───────────────────────────────────────── */}
+          <div className="sd-modes-section">
+            <div className="sd-modes-grid">
+              <button className="sd-mode-card" onClick={() => navigate(`/study-sets/${id}/flashcards`)}>
+                <div className="sd-mode-icon sd-mode-icon--blue">
+                  <FiBookOpen size={24} />
                 </div>
+                <span className="sd-mode-label">Thẻ ghi nhớ</span>
+              </button>
+              <button className="sd-mode-card" onClick={() => navigate(`/study-sets/${id}/learn`)}>
+                <div className="sd-mode-icon sd-mode-icon--purple">
+                  <FiZap size={24} />
+                </div>
+                <span className="sd-mode-label">Học</span>
+              </button>
+              <button className="sd-mode-card" onClick={() => navigate(`/study-sets/${id}/test`)}>
+                <div className="sd-mode-icon sd-mode-icon--green">
+                  <FiTarget size={24} />
+                </div>
+                <span className="sd-mode-label">Kiểm tra</span>
+              </button>
+              <button className="sd-mode-card" onClick={() => navigate(`/study-sets/${id}/match`)}>
+                <div className="sd-mode-icon sd-mode-icon--orange">
+                  <FiGrid size={24} />
+                </div>
+                <span className="sd-mode-label">Khớp thẻ</span>
+              </button>
+              <button className="sd-mode-card" onClick={() => navigate(`/study-sets/${id}/blast`)}>
+                <div className="sd-mode-icon sd-mode-icon--pink">
+                  <FiCopy size={24} />
+                </div>
+                <span className="sd-mode-label">Hủy diệt</span>
+              </button>
+            </div>
+          </div>
+
+          {/* ── Author Section ─────────────────────────────────────────── */}
+          <div className="sd-author-section">
+            <div className="sd-author-card">
+              <div className="sd-author-avatar">
+                {set.user?.avatar ? (
+                  <img src={set.user.avatar} alt={set.user?.username} className="sd-author-img" />
+                ) : (
+                  <span>{set.user?.username?.charAt(0).toUpperCase() || 'U'}</span>
+                )}
+              </div>
+              <div className="sd-author-info">
+                <span className="sd-author-name">{set.user?.username || 'Unknown'}</span>
+                <span className="sd-author-time">
+                  <FiClock size={12} />
+                  {set.createdAt ? new Date(set.createdAt).toLocaleDateString('vi-VN', { 
+                    day: 'numeric', month: 'short', year: 'numeric' 
+                  }) : ''}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Terms Section ──────────────────────────────────────────── */}
+          <div className="sd-terms-section">
+            <div className="sd-terms-header">
+              <h2 className="sd-terms-title">
+                Thuật ngữ trong học phần này ({cards.length})
+              </h2>
+              <div className="sd-terms-actions">
                 {isOwner && (
                   <>
-                    <button
-                      className="sd-btn sd-btn--bulk"
-                      onClick={() => setShowBulk(true)}
-                      id="sd-bulk-add-btn"
-                    >
-                      <FiRefreshCw size={14} /> Bulk Add
+                    <button className="sd-term-action-btn" onClick={() => setShowBulk(true)}>
+                      <FiPlus size={14} />
+                      Thêm
                     </button>
-                    <button
-                      className="sd-btn sd-btn--outline"
-                      onClick={() => setShowImport(true)}
-                      id="sd-import-btn"
-                    >
-                      <FiCommand size={14} /> Import CSV
-                    </button>
-                    <button
-                      className="sd-btn sd-btn--primary"
-                      onClick={() => { setShowAddCard(true); setEditingCard(null); }}
-                      id="sd-add-card-btn"
-                      title="Add card (Ctrl+N)"
-                    >
-                      <FiPlus size={14} /> Add Card
+                    <button className="sd-term-action-btn" onClick={() => setShowImport(true)}>
+                      <FiRefreshCw size={14} />
+                      Nhập
                     </button>
                   </>
                 )}
+                <div className="sd-view-toggle">
+                  <button 
+                    className={`sd-view-btn ${layout === LAYOUT.LIST ? 'active' : ''}`}
+                    onClick={() => setLayout(LAYOUT.LIST)}
+                  >
+                    <FiList size={16} />
+                  </button>
+                  <button 
+                    className={`sd-view-btn ${layout === LAYOUT.GRID ? 'active' : ''}`}
+                    onClick={() => setLayout(LAYOUT.GRID)}
+                  >
+                    <FiGrid size={16} />
+                  </button>
+                </div>
               </div>
             </div>
 
-            {/* Inline Add Card form */}
+            {/* Learning Groups */}
+            {cards.length > 0 && (
+              <div className="sd-learning-groups">
+                <div className="sd-learning-group">
+                  <div className="sd-group-header">
+                    <span className="sd-group-dot sd-group-dot--orange"></span>
+                    <span className="sd-group-title">Đang học</span>
+                    <span className="sd-group-count">{learningGroups.learning.length}</span>
+                  </div>
+                </div>
+                <div className="sd-learning-group">
+                  <div className="sd-group-header">
+                    <span className="sd-group-dot sd-group-dot--green"></span>
+                    <span className="sd-group-title">Thành thạo</span>
+                    <span className="sd-group-count">{learningGroups.mastered.length}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Add Card Form */}
             {isOwner && showAddCard && (
               <div className="sd-add-card-form">
                 <CardEditor
@@ -452,121 +538,118 @@ export default function SetDetail() {
               </div>
             )}
 
-            {/* Loading / Empty */}
+            {/* Cards List */}
             {cardsLoading ? (
               <div className="sd-cards-loading">
                 <LoadingSpinner text="Loading cards..." />
               </div>
             ) : cards.length === 0 ? (
               <div className="sd-cards-empty">
-                <div className="sd-cards-empty-icon">🃏</div>
-                {isOwner ? (
-                  <>
-                    <p>No cards yet. Press <kbd>Ctrl+N</kbd> or click Add Card.</p>
-                    <button
-                      className="btn-glassline-primary"
-                      onClick={() => setShowAddCard(true)}
-                    >
-                      <FiPlus size={14} /> Add Card
-                    </button>
-                  </>
-                ) : (
-                  <p>This set has no cards yet.</p>
+                <div className="sd-empty-icon">📚</div>
+                <p>Chưa có thuật ngữ nào</p>
+                {isOwner && (
+                  <button className="sd-add-term-btn" onClick={() => setShowAddCard(true)}>
+                    <FiPlus size={16} />
+                    Thêm thuật ngữ đầu tiên
+                  </button>
                 )}
               </div>
             ) : layout === LAYOUT.LIST ? (
-
-              /* ── LIST VIEW with Drag & Drop ── */
-              isOwner ? (
-                <DndContext
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  onDragEnd={handleDragEnd}
-                >
-                  <SortableContext items={cardIds} strategy={verticalListSortingStrategy}>
-                    <div className="sd-cards-list">
-                      {cards.map((card, idx) => (
-                        <div key={card._id}>
-                          {editingCard?._id === card._id ? (
-                            <div className="sd-inline-edit">
-                              <CardEditor
-                                card={card}
-                                onSave={handleSaveEdit}
-                                onCancel={() => setEditingCard(null)}
-                                loading={savingEdit}
-                              />
-                            </div>
-                          ) : (
-                            <SortableCardRow
-                              card={card}
-                              index={idx + 1}
-                              onEdit={() => { setEditingCard(card); setShowAddCard(false); }}
-                              onDelete={() => setDeleteCardId(card._id)}
-                              readonly={!isOwner}
-                            />
+              <div className="sd-cards-list-modern">
+                {cards.map((card, idx) => (
+                  <div key={card._id}>
+                    {editingCard?._id === card._id ? (
+                      <div className="sd-inline-edit">
+                        <CardEditor
+                          card={card}
+                          onSave={handleSaveEdit}
+                          onCancel={() => setEditingCard(null)}
+                          loading={savingEdit}
+                        />
+                      </div>
+                    ) : (
+                      <div className="sd-term-card">
+                        <div className="sd-term-content">
+                          <div className="sd-term-front">
+                            <span className="sd-term-text">{card.front}</span>
+                            {card.pronunciation && (
+                              <span className="sd-term-pronunciation">{card.pronunciation}</span>
+                            )}
+                          </div>
+                          <div className="sd-term-divider"></div>
+                          <div className="sd-term-back">
+                            <span className="sd-term-text">{card.back}</span>
+                          </div>
+                        </div>
+                        <div className="sd-term-actions">
+                          {isOwner && (
+                            <>
+                              <button 
+                                className="sd-term-btn"
+                                onClick={() => { setEditingCard(card); setShowAddCard(false); }}
+                                title="Edit"
+                              >
+                                <FiEdit2 size={14} />
+                              </button>
+                              <button 
+                                className="sd-term-btn"
+                                onClick={() => setDeleteCardId(card._id)}
+                                title="Delete"
+                              >
+                                <FiTrash2 size={14} />
+                              </button>
+                            </>
                           )}
                         </div>
-                      ))}
-                    </div>
-                  </SortableContext>
-                </DndContext>
-              ) : (
-                <div className="sd-cards-list">
-                  {cards.map((card, idx) => (
-                    <div key={card._id}>
-                      <SortableCardRow
-                        card={card}
-                        index={idx + 1}
-                        readonly={true}
-                      />
-                    </div>
-                  ))}
-                </div>
-              )
-
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
             ) : (
-
-              /* ── GRID VIEW ── */
-              <div className="sd-cards-grid">
-                {cards.map((card, idx) => (
-                  <div key={card._id} className="sd-grid-card surface-card">
+              <div className="sd-cards-grid-modern">
+                {cards.map((card) => (
+                  <div key={card._id} className="sd-grid-card-modern">
                     <div className="sd-grid-card-front">
-                      <span className="sd-card-field-label">TERM</span>
                       <p className="sd-grid-word">{card.front}</p>
                       {card.pronunciation && (
-                        <span className="sd-card-pronunciation">{card.pronunciation}</span>
+                        <span className="sd-grid-pronunciation">{card.pronunciation}</span>
                       )}
                     </div>
-                    <div className="sd-grid-card-divider" />
+                    <div className="sd-grid-card-divider"></div>
                     <div className="sd-grid-card-back">
-                      <span className="sd-card-field-label">DEFINITION</span>
                       <p className="sd-grid-def">{card.back}</p>
                     </div>
-                    <div className="sd-grid-card-footer">
-                      <span className="sd-grid-num">{idx + 1}</span>
-                      {isOwner && (
-                        <div className="sd-card-actions sd-card-actions--always">
-                          <button
-                            className="sd-card-btn sd-card-btn--edit"
-                            onClick={() => { setEditingCard(card); setLayout(LAYOUT.LIST); setShowAddCard(false); }}
-                          >
-                            <FiEdit2 size={13} />
-                          </button>
-                          <button
-                            className="sd-card-btn sd-card-btn--delete"
-                            onClick={() => setDeleteCardId(card._id)}
-                          >
-                            <FiTrash2 size={13} />
-                          </button>
-                        </div>
-                      )}
-                    </div>
+                    {isOwner && (
+                      <div className="sd-grid-card-actions">
+                        <button 
+                          className="sd-term-btn"
+                          onClick={() => { setEditingCard(card); setLayout(LAYOUT.LIST); }}
+                        >
+                          <FiEdit2 size={13} />
+                        </button>
+                        <button 
+                          className="sd-term-btn"
+                          onClick={() => setDeleteCardId(card._id)}
+                        >
+                          <FiTrash2 size={13} />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
             )}
+
+            {/* Add Terms Button */}
+            {isOwner && !showAddCard && (
+              <button className="sd-add-terms-pill" onClick={() => setShowAddCard(true)}>
+                <FiPlus size={16} />
+                Thêm hoặc xóa thuật ngữ
+              </button>
+            )}
           </div>
-        )}
+        </div>
       </Container>
 
       {/* ── Modals ──────────────────────────────────────────────────────── */}
@@ -585,9 +668,9 @@ export default function SetDetail() {
         show={showDeleteSet}
         onHide={() => setShowDeleteSet(false)}
         onConfirm={handleDeleteSet}
-        title="Delete Set"
-        message="Delete this set? All cards will be removed. This cannot be undone."
-        confirmText="Delete Forever"
+        title="Xóa học phần"
+        message={`Bạn có chắc muốn xóa "${set?.title}"? Hành động này không thể hoàn tác.`}
+        confirmText="Xóa"
         confirmVariant="danger"
         loading={deletingSet}
       />
@@ -595,11 +678,19 @@ export default function SetDetail() {
         show={!!deleteCardId}
         onHide={() => setDeleteCardId(null)}
         onConfirm={handleDeleteCard}
-        title="Delete Card"
-        message="Delete this card?"
-        confirmText="Delete"
+        title="Xóa thẻ"
+        message="Bạn có chắc muốn xóa thẻ này?"
+        confirmText="Xóa"
         confirmVariant="danger"
         loading={deletingCard}
+      />
+      <ShareModal
+        show={showShare}
+        setId={id}
+        setTitle={set?.title}
+        isPublic={set?.isPublic}
+        onHide={() => setShowShare(false)}
+        onPublicChanged={() => {}}
       />
     </div>
   );

@@ -7,6 +7,7 @@ const tagSchema = new Schema(
     user: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     name: { type: String, required: true, trim: true, maxlength: 64 },
     color: { type: String, default: '#6366f1' },
+    folder: { type: Schema.Types.ObjectId, ref: 'Folder', default: null }, // null = global tag
   },
   { timestamps: true }
 );

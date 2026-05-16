@@ -1,0 +1,639 @@
+/* ═══════════════════════════════════════════════════════════════════
+   StudyPage - Modern Quizlet-Style Flashcard
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── CSS Variables ──────────────────────────────────────────────── */
+:root {
+  --sf-bg: #f6f7fb;
+  --sf-white: #ffffff;
+  --sf-text: #1e1e2e;
+  --sf-text-secondary: #6b7280;
+  --sf-blue: #3b82f6;
+  --sf-green: #10b981;
+  --sf-green-light: #d1fae5;
+  --sf-orange: #f97316;
+  --sf-orange-light: #ffedd5;
+  --sf-purple: #8b5cf6;
+  --sf-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04);
+  --sf-shadow-md: 0 8px 30px rgba(0, 0, 0, 0.08);
+  --sf-shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.12);
+  --sf-shadow-card: 0 25px 50px -12px rgba(0, 0, 0, 0.15), 0 12px 24px -8px rgba(0, 0, 0, 0.08);
+  --sf-radius: 28px;
+  --sf-radius-sm: 12px;
+  --sf-radius-full: 9999px;
+  --sf-transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  --sf-font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* ── Container ─────────────────────────────────────────────────── */
+.sf-container {
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--sf-bg);
+  font-family: var(--sf-font);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px 24px 32px;
+  overflow-x: hidden;
+}
+
+/* ── Top Bar ───────────────────────────────────────────────────── */
+.sf-topbar {
+  width: 100%;
+  max-width: 900px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background: var(--sf-white);
+  border-radius: var(--sf-radius);
+  box-shadow: var(--sf-shadow-sm);
+  margin-bottom: 16px;
+}
+
+.sf-back-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  border-radius: var(--sf-radius-sm);
+  color: var(--sf-text);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--sf-transition);
+}
+
+.sf-back-btn:hover {
+  background: var(--sf-bg);
+  color: var(--sf-blue);
+}
+
+.sf-topbar-center {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.sf-title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--sf-text);
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sf-counter {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--sf-blue);
+  background: rgba(59, 130, 246, 0.1);
+  padding: 6px 14px;
+  border-radius: var(--sf-radius-full);
+}
+
+.sf-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sf-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: transparent;
+  border: none;
+  border-radius: var(--sf-radius-sm);
+  color: var(--sf-text-secondary);
+  cursor: pointer;
+  transition: var(--sf-transition);
+}
+
+.sf-icon-btn:hover {
+  background: var(--sf-bg);
+  color: var(--sf-text);
+}
+
+/* ── Progress Bar ───────────────────────────────────────────────── */
+.sf-progress-bar {
+  width: 100%;
+  max-width: 900px;
+  height: 4px;
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: var(--sf-radius-full);
+  margin-bottom: 24px;
+  overflow: hidden;
+}
+
+.sf-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--sf-blue), var(--sf-purple));
+  border-radius: var(--sf-radius-full);
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ── Badges ─────────────────────────────────────────────────────── */
+.sf-badges {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.sf-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  background: var(--sf-white);
+  border-radius: var(--sf-radius-full);
+  box-shadow: var(--sf-shadow-sm);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--sf-text);
+}
+
+.sf-badge-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.sf-badge-dot--orange {
+  background: var(--sf-orange);
+  box-shadow: 0 0 8px rgba(249, 115, 22, 0.4);
+}
+
+.sf-badge-dot--green {
+  background: var(--sf-green);
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
+}
+
+.sf-badge-count {
+  min-width: 24px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--sf-bg);
+  border-radius: var(--sf-radius-full);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--sf-text-secondary);
+}
+
+/* ── Card Area ──────────────────────────────────────────────────── */
+.sf-card-area {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 900px;
+  position: relative;
+  perspective: 1800px;
+}
+
+.sf-flashcard-wrapper {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+/* ── Card ──────────────────────────────────────────────────────── */
+.sf-card {
+  width: 100%;
+  max-width: 800px;
+  height: 65vh;
+  min-height: 400px;
+  max-height: 560px;
+  position: relative;
+  cursor: pointer;
+  transform-style: preserve-3d;
+  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sf-card--flipped {
+  transform: rotateY(180deg);
+}
+
+.sf-card-face {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--sf-radius);
+  backface-visibility: hidden;
+  -webkit-backdrop-filter: blur(0);
+  box-shadow: var(--sf-shadow-card);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sf-card-front {
+  background: var(--sf-white);
+}
+
+.sf-card-back {
+  background: linear-gradient(145deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%);
+  transform: rotateY(180deg);
+}
+
+/* Card Controls */
+.sf-card-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+}
+
+.sf-hint-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: var(--sf-bg);
+  border: 1px solid transparent;
+  border-radius: var(--sf-radius-full);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--sf-text-secondary);
+  cursor: pointer;
+  transition: var(--sf-transition);
+}
+
+.sf-hint-toggle:hover,
+.sf-hint-toggle.active {
+  background: var(--sf-orange-light);
+  border-color: var(--sf-orange);
+  color: var(--sf-orange);
+}
+
+.sf-definition-label {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.8);
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: var(--sf-radius-full);
+}
+
+/* Card Content */
+.sf-card-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 40px;
+  text-align: center;
+}
+
+.sf-hint-text {
+  font-size: 0.9375rem;
+  color: var(--sf-orange);
+  font-style: italic;
+  margin-bottom: 12px;
+}
+
+.sf-card-word {
+  font-size: clamp(2.5rem, 6vw, 4.5rem);
+  font-weight: 800;
+  color: var(--sf-text);
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  margin: 0;
+}
+
+.sf-card-back .sf-card-word {
+  color: white;
+  text-shadow: 0 2px 20px rgba(0, 0, 0, 0.15);
+}
+
+.sf-phonetic {
+  font-size: 1.125rem;
+  color: var(--sf-text-secondary);
+  font-style: italic;
+  margin-top: 12px;
+}
+
+.sf-example {
+  font-size: 1.125rem;
+  color: rgba(255, 255, 255, 0.9);
+  font-style: italic;
+  max-width: 500px;
+  line-height: 1.5;
+  margin-top: 20px;
+}
+
+/* ── Navigation Buttons ─────────────────────────────────────────── */
+.sf-nav-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--sf-white);
+  border: none;
+  border-radius: 50%;
+  box-shadow: var(--sf-shadow-md);
+  color: var(--sf-text);
+  cursor: pointer;
+  transition: var(--sf-transition);
+  z-index: 10;
+}
+
+.sf-nav-btn--prev {
+  left: -28px;
+}
+
+.sf-nav-btn--next {
+  right: -28px;
+}
+
+.sf-nav-btn:hover:not(.disabled) {
+  background: var(--sf-blue);
+  color: white;
+  transform: translateY(-50%) scale(1.05);
+  box-shadow: 0 12px 30px rgba(59, 130, 246, 0.3);
+}
+
+.sf-nav-btn.disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* ── Floating Shortcut Bar ─────────────────────────────────────── */
+.sf-shortcut-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 14px 28px;
+  margin: 24px 0;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: var(--sf-radius-full);
+  box-shadow: var(--sf-shadow-md);
+  color: var(--sf-text-secondary);
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.sf-shortcut-bar kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 48px;
+  padding: 4px 10px;
+  background: var(--sf-bg);
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--sf-text);
+  font-family: inherit;
+}
+
+/* ── Bottom Controls ───────────────────────────────────────────── */
+.sf-bottom-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 800px;
+  margin-top: auto;
+}
+
+/* Progress Toggle */
+.sf-progress-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.sf-progress-toggle input {
+  display: none;
+}
+
+.sf-toggle-track {
+  position: relative;
+  width: 44px;
+  height: 26px;
+  background: #e5e7eb;
+  border-radius: var(--sf-radius-full);
+  transition: var(--sf-transition);
+}
+
+.sf-toggle-thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  background: white;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+  transition: var(--sf-transition);
+}
+
+.sf-progress-toggle input:checked + .sf-toggle-track {
+  background: var(--sf-blue);
+}
+
+.sf-progress-toggle input:checked + .sf-toggle-track .sf-toggle-thumb {
+  transform: translateX(18px);
+}
+
+.sf-toggle-label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--sf-text-secondary);
+}
+
+/* Answer Buttons */
+.sf-answer-btns {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.sf-answer-btn {
+  width: 72px;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: var(--sf-transition);
+  box-shadow: var(--sf-shadow-lg);
+}
+
+.sf-answer-btn--wrong {
+  background: var(--sf-orange-light);
+  color: var(--sf-orange);
+}
+
+.sf-answer-btn--wrong:hover {
+  background: var(--sf-orange);
+  color: white;
+}
+
+.sf-answer-btn--correct {
+  background: var(--sf-green-light);
+  color: var(--sf-green);
+}
+
+.sf-answer-btn--correct:hover {
+  background: var(--sf-green);
+  color: white;
+}
+
+/* Action Buttons */
+.sf-action-btns {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sf-action-btn {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--sf-white);
+  border: none;
+  border-radius: var(--sf-radius-sm);
+  color: var(--sf-text-secondary);
+  cursor: pointer;
+  transition: var(--sf-transition);
+  box-shadow: var(--sf-shadow-sm);
+}
+
+.sf-action-btn:hover {
+  background: var(--sf-bg);
+  color: var(--sf-text);
+}
+
+/* ── Loading & Error ───────────────────────────────────────────── */
+.sf-loading,
+.sf-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  min-height: 60vh;
+  color: var(--sf-text-secondary);
+}
+
+.sf-spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid var(--sf-bg);
+  border-top-color: var(--sf-blue);
+  border-radius: 50%;
+  animation: sf-spin 0.8s linear infinite;
+}
+
+@keyframes sf-spin {
+  to { transform: rotate(360deg); }
+}
+
+.sf-error .sf-back-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background: var(--sf-blue);
+  color: white;
+  border: none;
+  border-radius: var(--sf-radius-full);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--sf-transition);
+}
+
+.sf-error .sf-back-btn:hover {
+  background: var(--sf-purple);
+  transform: translateY(-2px);
+}
+
+/* ── Responsive ─────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .sf-container {
+    padding: 16px;
+  }
+
+  .sf-topbar {
+    padding: 12px 16px;
+  }
+
+  .sf-title {
+    max-width: 150px;
+    font-size: 0.875rem;
+  }
+
+  .sf-nav-btn {
+    display: none;
+  }
+
+  .sf-shortcut-bar {
+    display: none;
+  }
+
+  .sf-bottom-controls {
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .sf-action-btns {
+    order: -1;
+  }
+
+  .sf-card {
+    height: 55vh;
+  }
+
+  .sf-card-word {
+    font-size: clamp(2rem, 8vw, 3rem);
+  }
+}
+
+@media (max-width: 480px) {
+  .sf-badge {
+    padding: 8px 14px;
+    font-size: 0.75rem;
+  }
+
+  .sf-badge span:last-child {
+    display: none;
+  }
+
+  .sf-answer-btn {
+    width: 64px;
+    height: 64px;
+  }
+
+  .sf-answer-btns {
+    gap: 20px;
+  }
+}

@@ -11,13 +11,13 @@ import './CardEditor.css';
  */
 export default function CardEditor({ card, onSave, onCancel, loading = false, inlineMode = false }) {
   const [form, setForm] = useState({
-    id: card?.id || null,
-    front: '',
-    back: '',
-    pronunciation: '',
-    example: '',
-    note: '',
-    imageUrl: '',
+    id:            card?.id || null,
+    front:         card?.front         ?? '',
+    back:          card?.back          ?? '',
+    pronunciation: card?.pronunciation ?? '',
+    example:       card?.example       ?? '',
+    note:          card?.note          ?? '',
+    imageUrl:      card?.imageUrl      ?? '',
   });
   const [errors, setErrors] = useState({});
   const [showImagePicker, setShowImagePicker] = useState(false);
@@ -39,43 +39,34 @@ export default function CardEditor({ card, onSave, onCancel, loading = false, in
   const audioRef    = useRef(null);
   const wrapRef     = useRef(null);
   const debounceRef = useRef(null);
-  const isPrefilledRef = useRef(false);
-
-  /* ── Prefill on edit ─────────────────────────────────────────────── */
-  useEffect(() => {
-    // Always prefill when card prop changes - check all fields
-    if (card && (
-      card.id !== form.id ||
-      card.front !== form.front ||
-      card.back !== form.back ||
-      card.pronunciation !== form.pronunciation ||
-      card.example !== form.example ||
-      card.note !== form.note
-    )) {
-      setForm({
-        id:            card.id,
-        front:         card.front         ?? '',
-        back:          card.back          ?? '',
-        pronunciation: card.pronunciation ?? '',
-        example:       card.example       ?? '',
-        note:          card.note          ?? '',
-        imageUrl:      card.imageUrl      ?? '',
-      });
-      isPrefilledRef.current = true;
-      setIsUserEdited(false); // Reset user edited flag on prefill
-    }
-  }, [card]);
+  const saveTimerRef = useRef(null);
 
   /* ── Auto-sync (Inline Mode) ─────────────────────────────────────── */
-  // Only sync when user actually types (not during prefill)
-  const [isUserEdited, setIsUserEdited] = useState(false);
-
+  // In inline mode, auto-save with debounce when form is valid
   useEffect(() => {
-    // Only sync after prefill AND after user has edited
-    if (inlineMode && isPrefilledRef.current && isUserEdited) {
-      onSave(form);
+    if (!inlineMode) return;
+
+    // Clear previous timer
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+
+    // Only auto-save if front and back have content
+    if (form.front.trim() && form.back.trim()) {
+      saveTimerRef.current = setTimeout(() => {
+        onSave({
+          front:         form.front.trim(),
+          back:          form.back.trim(),
+          pronunciation: form.pronunciation.trim() || null,
+          example:       form.example.trim() || null,
+          note:          form.note.trim() || null,
+          imageUrl:      form.imageUrl || null,
+        });
+      }, 500);
     }
-  }, [form, inlineMode, isUserEdited]);
+
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, [form, inlineMode, onSave]);
 
   /* ── Close on outside click ──────────────────────────────────────── */
   useEffect(() => {
@@ -173,8 +164,6 @@ export default function CardEditor({ card, onSave, onCancel, loading = false, in
     setForm((prev) => ({ ...prev, [name]: value }));
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: '' }));
     if (name === 'front') triggerWordSearch(value);
-    // Mark as user edited for auto-sync
-    setIsUserEdited(true);
   };
 
   /* ── Validate + Submit ───────────────────────────────────────────── */

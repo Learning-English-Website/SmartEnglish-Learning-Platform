@@ -1,0 +1,121 @@
+/* ── Filter Dropdown ─────────────────────────────────── */
+.filter-dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+/* Trigger */
+.filter-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s;
+}
+
+.filter-trigger:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.filter-trigger.active {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.filter-trigger-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #1e3a5f;
+  white-space: nowrap;
+}
+
+.filter-chevron {
+  color: #5a67d8;
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.filter-chevron.open {
+  transform: rotate(180deg);
+}
+
+/* Menu */
+.filter-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 178px;
+  background: #ffffff;
+  border-radius: 18px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04);
+  z-index: 1000;
+  opacity: 0;
+  transform: translateY(-6px);
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  overflow: hidden;
+}
+
+.filter-menu.visible {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: all;
+}
+
+/* Menu Header */
+.filter-menu-header {
+  padding: 14px 18px 12px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #8898aa;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: #f6f7fb;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+/* Menu Items */
+.filter-menu-items {
+  padding: 6px;
+}
+
+.filter-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 12px 14px;
+  background: transparent;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+  text-align: left;
+}
+
+.filter-item:hover {
+  background: #f6f7fb;
+}
+
+.filter-item.selected {
+  background: #f0f1ff;
+}
+
+.filter-item-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #1e3a5f;
+}
+
+.filter-item.selected .filter-item-label {
+  color: #5a67d8;
+  font-weight: 600;
+}
+
+.filter-item-check {
+  color: #5a67d8;
+  flex-shrink: 0;
+}

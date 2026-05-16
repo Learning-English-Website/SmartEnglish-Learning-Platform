@@ -7,6 +7,7 @@ const { AppError } = require('../../shared/errors/AppError');
 // ── GET /api/flashcard-sets/my ──────────────────────────────────────────────
 const getMySets = async (req, res) => {
   const sets = await FlashcardSet.find({ user: req.user._id })
+    .populate('user', 'username avatar')
     .populate('tags', 'name color')
     .sort({ updatedAt: -1 })
     .lean();

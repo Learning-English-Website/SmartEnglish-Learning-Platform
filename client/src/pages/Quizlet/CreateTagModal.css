@@ -1,0 +1,208 @@
+/* ══════════════════════════════════════════════════
+   CREATE TAG MODAL — Quizlet Premium Style
+   ══════════════════════════════════════════════════ */
+
+/* ── Overlay ──────────────────────────────────── */
+.ctm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: ctm-fade-in 0.2s ease;
+  padding: 20px;
+}
+
+@keyframes ctm-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ── Modal ────────────────────────────────────── */
+.ctm-modal {
+  width: 500px;
+  max-width: 100%;
+  background: #ffffff;
+  border-radius: 28px;
+  padding: 32px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08), 0 4px 16px rgba(30, 58, 95, 0.06);
+  animation: ctm-scale-in 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+@keyframes ctm-scale-in {
+  from { opacity: 0; transform: scale(0.9) translateY(8px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* ── Header ───────────────────────────────────── */
+.ctm-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ctm-title {
+  font-size: 1.375rem;
+  font-weight: 800;
+  color: #1e3a5f;
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.ctm-close-btn {
+  width: 36px;
+  height: 36px;
+  background: #f6f7fb;
+  border: none;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #8898aa;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, transform 0.15s;
+  flex-shrink: 0;
+}
+
+.ctm-close-btn:hover {
+  background: #edf2f7;
+  color: #1e3a5f;
+  transform: rotate(90deg);
+}
+
+/* ── Form / Input ─────────────────────────────── */
+.ctm-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ctm-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #8898aa;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.ctm-input {
+  width: 100%;
+  height: 56px;
+  background: #f6f7fb;
+  border: 2px solid transparent;
+  border-radius: 16px;
+  padding: 0 20px;
+  font-size: 1rem;
+  font-weight: 500;
+  color: #1e3a5f;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+  box-sizing: border-box;
+}
+
+.ctm-input::placeholder {
+  color: #a0aec0;
+  font-weight: 400;
+}
+
+.ctm-input:focus {
+  border-color: #5a67d8;
+  background: #fefeff;
+  box-shadow: 0 0 0 4px rgba(90, 103, 216, 0.1);
+}
+
+.ctm-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ── Suggested Tags ───────────────────────────── */
+.ctm-suggested {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ctm-suggested-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #8898aa;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.ctm-suggested-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ctm-suggested-pill {
+  padding: 8px 18px;
+  background: #f6f7fb;
+  border: 1.5px solid transparent;
+  border-radius: 100px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #4a5568;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.15s;
+}
+
+.ctm-suggested-pill:hover {
+  background: rgba(90, 103, 216, 0.08);
+  border-color: rgba(90, 103, 216, 0.3);
+  color: #5a67d8;
+  transform: translateY(-1px);
+}
+
+.ctm-suggested-pill.selected {
+  background: linear-gradient(135deg, #5a67d8 0%, #7c3aed 100%);
+  border-color: transparent;
+  color: #ffffff;
+  font-weight: 700;
+}
+
+/* ── Action ──────────────────────────────────── */
+.ctm-action {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 4px;
+}
+
+.ctm-btn-primary {
+  padding: 13px 36px;
+  background: linear-gradient(135deg, #5a67d8 0%, #7c3aed 100%);
+  border: none;
+  border-radius: 100px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #ffffff;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(90, 103, 216, 0.35);
+  transition: opacity 0.2s, transform 0.15s, box-shadow 0.2s;
+}
+
+.ctm-btn-primary:hover:not(:disabled) {
+  opacity: 0.92;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(90, 103, 216, 0.4);
+}
+
+.ctm-btn-primary:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.ctm-btn-primary:disabled {
+  opacity: 0.45;
+  background: #cbd5e0;
+  box-shadow: none;
+  cursor: not-allowed;
+}

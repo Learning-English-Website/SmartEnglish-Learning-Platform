@@ -82,4 +82,19 @@ const getByParent = async (userId, parentId = null) => {
   return Folder.find({ user: userId, parent: parentId }).sort({ name: 1 }).lean();
 };
 
-module.exports = { getAll, getById, create, update, remove, addSet, removeSet, getByParent };
+const getSets = async (folderId, userId) => {
+  const folder = await Folder.findOne({ _id: folderId, user: userId }).lean();
+  if (!folder) throw new AppError('Folder not found', 404);
+
+  if (!folder.sets || folder.sets.length === 0) {
+    return { ...folder, sets: [] };
+  }
+
+  const FlashcardSet = require('../../models/flashcardSet.model');
+  const sets = await FlashcardSet.find({ _id: { $in: folder.sets } })
+    .populate('tags', 'name color')
+    .lean();
+  return { ...folder, sets };
+};
+
+module.exports = { getAll, getById, create, update, remove, addSet, removeSet, getByParent, getSets };

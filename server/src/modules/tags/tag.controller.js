@@ -2,18 +2,20 @@ const { ApiResponse } = require('../../shared/utils/apiResponse');
 const tagService = require('./tag.service');
 
 const getAll = async (req, res) => {
-  const tags = await tagService.getAll(req.user._id);
+  const { folderId } = req.query;
+  const tags = await tagService.getAll(req.user._id, folderId || null);
   res.json(ApiResponse.success(tags));
 };
 
 const search = async (req, res) => {
-  const { q } = req.query;
-  const tags = await tagService.search(req.user._id, q || '');
+  const { q, folderId } = req.query;
+  const tags = await tagService.search(req.user._id, q || '', folderId || null);
   res.json(ApiResponse.success(tags));
 };
 
 const create = async (req, res) => {
-  const tag = await tagService.create(req.user._id, req.body);
+  const { folderId, ...rest } = req.body;
+  const tag = await tagService.create(req.user._id, { ...rest, folderId });
   res.status(201).json(ApiResponse.success(tag, 'Tag created'));
 };
 

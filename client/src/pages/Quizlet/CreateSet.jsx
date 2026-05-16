@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   FiPlus, FiSave, FiArrowLeft,
   FiGlobe, FiLock, FiInfo, FiTrash2,
@@ -33,6 +33,7 @@ function makeCard() {
 
 export default function CreateSet() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const [title, setTitle]           = useState('');
   const [description, setDescription] = useState('');
@@ -55,9 +56,16 @@ export default function CreateSet() {
       .then((res) => {
         const foldersData = Array.isArray(res) ? res : (res?.data ?? []);
         setFolders(foldersData);
+
+        // Pre-fill from query params
+        const preFolderId = searchParams.get('folderId');
+        if (preFolderId) setSelectedFolder(preFolderId);
+
+        const preTagId = searchParams.get('tagId');
+        if (preTagId) setTags([preTagId]);
       })
       .catch(() => setFolders([]));
-  }, []);
+  }, [searchParams]);
 
   // Handle import
   const handleImport = (importedCards) => {
@@ -329,6 +337,7 @@ export default function CreateSet() {
                 selectedTags={tags}
                 onChange={setTags}
                 placeholder="Add tags..."
+                folderId={searchParams.get('folderId')}
               />
             </div>
           </div>
