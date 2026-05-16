@@ -2,8 +2,8 @@ const Tag = require('../../models/tag.model');
 const FlashcardSet = require('../../models/flashcardSet.model');
 const { AppError } = require('../../shared/errors/AppError');
 
-const getAll = async (userId) => {
-  return Tag.find({ user: userId }).sort({ name: 1 }).lean();
+const getAll = async (userId, folderId = null) => {
+  return Tag.find({ user: userId, folder: folderId || null }).sort({ name: 1 }).lean();
 };
 
 // Get tags that are used in public flashcard sets
@@ -40,11 +40,11 @@ const getById = async (tagId, userId) => {
   return tag;
 };
 
-const create = async (userId, { name, color }) => {
-  const existing = await Tag.findOne({ user: userId, name: name.trim() });
+const create = async (userId, { name, color, folderId }) => {
+  const existing = await Tag.findOne({ user: userId, name: name.trim(), folder: folderId || null });
   if (existing) throw new AppError('Tag already exists', 409);
 
-  return Tag.create({ user: userId, name: name.trim(), color: color || '#6366f1' });
+  return Tag.create({ user: userId, name: name.trim(), color: color || '#6366f1', folder: folderId || null });
 };
 
 const update = async (tagId, userId, { name, color }) => {
@@ -63,9 +63,10 @@ const remove = async (tagId, userId) => {
   return tag;
 };
 
-const search = async (userId, query) => {
+const search = async (userId, query, folderId = null) => {
   return Tag.find({
     user: userId,
+    folder: folderId || null,
     name: { $regex: query, $options: 'i' },
   })
     .sort({ name: 1 })

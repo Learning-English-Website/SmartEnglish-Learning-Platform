@@ -55,6 +55,10 @@ app.use('/api/flashcard-sets', require('./modules/flashcard-sets/flashcardSet.ro
 app.use('/api/flashcards', require('./modules/flashcard-sets/flashcard.routes'));
 app.use('/api/tags', require('./modules/tags/tag.routes'));
 app.use('/api/folders', require('./modules/folders/folder.routes'));
+app.use('/api/shares', require('./modules/shares/share.routes'));
+app.use('/api/bookmarks', require('./modules/bookmarks/bookmark.routes'));
+app.use('/api/study-sessions', require('./modules/study-sessions/studySession.routes'));
+app.use('/api/notes', require('./modules/notes/note.routes'));
 
 // ── 404 Handler ───────────────────────────────────────────────────────────────
 app.use('/{*path}', (req, res) => {

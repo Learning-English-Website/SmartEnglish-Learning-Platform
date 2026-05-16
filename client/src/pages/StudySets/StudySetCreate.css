@@ -1,0 +1,556 @@
+/* ============================================================
+   StudySetCreate — Quizlet-style Create Page
+   ============================================================ */
+
+.ssc-page {
+  min-height: 100vh;
+  background: var(--bg-page);
+  font-family: var(--font-sans);
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────── */
+.ssc-header {
+  position: sticky;
+  top: 64px;
+  z-index: 100;
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 0 32px;
+  display: flex;
+  flex-direction: column;
+}
+
+.ssc-header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 0;
+  gap: 16px;
+}
+
+.ssc-header-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.ssc-back-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border-subtle);
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+  text-decoration: none;
+}
+
+.ssc-back-btn:hover {
+  border-color: var(--gl-tertiary);
+  color: var(--gl-tertiary);
+}
+
+.ssc-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-heading);
+  margin: 0;
+}
+
+.ssc-header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+/* Visibility toggle */
+.ssc-visibility {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 14px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1.5px solid var(--border-subtle);
+  background: var(--bg-elevated);
+  transition: all 0.15s ease;
+  color: var(--text-muted);
+}
+
+.ssc-visibility:hover {
+  border-color: var(--gl-tertiary);
+  color: var(--gl-tertiary);
+}
+
+.ssc-visibility.public {
+  border-color: rgba(44, 94, 245, 0.4);
+  color: var(--gl-tertiary);
+  background: rgba(44, 94, 245, 0.06);
+}
+
+/* Header action buttons */
+.ssc-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 20px;
+  border-radius: 50px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.18s ease;
+  white-space: nowrap;
+  font-family: var(--font-sans);
+}
+
+.ssc-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.ssc-btn--outline {
+  background: var(--bg-page);
+  border: 1.5px solid var(--border-subtle);
+  color: var(--text-body);
+}
+
+.ssc-btn--outline:hover:not(:disabled) {
+  border-color: var(--gl-tertiary);
+  color: var(--gl-tertiary);
+}
+
+.ssc-btn--primary {
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+}
+
+.ssc-btn--primary:hover:not(:disabled) {
+  filter: brightness(1.08);
+  box-shadow: 0 6px 20px rgba(79, 70, 229, 0.4);
+}
+
+.ssc-btn--ghost {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  padding: 8px 12px;
+}
+
+.ssc-btn--ghost:hover:not(:disabled) {
+  color: var(--text-body);
+  background: var(--bg-page);
+}
+
+/* Saved indicator */
+.ssc-saved-indicator {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.ssc-saved-indicator.saved {
+  color: #34d399;
+}
+
+/* ── Body ───────────────────────────────────────────────────────────────── */
+.ssc-body {
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 32px 24px 80px;
+}
+
+/* Set title & description inputs */
+.ssc-set-info {
+  margin-bottom: 24px;
+}
+
+.ssc-set-title-input {
+  display: block;
+  width: 100%;
+  padding: 18px 20px;
+  font-size: 1.2rem;
+  font-weight: 700;
+  font-family: var(--font-sans);
+  color: var(--text-heading);
+  background: var(--bg-elevated);
+  border: 1.5px solid var(--border-subtle);
+  border-radius: 16px;
+  outline: none;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+  margin-bottom: 10px;
+}
+
+.ssc-set-title-input:focus {
+  border-color: var(--gl-tertiary);
+  box-shadow: 0 0 0 3px rgba(44, 94, 245, 0.1);
+}
+
+.ssc-set-title-input::placeholder {
+  color: var(--text-muted);
+  opacity: 0.6;
+  font-weight: 400;
+}
+
+.ssc-set-desc-input {
+  display: block;
+  width: 100%;
+  padding: 12px 20px;
+  font-size: 0.9rem;
+  font-family: var(--font-sans);
+  color: var(--text-muted);
+  background: var(--bg-elevated);
+  border: 1.5px solid var(--border-subtle);
+  border-radius: 16px;
+  outline: none;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+  resize: none;
+}
+
+.ssc-set-desc-input:focus {
+  border-color: var(--gl-tertiary);
+  box-shadow: 0 0 0 3px rgba(44, 94, 245, 0.08);
+  color: var(--text-body);
+}
+
+.ssc-set-desc-input::placeholder {
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+
+/* ── Toolbar ────────────────────────────────────────────────────────────── */
+.ssc-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 24px;
+  padding: 12px 16px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  flex-wrap: wrap;
+}
+
+.ssc-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ssc-toolbar-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1.5px solid var(--border-subtle);
+  background: var(--bg-page);
+  color: var(--text-muted);
+  transition: all 0.15s ease;
+  font-family: var(--font-sans);
+}
+
+.ssc-toolbar-btn:hover {
+  border-color: var(--gl-tertiary);
+  color: var(--gl-tertiary);
+  background: rgba(44, 94, 245, 0.04);
+}
+
+.ssc-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ssc-toolbar-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 7px;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ssc-toolbar-icon-btn:hover {
+  background: var(--bg-page);
+  color: var(--text-body);
+}
+
+.ssc-toolbar-divider {
+  width: 1px;
+  height: 20px;
+  background: var(--border-subtle);
+  margin: 0 4px;
+}
+
+/* ── Flashcard List ─────────────────────────────────────────────────────── */
+.ssc-cards-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+/* Each flashcard card */
+.ssc-card {
+  background: var(--bg-elevated);
+  border: 1.5px solid var(--border-subtle);
+  border-radius: 20px;
+  overflow: hidden;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.ssc-card:hover {
+  border-color: rgba(44, 94, 245, 0.3);
+  box-shadow: 0 4px 20px rgba(44, 94, 245, 0.08);
+}
+
+.ssc-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: rgba(0, 0, 0, 0.015);
+}
+
+.ssc-card-num {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.ssc-card-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ssc-card-drag-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  cursor: grab;
+  transition: all 0.15s;
+}
+
+.ssc-card-drag-handle:hover {
+  background: var(--bg-page);
+  color: var(--text-muted);
+}
+
+.ssc-card-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.ssc-card-icon-btn:hover {
+  background: rgba(44, 94, 245, 0.08);
+  color: var(--gl-tertiary);
+}
+
+.ssc-card-icon-btn--delete:hover {
+  background: rgba(239, 68, 68, 0.08);
+  color: #ef4444;
+}
+
+.ssc-card-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: stretch;
+}
+
+.ssc-card-field {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.ssc-card-field:first-child {
+  border-right: 1px solid var(--border-subtle);
+}
+
+.ssc-card-field-label {
+  padding: 8px 16px 0;
+  font-size: 0.65rem;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.ssc-card-textarea {
+  flex: 1;
+  padding: 8px 16px 32px;
+  font-size: 0.95rem;
+  font-family: var(--font-sans);
+  color: var(--text-body);
+  background: transparent;
+  border: none;
+  outline: none;
+  resize: none;
+  width: 100%;
+  min-height: 80px;
+  line-height: 1.5;
+  transition: background 0.15s;
+}
+
+.ssc-card-textarea:focus {
+  background: rgba(44, 94, 245, 0.025);
+}
+
+.ssc-card-textarea::placeholder {
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+
+/* ── Add Card Button ────────────────────────────────────────────────────── */
+.ssc-add-card-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ssc-add-card-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 16px;
+  background: var(--bg-elevated);
+  border: 2px dashed var(--border-subtle);
+  border-radius: 16px;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  font-weight: 700;
+  font-family: var(--font-sans);
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.ssc-add-card-btn:hover {
+  border-color: var(--gl-tertiary);
+  color: var(--gl-tertiary);
+  background: rgba(44, 94, 245, 0.03);
+}
+
+.ssc-add-card-btn .ssc-plus-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  color: #fff;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+/* Import btn */
+.ssc-import-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: rgba(44, 94, 245, 0.06);
+  border: 1.5px dashed rgba(44, 94, 245, 0.3);
+  border-radius: 10px;
+  color: var(--gl-tertiary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: var(--font-sans);
+}
+
+.ssc-import-btn:hover {
+  background: rgba(44, 94, 245, 0.1);
+  border-style: solid;
+}
+
+/* ── Bottom Actions ─────────────────────────────────────────────────────── */
+.ssc-bottom-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 24px 0 0;
+  border-top: 1px solid var(--border-subtle);
+  margin-top: 8px;
+}
+
+.ssc-btn--lg {
+  padding: 13px 28px;
+  font-size: 0.95rem;
+  border-radius: 50px;
+}
+
+/* ── Responsive ─────────────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .ssc-header {
+    padding: 0 16px;
+  }
+
+  .ssc-header-top {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .ssc-header-right {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .ssc-body {
+    padding: 20px 16px 60px;
+  }
+
+  .ssc-card-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .ssc-card-field:first-child {
+    border-right: none;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+}

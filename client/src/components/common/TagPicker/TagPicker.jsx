@@ -10,8 +10,9 @@ import './TagPicker.css';
  * @param {string[]} selectedTags - Array of selected tag IDs
  * @param {function} onChange - Callback when selection changes
  * @param {string} placeholder - Placeholder text
+ * @param {string|null} folderId - Scope tags to a specific folder
  */
-export default function TagPicker({ selectedTags = [], onChange, placeholder = 'Add tags...' }) {
+export default function TagPicker({ selectedTags = [], onChange, placeholder = 'Add tags...', folderId = null }) {
   const [allTags, setAllTags] = useState([]);
   const [loading, setLoading] = useState(true);
   const [inputValue, setInputValue] = useState('');
@@ -24,13 +25,24 @@ export default function TagPicker({ selectedTags = [], onChange, placeholder = '
   const dropdownRef = useRef(null);
   const debounceRef = useRef(null);
 
-  // Load all tags on mount
+  // Load tags (scoped to folder if provided)
   useEffect(() => {
-    tagService.getAll()
-      .then((res) => setAllTags(res?.data ?? (Array.isArray(res) ? res : [])))
+    tagService.getAll(folderId)
+      .then((res) => {
+        const loaded = res?.data ?? (Array.isArray(res) ? res : []);
+        setAllTags(loaded);
+        // If there are pre-selected tag IDs not yet in loaded tags, add them as stubs
+        const existingIds = new Set(loaded.map(t => t._id));
+        const missingTags = selectedTags
+          .filter(id => typeof id === 'string' && !existingIds.has(id))
+          .map(id => ({ _id: id, name: '…' }));
+        if (missingTags.length > 0) {
+          setAllTags(prev => [...prev, ...missingTags]);
+        }
+      })
       .catch(() => setAllTags([]))
       .finally(() => setLoading(false));
-  }, []);
+  }, [folderId]);
 
   // Filter tags based on input
   useEffect(() => {

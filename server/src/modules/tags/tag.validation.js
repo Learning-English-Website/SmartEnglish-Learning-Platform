@@ -3,6 +3,7 @@ const Joi = require('joi');
 const createSchema = Joi.object({
   name: Joi.string().trim().min(1).max(64).required(),
   color: Joi.string().pattern(/^#[0-9A-Fa-f]{6}$/).default('#6366f1'),
+  folderId: Joi.string().allow(null, '').default(null),
 });
 
 const updateSchema = Joi.object({

@@ -87,7 +87,7 @@
 /* Error */
 .bulk-parse-error {
   font-size: 0.8rem;
-  color: #f59e0b;
+  color: var(--gl-tertiary);
   margin-top: 8px;
   margin-bottom: 0;
   font-weight: 500;

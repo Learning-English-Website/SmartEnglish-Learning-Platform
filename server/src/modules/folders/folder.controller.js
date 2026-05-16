@@ -6,6 +6,21 @@ const getAll = async (req, res) => {
   res.json(ApiResponse.success(folders));
 };
 
+const getById = async (req, res) => {
+  const folder = await folderService.getById(req.params.id, req.user._id);
+  res.json(ApiResponse.success(folder));
+};
+
+const getSets = async (req, res) => {
+  const result = await folderService.getSets(req.params.id, req.user._id);
+  res.json(ApiResponse.success(result));
+};
+
+const getSubfolders = async (req, res) => {
+  const subfolders = await folderService.getByParent(req.user._id, req.params.id);
+  res.json(ApiResponse.success(subfolders));
+};
+
 const create = async (req, res) => {
   const folder = await folderService.create(req.user._id, req.body);
   res.status(201).json(ApiResponse.success(folder, 'Folder created'));
@@ -35,4 +50,4 @@ const removeSet = async (req, res) => {
   res.json(ApiResponse.success(folder, 'Set removed from folder'));
 };
 
-module.exports = { getAll, create, update, remove, addSet, removeSet };
+module.exports = { getAll, getById, getSets, getSubfolders, create, update, remove, addSet, removeSet };

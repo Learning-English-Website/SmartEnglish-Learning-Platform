@@ -17,6 +17,8 @@ export default function OAuthCallbackPage() {
 
   useEffect(() => {
     const error = searchParams.get('error');
+    const redirect = searchParams.get('redirect') || '/dashboard';
+
     if (error) {
       navigate('/login?error=oauth_failed', { replace: true });
       return;
@@ -25,7 +27,7 @@ export default function OAuthCallbackPage() {
     dispatch(loadUser())
       .then((result) => {
         if (loadUser.fulfilled.match(result) && result.payload) {
-          navigate('/dashboard', { replace: true });
+          navigate(redirect, { replace: true });
         } else {
           navigate('/login?error=oauth_failed', { replace: true });
         }

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Form, Button } from 'react-bootstrap';
 import { FiMail, FiLock, FiEye, FiEyeOff } from 'react-icons/fi';
 import { FcGoogle } from 'react-icons/fc';
@@ -8,12 +8,13 @@ import './Auth.css';
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { login, loading } = useAuth();
 
   const handleGoogleLogin = () => {
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
     const backendUrl = apiUrl.replace(/\/api$/, '');
-    window.location.href = `${backendUrl}/api/auth/google`;
+    window.location.href = `${backendUrl}/api/auth/google?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`;
   };
 
   const [formData, setFormData] = useState({ email: '', password: '' });
@@ -36,7 +37,8 @@ export default function LoginPage() {
       return;
     }
     setErrors({});
-    await login(formData);
+    const redirect = searchParams.get('redirect');
+    await login(formData, redirect);
   };
 
   const handleChange = (e) => {

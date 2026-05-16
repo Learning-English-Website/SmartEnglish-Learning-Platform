@@ -1,6 +1,8 @@
 import { Suspense, lazy } from 'react';
-import { createBrowserRouter } from 'react-router-dom';
+import { createBrowserRouter, Outlet } from 'react-router-dom';
 import Layout from './components/Layout/Layout';
+import DashboardLayout from './components/Layout/DashboardLayout';
+import PublicSetLayout from './components/PublicSetLayout/PublicSetLayout';
 import ProtectedRoute from './components/ProtectedRoute/ProtectedRoute';
 import LoadingSpinner from './components/common/LoadingSpinner/LoadingSpinner';
 
@@ -21,6 +23,13 @@ const SetDetail = lazy(() => import('./pages/Quizlet/SetDetail'));
 const CommunitySetDetail = lazy(() => import('./pages/Quizlet/CommunitySetDetail'));
 const DuolingoHomePage = lazy(() => import('./pages/Duolingo/DuolingoHomePage'));
 const Browse = lazy(() => import('./pages/Quizlet/Browse'));
+const StudyPage = lazy(() => import('./pages/Quizlet/StudyPage'));
+const SharedSet = lazy(() => import('./pages/Quizlet/SharedSet'));
+const LibraryPage = lazy(() => import('./pages/Quizlet/LibraryPage'));
+const FolderPage = lazy(() => import('./pages/Quizlet/FolderPage'));
+const StudySetCreate = lazy(() => import('./pages/StudySets/StudySetCreate'));
+const StudySetDetail = lazy(() => import('./pages/StudySets/StudySetDetail'));
+const StudySetLearn = lazy(() => import('./pages/StudySets/StudySetLearn'));
 
 const withSuspense = (element) => (
   <Suspense fallback={<LoadingSpinner fullScreen text="Loading..." />}>
@@ -28,7 +37,9 @@ const withSuspense = (element) => (
   </Suspense>
 );
 
+// ── Routes ─────────────────────────────────────────────────────────────────────
 const router = createBrowserRouter([
+  // Public routes (Login, Register, etc.)
   {
     element: <Layout />,
     children: [
@@ -39,84 +50,64 @@ const router = createBrowserRouter([
       { path: '/forgot-password', element: withSuspense(<ForgotPasswordPage />) },
       { path: '/forgot-password/otp', element: withSuspense(<ForgotPasswordPage />) },
       { path: '/oauth/callback', element: withSuspense(<OAuthCallbackPage />) },
-      {
-        path: '/dashboard',
-        element: withSuspense(
-          <ProtectedRoute><DashboardPage /></ProtectedRoute>
-        ),
-      },
-      {
-        path: '/quizlet',
-        element: withSuspense(
-          <ProtectedRoute><QuizletHomePage /></ProtectedRoute>
-        ),
-      },
-      {
-        path: '/flashcards',
-        element: withSuspense(
-          <ProtectedRoute><MySets /></ProtectedRoute>
-        ),
-      },
-      {
-        path: '/flashcards/sets/create',
-        element: withSuspense(
-          <ProtectedRoute><CreateSet /></ProtectedRoute>
-        ),
-      },
-      {
-        path: '/flashcards/browse',
-        element: withSuspense(
-          <ProtectedRoute><Browse /></ProtectedRoute>
-        ),
-      },
-      {
-        path: '/flashcards/sets/:id',
-        element: withSuspense(
-          <ProtectedRoute><SetDetail /></ProtectedRoute>
-        ),
-      },
-      {
-        path: '/community/sets/:id',
-        element: withSuspense(
-          <ProtectedRoute><CommunitySetDetail /></ProtectedRoute>
-        ),
-      },
-      {
-        path: '/flashcards/sets/:id/edit',
-        element: withSuspense(
-          <ProtectedRoute><EditSet /></ProtectedRoute>
-        ),
-      },
-      {
-        path: '/duolingo',
-        element: withSuspense(
-          <ProtectedRoute><DuolingoHomePage /></ProtectedRoute>
-        ),
-      },
-      {
-        path: '/profile',
-        element: withSuspense(
-          <ProtectedRoute><ProfilePage /></ProtectedRoute>
-        ),
-      },
-      {
-        path: '/user/profile',
-        element: withSuspense(
-          <ProtectedRoute><ProfilePage /></ProtectedRoute>
-        ),
-      },
-      {
-        path: '/admin/profile',
-        element: withSuspense(
-          <ProtectedRoute><ProfilePage /></ProtectedRoute>
-        ),
-      },
-      {
-        path: '/profile/edit',
-        element: withSuspense(
-          <ProtectedRoute><EditProfilePage /></ProtectedRoute>
-        ),
-      },
+      // Public shared set route - no auth required
+      { path: '/shared/:shareCode', element: withSuspense(<SharedSet />) },
+    ],
+  },
+
+  // Public set routes with DashboardLayout (không require login)
+  {
+    element: (
+      <PublicSetLayout />
+    ),
+    children: [
+      { path: '/flashcards/sets/:id', element: withSuspense(<SetDetail />) },
+    ],
+  },
+
+  // Protected routes with DashboardLayout (sidebar + top navbar)
+  {
+    element: (
+      <ProtectedRoute>
+        <DashboardLayout>
+          <Outlet />
+        </DashboardLayout>
+      </ProtectedRoute>
+    ),
+    children: [
+      { path: '/dashboard', element: withSuspense(<DashboardPage />) },
+      { path: '/quizlet', element: withSuspense(<QuizletHomePage />) },
+      { path: '/library', element: withSuspense(<LibraryPage />) },
+      { path: '/library/folders', element: withSuspense(<FolderPage />) },
+      { path: '/user/:username/sets', element: withSuspense(<LibraryPage />) },
+      { path: '/user/:username/folders', element: withSuspense(<FolderPage />) },
+      { path: '/user/:username/classes', element: withSuspense(<LibraryPage />) },
+      { path: '/user/:username/practice-tests', element: withSuspense(<LibraryPage />) },
+      { path: '/user/:username/explanations', element: withSuspense(<LibraryPage />) },
+      { path: '/flashcards', element: withSuspense(<MySets />) },
+      { path: '/flashcards/sets/create', element: withSuspense(<CreateSet />) },
+      { path: '/flashcards/browse', element: withSuspense(<Browse />) },
+      { path: '/flashcards/sets/:id', element: withSuspense(<SetDetail />) },
+      { path: '/flashcards/sets/:id/edit', element: withSuspense(<EditSet />) },
+      { path: '/flashcards/sets/:id/study', element: withSuspense(<StudyPage />) },
+      { path: '/duolingo', element: withSuspense(<DuolingoHomePage />) },
+      { path: '/profile', element: withSuspense(<ProfilePage />) },
+      { path: '/user/profile', element: withSuspense(<ProfilePage />) },
+      { path: '/admin/profile', element: withSuspense(<ProfilePage />) },
+      { path: '/profile/edit', element: withSuspense(<EditProfilePage />) },
+      { path: '/community/sets/:id', element: withSuspense(<CommunitySetDetail />) },
+
+      // ── Quizlet-style Study Sets routes ──────────────────────────────
+      { path: '/study-sets/create', element: withSuspense(<StudySetCreate />) },
+      { path: '/study-sets/:id', element: withSuspense(<StudySetDetail />) },
+      { path: '/study-sets/:id/flashcards', element: withSuspense(<StudyPage />) },
+      { path: '/study-sets/:id/learn', element: withSuspense(<StudySetLearn />) },
+      { path: '/study-sets/:id/test', element: withSuspense(<StudyPage />) },
+      { path: '/study-sets/:id/match', element: withSuspense(<StudyPage />) },
+      { path: '/study-sets/:id/blast', element: withSuspense(<StudyPage />) },
+
+      // ── Folder routes ──────────────────────────────────────────────
+      { path: '/folders/:id/:slug', element: withSuspense(<FolderPage />) },
     ],
   },
 ]);

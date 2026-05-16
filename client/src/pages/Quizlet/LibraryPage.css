@@ -1,0 +1,290 @@
+/* LibraryPage */
+
+.library-page {
+  padding: 0 0 40px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+/* ── Library Header ──────────────────────────────── */
+.library-profile-header {
+  padding: 24px 32px 8px;
+  margin-bottom: 4px;
+}
+
+.library-profile-name {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--gl-primary);
+  margin: 0;
+  font-family: var(--font-sans);
+}
+
+/* ── Tabs ──────────────────────────────────────────── */
+.library-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 0 32px;
+  border-bottom: 1px solid var(--border-subtle);
+  overflow-x: auto;
+}
+
+.library-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 18px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  font-family: var(--font-sans);
+  transition: all 0.15s;
+  margin-bottom: -1px;
+  border-radius: 6px 6px 0 0;
+}
+
+.library-tab:hover {
+  color: var(--text-body);
+  background: var(--bg-hover);
+}
+
+.library-tab.active {
+  color: var(--gl-tertiary);
+  border-bottom-color: var(--gl-tertiary);
+  font-weight: 600;
+}
+
+/* ── Content Area ──────────────────────────────────── */
+.library-sets-content {
+  padding: 24px 32px;
+}
+
+.library-content {
+  padding: 24px 32px;
+}
+
+/* ── Actions Bar ─────────────────────────────────────── */
+.library-actions-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.library-sort-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.library-create-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 18px;
+  background: var(--gl-tertiary);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  transition: background 0.15s;
+}
+
+.library-create-btn:hover {
+  background: var(--gl-secondary);
+}
+
+/* ── Sets List ───────────────────────────────────────── */
+.library-sets-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ── Loading / Empty / Error ─────────────────────────── */
+.library-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 80px 20px;
+  color: var(--text-muted);
+}
+
+.library-loading .spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--border-subtle);
+  border-top-color: var(--gl-tertiary);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.library-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+  gap: 10px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.library-empty h3 {
+  margin: 4px 0 0;
+  font-size: 1.1rem;
+  color: var(--text-heading);
+  font-family: var(--font-sans);
+}
+
+.library-empty p {
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.library-create-btn-empty {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 20px;
+  background: var(--gl-tertiary);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 8px;
+  font-family: var(--font-sans);
+  transition: background 0.15s;
+}
+
+.library-create-btn-empty:hover {
+  background: var(--gl-secondary);
+}
+
+.library-error {
+  padding: 20px;
+  color: #dc2626;
+  text-align: center;
+  background: #fef2f2;
+  border-radius: 8px;
+}
+
+/* ── Folders Section ───────────────────────────────── */
+.library-folders-section {
+  padding: 20px 48px;
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+/* Filter Bar */
+.library-filter-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+/* Folder List */
+.library-folders-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Folder Card */
+.library-folder-card {
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 20px 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  user-select: none;
+}
+
+.library-folder-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+}
+
+.library-folder-card:active {
+  transform: translateY(0);
+}
+
+/* Card Top: item count */
+.lfc-top {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #8898aa;
+  letter-spacing: 0.02em;
+  margin-bottom: 6px;
+}
+
+/* Card Bottom: icon + name row */
+.lfc-bottom {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.lfc-icon {
+  color: #5a67d8;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.lfc-name {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1e3a5f;
+  line-height: 1.3;
+}
+
+/* ── Responsive ───────────────────────────────────────── */
+@media (max-width: 768px) {
+  .library-profile-header {
+    padding: 20px 16px;
+  }
+
+  .library-profile-name {
+    font-size: 1.25rem;
+  }
+
+  .library-tabs {
+    padding: 0 16px;
+  }
+
+  .library-sets-content,
+  .library-content {
+    padding: 16px;
+  }
+
+  .library-actions-bar {
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+  }
+
+  .library-folders-section {
+    padding: 16px;
+  }
+}

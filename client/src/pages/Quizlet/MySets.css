@@ -1,9 +1,5 @@
-/* ── MySets Page ──────────────────────────────────────────────────────── */
 .my-sets-page {
-  padding-top: 88px;
-  padding-bottom: 48px;
   min-height: 100vh;
-  background: var(--bg-page);
 }
 
 /* Header */
@@ -70,6 +66,68 @@
 .my-sets-btn-refresh:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* Bookmark button in header */
+.my-sets-btn-bookmarks {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.my-sets-btn-bookmarks.active {
+  background: rgba(44, 94, 245, 0.1);
+  border-color: var(--gl-tertiary);
+  color: var(--gl-tertiary);
+}
+
+/* Sidebar bookmarks section */
+.my-sets-sidebar-bookmarks {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.my-sets-sidebar-bookmark-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: left;
+}
+
+.my-sets-sidebar-bookmark-btn:hover {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+.my-sets-sidebar-bookmark-btn.active {
+  background: rgba(44, 94, 245, 0.1);
+  color: var(--gl-tertiary);
+  font-weight: 500;
+}
+
+.my-sets-sidebar-badge {
+  margin-left: auto;
+  background: var(--gl-tertiary);
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 10px;
+}
+
+/* Bookmarks section in main content */
+.my-sets-bookmarks {
+  margin-bottom: 2rem;
 }
 
 /* Spinning animation for refresh */

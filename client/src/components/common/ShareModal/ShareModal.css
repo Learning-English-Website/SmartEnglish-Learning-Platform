@@ -1,0 +1,109 @@
+.share-modal .modal-content {
+  border-radius: var(--gl-radius-lg);
+  border: none;
+  box-shadow: 0 20px 60px rgba(15, 20, 25, 0.12);
+}
+
+.share-modal-header {
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 1.25rem 1.5rem;
+}
+
+.share-modal-header .modal-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  color: var(--text-heading);
+}
+
+.share-modal-body {
+  padding: 2rem 1.5rem;
+}
+
+.share-generate-section {
+  text-align: center;
+  padding: 1rem 0;
+}
+
+.share-icon-wrap {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: var(--gl-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1.5rem;
+  color: var(--gl-on-primary);
+}
+
+.share-generate-section h4 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: var(--text-heading);
+}
+
+.share-generate-section p {
+  color: var(--text-muted);
+  margin-bottom: 1.5rem;
+  max-width: 320px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.share-generate-btn {
+  padding: 0.6rem 1.5rem;
+  font-weight: 500;
+  border-radius: 8px;
+}
+
+.share-link-section {
+  text-align: center;
+}
+
+.share-link-label {
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  margin-bottom: 1rem;
+}
+
+.share-link-input-group {
+  display: flex;
+  gap: 0;
+}
+
+.share-link-input {
+  font-size: 0.9rem;
+  border-radius: var(--gl-radius-md) 0 0 var(--gl-radius-md);
+  background: var(--gl-neutral);
+  border-color: var(--border-subtle);
+}
+
+.share-copy-btn {
+  border-radius: 0 var(--gl-radius-md) var(--gl-radius-md) 0;
+  white-space: nowrap;
+}
+
+.share-link-actions {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.share-info {
+  margin-top: 1.25rem;
+  padding: 0.75rem;
+  background: var(--gl-neutral);
+  border-radius: var(--gl-radius-md);
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  text-align: left;
+}
+
+.share-modal-footer {
+  border-top: 1px solid var(--border-subtle);
+  padding: 1rem 1.5rem;
+}

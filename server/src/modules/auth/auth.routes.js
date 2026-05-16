@@ -34,19 +34,30 @@ router.post('/register', validate(registerSchema), register);
 // POST /api/auth/resend-verification-otp
 router.post('/resend-verification-otp', resendOtpRateLimiter, validate(resendVerificationOtpSchema), resendVerificationOtp);
 
-// Google OAuth entry point
-router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+// Google OAuth entry point — accepts ?redirect=<path> to return user there after login
+router.get('/google', (req, res, next) => {
+  const { redirect } = req.query;
+  const state = redirect ? Buffer.from(JSON.stringify({ redirect })).toString('base64') : '';
+  passport.authenticate('google', { scope: ['profile', 'email'], state })(req, res, next);
+});
 
 // Google OAuth callback – set cookies rồi redirect về frontend (KHÔNG truyền token qua URL)
-router.get('/google/callback', passport.authenticate('google', { session: false, failureRedirect: `${process.env.CLIENT_URL}/login?error=google_failed` }), (req, res) => {
-  const tokens = req.user;
-  // Dùng cùng helper với login thường để đảm bảo sameSite='none' trong production
-  const isProd = process.env.NODE_ENV === 'production';
-  const sameSite = isProd ? 'none' : 'lax';
-  res.cookie('accessToken', tokens.accessToken, { httpOnly: true, secure: isProd, sameSite, maxAge: 15 * 60 * 1000 });
-  res.cookie('refreshToken', tokens.refreshToken, { httpOnly: true, secure: isProd, sameSite, maxAge: 7 * 24 * 60 * 60 * 1000 });
-  // Redirect về frontend — KHÔNG kèm token trong URL
-  res.redirect(`${process.env.CLIENT_URL}/oauth/callback`);
+router.get('/google/callback', (req, res, next) => {
+  const rawState = req.query.state || '';
+  let redirectPath = '/dashboard';
+  try {
+    const parsed = JSON.parse(Buffer.from(rawState, 'base64').toString('utf-8'));
+    if (parsed?.redirect) redirectPath = parsed.redirect;
+  } catch (_) { /* ignore malformed state */ }
+  passport.authenticate('google', { session: false, failureRedirect: `${process.env.CLIENT_URL}/login?error=google_failed` }, (err, user) => {
+    if (!user) return res.redirect(`${process.env.CLIENT_URL}/login?error=google_failed`);
+    const tokens = req.user;
+    const isProd = process.env.NODE_ENV === 'production';
+    const sameSite = isProd ? 'none' : 'lax';
+    res.cookie('accessToken', tokens.accessToken, { httpOnly: true, secure: isProd, sameSite, maxAge: 15 * 60 * 1000 });
+    res.cookie('refreshToken', tokens.refreshToken, { httpOnly: true, secure: isProd, sameSite, maxAge: 7 * 24 * 60 * 60 * 1000 });
+    res.redirect(`${process.env.CLIENT_URL}/oauth/callback?redirect=${encodeURIComponent(redirectPath)}`);
+  })(req, res, next);
 });
 // POST /api/auth/login (rate limited)
 router.post('/login', loginRateLimiter, validate(loginSchema), login);

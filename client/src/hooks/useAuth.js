@@ -25,12 +25,16 @@ export function useAuth() {
   const navigate = useNavigate();
   const { user, isAuthenticated, loading, error, requiresEmailVerification } = useSelector(selectAuth);
 
-  const login = useCallback(async ({ email, password }) => {
+  const login = useCallback(async ({ email, password }, redirect) => {
     dispatch(clearError());
     const result = await dispatch(loginUser({ email, password }));
     if (loginUser.fulfilled.match(result)) {
       toast.success(`Welcome back, ${result.payload.username}! 👋`);
-      navigate('/dashboard');
+      if (redirect && typeof redirect === 'string') {
+        navigate(redirect);
+      } else {
+        navigate('/dashboard');
+      }
     } else {
       toast.error(result.payload || 'Login failed');
     }
