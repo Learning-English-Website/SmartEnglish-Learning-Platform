@@ -19,7 +19,6 @@ const MODES = {
   learn: { label: 'Học', color: '#8b5cf6' },
   test: { label: 'Kiểm tra', color: '#10b981' },
   match: { label: 'Khớp thẻ', color: '#f59e0b' },
-  blast: { label: 'Hủy diệt', color: '#14b8a6' },
 };
 
 export default function StudyPage() {

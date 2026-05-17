@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 /* Glassline — tokens from design.md (fog neutrals + single cobalt accent; flat, no gradients) */
 
 :root,

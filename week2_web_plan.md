@@ -373,9 +373,6 @@ Study session flow hoạt động. Share hoàn chỉnh.
 ## 📆 NGÀY 6 — Polish + Note System + Responsive ✅
 
 ### Tasks
-- [x] Tạo `src/services/noteService.ts`
-- [x] Cập nhật SetDetail page với Notes tab
-- [x] Tạo `src/components/ui/NoteCard.tsx`
 - [x] Responsive design polish (sidebar, mobile)
 - [x] Loading states (Skeleton loaders)
 - [x] Toast notifications (react-hot-toast)
@@ -383,7 +380,7 @@ Study session flow hoạt động. Share hoàn chỉnh.
 - [x] Accessibility (ARIA labels, keyboard navigation)
 
 ### ✅ Deliverable
-Notes system hoạt động. Responsive design complete. Polish done.
+ Responsive design complete. Polish done.
 
 ---
 
@@ -419,11 +416,10 @@ Web app stable. Week 2 features hoàn chỉnh. Sẵn sàng cho Week 3 (Study Mod
 | 9 | Import CSV/XLSX | ✅ |
 | 10 | Study session flow | ✅ |
 | 11 | Share modal + copy link | ✅ |
-| 12 | Notes system | ✅ |
-| 13 | Responsive design + Skeleton loaders | ✅ |
-| 15 | E2E tests (Playwright) | ✅ |
-| 16 | Toast notifications | ✅ |
-| 17 | Accessibility (ARIA labels) | ✅ |
+| 12 | Responsive design + Skeleton loaders | ✅ |
+| 13 | E2E tests (Playwright) | ✅ |
+| 14 | Toast notifications | ✅ |
+| 15 | Accessibility (ARIA labels) | ✅ |
 
 ---
 
@@ -438,7 +434,6 @@ Web app stable. Week 2 features hoàn chỉnh. Sẵn sàng cho Week 3 (Study Mod
 - Folders: CRUD + add/remove sets
 - Study Sessions: start, submit answer, complete
 - Share: create, get by code, list, deactivate
-- Notes: CRUD by cardId
 
 ### Frontend Features
 - MySets page với folder tree, Skeleton loading
@@ -498,11 +493,6 @@ POST   /api/study-sessions/:id/complete          → StudyResult
 # Share
 POST   /api/shares                               → ShareLink
 
-# Notes
-GET    /api/notes/card/:cardId                    → Note[]
-POST   /api/notes                                → Note
-PUT    /api/notes/:noteId                        → Note
-DELETE /api/notes/:noteId                       → void
 ```
 
 > [!TIP]

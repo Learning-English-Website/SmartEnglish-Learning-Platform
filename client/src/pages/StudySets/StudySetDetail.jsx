@@ -1,29 +1,27 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useAuthContext } from '../../context/AuthContext';
 import {
   ChevronLeft, Globe, Lock, Share2, Edit2,
   BookOpen, Brain, ClipboardCheck, Box, Zap, Link2,
   Plus, Star, Volume2, MoreHorizontal
 } from 'lucide-react';
-import { toast } from 'react-hot-toast';
 import { setService } from '../../api/setService';
 import { cardService } from '../../api/cardService';
-import { useAuth } from '../../hooks/useAuth';
+import { toast } from 'react-hot-toast';
 import './StudySetDetail.css';
 
 const LEARNING_MODES = [
   { id: 'flashcards', icon: BookOpen, name: 'Thẻ ghi nhớ', desc: 'Xem & lật thẻ', path: 'flashcards' },
   { id: 'learn', icon: Brain, name: 'Học', desc: 'Ôn luyện thông minh', path: 'learn' },
   { id: 'test', icon: ClipboardCheck, name: 'Kiểm tra', desc: 'Trắc nghiệm', path: 'test' },
-  { id: 'match', icon: Box, name: 'Khối hộp', desc: 'Ghép cặp thẻ', path: 'match' },
-  { id: 'blast', icon: Zap, name: 'Blast', desc: 'Câu hỏi nhanh', path: 'blast' },
-  { id: 'gravity', icon: Link2, name: 'Ghép thẻ', desc: 'Kéo thả ghép', path: 'gravity' },
+  { id: 'match', icon: Box, name: 'Khớp thẻ', desc: 'Ghép cặp thẻ', path: 'match' },
 ];
 
 export default function StudySetDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user } = useAuthContext();
 
   const [studySet, setStudySet] = useState(null);
   const [cards, setCards] = useState([]);
