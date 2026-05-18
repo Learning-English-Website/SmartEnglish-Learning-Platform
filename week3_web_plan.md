@@ -48,17 +48,10 @@
   - Score based on speed + accuracy
   - Celebration animation on match
 
-- [ ] **Tạo `src/components/study/BlastMode.tsx`:**
-  - 10 cards per round
-  - Click correct answer from 4 options
-  - Timer countdown
-  - Streak multiplier
-  - Sound effects (correct/incorrect)
-
-- [ ] **Verify:** Tất cả 5 study modes hoạt động, smooth transitions
+  verify: Tất cả 4 study modes hoạt động, smooth transitions
 
 ### ✅ Deliverable
-Tất cả 5 study modes hoạt động. User có thể chọn mode phù hợp với nhu cầu học tập.
+Tất cả 4 study modes hoạt động. User có thể chọn mode phù hợp với nhu cầu học tập.
 
 ---
 

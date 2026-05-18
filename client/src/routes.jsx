@@ -2,6 +2,7 @@ import { Suspense, lazy } from 'react';
 import { createBrowserRouter, Outlet } from 'react-router-dom';
 import Layout from './components/Layout/Layout';
 import DashboardLayout from './components/Layout/DashboardLayout';
+import StudyLayout from './components/Layout/StudyLayout';
 import PublicSetLayout from './components/PublicSetLayout/PublicSetLayout';
 import ProtectedRoute from './components/ProtectedRoute/ProtectedRoute';
 import LoadingSpinner from './components/common/LoadingSpinner/LoadingSpinner';
@@ -30,6 +31,7 @@ const FolderPage = lazy(() => import('./pages/Quizlet/FolderPage'));
 const StudySetCreate = lazy(() => import('./pages/StudySets/StudySetCreate'));
 const StudySetDetail = lazy(() => import('./pages/StudySets/StudySetDetail'));
 const StudySetLearn = lazy(() => import('./pages/StudySets/StudySetLearn'));
+const LearnPage = lazy(() => import('./pages/LearnPage/LearnPage'));
 
 const withSuspense = (element) => (
   <Suspense fallback={<LoadingSpinner fullScreen text="Loading..." />}>
@@ -37,7 +39,17 @@ const withSuspense = (element) => (
   </Suspense>
 );
 
-// ── Routes ─────────────────────────────────────────────────────────────────────
+// Study route wrappers
+const withStudyLayout = (Page) => {
+  const Wrapped = (props) => (
+    <StudyLayout backTo="/dashboard">
+      <Page {...props} />
+    </StudyLayout>
+  );
+  return Wrapped;
+};
+
+  // ── Routes ─────────────────────────────────────────────────────────────────────
 const router = createBrowserRouter([
   // Public routes (Login, Register, etc.)
   {
@@ -50,16 +62,13 @@ const router = createBrowserRouter([
       { path: '/forgot-password', element: withSuspense(<ForgotPasswordPage />) },
       { path: '/forgot-password/otp', element: withSuspense(<ForgotPasswordPage />) },
       { path: '/oauth/callback', element: withSuspense(<OAuthCallbackPage />) },
-      // Public shared set route - no auth required
       { path: '/shared/:shareCode', element: withSuspense(<SharedSet />) },
     ],
   },
 
-  // Public set routes with DashboardLayout (không require login)
+  // Public set routes with PublicSetLayout (không require login)
   {
-    element: (
-      <PublicSetLayout />
-    ),
+    element: <PublicSetLayout />,
     children: [
       { path: '/flashcards/sets/:id', element: withSuspense(<SetDetail />) },
     ],
@@ -96,18 +105,24 @@ const router = createBrowserRouter([
       { path: '/admin/profile', element: withSuspense(<ProfilePage />) },
       { path: '/profile/edit', element: withSuspense(<EditProfilePage />) },
       { path: '/community/sets/:id', element: withSuspense(<CommunitySetDetail />) },
-
-      // ── Quizlet-style Study Sets routes ──────────────────────────────
-      { path: '/study-sets/create', element: withSuspense(<StudySetCreate />) },
       { path: '/study-sets/:id', element: withSuspense(<StudySetDetail />) },
+      { path: '/folders/:id/:slug', element: withSuspense(<FolderPage />) },
+    ],
+  },
+
+  // Protected routes with StudyLayout (minimal topbar, no sidebar — immersive study)
+  {
+    element: (
+      <ProtectedRoute>
+        <StudyLayout backTo="/dashboard" />
+      </ProtectedRoute>
+    ),
+    children: [
+      { path: '/study-sets/create', element: withSuspense(<StudySetCreate />) },
       { path: '/study-sets/:id/flashcards', element: withSuspense(<StudyPage />) },
       { path: '/study-sets/:id/learn', element: withSuspense(<StudySetLearn />) },
       { path: '/study-sets/:id/test', element: withSuspense(<StudyPage />) },
       { path: '/study-sets/:id/match', element: withSuspense(<StudyPage />) },
-      { path: '/study-sets/:id/blast', element: withSuspense(<StudyPage />) },
-
-      // ── Folder routes ──────────────────────────────────────────────
-      { path: '/folders/:id/:slug', element: withSuspense(<FolderPage />) },
     ],
   },
 ]);

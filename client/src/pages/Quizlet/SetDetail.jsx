@@ -440,12 +440,6 @@ export default function SetDetail() {
                 </div>
                 <span className="sd-mode-label">Khớp thẻ</span>
               </button>
-              <button className="sd-mode-card" onClick={() => navigate(`/study-sets/${id}/blast`)}>
-                <div className="sd-mode-icon sd-mode-icon--pink">
-                  <FiCopy size={24} />
-                </div>
-                <span className="sd-mode-label">Hủy diệt</span>
-              </button>
             </div>
           </div>
 
