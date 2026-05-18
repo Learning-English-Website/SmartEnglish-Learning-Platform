@@ -58,6 +58,7 @@ app.use('/api/folders', require('./modules/folders/folder.routes'));
 app.use('/api/shares', require('./modules/shares/share.routes'));
 app.use('/api/bookmarks', require('./modules/bookmarks/bookmark.routes'));
 app.use('/api/study-sessions', require('./modules/study-sessions/studySession.routes'));
+app.use('/api/progress', require('./modules/progress/progress.routes'));
 app.use('/api/notes', require('./modules/notes/note.routes'));
 
 // ── 404 Handler ───────────────────────────────────────────────────────────────

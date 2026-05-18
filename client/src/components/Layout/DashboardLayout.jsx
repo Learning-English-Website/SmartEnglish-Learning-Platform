@@ -3,7 +3,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Search, Bell, Plus, ChevronLeft, ChevronRight,
   Home, LibraryBig, FolderPlus, Folder, CreditCard,
-  Menu, X, Check, LogOut, User, Settings
+  Menu, X, Check, LogOut, User, Settings,
+  Compass, BookText
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { folderService } from '../../api/folderService';
@@ -309,11 +310,11 @@ export default function DashboardLayout({ children }) {
               </NavLink>
 
               <NavLink
-                to="/flashcards/browse"
-                className={`q-nav-item ${isActive('/flashcards/browse') ? 'active' : ''}`}
+                to="/explore"
+                className={({ isActive }) => `q-nav-item ${isActive ? 'active' : ''}`}
                 onClick={closeMobileSidebar}
               >
-                <CreditCard size={17} />
+                <Compass size={17} />
                 <span>Khám phá học phần</span>
               </NavLink>
             </div>

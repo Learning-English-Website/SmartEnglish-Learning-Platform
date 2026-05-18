@@ -149,6 +149,15 @@
   flex-direction: column;
 }
 
+/* ── Minimal Layout (no header) ──────────────────────────────── */
+.study-layout--minimal {
+  height: 100vh;
+}
+
+.study-layout--minimal .study-layout__content {
+  height: 100%;
+}
+
 /* Mobile */
 @media (max-width: 640px) {
   .study-layout__topbar {

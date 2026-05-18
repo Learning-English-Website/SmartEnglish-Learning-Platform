@@ -4,7 +4,7 @@ import { useAuthContext } from '../../context/AuthContext';
 import {
   ChevronLeft, Globe, Lock, Share2, Edit2,
   BookOpen, Brain, ClipboardCheck, Box, Zap, Link2,
-  Plus, Star, Volume2, MoreHorizontal
+  Plus, Star, Volume2, MoreHorizontal, X, Save
 } from 'lucide-react';
 import { setService } from '../../api/setService';
 import { cardService } from '../../api/cardService';
@@ -28,6 +28,18 @@ export default function StudySetDetail() {
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
+
+  // Modal state
+  const [showAddCardModal, setShowAddCardModal] = useState(false);
+  const [newCardFront, setNewCardFront] = useState('');
+  const [newCardBack, setNewCardBack] = useState('');
+  const [addingCard, setAddingCard] = useState(false);
+
+  // Edit card state
+  const [editingCard, setEditingCard] = useState(null);
+  const [editCardFront, setEditCardFront] = useState('');
+  const [editCardBack, setEditCardBack] = useState('');
+  const [updatingCard, setUpdatingCard] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -60,6 +72,65 @@ export default function StudySetDetail() {
   const formatDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
   const authorName = studySet?.user?.username || user?.username || 'Người dùng';
   const authorInitial = authorName[0]?.toUpperCase() || 'U';
+
+  // Handle add card
+  const handleAddCard = async () => {
+    if (!newCardFront.trim() || !newCardBack.trim()) {
+      toast.error('Vui lòng nhập đủ thông tin thuật ngữ');
+      return;
+    }
+    setAddingCard(true);
+    try {
+      const res = await cardService.create(id, { front: newCardFront.trim(), back: newCardBack.trim() });
+      const newCard = res?.data ?? res;
+      setCards(prev => [...prev, newCard]);
+      setNewCardFront('');
+      setNewCardBack('');
+      setShowAddCardModal(false);
+      toast.success('Đã thêm thuật ngữ');
+    } catch {
+      toast.error('Không thể thêm thuật ngữ');
+    } finally {
+      setAddingCard(false);
+    }
+  };
+
+  // Handle edit card
+  const handleEditCard = (card) => {
+    setEditingCard(card._id);
+    setEditCardFront(card.front);
+    setEditCardBack(card.back);
+  };
+
+  const handleUpdateCard = async () => {
+    if (!editCardFront.trim() || !editCardBack.trim()) {
+      toast.error('Vui lòng nhập đủ thông tin thuật ngữ');
+      return;
+    }
+    setUpdatingCard(true);
+    try {
+      await cardService.update(editingCard, { front: editCardFront.trim(), back: editCardBack.trim() });
+      setCards(prev => prev.map(c => c._id === editingCard ? { ...c, front: editCardFront.trim(), back: editCardBack.trim() } : c));
+      setEditingCard(null);
+      toast.success('Đã cập nhật thuật ngữ');
+    } catch {
+      toast.error('Không thể cập nhật thuật ngữ');
+    } finally {
+      setUpdatingCard(false);
+    }
+  };
+
+  // Handle delete card
+  const handleDeleteCard = async (cardId) => {
+    if (!confirm('Bạn có chắc muốn xóa thuật ngữ này?')) return;
+    try {
+      await cardService.delete(cardId);
+      setCards(prev => prev.filter(c => c._id !== cardId));
+      toast.success('Đã xóa thuật ngữ');
+    } catch {
+      toast.error('Không thể xóa thuật ngữ');
+    }
+  };
 
   if (loading) return (
     <div className="sd2-page">
@@ -150,12 +221,22 @@ export default function StudySetDetail() {
             </div>
 
             <div onClick={() => setFlipped((f) => !f)} style={{ padding: '48px 40px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '280px', cursor: 'pointer' }}>
-              <div style={{ textAlign: 'center', maxWidth: '560px', width: '100%', transition: 'transform 0.4s ease', transform: flipped ? 'rotateY(180deg)' : 'rotateY(0deg)' }}>
-                <div style={{ fontSize: '0.7rem', fontFamily: 'var(--font-mono)', fontWeight: 700, letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: '12px', textTransform: 'uppercase' }}>
-                  {flipped ? 'Định nghĩa' : 'Thuật ngữ'}
+              <div className={`sd2-card-inner ${flipped ? 'flipped' : ''}`}>
+                <div className="sd2-card-front">
+                  <div style={{ fontSize: '0.7rem', fontFamily: 'var(--font-mono)', fontWeight: 700, letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: '12px', textTransform: 'uppercase' }}>
+                    Thuật ngữ
+                  </div>
+                  <div style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--text-heading)', lineHeight: 1.3 }}>
+                    {cards[currentIndex]?.front || ''}
+                  </div>
                 </div>
-                <div style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--text-heading)', lineHeight: 1.3 }}>
-                  {flipped ? (cards[currentIndex]?.back || '') : (cards[currentIndex]?.front || '')}
+                <div className="sd2-card-back">
+                  <div style={{ fontSize: '0.7rem', fontFamily: 'var(--font-mono)', fontWeight: 700, letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: '12px', textTransform: 'uppercase' }}>
+                    Định nghĩa
+                  </div>
+                  <div style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--text-heading)', lineHeight: 1.3 }}>
+                    {cards[currentIndex]?.back || ''}
+                  </div>
                 </div>
               </div>
             </div>
@@ -181,7 +262,7 @@ export default function StudySetDetail() {
       <div className="sd2-terms-section">
         <div className="sd2-terms-header">
           <div className="sd2-terms-title">Thuật ngữ trong học phần<span className="sd2-terms-count"> ({cards.length})</span></div>
-          <button className="sd2-action-btn sd2-action-btn--outline" style={{ fontSize: '0.8rem', padding: '6px 14px' }}><Plus size={13} />Thêm thuật ngữ</button>
+          <button className="sd2-action-btn sd2-action-btn--outline" onClick={() => setShowAddCardModal(true)}><Plus size={13} />Thêm thuật ngữ</button>
         </div>
         {cards.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '48px 20px', color: 'var(--text-muted)' }}><p>Chưa có thuật ngữ nào. Bắt đầu thêm thẻ!</p></div>
@@ -195,14 +276,102 @@ export default function StudySetDetail() {
                 <div className="sd2-term-actions">
                   <button className="sd2-term-btn" title="Yêu thích"><Star size={14} /></button>
                   <button className="sd2-term-btn" title="Phát âm"><Volume2 size={14} /></button>
-                  <button className="sd2-term-btn" title="Sửa"><Edit2 size={13} /></button>
-                  <button className="sd2-term-btn sd2-term-btn--delete" title="Xóa"><MoreHorizontal size={13} /></button>
+                  <button className="sd2-term-btn" title="Sửa" onClick={() => handleEditCard(card)}><Edit2 size={13} /></button>
+                  <button className="sd2-term-btn sd2-term-btn--delete" title="Xóa" onClick={() => handleDeleteCard(card._id)}><MoreHorizontal size={13} /></button>
                 </div>
               </div>
             ))}
           </div>
         )}
       </div>
+
+      {/* Add Card Modal */}
+      {showAddCardModal && (
+        <div className="modal-overlay" onClick={() => setShowAddCardModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Thêm thuật ngữ mới</h3>
+              <button className="modal-close" onClick={() => setShowAddCardModal(false)}>
+                <X size={18} />
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="modal-field">
+                <label>Thuật ngữ (tiếng Anh)</label>
+                <input
+                  type="text"
+                  value={newCardFront}
+                  onChange={(e) => setNewCardFront(e.target.value)}
+                  placeholder="Nhập thuật ngữ..."
+                  autoFocus
+                />
+              </div>
+              <div className="modal-field">
+                <label>Định nghĩa (tiếng Việt)</label>
+                <input
+                  type="text"
+                  value={newCardBack}
+                  onChange={(e) => setNewCardBack(e.target.value)}
+                  placeholder="Nhập định nghĩa..."
+                />
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="modal-btn modal-btn--cancel" onClick={() => setShowAddCardModal(false)}>
+                Hủy
+              </button>
+              <button className="modal-btn modal-btn--primary" onClick={handleAddCard} disabled={addingCard}>
+                <Plus size={14} />
+                {addingCard ? 'Đang thêm...' : 'Thêm'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Card Modal */}
+      {editingCard && (
+        <div className="modal-overlay" onClick={() => setEditingCard(null)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Sửa thuật ngữ</h3>
+              <button className="modal-close" onClick={() => setEditingCard(null)}>
+                <X size={18} />
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="modal-field">
+                <label>Thuật ngữ (tiếng Anh)</label>
+                <input
+                  type="text"
+                  value={editCardFront}
+                  onChange={(e) => setEditCardFront(e.target.value)}
+                  placeholder="Nhập thuật ngữ..."
+                  autoFocus
+                />
+              </div>
+              <div className="modal-field">
+                <label>Định nghĩa (tiếng Việt)</label>
+                <input
+                  type="text"
+                  value={editCardBack}
+                  onChange={(e) => setEditCardBack(e.target.value)}
+                  placeholder="Nhập định nghĩa..."
+                />
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="modal-btn modal-btn--cancel" onClick={() => setEditingCard(null)}>
+                Hủy
+              </button>
+              <button className="modal-btn modal-btn--primary" onClick={handleUpdateCard} disabled={updatingCard}>
+                <Save size={14} />
+                {updatingCard ? 'Đang lưu...' : 'Lưu'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

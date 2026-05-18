@@ -11,6 +11,7 @@ import { useSelector } from 'react-redux';
 import { selectIsAuthenticated, selectAuthLoading } from '../../store/slices/authSlice';
 import { setService } from '../../api/setService';
 import { cardService } from '../../api/cardService';
+import { TestMode } from '../../components/study';
 import './StudyPage.css';
 
 // Study modes
@@ -161,11 +162,39 @@ export default function StudyPage() {
     );
   }
 
-  if (error || !set || cards.length === 0) {
+  // Render TestMode when mode is 'test'
+  if (mode === 'test') {
+    return (
+      <TestMode
+        cards={cards.map(c => ({ id: c._id, front: c.front, back: c.back }))}
+        setTitle={set.title}
+        onClose={() => navigate(`/study-sets/${id}`)}
+        onComplete={(results) => {
+          console.log('[StudyPage] Test completed:', results);
+        }}
+      />
+    );
+  }
+
+  if (error || !set) {
     return (
       <div className="sf-container">
         <div className="sf-error">
-          <p>{error || 'Không có thẻ để học'}</p>
+          <p>{error || 'Không tìm thấy bộ thẻ'}</p>
+          <button className="sf-back-btn" onClick={() => navigate(`/study-sets/${id}`)}>
+            <ChevronLeft size={18} />
+            Quay lại
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (cards.length === 0) {
+    return (
+      <div className="sf-container">
+        <div className="sf-error">
+          <p>Không có thẻ để học</p>
           <button className="sf-back-btn" onClick={() => navigate(`/study-sets/${id}`)}>
             <ChevronLeft size={18} />
             Quay lại

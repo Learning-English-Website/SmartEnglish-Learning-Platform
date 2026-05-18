@@ -1,6 +1,5 @@
 import { Outlet, useNavigate } from 'react-router-dom';
 import { createContext, useContext, useState } from 'react';
-import { ChevronLeft, X } from 'lucide-react';
 import './StudyLayout.css';
 
 export const StudyLayoutContext = createContext({
@@ -12,15 +11,26 @@ export function useStudyLayoutContext() {
   return useContext(StudyLayoutContext);
 }
 
-export default function StudyLayout({ backTo: defaultBackTo }) {
+export default function StudyLayout({ backTo: defaultBackTo, hideHeader = false }) {
   const navigate = useNavigate();
   const [title, setTitle] = useState('');
   const [backTo, setBackTo] = useState(defaultBackTo || '/dashboard');
 
+  if (hideHeader) {
+    return (
+      <StudyLayoutContext.Provider value={{ setTitle, setBackTo }}>
+        <div className="study-layout study-layout--minimal">
+          <main className="study-layout__content">
+            <Outlet />
+          </main>
+        </div>
+      </StudyLayoutContext.Provider>
+    );
+  }
+
   return (
     <StudyLayoutContext.Provider value={{ setTitle, setBackTo }}>
       <div className="study-layout">
-        {/* ── Minimal Top Bar ────────────────────────────────────── */}
         <header className="study-layout__topbar">
           <div className="study-layout__topbar-left">
             <button
@@ -28,13 +38,15 @@ export default function StudyLayout({ backTo: defaultBackTo }) {
               onClick={() => navigate(backTo)}
               title="Quay lại"
             >
-              <ChevronLeft size={18} />
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="m15 18-6-6 6-6"/>
+              </svg>
             </button>
             <div className="study-layout__brand">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M12 2L2 7l10 5 10-5-10-5z" fill="#4255ff" />
-                <path d="M2 17l10 5 10-5" stroke="#4255ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M2 12l10 5 10-5" stroke="#4255ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M12 2L2 7l10 5 10-5-10-5z" fill="#4255ff"/>
+                <path d="M2 17l10 5 10-5" stroke="#4255ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M2 12l10 5 10-5" stroke="#4255ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
               <span className="study-layout__brand-name">SmartEnglish</span>
             </div>
@@ -52,13 +64,15 @@ export default function StudyLayout({ backTo: defaultBackTo }) {
               onClick={() => navigate(backTo)}
               title="Thoát học"
             >
-              <X size={16} />
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 6 6 18"/>
+                <path d="m6 6 12 12"/>
+              </svg>
               <span>Thoát</span>
             </button>
           </div>
         </header>
 
-        {/* ── Main Content ──────────────────────────────────────── */}
         <main className="study-layout__content">
           <Outlet />
         </main>
