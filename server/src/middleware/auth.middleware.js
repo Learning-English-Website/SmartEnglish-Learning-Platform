@@ -29,6 +29,7 @@ const authenticate = async (req, res, next) => {
     }
 
     req.user = user;
+    req.userId = user._id;
     next();
   } catch (err) {
     next(err);

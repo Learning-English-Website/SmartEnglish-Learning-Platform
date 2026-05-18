@@ -9,6 +9,7 @@ require('./tag.model');
 require('./folder.model');
 require('./note.model');
 require('./studySession.model');
+require('./cardProgress.model');
 require('./mistakeLog.model');
 require('./course.model');
 require('./unit.model');
