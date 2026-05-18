@@ -32,6 +32,7 @@ const StudySetCreate = lazy(() => import('./pages/StudySets/StudySetCreate'));
 const StudySetDetail = lazy(() => import('./pages/StudySets/StudySetDetail'));
 const StudySetLearn = lazy(() => import('./pages/StudySets/StudySetLearn'));
 const LearnPage = lazy(() => import('./pages/LearnPage/LearnPage'));
+const ExploreSetsPage = lazy(() => import('./pages/Quizlet/ExploreSets'));
 
 const withSuspense = (element) => (
   <Suspense fallback={<LoadingSpinner fullScreen text="Loading..." />}>
@@ -120,9 +121,19 @@ const router = createBrowserRouter([
     children: [
       { path: '/study-sets/create', element: withSuspense(<StudySetCreate />) },
       { path: '/study-sets/:id/flashcards', element: withSuspense(<StudyPage />) },
-      { path: '/study-sets/:id/learn', element: withSuspense(<StudySetLearn />) },
       { path: '/study-sets/:id/test', element: withSuspense(<StudyPage />) },
       { path: '/study-sets/:id/match', element: withSuspense(<StudyPage />) },
+    ],
+  },
+  // Learn page - no header
+  {
+    element: (
+      <ProtectedRoute>
+        <StudyLayout backTo="/dashboard" hideHeader />
+      </ProtectedRoute>
+    ),
+    children: [
+      { path: '/study-sets/:id/learn', element: withSuspense(<StudySetLearn />) },
     ],
   },
 ]);

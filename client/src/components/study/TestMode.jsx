@@ -5,6 +5,7 @@ import {
   ClipboardCheck, X, Volume2, Settings, Clock
 } from 'lucide-react';
 import StudyHeader from './StudyHeader';
+import { progressService } from '../../services/progressService';
 
 /**
  * TestMode - Quizlet-style Test mode with setup modal and question types
@@ -538,14 +539,23 @@ export default function TestMode({ cards = [], setTitle = '', onClose, onComplet
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [allDone, setAllDone] = useState(false);
+  const [cardResults, setCardResults] = useState({}); // { cardId: { total: 0, correct: 0, questions: [] } }
+  const [isUpdating, setIsUpdating] = useState(false);
 
   const currentQ = questions[currentIndex];
   const progressPercent = questions.length > 0 ? ((currentIndex + 1) / questions.length) * 100 : 0;
 
   const handleStart = ({ questionCount, answerWith, types }) => {
-    // Build questions
+    // questionCount = number of cards to study
     const shuffled = [...cards].sort(() => Math.random() - 0.5).slice(0, questionCount);
-    const built: any[] = [];
+    const built = [];
+
+    // Initialize card results tracker
+    const initialCardResults = {};
+    shuffled.forEach(card => {
+      initialCardResults[card.id] = { total: 0, correct: 0, questions: [] };
+    });
+    setCardResults(initialCardResults);
 
     shuffled.forEach((card, idx) => {
       const useTerm = answerWith === 'term' || answerWith === 'both';
@@ -555,6 +565,7 @@ export default function TestMode({ cards = [], setTitle = '', onClose, onComplet
         const others = cards.filter((c) => c.id !== card.id).map((c) => c.front).sort(() => Math.random() - 0.5).slice(0, 3);
         built.push({
           id: `${idx}-term-mc`,
+          cardId: card.id,
           type: 'multipleChoice',
           question: card.front,
           answer: card.back,
@@ -567,6 +578,7 @@ export default function TestMode({ cards = [], setTitle = '', onClose, onComplet
         const others = cards.filter((c) => c.id !== card.id).map((c) => c.back).sort(() => Math.random() - 0.5).slice(0, 3);
         built.push({
           id: `${idx}-def-mc`,
+          cardId: card.id,
           type: 'multipleChoice',
           question: card.back,
           answer: card.front,
@@ -578,6 +590,7 @@ export default function TestMode({ cards = [], setTitle = '', onClose, onComplet
       if (useTerm && types.includes('trueFalse')) {
         built.push({
           id: `${idx}-term-tf`,
+          cardId: card.id,
           type: 'trueFalse',
           question: `"${card.back}" là định nghĩa của "${card.front}"?`,
           answer: true,
@@ -587,6 +600,7 @@ export default function TestMode({ cards = [], setTitle = '', onClose, onComplet
       if (useDef && types.includes('typeAnswer')) {
         built.push({
           id: `${idx}-def-type`,
+          cardId: card.id,
           type: 'typeAnswer',
           question: card.front,
           answer: card.back,
@@ -595,7 +609,36 @@ export default function TestMode({ cards = [], setTitle = '', onClose, onComplet
       }
     });
 
-    const final = built.sort(() => Math.random() - 0.5).slice(0, questionCount);
+    // Take from each card in round-robin (no slice limit - use all questions)
+    const groupedByCard = {};
+    built.forEach(q => {
+      if (!groupedByCard[q.cardId]) {
+        groupedByCard[q.cardId] = [];
+      }
+      groupedByCard[q.cardId].push(q);
+    });
+
+    // Round-robin through all cards
+    const final = [];
+    let cardIds = Object.keys(groupedByCard);
+    let idx2 = 0;
+    const maxIterations = built.length + 10;
+    let iterations = 0;
+    while (cardIds.length > 0 && iterations < maxIterations) {
+      const cardId = cardIds[idx2 % cardIds.length];
+      const cardQuestions = groupedByCard[cardId];
+      if (cardQuestions.length > 0) {
+        final.push(cardQuestions.shift());
+      }
+      if (cardQuestions.length === 0) {
+        delete groupedByCard[cardId];
+        cardIds = Object.keys(groupedByCard);
+        // Don't decrement idx2, just continue
+      }
+      idx2++;
+      iterations++;
+    }
+
     setQuestions(final);
     setStarted(true);
   };
@@ -603,6 +646,55 @@ export default function TestMode({ cards = [], setTitle = '', onClose, onComplet
   const handleAnswerSelect = (answer) => {
     setAnswers((prev) => ({ ...prev, [currentIndex]: answer }));
     setIsAnswered(true);
+
+    // Track result for this card
+    const question = questions[currentIndex];
+    if (question?.cardId) {
+      const isCorrect = checkAnswerCorrect(question, answer);
+      setCardResults(prev => ({
+        ...prev,
+        [question.cardId]: {
+          ...prev[question.cardId],
+          total: (prev[question.cardId]?.total || 0) + 1,
+          correct: (prev[question.cardId]?.correct || 0) + (isCorrect ? 1 : 0),
+          questions: [...(prev[question.cardId]?.questions || []), { qId: question.id, isCorrect }],
+        },
+      }));
+    }
+  };
+
+  // Helper to check if answer is correct
+  const checkAnswerCorrect = (question, answer) => {
+    if (question.type === 'multipleChoice') return answer === question.answer;
+    if (question.type === 'trueFalse') return answer === question.answer;
+    if (question.type === 'typeAnswer') return answer?.trim().toLowerCase() === question.answer?.trim().toLowerCase();
+    return false;
+  };
+
+  // Calculate quality based on average correct rate
+  const calculateQuality = (total, correct) => {
+    if (total === 0) return 2; // Default to Good if no questions
+    const ratio = correct / total;
+    if (ratio === 1) return 3; // Easy - all correct
+    if (ratio >= 0.5) return 2; // Good - at least half correct
+    return 0; // Again - less than half correct
+  };
+
+  // Update SM-2 for all cards after test completes
+  const updateAllCardProgress = async () => {
+    if (Object.keys(cardResults).length === 0) return;
+
+    setIsUpdating(true);
+    const updatePromises = Object.entries(cardResults).map(([cardId, result]) => {
+      const quality = calculateQuality(result.total, result.correct);
+      console.log(`[TestMode] Updating card ${cardId}: quality=${quality} (${result.correct}/${result.total})`);
+      return progressService.updateCardProgress(cardId, quality).catch(err => {
+        console.error(`[TestMode] Failed to update card ${cardId}:`, err);
+      });
+    });
+
+    await Promise.all(updatePromises);
+    setIsUpdating(false);
   };
 
   const handleNext = () => {
@@ -610,6 +702,8 @@ export default function TestMode({ cards = [], setTitle = '', onClose, onComplet
       setCurrentIndex((v) => v + 1);
       setIsAnswered(false);
     } else {
+      // Update SM-2 progress for all cards before showing results
+      updateAllCardProgress();
       setAllDone(true);
     }
   };
@@ -642,6 +736,21 @@ export default function TestMode({ cards = [], setTitle = '', onClose, onComplet
     }, 0);
     const accuracy = questions.length > 0 ? Math.round((correct / questions.length) * 100) : 0;
 
+    // Build card results summary
+    const cardSummary = Object.entries(cardResults).map(([cardId, result]) => {
+      const card = cards.find(c => c.id === cardId);
+      const quality = calculateQuality(result.total, result.correct);
+      const qualityLabel = quality === 3 ? 'Easy' : quality === 2 ? 'Good' : 'Again';
+      return {
+        cardId,
+        front: card?.front || 'Unknown',
+        total: result.total,
+        correct: result.correct,
+        quality,
+        qualityLabel,
+      };
+    });
+
     return (
       <div className="study-mode-wrap">
         <StudyHeader
@@ -663,6 +772,14 @@ export default function TestMode({ cards = [], setTitle = '', onClose, onComplet
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.4 }}
           >
+            {/* Updating indicator */}
+            {isUpdating && (
+              <div className="test-results__updating">
+                <div className="test-results__updating-spinner" />
+                <span>Đang cập nhật tiến độ học...</span>
+              </div>
+            )}
+
             <div className="test-results__score-wrap">
               <div className="test-results__score-ring">
                 <svg viewBox="0 0 100 100" className="test-results__ring-svg">
@@ -686,7 +803,45 @@ export default function TestMode({ cards = [], setTitle = '', onClose, onComplet
             <p className="test-results__subtitle">
               Bạn trả lời đúng {correct} trên {questions.length} câu
             </p>
+
+            {/* Stats Summary */}
+            <div className="test-results__stats">
+              <div className="test-results__stat correct">
+                <span className="test-results__stat-num">{correct}</span>
+                <span className="test-results__stat-label">Đúng</span>
+              </div>
+              <div className="test-results__stat wrong">
+                <span className="test-results__stat-num">{questions.length - correct}</span>
+                <span className="test-results__stat-label">Sai</span>
+              </div>
+              <div className="test-results__stat total">
+                <span className="test-results__stat-num">{questions.length}</span>
+                <span className="test-results__stat-label">Tổng</span>
+              </div>
+            </div>
+
+            {/* Card progress summary */}
+            <div className="test-results__card-summary">
+              <h3 className="test-results__section-title">Tiến độ theo thẻ (SM-2)</h3>
+              <div className="test-results__cards-list">
+                {cardSummary.map((summary, idx) => (
+                  <div key={summary.cardId} className={`test-results__card-item quality-${summary.qualityLabel.toLowerCase()}`}>
+                    <div className="test-results__card-info">
+                      <span className="test-results__card-front">{summary.front}</span>
+                      <span className="test-results__card-score">{summary.correct}/{summary.total} câu</span>
+                    </div>
+                    <div className={`test-results__card-quality quality-${summary.qualityLabel.toLowerCase()}`}>
+                      {summary.qualityLabel === 'Easy' && <span className="quality-badge easy">Dễ</span>}
+                      {summary.qualityLabel === 'Good' && <span className="quality-badge good">Khá</span>}
+                      {summary.qualityLabel === 'Again' && <span className="quality-badge again">Học lại</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             <div className="test-results__breakdown">
+              <h3 className="test-results__section-title">Chi tiết câu hỏi</h3>
               {questions.map((q, i) => {
                 const userAnswer = answers[i];
                 let isCorrect = false;
@@ -709,6 +864,7 @@ export default function TestMode({ cards = [], setTitle = '', onClose, onComplet
                 setCurrentIndex(0);
                 setAllDone(false);
                 setIsAnswered(false);
+                setCardResults({});
               }}>
                 Làm lại
               </button>
@@ -719,6 +875,154 @@ export default function TestMode({ cards = [], setTitle = '', onClose, onComplet
           </motion.div>
         </div>
         <style>{`
+          .test-results__updating {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 12px 16px;
+            background: rgba(44, 94, 245, 0.08);
+            border-radius: 12px;
+            margin-bottom: 20px;
+            font-size: 0.875rem;
+            color: #2c5ef5;
+            font-weight: 500;
+          }
+          .test-results__updating-spinner {
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(44, 94, 245, 0.2);
+            border-top-color: #2c5ef5;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+          }
+          @keyframes spin {
+            to { transform: rotate(360deg); }
+          }
+          .test-results__stats {
+            display: flex;
+            justify-content: center;
+            gap: 24px;
+            margin-bottom: 24px;
+          }
+          .test-results__stat {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            padding: 16px 24px;
+            border-radius: 16px;
+            min-width: 80px;
+          }
+          .test-results__stat.correct {
+            background: rgba(16, 185, 129, 0.1);
+          }
+          .test-results__stat.wrong {
+            background: rgba(239, 68, 68, 0.1);
+          }
+          .test-results__stat.total {
+            background: rgba(44, 94, 245, 0.1);
+          }
+          .test-results__stat-num {
+            font-size: 1.75rem;
+            font-weight: 700;
+            line-height: 1;
+          }
+          .test-results__stat.correct .test-results__stat-num { color: #10b981; }
+          .test-results__stat.wrong .test-results__stat-num { color: #ef4444; }
+          .test-results__stat.total .test-results__stat-num { color: #2c5ef5; }
+          .test-results__stat-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #8a8fa8;
+          }
+          .test-results__card-summary {
+            margin-bottom: 20px;
+            text-align: left;
+          }
+          .test-results__section-title {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: #8a8fa8;
+            margin: 0 0 12px;
+          }
+          .test-results__cards-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 160px;
+            overflow-y: auto;
+          }
+          .test-results__card-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 14px;
+            border-radius: 10px;
+            background: #f8f9fc;
+            border-left: 3px solid;
+          }
+          [data-theme='dark'] .test-results__card-item {
+            background: #1e2332;
+          }
+          .test-results__card-item.quality-easy {
+            border-left-color: #10b981;
+          }
+          .test-results__card-item.quality-good {
+            border-left-color: #f59e0b;
+          }
+          .test-results__card-item.quality-again {
+            border-left-color: #ef4444;
+          }
+          .test-results__card-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            flex: 1;
+            min-width: 0;
+          }
+          .test-results__card-front {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #1a1a2e;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          }
+          [data-theme='dark'] .test-results__card-front {
+            color: #e8eaed;
+          }
+          .test-results__card-score {
+            font-size: 0.75rem;
+            color: #8a8fa8;
+          }
+          .test-results__card-quality {
+            flex-shrink: 0;
+          }
+          .quality-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+          }
+          .quality-badge.easy {
+            background: rgba(16, 185, 129, 0.12);
+            color: #10b981;
+          }
+          .quality-badge.good {
+            background: rgba(245, 158, 11, 0.12);
+            color: #f59e0b;
+          }
+          .quality-badge.again {
+            background: rgba(239, 68, 68, 0.12);
+            color: #ef4444;
+          }
           .test-results {
             flex: 1;
             display: flex;
@@ -781,7 +1085,7 @@ export default function TestMode({ cards = [], setTitle = '', onClose, onComplet
           }
           .test-results__breakdown {
             text-align: left;
-            max-height: 240px;
+            max-height: 200px;
             overflow-y: auto;
             margin-bottom: 24px;
             display: flex;
