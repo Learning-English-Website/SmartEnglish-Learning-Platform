@@ -58,11 +58,11 @@ Tất cả 4 study modes hoạt động. User có thể chọn mode phù hợp v
 ## 📆 NGÀY 2 — Spaced Repetition System (SM-2 Algorithm)
 
 ### Tasks
-- [ ] **Tạo `src/hooks/useSpacedRepetition.ts`:**
+- [x] **Tạo `src/hooks/useSpacedRepetition.ts`:**
   ```typescript
   interface CardSchedule {
     cardId: string;
-    easeFactor: number;      // 1.3 - 2.5
+    easeFactor: number;      // 1.3 - 2.0 (tối ưu cho người ham học)
     interval: number;        // days
     repetitions: number;     // 0, 1, 2, ...
     nextReview: Date;
@@ -78,7 +78,7 @@ Tất cả 4 study modes hoạt động. User có thể chọn mode phù hợp v
   }
   ```
 
-- [ ] **Tạo `src/services/progressService.ts`:**
+- [x] **Tạo `src/services/progressService.ts`:**
   ```typescript
   export const progressService = {
     getCardProgress: (cardId: string) =>
@@ -92,10 +92,24 @@ Tất cả 4 study modes hoạt động. User có thể chọn mode phù hợp v
   };
   ```
 
-- [ ] **Cập nhật Backend `studySession.service.js`:**
+- [x] **Cập nhật Backend `studySession.service.js`:**
   - SM-2 algorithm implementation
   - Store card schedules in database
   - Calculate next review dates
+
+- [x] **Cập nhật `StudySetLearn.jsx` với Quizlet UI:**
+  - Quizlet-style progress bar với các cụm 6 card
+  - Chế độ trắc nghiệm (multiple choice)
+  - Chế độ tự luận (type answer)
+  - Âm thanh "ting" khi trả lời đúng
+  - Nút shuffle, nút âm thanh, nút settings
+  - Top bar navigation như Quizlet
+  - Tổng số card trên progress bar nhân 2 (MC + TA)
+
+- [x] **Tối ưu SM-2 cho "người ham học":**
+  - Giảm Ease Factor từ 2.5 xuống 2.0
+  - Giảm interval lần 2 đúng từ 6 ngày xuống 2 ngày
+  - Card sai → review lại ngay trong ngày (interval = 0)
 
 - [ ] **Tạo `src/components/progress/LearningProgress.tsx`:**
   - Mastery level indicator (1-5 stars)
@@ -114,10 +128,164 @@ Tất cả 4 study modes hoạt động. User có thể chọn mode phù hợp v
   - Time spent studying
   - Accuracy rate chart
 
-- [ ] **Verify:** SM-2 algorithm hoạt động, cards scheduled correctly
+- [x] **Verify:** SM-2 algorithm hoạt động, cards scheduled correctly
 
 ### ✅ Deliverable
-Spaced repetition system hoạt động. Progress tracking đầy đủ. Dashboard hiển thị stats.
+Spaced repetition system hoạt động. Progress tracking đầy đủ. Quizlet-style Learn page với 2 chế độ học (trắc nghiệm + tự luận).
+
+---
+
+## 📖 SM-2 ALGORITHM — Chi tiết kỹ thuật (Dành cho Developer)
+
+### Tổng quan
+SM-2 (SuperMemo 2) là thuật toán **Spaced Repetition** (Lặp lại có khoảng cách) được tạo bởi Piotr Wozniak năm 1987. Ý tưởng cốt lõi: **Não người học hiệu quả khi được nhắc lại KIẾN THỨC NGAY TRƯỚC KHI QUÊN**.
+
+### Các tham số trong hệ thống
+
+| Tham số | Giá trị cũ | Giá trị mới | Ý nghĩa |
+|---------|-----------|-------------|---------|
+| MIN_EASE_FACTOR | 1.3 | 1.3 | Hệ số dễ tối thiểu |
+| MAX_EASE_FACTOR | 2.5 | **2.0** | Hệ số dễ tối đa (giảm để tăng chậm hơn) |
+| INITIAL_EASE_FACTOR | 2.5 | **2.0** | Hệ số dễ ban đầu |
+| Lần 2 đúng interval | 6 ngày | **2 ngày** | Khoảng cách sau lần đúng thứ 2 |
+
+### Quality Rating (Chất lượng trả lời)
+
+| Quality | Tên | Ý nghĩa | Xử lý |
+|---------|-----|---------|--------|
+| 0 | **Again** | Quên hoàn toàn | Reset repetitions, ôn lại ngay |
+| 1 | **Hard** | Nhớ nhưng khó | Reset repetitions, ôn lại ngay |
+| 2 | **Good** | Nhớ được | Tăng repetitions, ôn sau 1-2 ngày |
+| 3 | **Easy** | Nhớ rõ ràng | Tăng repetitions, tăng EF |
+
+### Thuật toán chi tiết (pseudocode)
+
+```javascript
+function calculateSM2(currentSchedule, quality) {
+  // Khởi tạo với giá trị hiện tại hoặc mặc định
+  let { easeFactor = 2.0, interval = 0, repetitions = 0, lapses = 0 } = currentSchedule;
+
+  if (quality < 2) {
+    // === TRẢ LỜI SAI ===
+    repetitions = 0;          // Reset số lần đúng liên tiếp
+    interval = 0;             // Ôn lại NGAY TRONG NGÀY
+    lapses += 1;             // Tăng số lần quên
+    easeFactor = max(1.3, easeFactor - 0.2);  // Giảm EF, card khó hơn
+    nextReview = now();      // Ôn lại ngay lập tức
+  } 
+  else {
+    // === TRẢ LỜI ĐÚNG ===
+    if (repetitions === 0) {
+      interval = 1;          // Lần đầu đúng: 1 ngày
+    } 
+    else if (repetitions === 1) {
+      interval = 2;          // Lần 2 đúng: 2 ngày (thay vì 6)
+    } 
+    else {
+      // Từ lần 3+: dùng (EF - 0.5) thay vì EF
+      // Ví dụ: EF = 2.0 → multiplier = 1.5 → tăng chậm hơn
+      const effectiveEF = easeFactor - 0.5;
+      interval = round(interval * effectiveEF);
+    }
+
+    repetitions += 1;        // Tăng số lần đúng liên tiếp
+
+    // Điều chỉnh ease factor dựa trên quality
+    const efChange = 0.1 - (5 - sm2Quality) * (0.08 + (5 - sm2Quality) * 0.02);
+    easeFactor = clamp(MIN_EASE_FACTOR, MAX_EASE_FACTOR, easeFactor + efChange);
+
+    // Tính ngày ôn tiếp theo
+    nextReview = now() + interval days;
+  }
+
+  return { easeFactor, interval, repetitions, lapses, nextReview, lastReview: now };
+}
+```
+
+### Bảng so sánh Interval (Sau khi tối ưu)
+
+| repetitions | SM-2 Chuẩn | SM-2 "Ham Học" | Chênh lệch |
+|------------|-------------|----------------|-----------|
+| 0 (mới) | 1 ngày | 1 ngày | 0 |
+| 1 | 6 ngày | **2 ngày** | -4 ngày |
+| 2 | 15 ngày | **3 ngày** | -12 ngày |
+| 3 | 37 ngày | **5 ngày** | -32 ngày |
+| 4 | 90 ngày | **8 ngày** | -82 ngày |
+
+### Flow dữ liệu
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  CLIENT (React)                                            │
+│  User click "Good" (quality = 2)                          │
+│                          ↓                                 │
+│  PUT /api/progress/cards/:cardId { quality: 2 }           │
+└─────────────────────────────────────────────────────────────┘
+                          ↓
+┌─────────────────────────────────────────────────────────────┐
+│  SERVER (Node.js)                                          │
+│  progress.service.js → calculateSM2(schedule, 2)          │
+│                                                             │
+│  repetitions: 1 → 2                                        │
+│  interval: 1 → 2 (vì repetitions = 1)                    │
+│  nextReview: today + 2 days                                │
+└─────────────────────────────────────────────────────────────┘
+                          ↓
+┌─────────────────────────────────────────────────────────────┐
+│  DATABASE (MongoDB)                                        │
+│  Collection: cardprogresses                                 │
+│  Document:                                                 │
+│  {                                                         │
+│    card: ObjectId,                                         │
+│    easeFactor: 2.0,                                       │
+│    interval: 2,                                            │
+│    repetitions: 2,                                         │
+│    nextReview: ISODate("2026-05-20"),                     │
+│    lastReview: ISODate("2026-05-18"),                     │
+│    lapses: 0,                                             │
+│    totalReviews: 3,                                       │
+│    correctReviews: 2,                                      │
+│    accuracy: 67                                           │
+│  }                                                         │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Lấy cards để học (Query Cards Due)
+
+```javascript
+// Lấy cards cần học HÔM NAY:
+db.cardprogresses.find({
+    user: userId,
+    nextReview: { $lte: new Date() }  // Đến hạn hoặc quá hạn
+})
+
+// Ưu tiên:
+// 1. Cards mới (repetitions = 0) - chưa học bao giờ
+// 2. Cards quá hạn nặng (lapses cao)
+// 3. Cards đến hạn bình thường
+```
+
+### Xóa data để test lại
+
+```javascript
+// Kết nối MongoDB Atlas qua mongosh:
+// mongosh "mongodb+srv://<credentials>@ac-xxxx.mongodb.net/memoris"
+
+// Xóa tất cả progress:
+db.cardprogresses.deleteMany({})
+
+// Result: { acknowledged: true, deletedCount: 4 }
+```
+
+### Các app sử dụng SM-2
+
+| App | Đặc điểm |
+|-----|----------|
+| Anki | Tùy chỉnh cao, SM-2 + FSRS |
+| Quizlet | Learn mode, tốc độ nhanh |
+| SuperMemo | Gốc của SM-2 |
+| Duolingo | Biến thể SM-2 |
+| SmartEnglish | SM-2 tối ưu cho người Việt |
 
 ---
 
