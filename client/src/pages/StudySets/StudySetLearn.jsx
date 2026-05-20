@@ -3,19 +3,31 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   BookOpen, Brain, ClipboardCheck, Box,
-  Volume2, VolumeX, Settings, ChevronLeft,
+  Volume2, VolumeX, Settings,
   Shuffle, RotateCcw,
   CheckCircle, XCircle, ChevronRight,
-  ArrowLeft, X, ChevronUp
+  ArrowLeft, X, ChevronUp, Star, Volume1,
+  Sparkles, Trophy, Zap
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { setService } from '../../api/setService';
 import { cardService } from '../../api/cardService';
-import { progressService } from '../../services/progressService';
 import './StudySetLearn.css';
 
-const CARD_BATCH_SIZE = 6;
-const TING_SOUND_URL = 'https://assets.mixkit.co/active_storage/sfx/953/953-preview.mp3';
+const BATCH_SIZE = 7;
+const TING_SOUND_URL = 'https://assets.mixkit.co/active_storage/sfx/953/953-preview.mp4';
+
+/** Returns the actual number of items in a given batch (last batch may be smaller) */
+const getBatchSize = (batchIdx, totalItems, totalBatches) => {
+  const effectiveSize = Math.ceil(totalItems / totalBatches);
+  const start = batchIdx * effectiveSize;
+  return Math.min(effectiveSize, Math.max(0, totalItems - start));
+};
+
+/** Returns total items in all batches up to (but not including) batchIdx */
+const getBatchesOffset = (batchIdx, totalItems, totalBatches) =>
+  Array.from({ length: batchIdx }, (_, idx) => getBatchSize(idx, totalItems, totalBatches))
+    .reduce((sum, size) => sum + size, 0);
 
 function shuffleArray(arr) {
   const a = [...arr];
@@ -33,60 +45,73 @@ const STUDY_MODES = [
   { id: 'match', label: 'Khớp thẻ', icon: Box },
 ];
 
-const QuizletProgressBar = ({ totalCards, currentIndex, correctCards, wrongCards, batchSize = CARD_BATCH_SIZE }) => {
-  const segments = useMemo(() => {
-    const result = [];
-    const numSegments = Math.ceil(totalCards / batchSize);
-    for (let i = 0; i < numSegments; i++) {
-      const start = i * batchSize;
-      const end = Math.min(start + batchSize, totalCards);
-      result.push({ start, end, index: i });
-    }
-    return result;
-  }, [totalCards, batchSize]);
+/**
+ * Quizlet-style progress bar
+ * - Completed batch: fully filled green #18AE79
+ * - Current batch: solid green fill + circular puck with current q number
+ * - Future batch: gray #9CA3AF
+ * - Right side: circle showing total items
+ */
+const QuizletProgressBar = ({
+  totalBatches,
+  currentBatchIndex,
+  batchProgress,
+  totalItems,
+  currentQueueIdx,
+  prevBatchesCorrect = 0,
+}) => {
+  const visibleStart = useMemo(() => {
+    if (currentBatchIndex < 7) return 0;
+    return currentBatchIndex - 6;
+  }, [currentBatchIndex]);
 
-  const currentSegmentIndex = Math.floor(currentIndex / batchSize);
+  const visibleCount = Math.min(7, totalBatches - visibleStart);
+  const globalItemNum = prevBatchesCorrect + currentQueueIdx + 1;
 
   return (
-    <div className="quizlet-progress">
-      <div className="quizlet-progress__bar">
-        {segments.map((segment, segmentIdx) => {
-          const isCompleted = segment.end <= currentIndex;
-          const isCurrent = segmentIdx === currentSegmentIndex;
+    <div className="ql2-progress-bar" role="progressbar" aria-valuenow={globalItemNum} aria-valuemax={totalItems}>
+      <div className="ql2-progress-bar__track">
+        {Array.from({ length: visibleCount }).map((_, i) => {
+          const batchIdx = visibleStart + i;
+          const progress = batchProgress.get(batchIdx) || { correct: 0 };
+          const actualBatchSize = getBatchSize(batchIdx, totalItems, totalBatches);
+          const isCompleted = progress.correct >= actualBatchSize;
+          const isCurrent = batchIdx === currentBatchIndex;
+          const isFuture = batchIdx > currentBatchIndex;
+          const puckPos = isCurrent ? currentQueueIdx / actualBatchSize : 0;
 
           return (
             <div
-              key={segmentIdx}
-              className={`quizlet-progress__segment ${isCompleted ? 'completed' : ''} ${isCurrent ? 'current' : ''}`}
+              key={batchIdx}
+              className={`ql2-progress-bar__batch ${isCompleted ? 'completed' : ''} ${isCurrent ? 'current' : ''} ${isFuture ? 'future' : ''}`}
+              style={{ '--puck-pos': puckPos }}
             >
-              <div className="quizlet-progress__cards">
-                {Array.from({ length: batchSize }).map((_, cardIdx) => {
-                  const absoluteIndex = segment.start + cardIdx;
-                  if (absoluteIndex >= totalCards) return <div key={cardIdx} className="quizlet-progress__card empty" />;
-
-                  const isCardCorrect = correctCards.has(absoluteIndex);
-                  const isCardWrong = wrongCards.has(absoluteIndex);
-                  const isCardCurrent = absoluteIndex === currentIndex;
-
-                  return (
-                    <div
-                      key={cardIdx}
-                      className={`quizlet-progress__card ${isCardCorrect ? 'correct' : ''} ${isCardWrong ? 'wrong' : ''} ${isCardCurrent ? 'current' : ''} ${(isCardCorrect || isCardWrong) ? 'answered' : ''}`}
-                    />
-                  );
-                })}
-              </div>
-              <span className="quizlet-progress__segment-label">{segment.end}</span>
+              <div className="ql2-progress-bar__batch-bg" />
+              {isCurrent ? (
+                <>
+                  <div className="ql2-progress-bar__batch-fill" style={{ width: `${puckPos * 100}%` }} />
+                  <div className="ql2-progress-bar__puck">{globalItemNum}</div>
+                </>
+              ) : isCompleted ? (
+                <div className="ql2-progress-bar__batch-fill completed-fill" />
+              ) : null}
             </div>
           );
         })}
       </div>
-      <div className="quizlet-progress__text">
-        <span className="quizlet-progress__count">{currentIndex} / {totalCards}</span>
-      </div>
+      <div className="ql2-progress-bar__total">{totalItems}</div>
     </div>
   );
 };
+
+function buildItems(cards, includeMC, includeTA) {
+  const items = [];
+  cards.forEach(card => {
+    if (includeMC) items.push({ ...card, mode: 'mc', itemId: `${card._id}:mc` });
+    if (includeTA) items.push({ ...card, mode: 'ta', itemId: `${card._id}:ta` });
+  });
+  return items;
+}
 
 export default function StudySetLearn() {
   const { id } = useParams();
@@ -95,129 +120,276 @@ export default function StudySetLearn() {
   const [studySet, setStudySet] = useState(null);
   const [cards, setCards] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [schedules, setSchedules] = useState(new Map()); // SM-2 schedules from server
-
-  const [currentIdx, setCurrentIdx] = useState(0);
-  const [correctCards, setCorrectCards] = useState(new Set());
-  const [wrongCards, setWrongCards] = useState(new Set());
+  const [sessionItems, setSessionItems] = useState([]);
+  const [currentBatchIdx, setCurrentBatchIdx] = useState(0);
+  const [batchProgress, setBatchProgress] = useState(new Map());
+  const [batchQueue, setBatchQueue] = useState([]);
+  const [queueIdx, setQueueIdx] = useState(0);
+  const [itemResults, setItemResults] = useState(new Map());
   const [selectedOption, setSelectedOption] = useState(null);
   const [typedAnswer, setTypedAnswer] = useState('');
   const [answered, setAnswered] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
-  const [isComplete, setIsComplete] = useState(false);
-  const [showAnswer, setShowAnswer] = useState(false);
-
-  // Settings state
+  const [includeMC, setIncludeMC] = useState(true);
+  const [includeTA, setIncludeTA] = useState(true);
   const [modeDropdownOpen, setModeDropdownOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [isShuffled, setIsShuffled] = useState(false);
-  const [includeMultipleChoice, setIncludeMultipleChoice] = useState(true);
-  const [includeTypeAnswer, setIncludeTypeAnswer] = useState(true);
+  const [starredCards, setStarredCards] = useState(new Set());
+  const [screen, setScreen] = useState('loading');
 
   const inputRef = useRef(null);
   const audioRef = useRef(null);
 
-  // Load schedules from server on mount
-  useEffect(() => {
-    const loadSchedules = async () => {
-      try {
-        const response = await progressService.getCardSchedules(id);
-        const serverSchedules = response.data || [];
-        console.log('[StudySetLearn] API Response raw:', JSON.stringify(serverSchedules));
-        const scheduleMap = new Map();
-        serverSchedules.forEach(s => {
-          const key = s.cardId.toString();
-          console.log('[StudySetLearn] Adding schedule:', key, 'repetitions:', s.repetitions, 'nextReview:', s.nextReview);
-          scheduleMap.set(key, s);
-        });
-        setSchedules(scheduleMap);
-        console.log('[StudySetLearn] Loaded schedules map size:', scheduleMap.size);
-      } catch (err) {
-        console.log('[StudySetLearn] No existing schedules');
-      }
-    };
-    loadSchedules();
-  }, [id]);
+  const currentItem = batchQueue[queueIdx] || null;
+  const totalItems = sessionItems.length;
+  const totalBatches_ = Math.max(1, Math.ceil(totalItems / BATCH_SIZE));
+  const effectiveBatchSize = Math.ceil(totalItems / totalBatches_);
+  const itemsStudiedTotal = Array.from(batchProgress.values()).reduce((sum, b) => sum + b.correct, 0);
+  const prevBatchesCorrect = Array.from({ length: currentBatchIdx }, (_, idx) =>
+    getBatchSize(idx, totalItems, totalBatches_)
+  ).reduce((sum, size) => sum + size, 0);
 
-  // Get due cards based on SM-2 schedules
-  // SM-2 Logic:
-  // - Card đúng: repetitions tăng, nextReview trong tương lai (1, 6, n*EF ngày)
-  // - Card sai: repetitions reset về 0, nextReview = hôm nay (interval = 0)
-  // => Chỉ hiện cards có nextReview <= now (cards quá hạn)
-  const dueCards = useMemo(() => {
-    const now = new Date();
-    console.log('[StudySetLearn] Filtering cards:', { cardsCount: cards.length, schedulesCount: schedules.size, now: now.toISOString() });
-
-    const due = [];
-
-    cards.forEach(card => {
-      const schedule = schedules.get(card._id);
-      console.log('[StudySetLearn] Card:', card._id, 'Schedule:', schedule ? { repetitions: schedule.repetitions, nextReview: schedule.nextReview } : 'NONE');
-
-      if (!schedule) {
-        // New card (never learned) - NOT due yet
-        console.log('[StudySetLearn] Card', card._id, '-> NEW (no schedule)');
-      } else {
-        // Check if card is due for review
-        const nextReview = new Date(schedule.nextReview);
-        if (nextReview <= now) {
-          // Card is overdue - include in session
-          due.push({ ...card, isOverdue: true, nextReview: schedule.nextReview, schedule });
-          console.log('[StudySetLearn] Card', card._id, '-> DUE (overdue)');
-        } else {
-          // Card not yet due
-          console.log('[StudySetLearn] Card', card._id, '-> NOT YET (due:', nextReview.toISOString(), ')');
-        }
-      }
-    });
-
-    // Sort by how overdue (oldest first)
-    due.sort((a, b) => new Date(a.nextReview).getTime() - new Date(b.nextReview).getTime());
-
-    console.log('[StudySetLearn] Filter result:', { dueCount: due.length, totalCards: cards.length });
-    console.log('[StudySetLearn] Due cards:', due.map(c => ({ id: c._id, nextReview: c.nextReview })));
-
-    return due;
-  }, [cards, schedules]);
-
-  // Build session based on due cards
-  const sessionCards = useMemo(() => {
-    let result = [];
-    if (includeMultipleChoice) result.push(...dueCards.map(c => ({ ...c, sessionType: 'multiple-choice' })));
-    if (includeTypeAnswer) result.push(...dueCards.map(c => ({ ...c, sessionType: 'type-answer' })));
-    return result;
-  }, [dueCards, includeMultipleChoice, includeTypeAnswer]);
-
-  const totalItems = sessionCards.length;
-  const currentCard = sessionCards[currentIdx] || null;
-
-  // Options for multiple choice - show Vietnamese (back) and English options
   const options = useMemo(() => {
-    if (!currentCard || currentCard.sessionType !== 'multiple-choice') return [];
+    if (!currentItem || currentItem.mode !== 'mc') return [];
     const others = cards
-      .filter(c => c._id !== currentCard._id)
+      .filter(c => c._id !== currentItem._id)
       .map(c => ({ id: c._id, text: c.front }))
       .sort(() => Math.random() - 0.5)
       .slice(0, 3);
-    return shuffleArray([{ id: currentCard._id, text: currentCard.front }, ...others]);
-  }, [currentCard, cards]);
+    return shuffleArray([{ id: currentItem._id, text: currentItem.front }, ...others]);
+  }, [currentItem, cards]);
 
   const playCorrectSound = useCallback(() => {
-    if (!soundEnabled) return;
-    if (audioRef.current) {
-      audioRef.current.currentTime = 0;
-      audioRef.current.play().catch(() => {});
+    if (!soundEnabled || !audioRef.current) return;
+    audioRef.current.currentTime = 0;
+    audioRef.current.play().catch(() => {});
+  }, [soundEnabled]);
+
+  const handleAnswer = useCallback((opt) => {
+    if (answered || !currentItem) return;
+    setSelectedOption(opt.id);
+    setAnswered(true);
+    const correct_ = opt.id === currentItem._id;
+    setIsCorrect(correct_);
+    setItemResults(prev => new Map(prev).set(currentItem.itemId, correct_));
+
+    if (correct_) {
+      playCorrectSound();
+      setBatchProgress(prev => {
+        const next = new Map(prev);
+        const bp = next.get(currentBatchIdx) || { correct: 0 };
+        const newCorrect = bp.correct + 1;
+        const actualBatchSize = getBatchSize(currentBatchIdx, totalItems, totalBatches_);
+        next.set(currentBatchIdx, { correct: newCorrect });
+        if (newCorrect >= actualBatchSize) {
+          if (currentBatchIdx + 1 >= totalBatches_) {
+            setScreen('session-complete');
+          } else {
+            setScreen('batch-complete');
+          }
+        }
+        return next;
+      });
     }
+  }, [answered, currentItem, currentBatchIdx, totalBatches_, totalItems, playCorrectSound]);
+
+  const handleTypeAnswer = useCallback(() => {
+    if (answered || !typedAnswer.trim() || !currentItem) return;
+    setAnswered(true);
+    const correct_ = typedAnswer.trim().toLowerCase() === currentItem.front.trim().toLowerCase();
+    setIsCorrect(correct_);
+    setItemResults(prev => new Map(prev).set(currentItem.itemId, correct_));
+
+    if (correct_) {
+      playCorrectSound();
+      setBatchProgress(prev => {
+        const next = new Map(prev);
+        const bp = next.get(currentBatchIdx) || { correct: 0 };
+        const newCorrect = bp.correct + 1;
+        next.set(currentBatchIdx, { correct: newCorrect });
+        const actualBatchSize = getBatchSize(currentBatchIdx, totalItems, totalBatches_);
+        if (newCorrect >= actualBatchSize) {
+          if (currentBatchIdx + 1 >= totalBatches_) {
+            setScreen('session-complete');
+          } else {
+            setScreen('batch-complete');
+          }
+        }
+        return next;
+      });
+    }
+  }, [answered, typedAnswer, currentItem, currentBatchIdx, totalBatches_, totalItems, playCorrectSound]);
+
+  const handleDontKnow = useCallback(() => {
+    if (answered || !currentItem) return;
+    setAnswered(true);
+    setIsCorrect(false);
+    setItemResults(prev => new Map(prev).set(currentItem.itemId, false));
+  }, [answered, currentItem]);
+
+  const handleNext = useCallback(() => {
+    setAnswered(false);
+    setSelectedOption(null);
+    setTypedAnswer('');
+    setIsCorrect(false);
+
+    if (!currentItem) return;
+    const wasCorrect = itemResults.get(currentItem.itemId) === true;
+
+    if (!wasCorrect) {
+      setBatchQueue(prev => {
+        const next = [...prev];
+        const [removed] = next.splice(queueIdx, 1);
+        next.push(removed);
+        return next;
+      });
+    } else {
+      if (queueIdx < batchQueue.length - 1) {
+        setQueueIdx(prev => prev + 1);
+      } else {
+        const bp = batchProgress.get(currentBatchIdx) || { correct: 0 };
+        const actualBatchSize = getBatchSize(currentBatchIdx, totalItems, totalBatches_);
+        if (bp.correct >= actualBatchSize) {
+          if (currentBatchIdx + 1 >= totalBatches_) {
+            setScreen('session-complete');
+          } else {
+            setScreen('batch-complete');
+          }
+        } else {
+          const batchStart = getBatchesOffset(currentBatchIdx, totalItems, totalBatches_);
+          const batchItems = sessionItems.slice(batchStart, batchStart + actualBatchSize);
+          const wrongSet = new Set();
+          batchItems.forEach(item => {
+            if (itemResults.get(item.itemId) !== true) wrongSet.add(item.itemId);
+          });
+          const sorted = [...batchItems].sort((a, b) => {
+            const aWrong = wrongSet.has(a.itemId);
+            const bWrong = wrongSet.has(b.itemId);
+            if (aWrong === bWrong) return 0;
+            return aWrong ? 1 : -1;
+          });
+          setBatchQueue(sorted);
+          setQueueIdx(0);
+        }
+      }
+    }
+  }, [currentItem, queueIdx, batchQueue, batchProgress, currentBatchIdx, itemResults, sessionItems, totalBatches_, totalItems]);
+
+  const handleBatchCompleteContinue = useCallback(() => {
+    const nextBatchIdx = currentBatchIdx + 1;
+    const eb = Math.ceil(sessionItems.length / Math.max(1, Math.ceil(sessionItems.length / BATCH_SIZE)));
+    const startIdx = getBatchesOffset(nextBatchIdx, sessionItems.length, totalBatches_);
+    const nextBatchItems = sessionItems.slice(startIdx, startIdx + eb);
+
+    if (nextBatchItems.length === 0) {
+      setScreen('session-complete');
+      return;
+    }
+
+    setBatchQueue(nextBatchItems);
+    setCurrentBatchIdx(nextBatchIdx);
+    setQueueIdx(0);
+    setBatchProgress(prev => {
+      const next = new Map(prev);
+      next.set(nextBatchIdx, { correct: 0 });
+      return next;
+    });
+    setItemResults(new Map());
+    setScreen('learning');
+  }, [currentBatchIdx, sessionItems, totalBatches_]);
+
+  const handleRestart = useCallback(() => {
+    const items = buildItems(shuffleArray(cards), includeMC, includeTA);
+    const eb = Math.ceil(items.length / Math.max(1, Math.ceil(items.length / BATCH_SIZE)));
+    setSessionItems(items);
+    setBatchQueue(items.slice(0, eb));
+    setBatchProgress(new Map([[0, { correct: 0 }]]));
+    setItemResults(new Map());
+    setCurrentBatchIdx(0);
+    setQueueIdx(0);
+    setScreen('learning');
+    setIsShuffled(true);
+  }, [cards, includeMC, includeTA]);
+
+  const handleShuffle = useCallback(() => {
+    const items = buildItems(shuffleArray(cards), includeMC, includeTA);
+    const eb = Math.ceil(items.length / Math.max(1, Math.ceil(items.length / BATCH_SIZE)));
+    setSessionItems(items);
+    setBatchQueue(items.slice(0, eb));
+    setBatchProgress(new Map([[0, { correct: 0 }]]));
+    setItemResults(new Map());
+    setCurrentBatchIdx(0);
+    setQueueIdx(0);
+    setScreen('learning');
+    setIsShuffled(true);
+  }, [cards, includeMC, includeTA]);
+
+  const handleModeChange = useCallback((m) => {
+    if (m === 'flashcards') navigate(`/study-sets/${id}/flashcards`);
+    else if (m === 'learn') setModeDropdownOpen(false);
+    else if (m === 'test') navigate(`/study-sets/${id}/test`);
+    else if (m === 'match') navigate(`/study-sets/${id}/match`);
+    setModeDropdownOpen(false);
+  }, [id, navigate]);
+
+  const handleToggleMC = useCallback((checked) => {
+    if (!checked && !includeTA) return;
+    setIncludeMC(checked);
+    const newItems = buildItems(shuffleArray(cards), checked, includeTA);
+    const eb = Math.ceil(newItems.length / Math.max(1, Math.ceil(newItems.length / BATCH_SIZE)));
+    setSessionItems(newItems);
+    const restart = screen === 'learning' || screen === 'batch-complete';
+    if (restart) {
+      setBatchQueue(newItems.slice(0, eb));
+      setBatchProgress(new Map([[0, { correct: 0 }]]));
+      setItemResults(new Map());
+      setCurrentBatchIdx(0);
+      setQueueIdx(0);
+      setScreen('learning');
+      setIsShuffled(true);
+    }
+  }, [cards, includeTA, screen]);
+
+  const handleToggleTA = useCallback((checked) => {
+    if (!checked && !includeMC) return;
+    setIncludeTA(checked);
+    const newItems = buildItems(shuffleArray(cards), includeMC, checked);
+    const eb = Math.ceil(newItems.length / Math.max(1, Math.ceil(newItems.length / BATCH_SIZE)));
+    setSessionItems(newItems);
+    const restart = screen === 'learning' || screen === 'batch-complete';
+    if (restart) {
+      setBatchQueue(newItems.slice(0, eb));
+      setBatchProgress(new Map([[0, { correct: 0 }]]));
+      setItemResults(new Map());
+      setCurrentBatchIdx(0);
+      setQueueIdx(0);
+      setScreen('learning');
+      setIsShuffled(true);
+    }
+  }, [cards, includeMC, screen]);
+
+  const toggleStar = useCallback((cardId) => {
+    setStarredCards(prev => {
+      const next = new Set(prev);
+      if (next.has(cardId)) next.delete(cardId);
+      else next.add(cardId);
+      return next;
+    });
+  }, []);
+
+  const speakCard = useCallback((text) => {
+    if (!soundEnabled || !text) return;
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'en-US';
+    speechSynthesis.speak(utterance);
   }, [soundEnabled]);
 
   useEffect(() => {
     audioRef.current = new Audio(TING_SOUND_URL);
     return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
+      if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
     };
   }, []);
 
@@ -229,8 +401,12 @@ export default function StudySetLearn() {
           setService.getById(id),
           cardService.getBySetId(id),
         ]);
-        setStudySet(setRes?.data ?? setRes);
-        setCards(shuffleArray([...(cardsRes?.data ?? cardsRes ?? [])]));
+        const loadedSet = setRes?.data ?? setRes;
+        const loadedCards = [...(cardsRes?.data ?? cardsRes ?? [])];
+        setStudySet(loadedSet);
+        setCards(loadedCards);
+        const items = buildItems(shuffleArray(loadedCards), true, true);
+        setSessionItems(items);
       } catch {
         toast.error('Không thể tải dữ liệu.');
       } finally {
@@ -241,283 +417,294 @@ export default function StudySetLearn() {
   }, [id]);
 
   useEffect(() => {
-    if (currentCard?.sessionType === 'type-answer' && inputRef.current && !answered) {
+    if (sessionItems.length === 0 || screen !== 'loading') return;
+    const eb = Math.ceil(sessionItems.length / Math.max(1, Math.ceil(sessionItems.length / BATCH_SIZE)));
+    setBatchQueue(sessionItems.slice(0, eb));
+    setBatchProgress(new Map([[0, { correct: 0 }]]));
+    setItemResults(new Map());
+    setCurrentBatchIdx(0);
+    setQueueIdx(0);
+    setScreen('learning');
+  }, [sessionItems, screen]);
+
+  useEffect(() => {
+    if (currentItem?.mode === 'ta' && inputRef.current) {
       setTimeout(() => inputRef.current?.focus(), 100);
     }
-  }, [currentIdx, currentCard, answered]);
+  }, [queueIdx, currentItem]);
 
   useEffect(() => {
     setSelectedOption(null);
     setTypedAnswer('');
     setAnswered(false);
     setIsCorrect(false);
-    setShowAnswer(false);
-  }, [currentIdx]);
+  }, [queueIdx]);
 
   useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (isComplete) return;
-      if (e.key === 'Enter' && currentCard?.sessionType === 'type-answer' && !answered && typedAnswer.trim()) {
+    if (answered && isCorrect) {
+      const timer = setTimeout(() => {
+        handleNext();
+      }, 800);
+      return () => clearTimeout(timer);
+    }
+  }, [answered, isCorrect, handleNext]);
+
+  useEffect(() => {
+    const handleKey = (e) => {
+      if (screen !== 'learning') return;
+      if (e.key === 'Enter' && currentItem?.mode === 'ta' && !answered && typedAnswer.trim()) {
         handleTypeAnswer();
-      } else if (e.key === 'ArrowRight' && answered) {
+      } else if (e.key === ' ' && answered) {
+        e.preventDefault();
         handleNext();
       }
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentIdx, answered, typedAnswer, currentCard, isComplete]);
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [screen, answered, typedAnswer, queueIdx, currentItem, handleTypeAnswer, handleNext]);
 
-  const handleAnswer = useCallback((opt) => {
-    if (answered) return;
-    setSelectedOption(opt.id);
-    setAnswered(true);
-    const correct_ = opt.id === currentCard._id;
-    setIsCorrect(correct_);
-
-    if (correct_) {
-      setCorrectCards(prev => new Set([...prev, currentIdx]));
-      playCorrectSound();
-      // Auto advance on correct answer
-      setTimeout(() => {
-        handleNext();
-      }, 800);
-    } else {
-      setWrongCards(prev => new Set([...prev, currentIdx]));
-      setShowAnswer(true);
-    }
-
-    if (currentCard) {
-      progressService.updateCardProgress(currentCard._id, correct_ ? 2 : 0).catch(() => {});
-    }
-  }, [answered, currentCard, currentIdx, playCorrectSound]);
-
-  const handleTypeAnswer = useCallback(() => {
-    if (answered || !typedAnswer.trim()) return;
-    setAnswered(true);
-    const correct_ = typedAnswer.trim().toLowerCase() === currentCard?.front.trim().toLowerCase();
-    setIsCorrect(correct_);
-
-    if (correct_) {
-      setCorrectCards(prev => new Set([...prev, currentIdx]));
-      playCorrectSound();
-      // Auto advance on correct answer
-      setTimeout(() => {
-        handleNext();
-      }, 800);
-    } else {
-      setWrongCards(prev => new Set([...prev, currentIdx]));
-      setShowAnswer(true);
-    }
-
-    if (currentCard) {
-      progressService.updateCardProgress(currentCard._id, correct_ ? 2 : 0).catch(() => {});
-    }
-  }, [answered, typedAnswer, currentCard, currentIdx, playCorrectSound]);
-
-  // Handle "Không biết" - show answer and wait for user to click "Tiếp"
-  const handleDontKnow = useCallback(() => {
-    if (answered) return; // Already answered or showed answer
-
-    setAnswered(true);
-    setShowAnswer(true);
-    setWrongCards(prev => new Set([...prev, currentIdx]));
-
-    if (currentCard) {
-      progressService.updateCardProgress(currentCard._id, 0).catch(() => {});
-    }
-  }, [answered, currentCard, currentIdx]);
-
-  const handleNext = useCallback(() => {
-    setAnswered(false);
-    setSelectedOption(null);
-    setTypedAnswer('');
-    setIsCorrect(false);
-    setShowAnswer(false);
-
-    if (currentIdx < totalItems - 1) {
-      setCurrentIdx(prev => prev + 1);
-    } else {
-      setIsComplete(true);
-    }
-  }, [currentIdx, totalItems]);
-
-  const handleRestart = useCallback(() => {
-    setCurrentIdx(0);
-    setCorrectCards(new Set());
-    setWrongCards(new Set());
-    setAnswered(false);
-    setIsCorrect(false);
-    setIsComplete(false);
-    setShowAnswer(false);
-    setIsShuffled(false);
-    setCards(shuffleArray([...dueCards]));
-  }, [dueCards]);
-
-  const handleShuffle = useCallback(() => {
-    setCards(shuffleArray([...dueCards]));
-    setCurrentIdx(0);
-    setCorrectCards(new Set());
-    setWrongCards(new Set());
-    setAnswered(false);
-    setIsCorrect(false);
-    setIsComplete(false);
-    setShowAnswer(false);
-    setIsShuffled(true);
-  }, [dueCards]);
-
-  const handleModeChange = useCallback((mode) => {
-    if (mode === 'flashcards') navigate(`/study-sets/${id}/flashcards`);
-    else if (mode === 'learn') navigate(`/study-sets/${id}/learn`);
-    else if (mode === 'test') navigate(`/study-sets/${id}/test`);
-    else if (mode === 'match') navigate(`/study-sets/${id}/match`);
-    setModeDropdownOpen(false);
-  }, [id, navigate]);
-
-  const speakCard = (text) => {
-    if (!soundEnabled || !text) return;
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'en-US';
-    speechSynthesis.speak(utterance);
-  };
-
-  const handleMultipleChoiceToggle = (checked) => {
-    if (!checked && includeTypeAnswer) {
-      setIncludeMultipleChoice(false);
-    } else if (!checked && !includeTypeAnswer) {
-      return;
-    } else {
-      setIncludeMultipleChoice(checked);
-    }
-  };
-
-  const handleTypeAnswerToggle = (checked) => {
-    if (!checked && includeMultipleChoice) {
-      setIncludeTypeAnswer(false);
-    } else if (!checked && !includeMultipleChoice) {
-      return;
-    } else {
-      setIncludeTypeAnswer(checked);
-    }
-  };
-
-  if (loading) return (
-    <div className="ql-learn-page ql-learn-page--fill">
-      <div className="ql-learn-loading">
-        <div className="ql-learn-loading__spinner" />
-        <span>Đang chuẩn bị bài học...</span>
-      </div>
-    </div>
-  );
-
-  // Show message when no cards are due for review
-  if (dueCards.length === 0 && schedules.size > 0) {
+  if (loading || screen === 'loading') {
     return (
-      <div className="ql-learn-page ql-learn-page--fill">
-        <div className="ql-learn-complete">
+      <div className="ql2-page">
+        <div className="ql2-loading">
           <motion.div
-            className="ql-learn-complete__card"
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.4 }}
+            className="ql2-loading__icon"
+            animate={{ rotate: 360 }}
+            transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
           >
-            <div className="ql-learn-complete__emoji">🎉</div>
-            <h2 className="ql-learn-complete__title">Tất cả đã hoàn thành!</h2>
-            <p className="ql-learn-complete__subtitle">
-              Không có thẻ nào cần ôn tập ngay lúc này.
-              <br />
-              Quay lại vào ngày mai để tiếp tục học!
-            </p>
-            <div className="ql-learn-complete__actions">
-              <button
-                className="ql-learn-complete__btn ql-learn-complete__btn--secondary"
-                onClick={() => navigate(`/study-sets/${id}`)}
-              >
-                <ArrowLeft size={16} />
-                Quay về bộ thẻ
+            <Sparkles size={48} />
+          </motion.div>
+          <span className="ql2-loading__text">Đang chuẩn bị bài học...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (screen === 'session-complete') {
+    const totalCorrect = itemsStudiedTotal;
+    const accuracy = totalItems > 0 ? Math.round((totalCorrect / totalItems) * 100) : 0;
+    return (
+      <div className="ql2-page">
+        <div className="ql2-complete">
+          <motion.div
+            className="ql2-complete__card"
+            initial={{ opacity: 0, scale: 0.8, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.5, type: 'spring' }}
+          >
+            <motion.div
+              className="ql2-complete__trophy"
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
+            >
+              <Trophy size={64} />
+            </motion.div>
+            <motion.h1
+              className="ql2-complete__title"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+            >
+              Chúc mừng bạn!
+            </motion.h1>
+            <motion.p
+              className="ql2-complete__subtitle"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.4 }}
+            >
+              Bạn đã hoàn thành bài học
+            </motion.p>
+
+            <motion.div
+              className="ql2-complete__score-ring"
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.5, type: 'spring' }}
+            >
+              <svg width="160" height="160" viewBox="0 0 160 160">
+                <defs>
+                  <linearGradient id="scoreGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#18AE79" />
+                    <stop offset="100%" stopColor="#0d8a54" />
+                  </linearGradient>
+                </defs>
+                <circle className="ql2-ring-bg" cx="80" cy="80" r="70" />
+                <motion.circle
+                  className="ql2-ring-fill"
+                  cx="80" cy="80" r="70"
+                  strokeDasharray={2 * Math.PI * 70}
+                  initial={{ strokeDashoffset: 2 * Math.PI * 70 }}
+                  animate={{ strokeDashoffset: 2 * Math.PI * 70 * (1 - accuracy / 100) }}
+                  transition={{ duration: 1, delay: 0.6 }}
+                />
+              </svg>
+              <div className="ql2-complete__ring-inner">
+                <span className="ql2-complete__ring-pct">{accuracy}%</span>
+                <span className="ql2-complete__ring-label">Hoàn thành</span>
+              </div>
+            </motion.div>
+
+            <motion.div
+              className="ql2-complete__stats"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.7 }}
+            >
+              <div className="ql2-complete__stat">
+                <div className="ql2-complete__stat-icon ql2-complete__stat-icon--correct">
+                  <CheckCircle size={20} />
+                </div>
+                <span className="ql2-complete__stat-num">{totalCorrect}</span>
+                <span className="ql2-complete__stat-label">Đúng</span>
+              </div>
+              <div className="ql2-complete__stat">
+                <div className="ql2-complete__stat-icon ql2-complete__stat-icon--wrong">
+                  <XCircle size={20} />
+                </div>
+                <span className="ql2-complete__stat-num">{totalItems - totalCorrect}</span>
+                <span className="ql2-complete__stat-label">Sai</span>
+              </div>
+              <div className="ql2-complete__stat">
+                <div className="ql2-complete__stat-icon ql2-complete__stat-icon--total">
+                  <BookOpen size={20} />
+                </div>
+                <span className="ql2-complete__stat-num">{totalItems}</span>
+                <span className="ql2-complete__stat-label">Tổng</span>
+              </div>
+            </motion.div>
+
+            <motion.div
+              className="ql2-complete__actions"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.8 }}
+            >
+              <button className="ql2-btn ql2-btn--primary" onClick={handleRestart}>
+                <RotateCcw size={18} /> Học lại
               </button>
-            </div>
+              <button className="ql2-btn ql2-btn--ghost" onClick={() => navigate(`/study-sets/${id}`)}>
+                <ArrowLeft size={18} /> Quay lại
+              </button>
+            </motion.div>
           </motion.div>
         </div>
       </div>
     );
   }
 
-  if (isComplete) {
-    const correct = correctCards.size;
-    const wrong = wrongCards.size;
-    const score = totalItems > 0 ? Math.round((correct / totalItems) * 100) : 0;
-    const circumference = 2 * Math.PI * 52;
-    const offset = circumference - (score / 100) * circumference;
+  if (screen === 'batch-complete') {
+    const completedItemCount = Array.from({ length: currentBatchIdx + 1 }, (_, idx) =>
+      getBatchSize(idx, totalItems, totalBatches_)
+    ).reduce((sum, size) => sum + size, 0);
+    const learnedItems = sessionItems.slice(0, completedItemCount);
+    const seen = new Set();
+    const learnedCards = learnedItems.filter(item => {
+      if (seen.has(item._id)) return false;
+      seen.add(item._id);
+      return true;
+    });
+    const overallPct = totalItems > 0 ? Math.round((completedItemCount / totalItems) * 100) : 0;
 
     return (
-      <div className="ql-learn-page ql-learn-page--fill">
-        <div className="ql-learn-complete">
+      <div className="ql2-page">
+        <div className="ql2-batch-complete">
           <motion.div
-            className="ql-learn-complete__card"
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
+            className="ql2-batch-complete__card"
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
             transition={{ duration: 0.4 }}
           >
-            <div className="ql-learn-complete__emoji">
-              {score >= 80 ? '🏆' : score >= 50 ? '💪' : '📚'}
-            </div>
-            <h1 className="ql-learn-complete__title">
-              {score >= 80 ? 'Xuất sắc!' : score >= 50 ? 'Khá tốt!' : 'Cần cố gắng thêm!'}
-            </h1>
-            <p className="ql-learn-complete__subtitle">
-              Bạn đã hoàn thành <strong>{studySet?.title}</strong>
-            </p>
+            <motion.div
+              className="ql2-batch-complete__header"
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <div className="ql2-batch-complete__badge">
+                <Zap size={20} />
+              </div>
+              <h2 className="ql2-batch-complete__title">Tuyệt vời!</h2>
+              <p className="ql2-batch-complete__subtitle">Bạn đã hoàn thành vòng học này</p>
+            </motion.div>
 
-            <div className="ql-learn-complete__score-ring">
-              <svg width="120" height="120" viewBox="0 0 120 120">
-                <defs>
-                  <linearGradient id="qlScoreGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#4255ff" />
-                    <stop offset="100%" stopColor="#7c3aed" />
-                  </linearGradient>
-                </defs>
-                <circle className="ql-score-bg" cx="60" cy="60" r="52" />
-                <circle
-                  className="ql-score-fill"
-                  cx="60" cy="60" r="52"
-                  strokeDasharray={circumference}
-                  strokeDashoffset={offset}
+            <motion.div
+              className="ql2-batch-complete__progress"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.1 }}
+            >
+              <div className="ql2-batch-complete__progress-header">
+                <span className="ql2-batch-complete__progress-label">Tiến trình tổng thể</span>
+                <span className="ql2-batch-complete__progress-pct">{overallPct}%</span>
+              </div>
+              <div className="ql2-batch-complete__progress-bar">
+                <motion.div
+                  className="ql2-batch-complete__progress-fill"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${overallPct}%` }}
+                  transition={{ duration: 0.8, delay: 0.2 }}
                 />
-              </svg>
-              <div className="ql-learn-complete__score-inner">
-                <span className="ql-learn-complete__score-num">{score}%</span>
-                <span className="ql-learn-complete__score-label">Điểm</span>
               </div>
-            </div>
+              <div className="ql2-batch-complete__progress-stats">
+                <span className="ql2-batch-complete__correct">{itemsStudiedTotal} đúng</span>
+                <span className="ql2-batch-complete__divider">·</span>
+                <span>{totalItems - itemsStudiedTotal} sai</span>
+                <span className="ql2-batch-complete__divider">·</span>
+                <span>{totalItems} tổng câu</span>
+              </div>
+            </motion.div>
 
-            <div className="ql-learn-complete__stats">
-              <div className="ql-learn-complete__stat ql-learn-complete__stat--correct">
-                <CheckCircle size={16} />
-                <span className="ql-learn-complete__stat-num">{correct}</span>
-                <span className="ql-learn-complete__stat-label">Đúng</span>
+            <motion.div
+              className="ql2-batch-complete__section"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+            >
+              <div className="ql2-batch-complete__section-title">
+                <Sparkles size={16} /> Thuật ngữ đã học
               </div>
-              <div className="ql-learn-complete__stat ql-learn-complete__stat--wrong">
-                <XCircle size={16} />
-                <span className="ql-learn-complete__stat-num">{wrong}</span>
-                <span className="ql-learn-complete__stat-label">Sai</span>
+              <div className="ql2-batch-complete__cards-grid">
+                {learnedCards.map((card, idx) => (
+                  <motion.div
+                    key={card._id}
+                    className="ql2-batch-card"
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.3 + idx * 0.05 }}
+                  >
+                    <div className="ql2-batch-card__front">
+                      <span className="ql2-batch-card__term">{card.front}</span>
+                      <div className="ql2-batch-card__actions">
+                        <button
+                          className={`ql2-batch-card__star ${starredCards.has(card._id) ? 'active' : ''}`}
+                          onClick={() => toggleStar(card._id)}
+                        >
+                          <Star size={14} fill={starredCards.has(card._id) ? '#f59e0b' : 'none'} />
+                        </button>
+                        {card.audioUrl && (
+                          <button className="ql2-batch-card__audio" onClick={() => speakCard(card.front)}>
+                            <Volume1 size={14} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <div className="ql2-batch-card__back">{card.back}</div>
+                  </motion.div>
+                ))}
               </div>
-              <div className="ql-learn-complete__stat ql-learn-complete__stat--total">
-                <BookOpen size={16} />
-                <span className="ql-learn-complete__stat-num">{totalItems}</span>
-                <span className="ql-learn-complete__stat-label">Tổng câu</span>
-              </div>
-            </div>
+            </motion.div>
 
-            <div className="ql-learn-complete__actions">
-              <button className="ql-btn ql-btn--primary" onClick={handleRestart}>
-                <RotateCcw size={15} />
-                Học lại
+            <motion.div
+              className="ql2-batch-complete__footer"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.5 }}
+            >
+              <button className="ql2-btn ql2-btn--primary ql2-btn--large" onClick={handleBatchCompleteContinue}>
+                Tiếp tục <ChevronRight size={18} />
               </button>
-              <button className="ql-btn ql-btn--outline" onClick={() => navigate(`/study-sets/${id}`)}>
-                <ArrowLeft size={15} />
-                Quay lại học phần
-              </button>
-            </div>
+            </motion.div>
           </motion.div>
         </div>
       </div>
@@ -525,70 +712,43 @@ export default function StudySetLearn() {
   }
 
   return (
-    <div className="ql-learn-page ql-learn-page--fill">
-      {/* Header - No back button, just settings */}
-      <header className="ql-learn-header">
-        <div className="ql-learn-header__left">
-          {/* Mode Selector - Quizlet Style */}
-          <div className="ql-learn-mode-selector">
-            <button
-              className="ql-learn-mode-selector__current"
-              onClick={() => setModeDropdownOpen(!modeDropdownOpen)}
-            >
-              <Brain size={16} />
-              <span>Học</span>
-              <ChevronUp size={14} className={`ql-learn-mode-selector__arrow ${modeDropdownOpen ? 'open' : ''}`} />
-            </button>
+    <div className="ql2-page">
+      {/* Floating decorative elements */}
+      <div className="ql2-page__decoration ql2-page__decoration--1" />
+      <div className="ql2-page__decoration ql2-page__decoration--2" />
 
-            <AnimatePresence>
-              {modeDropdownOpen && (
-                <motion.div
-                  className="ql-learn-mode-selector__dropdown"
-                  initial={{ opacity: 0, y: -8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -8 }}
-                >
-                  {STUDY_MODES.map(({ id: mId, label, icon: Icon }) => (
-                    <button
-                      key={mId}
-                      className={`ql-learn-mode-selector__item ${mId === 'learn' ? 'active' : ''}`}
-                      onClick={() => handleModeChange(mId)}
-                    >
-                      <Icon size={14} />
-                      {label}
-                    </button>
-                  ))}
-                </motion.div>
-              )}
-            </AnimatePresence>
+      {/* Header */}
+      <header className="ql2-header">
+        <div className="ql2-header__left">
+          <button className="ql2-header__back" onClick={() => navigate(`/study-sets/${id}`)}>
+            <ArrowLeft size={20} />
+          </button>
+          <div className="ql2-header__title">
+            <Brain size={22} className="ql2-header__icon" />
+            <span>{'Học'}</span>
           </div>
         </div>
 
-        <div className="ql-learn-header__center">
+        <div className="ql2-header__center">
           <QuizletProgressBar
-            totalCards={totalItems}
-            currentIndex={currentIdx}
-            correctCards={correctCards}
-            wrongCards={wrongCards}
+            totalBatches={totalBatches_}
+            currentBatchIndex={currentBatchIdx}
+            batchProgress={batchProgress}
+            totalItems={totalItems}
+            currentQueueIdx={queueIdx}
+            prevBatchesCorrect={prevBatchesCorrect}
           />
         </div>
 
-        <div className="ql-learn-header__right">
-          <button
-            className={`ql-learn-header__btn ${settingsOpen ? 'active' : ''}`}
-            onClick={() => setSettingsOpen(!settingsOpen)}
-            aria-label="Cài đặt"
-            title="Cài đặt"
-          >
-            <Settings size={20} />
+        <div className="ql2-header__right">
+          <button className={`ql2-header__btn ${isShuffled ? 'active' : ''}`} onClick={handleShuffle}>
+            <Shuffle size={18} />
           </button>
-          <button
-            className="ql-learn-header__btn ql-learn-header__btn--close"
-            onClick={() => navigate(`/study-sets/${id}`)}
-            aria-label="Đóng"
-            title="Đóng"
-          >
-            <X size={20} />
+          <button className={`ql2-header__btn ${soundEnabled ? 'active' : ''}`} onClick={() => setSoundEnabled(!soundEnabled)}>
+            {soundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
+          </button>
+          <button className={`ql2-header__btn ${settingsOpen ? 'active' : ''}`} onClick={() => setSettingsOpen(!settingsOpen)}>
+            <Settings size={18} />
           </button>
         </div>
       </header>
@@ -597,193 +757,103 @@ export default function StudySetLearn() {
       <AnimatePresence>
         {settingsOpen && (
           <motion.div
-            className="ql-learn-settings-panel"
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
+            className="ql2-settings"
+            initial={{ opacity: 0, y: -10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.95 }}
           >
-            <div className="ql-learn-settings-panel__header">
-              <span className="ql-learn-settings-panel__title">Cài đặt</span>
-              <button
-                className="ql-learn-settings-panel__close"
-                onClick={() => setSettingsOpen(false)}
-                aria-label="Đóng"
-              >
-                <X size={16} />
-              </button>
+            <div className="ql2-settings__header">
+              <span className="ql2-settings__title">Cài đặt</span>
+              <button onClick={() => setSettingsOpen(false)}><X size={16} /></button>
             </div>
-
-            <div className="ql-learn-settings-panel__group">
-              <span className="ql-learn-settings-panel__label">Tùy chọn</span>
-
-              <button
-                className={`ql-learn-settings-toggle ${isShuffled ? 'active' : ''}`}
-                onClick={() => {
-                  const newShuffled = !isShuffled;
-                  setIsShuffled(newShuffled);
-                  const newCards = newShuffled ? shuffleArray([...dueCards]) : [...dueCards].sort((a, b) => a._id.localeCompare(b._id));
-                  setCards(newCards);
-                  setCurrentIdx(0);
-                  setCorrectCards(new Set());
-                  setWrongCards(new Set());
-                  setAnswered(false);
-                  setIsCorrect(false);
-                  setIsComplete(false);
-                  setShowAnswer(false);
-                }}
-              >
-                <Shuffle size={16} />
-                <span>Xáo trộn thẻ</span>
-                <div className={`ql-learn-settings-toggle__switch ${isShuffled ? 'on' : ''}`}>
-                  <div className="ql-learn-settings-toggle__switch-thumb" />
-                </div>
-              </button>
-
-              <button
-                className={`ql-learn-settings-toggle ${soundEnabled ? 'active' : ''}`}
-                onClick={() => setSoundEnabled(!soundEnabled)}
-              >
-                {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
-                <span>Âm thanh</span>
-                <div className={`ql-learn-settings-toggle__switch ${soundEnabled ? 'on' : ''}`}>
-                  <div className="ql-learn-settings-toggle__switch-thumb" />
-                </div>
-              </button>
-            </div>
-
-            <div className="ql-learn-settings-panel__divider" />
-
-            <div className="ql-learn-settings-panel__group">
-              <span className="ql-learn-settings-panel__label">Loại câu hỏi</span>
-
-              <label className="ql-learn-settings-checkbox">
-                <input
-                  type="checkbox"
-                  checked={includeMultipleChoice}
-                  onChange={(e) => handleMultipleChoiceToggle(e.target.checked)}
-                />
-                <span className="ql-learn-settings-checkbox__box">
-                  {includeMultipleChoice && <CheckCircle size={12} />}
-                </span>
-                <span className="ql-learn-settings-checkbox__label">Trắc nghiệm</span>
+            <div className="ql2-settings__section">
+              <span className="ql2-settings__label">Loại câu hỏi</span>
+              <label className="ql2-settings__checkbox">
+                <input type="checkbox" checked={includeMC} onChange={e => handleToggleMC(e.target.checked)} />
+                <span className="ql2-settings__checkbox-box">{includeMC && <CheckCircle size={12} />}</span>
+                <span>Trắc nghiệm</span>
               </label>
-
-              <label className="ql-learn-settings-checkbox">
-                <input
-                  type="checkbox"
-                  checked={includeTypeAnswer}
-                  onChange={(e) => handleTypeAnswerToggle(e.target.checked)}
-                />
-                <span className="ql-learn-settings-checkbox__box">
-                  {includeTypeAnswer && <CheckCircle size={12} />}
-                </span>
-                <span className="ql-learn-settings-checkbox__label">Tự luận</span>
+              <label className="ql2-settings__checkbox">
+                <input type="checkbox" checked={includeTA} onChange={e => handleToggleTA(e.target.checked)} />
+                <span className="ql2-settings__checkbox-box">{includeTA && <CheckCircle size={12} />}</span>
+                <span>Tự luận</span>
               </label>
             </div>
-
-            <div className="ql-learn-settings-panel__divider" />
-
-            <div className="ql-learn-settings-panel__info">
-              <span className="ql-learn-settings-panel__info-correct">
-                <CheckCircle size={14} />
-                {correctCards.size} đúng
-              </span>
-              <span className="ql-learn-settings-panel__info-wrong">
-                <XCircle size={14} />
-                {wrongCards.size} sai
-              </span>
+            <div className="ql2-settings__divider" />
+            <div className="ql2-settings__stats">
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
       {/* Main Content */}
-      <main className="ql-learn-main">
-        <div className="ql-learn-container">
-          <div className="ql-learn-score-badges">
-            <span className="ql-learn-score-badge ql-learn-score-badge--correct">
-              <CheckCircle size={14} />
-              {correctCards.size}
-            </span>
-            <span className="ql-learn-score-badge ql-learn-score-badge--wrong">
-              <XCircle size={14} />
-              {wrongCards.size}
-            </span>
-          </div>
-
+      <main className="ql2-main">
+        <div className="ql2-card-wrapper">
           <AnimatePresence mode="wait">
             <motion.div
-              key={currentIdx}
-              className="ql-learn-card"
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, x: -16 }}
-              transition={{ duration: 0.25, ease: 'easeOut' }}
+              key={`${currentBatchIdx}-${queueIdx}`}
+              className="ql2-card"
+              initial={{ opacity: 0, y: 20, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -20, scale: 0.98 }}
+              transition={{ duration: 0.25 }}
             >
-              <div className="ql-learn-card__mode-badge">
-                <span>{currentCard?.sessionType === 'multiple-choice' ? 'Trắc nghiệm' : 'Tự luận'}</span>
-              </div>
-
-              {/* Question - Show Vietnamese (back) */}
-              <div className="ql-learn-card__question">
-                <div className="ql-learn-card__term-label">Định nghĩa</div>
-                <div className="ql-learn-card__term-text">{currentCard?.back}</div>
-                <button
-                  className="ql-learn-card__audio-btn"
-                  onClick={() => speakCard(currentCard?.front)}
-                  aria-label="Phát âm"
-                  title="Phát âm"
-                >
-                  <Volume2 size={18} />
+              {/* Question Area */}
+              <div className="ql2-card__question">
+                <div className="ql2-card__question-label">Định nghĩa</div>
+                <h2 className="ql2-card__term">{currentItem?.back}</h2>
+                <button className="ql2-card__audio-btn" onClick={() => speakCard(currentItem?.front)}>
+                  <Volume2 size={20} />
                 </button>
               </div>
 
-              {/* Multiple Choice - Show English options */}
-              {currentCard?.sessionType === 'multiple-choice' && (
-                <>
-                  <div className="ql-learn-card__prompt">Chọn thuật ngữ tiếng Anh đúng</div>
-                  <div className="ql-learn-card__options">
+              {/* Multiple Choice */}
+              {currentItem?.mode === 'mc' && (
+                <div className="ql2-card__options">
+                  <div className="ql2-options-grid">
                     {options.map((opt, i) => {
                       const isSelected = selectedOption === opt.id;
-                      const isCorrectOpt = opt.id === currentCard?._id;
-
-                      let optClass = 'ql-learn-option';
+                      const isCorrectOpt = opt.id === currentItem?._id;
+                      let optClass = 'ql2-option';
                       if (answered) {
                         if (isCorrectOpt) optClass += ' correct';
                         else if (isSelected) optClass += ' wrong';
-                        else if (!showAnswer) optClass += ' dimmed';
+                        else optClass += ' dimmed';
                       }
-
                       return (
                         <motion.button
                           key={opt.id}
                           className={optClass}
                           onClick={() => handleAnswer(opt)}
                           disabled={answered}
-                          initial={{ opacity: 0, x: -8 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: i * 0.06 }}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: i * 0.05 }}
+                          whileHover={!answered ? { scale: 1.02 } : {}}
+                          whileTap={!answered ? { scale: 0.98 } : {}}
                         >
-                          <span className="ql-learn-option__letter">
-                            {String.fromCharCode(65 + i)}
-                          </span>
-                          <span className="ql-learn-option__text">{opt.text}</span>
-                          {answered && isCorrectOpt && <CheckCircle size={16} className="ql-learn-option__icon ql-learn-option__icon--correct" />}
-                          {answered && isSelected && !isCorrectOpt && <XCircle size={16} className="ql-learn-option__icon ql-learn-option__icon--wrong" />}
+                          <span className="ql2-option__letter">{String.fromCharCode(65 + i)}</span>
+                          <span className="ql2-option__text">{opt.text}</span>
+                          {answered && isCorrectOpt && (
+                            <CheckCircle size={18} className="ql2-option__icon ql2-option__icon--correct" />
+                          )}
+                          {answered && isSelected && !isCorrectOpt && (
+                            <XCircle size={18} className="ql2-option__icon ql2-option__icon--wrong" />
+                          )}
                         </motion.button>
                       );
                     })}
                   </div>
-                </>
+                </div>
               )}
 
-              {/* Type Answer - Enter English */}
-              {currentCard?.sessionType === 'type-answer' && (
-                <div className="ql-learn-type-answer">
+              {/* Type Answer */}
+              {currentItem?.mode === 'ta' && (
+                <div className="ql2-card__type-answer">
                   <input
                     ref={inputRef}
                     type="text"
-                    className={`ql-learn-type-answer__input ${answered ? (isCorrect ? 'correct' : 'wrong') : ''}`}
+                    className={`ql2-input ${answered ? (isCorrect ? 'correct' : 'wrong') : ''}`}
                     placeholder="Nhập thuật ngữ tiếng Anh..."
                     value={typedAnswer}
                     onChange={e => setTypedAnswer(e.target.value)}
@@ -791,105 +861,57 @@ export default function StudySetLearn() {
                     disabled={answered}
                     autoComplete="off"
                   />
-
                   {!answered && (
-                    <button
-                      className="ql-learn-type-answer__submit"
-                      onClick={handleTypeAnswer}
-                      disabled={!typedAnswer.trim()}
-                    >
+                    <button className="ql2-btn ql2-btn--primary" onClick={handleTypeAnswer} disabled={!typedAnswer.trim()}>
                       Kiểm tra
                     </button>
                   )}
-
-                  {answered && isCorrect && (
-                    <div className="ql-learn-feedback ql-learn-feedback--correct">
-                      <CheckCircle size={14} />
-                      Chính xác!
-                    </div>
-                  )}
-
-                  {showAnswer && !isCorrect && (
-                    <div className="ql-learn-feedback ql-learn-feedback--wrong">
-                      <XCircle size={14} />
-                      Đáp án đúng: <strong>{currentCard?.front}</strong>
-                    </div>
+                  {answered && (
+                    <motion.div
+                      className={`ql2-feedback ${isCorrect ? 'ql2-feedback--correct' : 'ql2-feedback--wrong'}`}
+                      initial={{ opacity: 0, y: 5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                    >
+                      {isCorrect ? (
+                        <>
+                          <CheckCircle size={18} />
+                          <span>Chính xác!</span>
+                        </>
+                      ) : (
+                        <>
+                          <XCircle size={18} />
+                          <span>Đáp án: <strong>{currentItem?.front}</strong></span>
+                        </>
+                      )}
+                    </motion.div>
                   )}
                 </div>
               )}
 
-              {/* Show answer message for "Không biết" */}
-              {showAnswer && !isCorrect && (
-                <motion.div
-                  className="ql-learn-retry-message"
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                >
-                  Thử lại câu hỏi này sau!
-                </motion.div>
-              )}
-
-              {/* Actions */}
-              {answered && (
-                <motion.div
-                  className="ql-learn-card__actions"
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <div className="ql-learn-card__nav-btns ql-learn-card__nav-btns--single">
-                    <button
-                      className="ql-btn ql-btn--outline ql-btn--sm"
-                      onClick={handleDontKnow}
-                      disabled={showAnswer} // Disable after showing answer
-                    >
-                      <XCircle size={14} />
-                      Không biết
-                    </button>
-                  </div>
-                </motion.div>
-              )}
-
-              {/* Don't know link for multiple choice before answer */}
-              {!answered && currentCard?.sessionType === 'multiple-choice' && (
-                <div className="ql-learn-card__footer">
-                  <button className="ql-learn-dont-know" onClick={handleDontKnow}>
+              {/* Footer */}
+              <div className="ql2-card__footer">
+                {!answered && (
+                  <button className="ql2-btn ql2-btn--ghost" onClick={handleDontKnow}>
                     Không biết
                   </button>
-                </div>
-              )}
+                )}
+              </div>
             </motion.div>
           </AnimatePresence>
 
-          {/* Bottom Navigation */}
-          <div className="ql-learn-bottom-nav">
-            <button
-              className="ql-learn-bottom-nav__btn"
-              onClick={() => setCurrentIdx(prev => Math.max(0, prev - 1))}
-              disabled={currentIdx === 0}
+          {/* Bottom Navigation - only show when needed */}
+          {answered && !isCorrect && (
+            <motion.div
+              className="ql2-nav"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
             >
-              <ChevronLeft size={16} />
-              Trước
-            </button>
-
-            <div className="ql-learn-bottom-progress">
-              <div className="ql-learn-bottom-progress__bar">
-                <motion.div
-                  className="ql-learn-bottom-progress__fill"
-                  animate={{ width: `${(currentIdx / totalItems) * 100}%` }}
-                  transition={{ duration: 0.4 }}
-                />
-              </div>
-            </div>
-
-            <button
-              className="ql-learn-bottom-nav__btn ql-learn-bottom-nav__btn--primary"
-              onClick={handleNext}
-            >
-              Tiếp
-              <ChevronRight size={16} />
-            </button>
-          </div>
+              <button className="ql2-nav__btn ql2-nav__btn--primary" onClick={handleNext}>
+                <span>Tiếp tục</span>
+                <ChevronRight size={18} />
+              </button>
+            </motion.div>
+          )}
         </div>
       </main>
     </div>

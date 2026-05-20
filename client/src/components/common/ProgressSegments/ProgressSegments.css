@@ -1,0 +1,119 @@
+/* QuizletProgressSegments styles */
+
+.qps {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 960px;
+  box-sizing: border-box;
+}
+
+/* Segmented track */
+.qps__track {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  gap: 4px;
+  overflow: visible;
+  position: relative;
+}
+
+/* Individual segment bar */
+.qps__segment {
+  position: relative;
+  flex: 1;
+  height: 16px;
+  border-radius: 999px;
+  overflow: visible;
+  display: flex;
+  align-items: center;
+}
+
+/* Background layer */
+.qps__segment-bg {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  transition: opacity 0.3s ease;
+}
+
+/* Filled portion */
+.qps__segment-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: 999px;
+  transition: background 0.3s ease;
+  z-index: 1;
+}
+
+/* Puck (circular indicator) */
+.qps__puck {
+  position: absolute;
+  border-radius: 50%;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  pointer-events: none;
+  will-change: left;
+}
+
+.qps__puck-num {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: #58a9f7;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/* Total badge */
+.qps__badge {
+  min-width: 36px;
+  height: 28px;
+  border-radius: 14px;
+  background: var(--gray-100-gray-900, #f3f4f6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--gray-600-gray-400, #6b7280);
+  padding: 0 10px;
+  flex-shrink: 0;
+}
+
+/* ── Mobile responsive ──────────────────────────────────── */
+@media (max-width: 480px) {
+  .qps {
+    max-width: 100%;
+    gap: 6px;
+  }
+
+  .qps__track {
+    gap: 3px;
+  }
+
+  .qps__segment {
+    height: 12px;
+  }
+
+  .qps__badge {
+    min-width: 30px;
+    height: 24px;
+    font-size: 0.6875rem;
+    padding: 0 8px;
+  }
+
+  .qps__puck {
+    width: 22px !important;
+    height: 22px !important;
+  }
+
+  .qps__puck-num {
+    font-size: 0.5625rem;
+  }
+}
