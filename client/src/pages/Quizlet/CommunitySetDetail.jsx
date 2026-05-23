@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Container } from 'react-bootstrap';
 import {
   FiArrowLeft, FiEdit2, FiTrash2, FiPlus,
   FiGlobe, FiLock, FiLayers, FiPlay,
   FiGrid, FiList, FiRefreshCw, FiBookOpen, FiCommand,
+  FiZap, FiTarget,
 } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../../hooks/useAuth';
@@ -13,6 +14,7 @@ import { setService }       from '../../api/setService';
 import { cardService }      from '../../api/cardService';
 import FlashcardViewer  from '../../components/flashcard/FlashcardViewer/FlashcardViewer';
 import SortableCardRow  from '../../components/flashcard/SortableCardRow/SortableCardRow';
+import Leaderboard from '../../components/gamification/Leaderboard/Leaderboard';
 import { LoadingSpinner } from '../../components/common';
 import './SetDetail.css';
 
@@ -22,6 +24,7 @@ const LAYOUT = { LIST: 'list', GRID: 'grid' };
 export default function CommunitySetDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user: currentUser } = useAuth();
 
   const [set, setSet]         = useState(null);
@@ -127,29 +130,48 @@ export default function CommunitySetDetail() {
             </div>
 
             <div className="sd-header-actions">
-              <button
-                className={`sd-btn ${view === VIEW.STUDY ? 'sd-btn--primary' : 'sd-btn--outline'}`}
-                onClick={() => setView(view === VIEW.STUDY ? VIEW.CARDS : VIEW.STUDY)}
-                id="sd-study-btn"
-                disabled={cards.length === 0}
-              >
-                <FiPlay size={15} />
-                {view === VIEW.STUDY ? 'Back to Cards' : 'Study'}
-              </button>
+              {/* Optional: we can remove the old toggle button since we have the mode grid */}
             </div>
           </div>
         </div>
 
-        {/* ── Study Mode ──────────────────────────────────────────────── */}
-        {view === VIEW.STUDY && (
-          <div className="sd-study-section">
-            <FlashcardViewer cards={cards} />
+        {/* ── Mode Cards Grid ───────────────────────────────────────── */}
+        <div className="sd-modes-section" style={{ marginTop: '32px' }}>
+          <div className="sd-modes-grid">
+            <button className="sd-mode-card" onClick={() => navigate(`/study-sets/${id}/flashcards`, { state: { returnTo: location.pathname } })}>
+              <div className="sd-mode-icon sd-mode-icon--blue">
+                <FiBookOpen size={24} />
+              </div>
+              <span className="sd-mode-label">Thẻ ghi nhớ</span>
+            </button>
+            <button className="sd-mode-card" onClick={() => navigate(`/study-sets/${id}/learn`, { state: { returnTo: location.pathname } })}>
+              <div className="sd-mode-icon sd-mode-icon--purple">
+                <FiZap size={24} />
+              </div>
+              <span className="sd-mode-label">Học</span>
+            </button>
+            <button className="sd-mode-card" onClick={() => navigate(`/study-sets/${id}/test`, { state: { returnTo: location.pathname } })}>
+              <div className="sd-mode-icon sd-mode-icon--green">
+                <FiTarget size={24} />
+              </div>
+              <span className="sd-mode-label">Kiểm tra</span>
+            </button>
+            <button className="sd-mode-card" onClick={() => navigate(`/study-sets/${id}/match`, { state: { returnTo: location.pathname } })}>
+              <div className="sd-mode-icon sd-mode-icon--orange">
+                <FiGrid size={24} />
+              </div>
+              <span className="sd-mode-label">Khớp thẻ</span>
+            </button>
           </div>
-        )}
+        </div>
+
+        {/* ── Match Leaderboard ──────────────────────────────────────────── */}
+        <div className="sd-leaderboard-section">
+          <Leaderboard setId={id} />
+        </div>
 
         {/* ── Cards Section ───────────────────────────────────────────── */}
-        {view === VIEW.CARDS && (
-          <div className="sd-cards-section">
+        <div className="sd-cards-section">
             <div className="sd-cards-header">
               <h2>
                 <FiBookOpen size={17} />
@@ -227,7 +249,6 @@ export default function CommunitySetDetail() {
               </div>
             )}
           </div>
-        )}
       </Container>
 
     </div>

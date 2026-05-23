@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthContext } from '../../context/AuthContext';
 import {
   ChevronLeft, Globe, Lock, Share2, Edit2,
@@ -21,6 +21,7 @@ const LEARNING_MODES = [
 export default function StudySetDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuthContext();
 
   const [studySet, setStudySet] = useState(null);
@@ -197,7 +198,7 @@ export default function StudySetDetail() {
           {LEARNING_MODES.map((mode) => {
             const Icon = mode.icon;
             return (
-              <button key={mode.id} className="sd2-mode-card" onClick={() => navigate(`/study-sets/${id}/${mode.path}`)}>
+              <button key={mode.id} className="sd2-mode-card" onClick={() => navigate(`/study-sets/${id}/${mode.path}`, { state: { returnTo: location.pathname } })}>
                 <div className="sd2-mode-icon"><Icon size={24} /></div>
                 <div><div className="sd2-mode-name">{mode.name}</div><div className="sd2-mode-desc">{mode.desc}</div></div>
               </button>

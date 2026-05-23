@@ -1,0 +1,263 @@
+/* ── Leaderboard ───────────────────────────────────────────────────────────── */
+.lb-container {
+  background: #fff;
+  border-radius: 20px;
+  border: 1px solid #eee;
+  padding: 24px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+}
+
+.lb-container--empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 40px 24px;
+  text-align: center;
+}
+
+.lb-empty-icon {
+  font-size: 3rem;
+  opacity: 0.4;
+}
+
+.lb-empty-text {
+  font-size: 0.9375rem;
+  color: #555;
+  margin: 0;
+  font-weight: 500;
+}
+
+.lb-empty-sub {
+  font-size: 0.8125rem;
+  color: #aaa;
+  margin: 0;
+}
+
+/* Header */
+.lb-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.lb-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin: 0;
+}
+
+.lb-total {
+  font-size: 0.8rem;
+  color: #aaa;
+  background: #f5f5f5;
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+
+/* Podium */
+.lb-podium {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 24px;
+  padding: 16px 0 0;
+}
+
+.lb-podium__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  max-width: 110px;
+}
+
+.lb-podium__avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: 1rem;
+  overflow: hidden;
+  border: 3px solid #e0e0e0;
+}
+
+.lb-podium__avatar--gold {
+  border-color: #FFD700;
+  box-shadow: 0 0 12px rgba(255, 215, 0, 0.5);
+  width: 52px;
+  height: 52px;
+}
+
+.lb-podium__avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.lb-podium__medal {
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+.lb-podium__name {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #333;
+  text-align: center;
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lb-podium__time {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #555;
+}
+
+/* Podium bars */
+.lb-podium__bar {
+  width: 100%;
+  border-radius: 8px 8px 0 0;
+}
+
+.lb-podium__bar--1 {
+  height: 60px;
+  background: linear-gradient(to top, #FFD700, #FFF3A0);
+}
+
+.lb-podium__bar--2 {
+  height: 44px;
+  background: linear-gradient(to top, #C0C0C0, #F0F0F0);
+}
+
+.lb-podium__bar--3 {
+  height: 32px;
+  background: linear-gradient(to top, #CD7F32, #E8B99A);
+}
+
+/* List */
+.lb-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.lb-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  transition: background 0.15s;
+}
+
+.lb-row:hover {
+  background: #f8f8f8;
+}
+
+.lb-row--current {
+  background: linear-gradient(90deg, rgba(99, 91, 255, 0.08), rgba(167, 139, 250, 0.06));
+  border: 1.5px solid rgba(99, 91, 255, 0.2);
+}
+
+.lb-row--top3 {
+  display: none; /* Ẩn trong list, đã hiển thị trong podium */
+}
+
+/* Khi < 3 người thì hiện tất cả */
+.lb-container:not(:has(.lb-podium)) .lb-row--top3 {
+  display: flex;
+}
+
+.lb-row__rank {
+  width: 28px;
+  text-align: center;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #888;
+  flex-shrink: 0;
+}
+
+.lb-row__avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.75rem;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.lb-row__avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.lb-row__name {
+  flex: 1;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #333;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lb-row__you {
+  font-size: 0.75rem;
+  color: #635bff;
+  font-weight: 400;
+}
+
+.lb-row__time {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #1a1a2e;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Your rank (nếu ngoài top 10) */
+.lb-your-rank {
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(99, 91, 255, 0.06);
+  border: 1px dashed rgba(99, 91, 255, 0.2);
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8125rem;
+  color: #635bff;
+}
+
+/* Skeleton */
+.lb-skeleton {
+  height: 200px;
+  border-radius: 12px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes skeleton-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}

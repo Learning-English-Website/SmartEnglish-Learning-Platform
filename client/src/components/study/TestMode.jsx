@@ -6,6 +6,8 @@ import {
 } from 'lucide-react';
 import StudyHeader from './StudyHeader';
 import { progressService } from '../../services/progressService';
+import { gamificationService } from '../../api/gamificationService';
+import GamificationRewards from '../gamification/GamificationRewards';
 
 /**
  * TestMode - Quizlet-style Test mode with setup modal and question types
@@ -530,7 +532,7 @@ function TypeAnswerQuestion({ question, value, onChange, isAnswered, correctAnsw
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
-export default function TestMode({ cards = [], setTitle = '', onClose, onComplete }) {
+export default function TestMode({ cards = [], setTitle = '', onClose, onComplete, onModeChange }) {
   const [started, setStarted] = useState(false);
   const [questions, setQuestions] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -539,8 +541,9 @@ export default function TestMode({ cards = [], setTitle = '', onClose, onComplet
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [allDone, setAllDone] = useState(false);
-  const [cardResults, setCardResults] = useState({}); // { cardId: { total: 0, correct: 0, questions: [] } }
+  const [cardResults, setCardResults] = useState({});
   const [isUpdating, setIsUpdating] = useState(false);
+  const [testGamificationResult, setTestGamificationResult] = useState(null);
 
   const currentQ = questions[currentIndex];
   const progressPercent = questions.length > 0 ? ((currentIndex + 1) / questions.length) * 100 : 0;
@@ -705,6 +708,19 @@ export default function TestMode({ cards = [], setTitle = '', onClose, onComplet
       // Update SM-2 progress for all cards before showing results
       updateAllCardProgress();
       setAllDone(true);
+      // Trigger gamification
+      const totalCorrect = Object.entries(answers).reduce((acc, [idx, ans]) => {
+        const q = questions[Number(idx)];
+        if (!q) return acc;
+        if (q.type === 'multipleChoice') return acc + (ans === q.answer ? 1 : 0);
+        if (q.type === 'trueFalse') return acc + (ans === q.answer ? 1 : 0);
+        if (q.type === 'typeAnswer') return acc + (ans?.trim().toLowerCase() === q.answer?.trim().toLowerCase() ? 1 : 0);
+        return acc;
+      }, 0);
+      const acc = questions.length > 0 ? Math.round((totalCorrect / questions.length) * 100) : 0;
+      gamificationService.triggerTestComplete({ accuracy: acc, cardsStudied: cards.length })
+        .then(r => setTestGamificationResult(r.data?.data || null))
+        .catch(() => {});
     }
   };
 
@@ -757,9 +773,10 @@ export default function TestMode({ cards = [], setTitle = '', onClose, onComplet
           mode="test"
           setTitle={setTitle}
           currentCard={questions.length}
-          totalCards={questions.length}
+          totalCards={cards.length}
           progress
           onClose={onClose}
+          onModeChange={onModeChange}
           soundEnabled={soundEnabled}
           onSoundToggle={() => setSoundEnabled((v) => !v)}
           isFullscreen={isFullscreen}
@@ -803,6 +820,7 @@ export default function TestMode({ cards = [], setTitle = '', onClose, onComplet
             <p className="test-results__subtitle">
               Bạn trả lời đúng {correct} trên {questions.length} câu
             </p>
+
 
             {/* Stats Summary */}
             <div className="test-results__stats">
@@ -874,6 +892,7 @@ export default function TestMode({ cards = [], setTitle = '', onClose, onComplet
             </div>
           </motion.div>
         </div>
+        <GamificationRewards result={testGamificationResult} show={!!testGamificationResult} />
         <style>{`
           .test-results__updating {
             display: flex;
@@ -1176,9 +1195,10 @@ export default function TestMode({ cards = [], setTitle = '', onClose, onComplet
         mode="test"
         setTitle={setTitle}
         currentCard={currentIndex + 1}
-        totalCards={questions.length}
+        totalCards={cards.length}
         progress
         onClose={onClose}
+        onModeChange={onModeChange}
         soundEnabled={soundEnabled}
         onSoundToggle={() => setSoundEnabled((v) => !v)}
         isFullscreen={isFullscreen}

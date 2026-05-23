@@ -106,7 +106,7 @@ function MatchCard({ card, isFlipped, isMatched, isSelected, onClick, side }) {
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
-export default function MatchMode({ cards = [], setTitle = '', onClose, onComplete }) {
+export default function MatchMode({ cards = [], setTitle = '', onClose, onComplete, onModeChange }) {
   const [termCards, setTermCards] = useState([]);
   const [defCards, setDefCards] = useState([]);
   const [flipped, setFlipped] = useState({}); // { [cardId]: true }
@@ -245,6 +245,7 @@ export default function MatchMode({ cards = [], setTitle = '', onClose, onComple
           totalCards={totalPairs}
           progress
           onClose={onClose}
+          onModeChange={onModeChange}
           soundEnabled={soundEnabled}
           onSoundToggle={() => setSoundEnabled((v) => !v)}
           isFullscreen={isFullscreen}
@@ -408,6 +409,7 @@ export default function MatchMode({ cards = [], setTitle = '', onClose, onComple
         totalCards={totalPairs}
         progress
         onClose={onClose}
+        onModeChange={onModeChange}
         soundEnabled={soundEnabled}
         onSoundToggle={() => setSoundEnabled((v) => !v)}
         isFullscreen={isFullscreen}

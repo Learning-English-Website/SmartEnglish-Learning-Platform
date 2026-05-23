@@ -60,6 +60,7 @@ app.use('/api/bookmarks', require('./modules/bookmarks/bookmark.routes'));
 app.use('/api/study-sessions', require('./modules/study-sessions/studySession.routes'));
 app.use('/api/progress', require('./modules/progress/progress.routes'));
 app.use('/api/notes', require('./modules/notes/note.routes'));
+app.use('/api/gamification', require('./modules/gamification/gamification.routes'));
 
 // ── 404 Handler ───────────────────────────────────────────────────────────────
 app.use('/{*path}', (req, res) => {

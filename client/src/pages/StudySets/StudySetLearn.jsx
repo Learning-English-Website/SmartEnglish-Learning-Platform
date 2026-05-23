@@ -1,17 +1,19 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   BookOpen, Brain, ClipboardCheck, Box,
   Volume2, VolumeX, Settings,
   Shuffle, RotateCcw,
   CheckCircle, XCircle, ChevronRight,
-  ArrowLeft, X, ChevronUp, Star, Volume1,
+  ArrowLeft, X, ChevronUp, ChevronDown, Star, Volume1,
   Sparkles, Trophy, Zap
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { setService } from '../../api/setService';
 import { cardService } from '../../api/cardService';
+import { gamificationService } from '../../api/gamificationService';
+import GamificationRewards from '../../components/gamification/GamificationRewards';
 import './StudySetLearn.css';
 
 const BATCH_SIZE = 7;
@@ -116,6 +118,8 @@ function buildItems(cards, includeMC, includeTA) {
 export default function StudySetLearn() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const returnTo = location.state?.returnTo || `/study-sets/${id}`;
 
   const [studySet, setStudySet] = useState(null);
   const [cards, setCards] = useState([]);
@@ -138,6 +142,8 @@ export default function StudySetLearn() {
   const [isShuffled, setIsShuffled] = useState(false);
   const [starredCards, setStarredCards] = useState(new Set());
   const [screen, setScreen] = useState('loading');
+  const [gamificationResult, setGamificationResult] = useState(null);
+  const [sessionStartTime] = useState(Date.now());
 
   const inputRef = useRef(null);
   const audioRef = useRef(null);
@@ -186,6 +192,11 @@ export default function StudySetLearn() {
         if (newCorrect >= actualBatchSize) {
           if (currentBatchIdx + 1 >= totalBatches_) {
             setScreen('session-complete');
+            // Trigger gamification
+            const acc = Math.round((newCorrect / actualBatchSize) * 100);
+            gamificationService.triggerLearnComplete({ accuracy: acc, cardsStudied: totalItems })
+              .then(r => setGamificationResult(r.data?.data || null))
+              .catch(() => {});
           } else {
             setScreen('batch-complete');
           }
@@ -213,6 +224,11 @@ export default function StudySetLearn() {
         if (newCorrect >= actualBatchSize) {
           if (currentBatchIdx + 1 >= totalBatches_) {
             setScreen('session-complete');
+            // Trigger gamification
+            const acc = Math.round((newCorrect / actualBatchSize) * 100);
+            gamificationService.triggerLearnComplete({ accuracy: acc, cardsStudied: totalItems })
+              .then(r => setGamificationResult(r.data?.data || null))
+              .catch(() => {});
           } else {
             setScreen('batch-complete');
           }
@@ -327,12 +343,12 @@ export default function StudySetLearn() {
   }, [cards, includeMC, includeTA]);
 
   const handleModeChange = useCallback((m) => {
-    if (m === 'flashcards') navigate(`/study-sets/${id}/flashcards`);
+    if (m === 'flashcards') navigate(`/study-sets/${id}/flashcards`, { state: { returnTo } });
     else if (m === 'learn') setModeDropdownOpen(false);
-    else if (m === 'test') navigate(`/study-sets/${id}/test`);
-    else if (m === 'match') navigate(`/study-sets/${id}/match`);
+    else if (m === 'test') navigate(`/study-sets/${id}/test`, { state: { returnTo } });
+    else if (m === 'match') navigate(`/study-sets/${id}/match`, { state: { returnTo } });
     setModeDropdownOpen(false);
-  }, [id, navigate]);
+  }, [id, navigate, returnTo]);
 
   const handleToggleMC = useCallback((checked) => {
     if (!checked && !includeTA) return;
@@ -484,113 +500,117 @@ export default function StudySetLearn() {
     const totalCorrect = itemsStudiedTotal;
     const accuracy = totalItems > 0 ? Math.round((totalCorrect / totalItems) * 100) : 0;
     return (
-      <div className="ql2-page">
-        <div className="ql2-complete">
-          <motion.div
-            className="ql2-complete__card"
-            initial={{ opacity: 0, scale: 0.8, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            transition={{ duration: 0.5, type: 'spring' }}
-          >
+      <>
+        <div className="ql2-page">
+          <div className="ql2-complete">
             <motion.div
-              className="ql2-complete__trophy"
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
+              className="ql2-complete__card"
+              initial={{ opacity: 0, scale: 0.8, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              transition={{ duration: 0.5, type: 'spring' }}
             >
-              <Trophy size={64} />
-            </motion.div>
-            <motion.h1
-              className="ql2-complete__title"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-            >
-              Chúc mừng bạn!
-            </motion.h1>
-            <motion.p
-              className="ql2-complete__subtitle"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.4 }}
-            >
-              Bạn đã hoàn thành bài học
-            </motion.p>
+              <motion.div
+                className="ql2-complete__trophy"
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
+              >
+                <Trophy size={64} />
+              </motion.div>
+              <motion.h1
+                className="ql2-complete__title"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+              >
+                Chúc mừng bạn!
+              </motion.h1>
+              <motion.p
+                className="ql2-complete__subtitle"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.4 }}
+              >
+                Bạn đã hoàn thành bài học
+              </motion.p>
 
-            <motion.div
-              className="ql2-complete__score-ring"
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ delay: 0.5, type: 'spring' }}
-            >
-              <svg width="160" height="160" viewBox="0 0 160 160">
-                <defs>
-                  <linearGradient id="scoreGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#18AE79" />
-                    <stop offset="100%" stopColor="#0d8a54" />
-                  </linearGradient>
-                </defs>
-                <circle className="ql2-ring-bg" cx="80" cy="80" r="70" />
-                <motion.circle
-                  className="ql2-ring-fill"
-                  cx="80" cy="80" r="70"
-                  strokeDasharray={2 * Math.PI * 70}
-                  initial={{ strokeDashoffset: 2 * Math.PI * 70 }}
-                  animate={{ strokeDashoffset: 2 * Math.PI * 70 * (1 - accuracy / 100) }}
-                  transition={{ duration: 1, delay: 0.6 }}
-                />
-              </svg>
-              <div className="ql2-complete__ring-inner">
-                <span className="ql2-complete__ring-pct">{accuracy}%</span>
-                <span className="ql2-complete__ring-label">Hoàn thành</span>
-              </div>
-            </motion.div>
+              <motion.div
+                className="ql2-complete__score-ring"
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ delay: 0.5, type: 'spring' }}
+              >
+                <svg width="160" height="160" viewBox="0 0 160 160">
+                  <defs>
+                    <linearGradient id="scoreGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="#18AE79" />
+                      <stop offset="100%" stopColor="#0d8a54" />
+                    </linearGradient>
+                  </defs>
+                  <circle className="ql2-ring-bg" cx="80" cy="80" r="70" />
+                  <motion.circle
+                    className="ql2-ring-fill"
+                    cx="80" cy="80" r="70"
+                    strokeDasharray={2 * Math.PI * 70}
+                    initial={{ strokeDashoffset: 2 * Math.PI * 70 }}
+                    animate={{ strokeDashoffset: 2 * Math.PI * 70 * (1 - accuracy / 100) }}
+                    transition={{ duration: 1, delay: 0.6 }}
+                  />
+                </svg>
+                <div className="ql2-complete__ring-inner">
+                  <span className="ql2-complete__ring-pct">{accuracy}%</span>
+                  <span className="ql2-complete__ring-label">Hoàn thành</span>
+                </div>
+              </motion.div>
 
-            <motion.div
-              className="ql2-complete__stats"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.7 }}
-            >
-              <div className="ql2-complete__stat">
-                <div className="ql2-complete__stat-icon ql2-complete__stat-icon--correct">
-                  <CheckCircle size={20} />
+              <motion.div
+                className="ql2-complete__stats"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.7 }}
+              >
+                <div className="ql2-complete__stat">
+                  <div className="ql2-complete__stat-icon ql2-complete__stat-icon--correct">
+                    <CheckCircle size={20} />
+                  </div>
+                  <span className="ql2-complete__stat-num">{totalCorrect}</span>
+                  <span className="ql2-complete__stat-label">Đúng</span>
                 </div>
-                <span className="ql2-complete__stat-num">{totalCorrect}</span>
-                <span className="ql2-complete__stat-label">Đúng</span>
-              </div>
-              <div className="ql2-complete__stat">
-                <div className="ql2-complete__stat-icon ql2-complete__stat-icon--wrong">
-                  <XCircle size={20} />
+                <div className="ql2-complete__stat">
+                  <div className="ql2-complete__stat-icon ql2-complete__stat-icon--wrong">
+                    <XCircle size={20} />
+                  </div>
+                  <span className="ql2-complete__stat-num">{totalItems - totalCorrect}</span>
+                  <span className="ql2-complete__stat-label">Sai</span>
                 </div>
-                <span className="ql2-complete__stat-num">{totalItems - totalCorrect}</span>
-                <span className="ql2-complete__stat-label">Sai</span>
-              </div>
-              <div className="ql2-complete__stat">
-                <div className="ql2-complete__stat-icon ql2-complete__stat-icon--total">
-                  <BookOpen size={20} />
+                <div className="ql2-complete__stat">
+                  <div className="ql2-complete__stat-icon ql2-complete__stat-icon--total">
+                    <BookOpen size={20} />
+                  </div>
+                  <span className="ql2-complete__stat-num">{totalItems}</span>
+                  <span className="ql2-complete__stat-label">Tổng</span>
                 </div>
-                <span className="ql2-complete__stat-num">{totalItems}</span>
-                <span className="ql2-complete__stat-label">Tổng</span>
-              </div>
-            </motion.div>
+              </motion.div>
 
-            <motion.div
-              className="ql2-complete__actions"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.8 }}
-            >
-              <button className="ql2-btn ql2-btn--primary" onClick={handleRestart}>
-                <RotateCcw size={18} /> Học lại
-              </button>
-              <button className="ql2-btn ql2-btn--ghost" onClick={() => navigate(`/study-sets/${id}`)}>
-                <ArrowLeft size={18} /> Quay lại
-              </button>
+              <motion.div
+                className="ql2-complete__actions"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.8 }}
+              >
+                <button className="ql2-btn ql2-btn--primary" onClick={handleRestart}>
+                  <RotateCcw size={18} /> Học lại
+                </button>
+                <button className="ql2-btn ql2-btn--ghost" onClick={() => navigate(returnTo)}>
+                  <ArrowLeft size={18} /> Quay lại
+                </button>
+              </motion.div>
             </motion.div>
-          </motion.div>
+          </div>
         </div>
-      </div>
+
+        <GamificationRewards result={gamificationResult} show={!!gamificationResult} />
+      </>
     );
   }
 
@@ -720,12 +740,43 @@ export default function StudySetLearn() {
       {/* Header */}
       <header className="ql2-header">
         <div className="ql2-header__left">
-          <button className="ql2-header__back" onClick={() => navigate(`/study-sets/${id}`)}>
+          <button className="ql2-header__back" onClick={() => navigate(returnTo)}>
             <ArrowLeft size={20} />
           </button>
-          <div className="ql2-header__title">
-            <Brain size={22} className="ql2-header__icon" />
-            <span>{'Học'}</span>
+          
+          <div className="study-header__mode-selector" style={{ position: 'relative', marginLeft: '12px' }}>
+            <button
+              className="study-header__mode-btn"
+              onClick={() => setModeDropdownOpen((v) => !v)}
+              aria-label="Chuyển chế độ học"
+            >
+              <Brain size={18} />
+              <span className="study-header__mode-label">Học</span>
+              <ChevronDown size={14} className={`study-header__chevron ${modeDropdownOpen ? 'open' : ''}`} />
+            </button>
+
+            <AnimatePresence>
+              {modeDropdownOpen && (
+                <motion.div
+                  className="study-header__mode-menu"
+                  initial={{ opacity: 0, y: -8, scale: 0.96 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -8, scale: 0.96 }}
+                  transition={{ duration: 0.15 }}
+                >
+                  {STUDY_MODES.map(({ id: mId, label, icon: Icon }) => (
+                    <button
+                      key={mId}
+                      className={`study-header__mode-item ${mId === 'learn' ? 'active' : ''}`}
+                      onClick={() => handleModeChange(mId)}
+                    >
+                      <Icon size={16} />
+                      {label}
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
 

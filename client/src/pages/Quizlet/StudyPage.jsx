@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronLeft, ChevronRight, X, Volume2, Check, XCircle,
@@ -11,7 +11,7 @@ import { useSelector } from 'react-redux';
 import { selectIsAuthenticated, selectAuthLoading } from '../../store/slices/authSlice';
 import { setService } from '../../api/setService';
 import { cardService } from '../../api/cardService';
-import { TestMode } from '../../components/study';
+import { TestMode, MatchMode, StudyHeader } from '../../components/study';
 import './StudyPage.css';
 
 // Study modes
@@ -23,13 +23,19 @@ const MODES = {
 };
 
 export default function StudyPage() {
-  const { id, mode } = useParams();
+  const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user: currentUser } = useAuth();
   const isAuthenticated = useSelector(selectIsAuthenticated);
   const authLoading = useSelector(selectAuthLoading);
 
+  // Lấy mode từ pathname: /study-sets/:id/match → 'match'
+  const mode = location.pathname.split('/').pop() || 'flashcards';
+
   const currentModeConfig = MODES[mode] || MODES.flashcards;
+
+  const returnTo = location.state?.returnTo || `/study-sets/${id}`;
 
   const [set, setSet] = useState(null);
   const [cards, setCards] = useState([]);
@@ -168,10 +174,24 @@ export default function StudyPage() {
       <TestMode
         cards={cards.map(c => ({ id: c._id, front: c.front, back: c.back }))}
         setTitle={set.title}
-        onClose={() => navigate(`/study-sets/${id}`)}
+        onClose={() => navigate(returnTo)}
+        onModeChange={(newMode) => navigate(`/study-sets/${id}/${newMode}`, { state: { returnTo } })}
         onComplete={(results) => {
           console.log('[StudyPage] Test completed:', results);
         }}
+      />
+    );
+  }
+
+  // Render MatchMode when mode is 'match'
+  if (mode === 'match') {
+    return (
+      <MatchMode
+        cards={cards}
+        setId={id}
+        setTitle={set.title}
+        onClose={() => navigate(returnTo)}
+        onModeChange={(newMode) => navigate(`/study-sets/${id}/${newMode}`, { state: { returnTo } })}
       />
     );
   }
@@ -181,7 +201,7 @@ export default function StudyPage() {
       <div className="sf-container">
         <div className="sf-error">
           <p>{error || 'Không tìm thấy bộ thẻ'}</p>
-          <button className="sf-back-btn" onClick={() => navigate(`/study-sets/${id}`)}>
+          <button className="sf-back-btn" onClick={() => navigate(returnTo)}>
             <ChevronLeft size={18} />
             Quay lại
           </button>
@@ -195,7 +215,7 @@ export default function StudyPage() {
       <div className="sf-container">
         <div className="sf-error">
           <p>Không có thẻ để học</p>
-          <button className="sf-back-btn" onClick={() => navigate(`/study-sets/${id}`)}>
+          <button className="sf-back-btn" onClick={() => navigate(returnTo)}>
             <ChevronLeft size={18} />
             Quay lại
           </button>
@@ -207,26 +227,20 @@ export default function StudyPage() {
   return (
     <div className="sf-container">
       {/* ── Top Bar ────────────────────────────────────────────────────── */}
-      <header className="sf-topbar">
-        <button className="sf-back-btn" onClick={() => navigate(`/study-sets/${id}`)}>
-          <ChevronLeft size={20} />
-          <span>Quay lại</span>
-        </button>
-
-        <div className="sf-topbar-center">
-          <span className="sf-title">{set.title}</span>
-          <span className="sf-counter">{currentIdx + 1} / {totalCards}</span>
-        </div>
-
-        <div className="sf-topbar-right">
-          <button className="sf-icon-btn" onClick={handleReset} title="Học lại">
-            <RefreshCw size={18} />
-          </button>
-          <button className="sf-icon-btn" onClick={() => document.documentElement.requestFullscreen?.()} title="Toàn màn hình">
-            <Maximize2 size={18} />
-          </button>
-        </div>
-      </header>
+      <StudyHeader
+        mode="flashcards"
+        setTitle={set.title}
+        currentCard={currentIdx + 1}
+        totalCards={totalCards}
+        progress
+        onClose={() => navigate(returnTo)}
+        onModeChange={(newMode) => navigate(`/study-sets/${id}/${newMode}`, { state: { returnTo } })}
+        soundEnabled={true}
+        onSoundToggle={() => {}}
+        isFullscreen={false}
+        onFullscreenToggle={() => document.documentElement.requestFullscreen?.()}
+        onShuffle={handleReset}
+      />
 
       {/* ── Progress Pills ─────────────────────────────────────────────── */}
       <div className="sf-progress-bar">

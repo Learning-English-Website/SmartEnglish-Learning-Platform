@@ -1218,3 +1218,55 @@
     margin-bottom: 8px;
   }
 }
+
+.study-header__mode-selector {
+  position: relative;
+}
+.study-header__mode-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: #f6f7fb;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #1a1a2e;
+  transition: all 0.15s ease;
+}
+.study-header__mode-btn:hover { background: #eef0f7; }
+.study-header__mode-label { font-size: 0.875rem; }
+.study-header__chevron { transition: transform 0.2s ease; }
+.study-header__chevron.open { transform: rotate(180deg); }
+.study-header__mode-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 200px;
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  padding: 6px;
+  z-index: 200;
+}
+.study-header__mode-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 14px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #1a1a2e;
+  text-align: left;
+  transition: background 0.12s ease;
+}
+.study-header__mode-item:hover { background: #f0f1f6; }
+.study-header__mode-item.active { background: #e8edff; color: #2c5ef5; }

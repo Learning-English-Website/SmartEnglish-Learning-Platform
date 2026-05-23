@@ -60,6 +60,16 @@ const UserSchema = new Schema(
       type: Date,
       default: null,
     },
+    // ── Gamification ───────────────────────────────────────────────────────────
+    streak: {
+      current:       { type: Number, default: 0 },
+      longest:       { type: Number, default: 0 },
+      lastStudyDate: { type: Date,   default: null },
+    },
+    gamification: {
+      xp:    { type: Number, default: 0 },
+      level: { type: Number, default: 1 },
+    },
   },
   {
     timestamps: true,
@@ -99,6 +109,8 @@ UserSchema.methods.toPublicProfile = function () {
     avatar: this.avatar,
     premium: this.premium,
     isVerified: this.isVerified,
+    streak: this.streak,
+    gamification: this.gamification,
     createdAt: this.createdAt,
     updatedAt: this.updatedAt,
   };

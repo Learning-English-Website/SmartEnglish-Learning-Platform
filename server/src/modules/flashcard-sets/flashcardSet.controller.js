@@ -28,10 +28,10 @@ const getPublicSets = async (req, res) => {
   const { search, tags, sort = 'newest', page = 1, limit = 20 } = req.query;
 
   const filter = { isPublic: true };
-  // TEMPORARILY DISABLED: Exclude user's own sets from browse
-  // if (req.user && req.user._id) {
-  //   filter.user = { $ne: req.user._id };
-  // }
+  // Exclude user's own sets from browse
+  if (req.user && req.user._id) {
+    filter.user = { $ne: req.user._id };
+  }
 
   if (search) {
     filter.$or = [
