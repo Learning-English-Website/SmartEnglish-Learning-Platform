@@ -215,6 +215,21 @@ class AuthService {
     return { message: 'If that email exists, a reset OTP has been sent.' };
   }
 
+  async verifyResetOtp(email, otp) {
+    const normalizedEmail = normalizeEmail(email);
+    const key = RESET_OTP_KEY(normalizedEmail);
+    const data = await redis.get(key);
+    if (!data) throw new AppError('Invalid or expired OTP', 400);
+
+    const parsed = JSON.parse(data);
+    if (parsed.otpHash !== hashOtp(otp)) {
+      throw new AppError('Invalid or expired OTP', 400);
+    }
+
+    // Don't delete the key yet - let the user set the password
+    return { message: 'OTP verified successfully' };
+  }
+
   async resetPasswordWithOtp({ email, otp, newPassword }) {
     const normalizedEmail = normalizeEmail(email);
     const key = RESET_OTP_KEY(normalizedEmail);
