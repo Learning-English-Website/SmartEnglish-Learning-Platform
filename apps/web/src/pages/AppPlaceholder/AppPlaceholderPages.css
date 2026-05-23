@@ -1,0 +1,37 @@
+.app-placeholder-page {
+  min-height: 100vh;
+  padding-top: 88px;
+  background: var(--bg-page);
+}
+
+.app-placeholder-inner {
+  max-width: 640px;
+  padding: var(--gl-space-lg) var(--gl-space-md);
+}
+
+.app-placeholder-inner h1 {
+  font-family: var(--font-sans);
+  font-size: clamp(1.65rem, 3vw, 2.25rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text-heading);
+  margin-bottom: var(--gl-space-md);
+}
+
+.app-placeholder-inner p {
+  font-size: 0.95rem;
+  margin: 0;
+}
+
+.app-placeholder-chip {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  border: 1px solid var(--border-subtle);
+  padding: 6px 10px;
+  border-radius: var(--gl-radius-md);
+  margin-bottom: var(--gl-space-md);
+}

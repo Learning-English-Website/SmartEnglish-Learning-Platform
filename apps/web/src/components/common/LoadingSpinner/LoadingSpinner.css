@@ -1,0 +1,70 @@
+.spinner-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--gl-space-md);
+}
+
+.spinner-wrapper.full-screen {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 20, 25, 0.35);
+  z-index: 9999;
+  backdrop-filter: blur(6px);
+}
+
+[data-theme='dark'] .spinner-wrapper.full-screen {
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.memoris-spinner {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.memoris-spinner .spinner-emoji {
+  position: relative;
+  z-index: 1;
+  font-size: clamp(1.1rem, 2.8vw, 1.65rem);
+  line-height: 1;
+}
+
+.spinner-sm {
+  width: 40px;
+  height: 40px;
+}
+.spinner-md {
+  width: 56px;
+  height: 56px;
+}
+.spinner-lg {
+  width: 80px;
+  height: 80px;
+}
+
+.spinner-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 3px solid var(--border-subtle);
+  border-top-color: var(--gl-tertiary);
+  animation: spin 0.85s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spinner-text {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  margin: 0;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
