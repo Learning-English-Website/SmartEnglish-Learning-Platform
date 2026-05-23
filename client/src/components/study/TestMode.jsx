@@ -1,13 +1,21 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   CheckCircle, XCircle, ChevronLeft, ChevronRight,
-  ClipboardCheck, X, Volume2, Settings, Clock
+  ClipboardCheck, X, Volume2, Shuffle, VolumeX, Maximize2, Minimize2,
+  ChevronDown, ArrowLeft, BookOpen, Brain, Box,
 } from 'lucide-react';
-import StudyHeader from './StudyHeader';
 import { progressService } from '../../services/progressService';
 import { gamificationService } from '../../api/gamificationService';
 import { useGamification } from '../../context/GamificationContext';
+
+const MODES = [
+  { id: 'flashcards', label: 'Thẻ ghi nhớ', icon: BookOpen },
+  { id: 'learn', label: 'Học', icon: Brain },
+  { id: 'test', label: 'Kiểm tra', icon: ClipboardCheck },
+  { id: 'match', label: 'Khớp thẻ', icon: Box },
+];
 
 /**
  * TestMode - Quizlet-style Test mode with setup modal and question types
@@ -16,6 +24,136 @@ import { useGamification } from '../../context/GamificationContext';
  * @param {function} onClose - Callback when closed
  * @param {function} onComplete - Callback when test completed with results
  */
+
+// ─── Quizlet-style Header ─────────────────────────────────────────────────────
+function TestHeader({ mode, currentCard, totalCards, progress, onClose, onModeChange, soundEnabled, onSoundToggle, onFullscreen, isFullscreen, isShuffled, onShuffle, showProgress = true, questionCount = 0 }) {
+  const [modeDropdownOpen, setModeDropdownOpen] = useState(false);
+  const [isFS, setIsFS] = useState(false);
+
+  useEffect(() => {
+    const handleFsChange = () => setIsFS(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', handleFsChange);
+    return () => document.removeEventListener('fullscreenchange', handleFsChange);
+  }, []);
+
+  const handleFullscreenClick = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen?.();
+    } else {
+      document.exitFullscreen?.();
+    }
+    if (onFullscreen) onFullscreen();
+  };
+
+  const currentModeConfig = MODES.find((m) => m.id === mode) || MODES[0];
+  const CurrentIcon = currentModeConfig.icon;
+  const progressPercent = totalCards > 0 ? (currentCard / totalCards) * 100 : 0;
+
+  return (
+    <header className="ql2-header">
+      <div className="ql2-header__left">
+        <button className="ql2-header__back" onClick={onClose}>
+          <ArrowLeft size={20} />
+        </button>
+
+        <div className="study-header__mode-selector" style={{ position: 'relative', marginLeft: '12px' }}>
+          <button
+            className="study-header__mode-btn"
+            onClick={() => setModeDropdownOpen((v) => !v)}
+            aria-label="Chuyển chế độ học"
+          >
+            <CurrentIcon size={18} />
+            <span className="study-header__mode-label">{currentModeConfig.label}</span>
+            <ChevronDown size={14} className={`study-header__chevron ${modeDropdownOpen ? 'open' : ''}`} />
+          </button>
+
+          <AnimatePresence>
+            {modeDropdownOpen && (
+              <motion.div
+                className="study-header__mode-menu"
+                initial={{ opacity: 0, y: -8, scale: 0.96 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -8, scale: 0.96 }}
+                transition={{ duration: 0.15 }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {MODES.map(({ id: mId, label, icon: Icon }) => (
+                  <button
+                    key={mId}
+                    className={`study-header__mode-item ${mId === mode ? 'active' : ''}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onModeChange?.(mId);
+                      setModeDropdownOpen(false);
+                    }}
+                  >
+                    <Icon size={16} />
+                    {label}
+                  </button>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+
+      <div className="ql2-header__center">
+        {showProgress ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
+            <div className="ql2-progress-bar" style={{ flex: 1 }}>
+              <div className="ql2-progress-bar__track">
+                <div className="ql2-progress-bar__batch current" style={{ '--puck-pos': 0 }}>
+                  <div className="ql2-progress-bar__batch-bg" />
+                  <div
+                    className="ql2-progress-bar__batch-fill"
+                    style={{ width: `${progressPercent}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+            <span className="ql2-progress-label" style={{ marginLeft: 0 }}>
+              {currentCard} / {totalCards}
+            </span>
+          </div>
+        ) : (
+          <span style={{ fontSize: '0.875rem', color: 'var(--ql2-text-muted, #9ca3af)', fontWeight: 500 }}>
+            {questionCount > 0 ? `${questionCount} câu hỏi` : 'Kiểm tra'}
+          </span>
+        )}
+      </div>
+
+      <div className="ql2-header__right">
+        {onShuffle && (
+          <button
+            className={`ql2-header__btn ${isShuffled ? 'active' : ''}`}
+            onClick={onShuffle}
+            title="Xáo trộn"
+          >
+            <Shuffle size={18} />
+          </button>
+        )}
+        <button
+          className={`ql2-header__btn ${soundEnabled ? 'active' : ''}`}
+          onClick={onSoundToggle}
+          title="Âm thanh"
+        >
+          {soundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
+        </button>
+        <button
+          className="ql2-header__btn"
+          onClick={handleFullscreenClick}
+          title="Toàn màn hình"
+        >
+          {isFS ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+        </button>
+      </div>
+
+      {modeDropdownOpen && (
+        <div className="study-header__backdrop" onClick={() => setModeDropdownOpen(false)} />
+      )}
+    </header>
+  );
+}
 
 // ─── Setup Modal ──────────────────────────────────────────────────────────────
 function SetupModal({ cards, onStart, onClose }) {
@@ -773,18 +911,17 @@ export default function TestMode({ cards = [], setTitle = '', onClose, onComplet
 
     return (
       <div className="study-mode-wrap">
-        <StudyHeader
+        <TestHeader
           mode="test"
-          setTitle={setTitle}
           currentCard={questions.length}
           totalCards={cards.length}
-          progress
+          showProgress={true}
           onClose={onClose}
           onModeChange={onModeChange}
           soundEnabled={soundEnabled}
           onSoundToggle={() => setSoundEnabled((v) => !v)}
           isFullscreen={isFullscreen}
-          onFullscreenToggle={handleFullscreen}
+          onFullscreen={handleFullscreen}
         />
         <div className="test-results">
           <motion.div
@@ -1166,17 +1303,17 @@ export default function TestMode({ cards = [], setTitle = '', onClose, onComplet
   if (!started) {
     return (
       <div className="study-mode-wrap">
-        <StudyHeader
+        <TestHeader
           mode="test"
-          setTitle={setTitle}
           currentCard={0}
-          totalCards={0}
-          progress={false}
+          totalCards={cards.length}
+          showProgress={false}
+          questionCount={0}
           onClose={onClose}
           soundEnabled={soundEnabled}
           onSoundToggle={() => setSoundEnabled((v) => !v)}
           isFullscreen={isFullscreen}
-          onFullscreenToggle={handleFullscreen}
+          onFullscreen={handleFullscreen}
         />
         <div className="test-mode">
           <AnimatePresence>
@@ -1194,18 +1331,17 @@ export default function TestMode({ cards = [], setTitle = '', onClose, onComplet
   // Test screen
   return (
     <div className="study-mode-wrap">
-      <StudyHeader
+      <TestHeader
         mode="test"
-        setTitle={setTitle}
         currentCard={currentIndex + 1}
-        totalCards={cards.length}
-        progress
+        totalCards={questions.length}
+        showProgress={true}
         onClose={onClose}
         onModeChange={onModeChange}
         soundEnabled={soundEnabled}
         onSoundToggle={() => setSoundEnabled((v) => !v)}
         isFullscreen={isFullscreen}
-        onFullscreenToggle={handleFullscreen}
+        onFullscreen={handleFullscreen}
       />
 
       <div className="test-mode">

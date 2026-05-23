@@ -106,6 +106,16 @@ const QuizletProgressBar = ({
   );
 };
 
+const getHintMask = (word) => {
+  if (!word) return '';
+  return word.split('').map((char, index) => {
+    if (index === 0) return char;
+    if (/\s/.test(char)) return ' ';
+    if (/[.,\/#!$%\^&\*;:{}=\-_`~()?]/.test(char)) return char;
+    return '_';
+  }).join('');
+};
+
 function buildItems(cards, includeMC, includeTA) {
   const items = [];
   cards.forEach(card => {
@@ -134,6 +144,7 @@ export default function StudySetLearn() {
   const [typedAnswer, setTypedAnswer] = useState('');
   const [answered, setAnswered] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
+  const [showHint, setShowHint] = useState(false);
   const [includeMC, setIncludeMC] = useState(true);
   const [includeTA, setIncludeTA] = useState(true);
   const [modeDropdownOpen, setModeDropdownOpen] = useState(false);
@@ -258,6 +269,7 @@ export default function StudySetLearn() {
     setSelectedOption(null);
     setTypedAnswer('');
     setIsCorrect(false);
+    setShowHint(false);
 
     if (!currentItem) return;
     const wasCorrect = itemResults.get(currentItem.itemId) === true;
@@ -462,6 +474,7 @@ export default function StudySetLearn() {
     setTypedAnswer('');
     setAnswered(false);
     setIsCorrect(false);
+    setShowHint(false);
   }, [queueIdx]);
 
   useEffect(() => {
@@ -849,126 +862,216 @@ export default function StudySetLearn() {
           <AnimatePresence mode="wait">
             <motion.div
               key={`${currentBatchIdx}-${queueIdx}`}
-              className="ql2-card"
+              className="ql2-card ql2-learn-card"
               initial={{ opacity: 0, y: 20, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -20, scale: 0.98 }}
               transition={{ duration: 0.25 }}
             >
-              {/* Question Area */}
-              <div className="ql2-card__question">
-                <div className="ql2-card__question-label">Định nghĩa</div>
-                <h2 className="ql2-card__term">{currentItem?.back}</h2>
-                <button className="ql2-card__audio-btn" onClick={() => speakCard(currentItem?.front)}>
-                  <Volume2 size={20} />
-                </button>
-              </div>
+              <div className="ql2-learn-layout-vertical">
+                {/* Top Section: Definition & Image in a row */}
+                <div className="ql2-learn-top-section">
+                  <div className="ql2-learn-label-container">
+                    <section className="ql2-learn-left-label">Định nghĩa</section>
+                  </div>
+                  
+                  <div className="ql2-learn-question-row">
+                    <div className="ql2-learn-text-container">
+                      <div className="ql2-learn-term-text">{currentItem?.back}</div>
+                    </div>
 
-              {/* Multiple Choice */}
-              {currentItem?.mode === 'mc' && (
-                <div className="ql2-card__options">
-                  <div className="ql2-options-grid">
-                    {options.map((opt, i) => {
-                      const isSelected = selectedOption === opt.id;
-                      const isCorrectOpt = opt.id === currentItem?._id;
-                      let optClass = 'ql2-option';
-                      if (answered) {
-                        if (isCorrectOpt) optClass += ' correct';
-                        else if (isSelected) optClass += ' wrong';
-                        else optClass += ' dimmed';
-                      }
-                      return (
-                        <motion.button
-                          key={opt.id}
-                          className={optClass}
-                          onClick={() => handleAnswer(opt)}
-                          disabled={answered}
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: i * 0.05 }}
-                          whileHover={!answered ? { scale: 1.02 } : {}}
-                          whileTap={!answered ? { scale: 0.98 } : {}}
-                        >
-                          <span className="ql2-option__letter">{String.fromCharCode(65 + i)}</span>
-                          <span className="ql2-option__text">{opt.text}</span>
-                          {answered && isCorrectOpt && (
-                            <CheckCircle size={18} className="ql2-option__icon ql2-option__icon--correct" />
-                          )}
-                          {answered && isSelected && !isCorrectOpt && (
-                            <XCircle size={18} className="ql2-option__icon ql2-option__icon--wrong" />
-                          )}
-                        </motion.button>
-                      );
-                    })}
+                    {currentItem?.imageUrl && (
+                      <div className="ql2-learn-image-container">
+                        <img alt={currentItem?.back} className="ql2-learn-image" src={currentItem.imageUrl} />
+                      </div>
+                    )}
                   </div>
                 </div>
-              )}
 
-              {/* Type Answer */}
-              {currentItem?.mode === 'ta' && (
-                <div className="ql2-card__type-answer">
-                  <input
-                    ref={inputRef}
-                    type="text"
-                    className={`ql2-input ${answered ? (isCorrect ? 'correct' : 'wrong') : ''}`}
-                    placeholder="Nhập thuật ngữ tiếng Anh..."
-                    value={typedAnswer}
-                    onChange={e => setTypedAnswer(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && handleTypeAnswer()}
-                    disabled={answered}
-                    autoComplete="off"
-                  />
-                  {!answered && (
-                    <button className="ql2-btn ql2-btn--primary" onClick={handleTypeAnswer} disabled={!typedAnswer.trim()}>
-                      Kiểm tra
-                    </button>
+                {/* Bottom Section: Answer form and action buttons */}
+                <div className="ql2-learn-bottom-section">
+                  {/* Type Answer Mode */}
+                  {currentItem?.mode === 'ta' && (
+                    <div className="ql2-learn-ta-container">
+                      <div className="ql2-learn-heading-section">
+                        <span className="ql2-learn-heading-label-text">Đáp án của bạn</span>
+                        {answered && (
+                          <span className={`ql2-learn-feedback-pill ${isCorrect ? 'correct' : 'wrong'}`}>
+                            {isCorrect ? 'Chính xác!' : 'Hãy thử lại lần nữa'}
+                          </span>
+                        )}
+                      </div>
+
+                      <form 
+                        onSubmit={(e) => { 
+                          e.preventDefault(); 
+                          if (!answered) {
+                            if (typedAnswer.trim()) handleTypeAnswer();
+                          } else {
+                            handleNext();
+                          }
+                        }} 
+                        className="ql2-learn-form"
+                      >
+                        <div className="ql2-learn-input-group">
+                          <div className={`ql2-learn-input-wrapper ${answered ? (isCorrect ? 'correct' : 'wrong') : ''}`}>
+                            <input
+                              ref={inputRef}
+                              type="text"
+                              className="ql2-learn-input"
+                              placeholder="Nhập Tiếng Anh"
+                              value={typedAnswer}
+                              onChange={e => setTypedAnswer(e.target.value)}
+                              disabled={answered}
+                              autoComplete="off"
+                              spellCheck="false"
+                            />
+                          </div>
+                        </div>
+
+                        {answered && !isCorrect && (
+                          <div className="ql2-learn-correct-answer">
+                            <span>Đáp án đúng: </span>
+                            <strong>{currentItem?.front}</strong>
+                          </div>
+                        )}
+
+                        {showHint && !answered && (
+                          <div className="ql2-learn-hint-box">
+                            <span>Gợi ý: </span>
+                            <strong className="ql2-hint-mask-text">{getHintMask(currentItem?.front)}</strong>
+                          </div>
+                        )}
+
+                        {/* Actions Row */}
+                        <div className="ql2-learn-actions-row">
+                          <div className="ql2-learn-actions-left">
+                            {!answered && (
+                              <button 
+                                type="button" 
+                                className="ql2-learn-action-btn ql2-learn-action-btn--tertiary"
+                                onClick={() => setShowHint(v => !v)}
+                                title="Hiển thị gợi ý"
+                              >
+                                {showHint ? 'Ẩn gợi ý' : 'Hiển thị gợi ý'}
+                              </button>
+                            )}
+                          </div>
+
+                          <div className="ql2-learn-actions-right">
+                            <button type="button" className="ql2-learn-flag-btn" title="Báo cáo câu hỏi này">
+                              <svg aria-label="Báo cáo câu hỏi này" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg>
+                            </button>
+
+                            {!answered ? (
+                              <>
+                                <button 
+                                  type="button" 
+                                  className="ql2-learn-action-btn ql2-learn-action-btn--text-primary"
+                                  onClick={handleDontKnow}
+                                >
+                                  Bạn không biết?
+                                </button>
+                                <button 
+                                  type="submit" 
+                                  className="ql2-learn-action-btn ql2-learn-action-btn--primary"
+                                  disabled={!typedAnswer.trim()}
+                                >
+                                  Trả lời
+                                </button>
+                              </>
+                            ) : (
+                              <button 
+                                type="button" 
+                                className="ql2-learn-action-btn ql2-learn-action-btn--primary"
+                                onClick={handleNext}
+                              >
+                                {isCorrect ? 'Tuyệt vời!' : 'Tiếp tục'}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </form>
+                    </div>
                   )}
-                  {answered && (
-                    <motion.div
-                      className={`ql2-feedback ${isCorrect ? 'ql2-feedback--correct' : 'ql2-feedback--wrong'}`}
-                      initial={{ opacity: 0, y: 5 }}
-                      animate={{ opacity: 1, y: 0 }}
-                    >
-                      {isCorrect ? (
-                        <>
-                          <CheckCircle size={18} />
-                          <span>Chính xác!</span>
-                        </>
-                      ) : (
-                        <>
-                          <XCircle size={18} />
-                          <span>Đáp án: <strong>{currentItem?.front}</strong></span>
-                        </>
-                      )}
-                    </motion.div>
+
+                  {/* Multiple Choice Mode */}
+                  {currentItem?.mode === 'mc' && (
+                    <div className="ql2-learn-mc-container">
+                      <div className="ql2-learn-heading-section" style={{ borderBottom: 'none', marginBottom: '16px' }}>
+                        <span className="ql2-learn-heading-label-text">Chọn đáp án đúng</span>
+                      </div>
+
+                      <div className="ql2-card__options">
+                        <div className="ql2-options-grid">
+                          {options.map((opt, i) => {
+                            const isSelected = selectedOption === opt.id;
+                            const isCorrectOpt = opt.id === currentItem?._id;
+                            let optClass = 'ql2-option';
+                            if (answered) {
+                              if (isCorrectOpt) optClass += ' correct';
+                              else if (isSelected) optClass += ' wrong';
+                              else optClass += ' dimmed';
+                            }
+                            return (
+                              <motion.button
+                                key={opt.id}
+                                className={optClass}
+                                onClick={() => handleAnswer(opt)}
+                                disabled={answered}
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: i * 0.05 }}
+                                whileHover={!answered ? { scale: 1.02 } : {}}
+                                whileTap={!answered ? { scale: 0.98 } : {}}
+                              >
+                                <span className="ql2-option__number">{1 + i}</span>
+                                <span className="ql2-option__text">{opt.text}</span>
+                                {answered && isCorrectOpt && (
+                                  <CheckCircle size={18} className="ql2-option__icon ql2-option__icon--correct" />
+                                )}
+                                {answered && isSelected && !isCorrectOpt && (
+                                  <XCircle size={18} className="ql2-option__icon ql2-option__icon--wrong" />
+                                )}
+                              </motion.button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Actions row below grid matching image */}
+                      <div className="ql2-learn-actions-row" style={{ marginTop: '24px' }}>
+                        <div className="ql2-learn-actions-left" />
+                        <div className="ql2-learn-actions-right">
+                          <button type="button" className="ql2-learn-flag-btn" title="Báo cáo câu hỏi này">
+                            <svg aria-label="Báo cáo câu hỏi này" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg>
+                          </button>
+
+                          {!answered ? (
+                            <button 
+                              type="button" 
+                              className="ql2-learn-action-btn ql2-learn-action-btn--text-primary"
+                              onClick={handleDontKnow}
+                            >
+                              Bạn không biết?
+                            </button>
+                          ) : (
+                            <button 
+                              type="button" 
+                              className="ql2-learn-action-btn ql2-learn-action-btn--primary"
+                              onClick={handleNext}
+                            >
+                              Tiếp tục
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   )}
                 </div>
-              )}
-
-              {/* Footer */}
-              <div className="ql2-card__footer">
-                {!answered && (
-                  <button className="ql2-btn ql2-btn--ghost" onClick={handleDontKnow}>
-                    Không biết
-                  </button>
-                )}
               </div>
             </motion.div>
           </AnimatePresence>
-
-          {/* Bottom Navigation - only show when needed */}
-          {answered && !isCorrect && (
-            <motion.div
-              className="ql2-nav"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-            >
-              <button className="ql2-nav__btn ql2-nav__btn--primary" onClick={handleNext}>
-                <span>Tiếp tục</span>
-                <ChevronRight size={18} />
-              </button>
-            </motion.div>
-          )}
         </div>
       </main>
     </div>

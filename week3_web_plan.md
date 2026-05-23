@@ -375,13 +375,6 @@ Gamification system hoàn chỉnh. XP, achievements, leaderboard hoạt động.
       api.get<{ url: string }>(`/media/${mediaId}/url`),
   };
   ```
-
-- [ ] **Tạo `src/components/media/AudioRecorder.tsx`:**
-  - Record button with waveform visualization
-  - Playback preview
-  - Re-record option
-  - Upload to server
-
 - [ ] **Tạo `src/components/media/AudioPlayer.tsx`:**
   - Play/pause button
   - Progress bar

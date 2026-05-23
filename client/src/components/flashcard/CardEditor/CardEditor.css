@@ -698,3 +698,41 @@
 }
 
 .ce-image-remove:hover { background: rgba(0,0,0,0.8); }
+
+/* ── Image panel + tabs ────────────────────────────────────────────── */
+.ce-image-panel {
+  margin-top: 2px;
+}
+
+.ce-image-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.ce-image-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 14px;
+  border-radius: 8px;
+  border: 1.5px solid var(--border-subtle);
+  background: var(--bg-page);
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.ce-image-tab:hover {
+  border-color: var(--gl-tertiary);
+  color: var(--gl-tertiary);
+}
+
+.ce-image-tab.active {
+  border-color: var(--gl-tertiary);
+  background: rgba(44, 94, 245, 0.08);
+  color: var(--gl-tertiary);
+}

@@ -2,8 +2,10 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  ChevronLeft, ChevronRight, X, Volume2, Check, XCircle,
-  RotateCcw, Maximize2, Keyboard, Lightbulb, RefreshCw, Moon,
+  ChevronLeft, ChevronRight, Volume2,
+  RotateCcw, Maximize2, Minimize2, Keyboard, Lightbulb,
+  BookOpen, Brain, ClipboardCheck, Box,
+  Shuffle, VolumeX, ChevronDown, ArrowLeft, Settings, Star,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../../hooks/useAuth';
@@ -11,16 +13,15 @@ import { useSelector } from 'react-redux';
 import { selectIsAuthenticated, selectAuthLoading } from '../../store/slices/authSlice';
 import { setService } from '../../api/setService';
 import { cardService } from '../../api/cardService';
-import { TestMode, MatchMode, StudyHeader } from '../../components/study';
+import { TestMode, MatchMode } from '../../components/study';
 import './StudyPage.css';
 
-// Study modes
-const MODES = {
-  flashcards: { label: 'Thẻ ghi nhớ', color: '#f97316' },
-  learn: { label: 'Học', color: '#8b5cf6' },
-  test: { label: 'Kiểm tra', color: '#10b981' },
-  match: { label: 'Khớp thẻ', color: '#f59e0b' },
-};
+const STUDY_MODES = [
+  { id: 'flashcards', label: 'Thẻ ghi nhớ', icon: BookOpen },
+  { id: 'learn', label: 'Học', icon: Brain },
+  { id: 'test', label: 'Kiểm tra', icon: ClipboardCheck },
+  { id: 'match', label: 'Khớp thẻ', icon: Box },
+];
 
 export default function StudyPage() {
   const { id } = useParams();
@@ -30,14 +31,10 @@ export default function StudyPage() {
   const isAuthenticated = useSelector(selectIsAuthenticated);
   const authLoading = useSelector(selectAuthLoading);
 
-  // Lấy mode từ pathname: /study-sets/:id/match → 'match'
   const mode = location.pathname.split('/').pop() || 'flashcards';
-
-  const currentModeConfig = MODES[mode] || MODES.flashcards;
-
   const returnTo = location.state?.returnTo || `/study-sets/${id}`;
 
-  const [set, setSet] = useState(null);
+  const [studySet, setStudySet] = useState(null);
   const [cards, setCards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -47,8 +44,14 @@ export default function StudyPage() {
   const [showHint, setShowHint] = useState(false);
   const [knownCards, setKnownCards] = useState(new Set());
   const [learningCards, setLearningCards] = useState(new Set());
-  const [trackProgress, setTrackProgress] = useState(true);
   const audioRef = useRef(null);
+
+  // Header state
+  const [modeDropdownOpen, setModeDropdownOpen] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [isFS, setIsFS] = useState(false);
+  const [isShuffled, setIsShuffled] = useState(false);
+  const [starredCards, setStarredCards] = useState(new Set());
 
   /* ── Auth check ──────────────────────────────────────────────────────── */
   useEffect(() => {
@@ -66,7 +69,7 @@ export default function StudyPage() {
         setService.getById(id),
         cardService.getBySetId(id),
       ]);
-      setSet(setRes?.data ?? setRes);
+      setStudySet(setRes?.data ?? setRes);
       const cardsData = cardsRes?.data ?? cardsRes;
       setCards(Array.isArray(cardsData) ? cardsData : []);
     } catch (err) {
@@ -101,20 +104,47 @@ export default function StudyPage() {
   /* ── Flip ─────────────────────────────────────────────────────────────── */
   const handleFlip = () => setIsFlipped((p) => !p);
 
-  /* ── Keyboard shortcuts ───────────────────────────────────────────────── */
+  /* ── Fullscreen ────────────────────────────────────────────────────────── */
   useEffect(() => {
-    const handler = (e) => {
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-      if (e.key === ' ') { e.preventDefault(); handleFlip(); }
-      if (e.key === 'ArrowRight') goNext();
-      if (e.key === 'ArrowLeft') goPrev();
-      if (e.key === '1' || e.key === 'i') handleIncorrect();
-      if (e.key === '2' || e.key === 'k') handleCorrect();
-      if (e.key === 'Escape') navigate(`/study-sets/${id}`);
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [goNext, goPrev, navigate, id]);
+    const handleFsChange = () => setIsFS(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', handleFsChange);
+    return () => document.removeEventListener('fullscreenchange', handleFsChange);
+  }, []);
+
+  const handleFullscreenClick = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen?.();
+    } else {
+      document.exitFullscreen?.();
+    }
+  };
+
+  /* ── Shuffle ─────────────────────────────────────────────────────────── */
+  const handleShuffle = useCallback(() => {
+    setCards(prev => {
+      const shuffled = [...prev];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      return shuffled;
+    });
+    setCurrentIdx(0);
+    setIsFlipped(false);
+    setKnownCards(new Set());
+    setLearningCards(new Set());
+    setIsShuffled(true);
+    toast.success('Đã xáo trộn thẻ');
+  }, []);
+
+  /* ── Mode change ──────────────────────────────────────────────────────── */
+  const handleModeChange = useCallback((m) => {
+    if (m === 'flashcards') setModeDropdownOpen(false);
+    else if (m === 'learn') navigate(`/study-sets/${id}/learn`, { state: { returnTo } });
+    else if (m === 'test') navigate(`/study-sets/${id}/test`, { state: { returnTo } });
+    else if (m === 'match') navigate(`/study-sets/${id}/match`, { state: { returnTo } });
+    setModeDropdownOpen(false);
+  }, [id, navigate, returnTo]);
 
   /* ── Mark correct/incorrect ─────────────────────────────────────────── */
   const handleCorrect = useCallback(() => {
@@ -147,6 +177,21 @@ export default function StudyPage() {
     }
   }, [currentCard, currentIdx, totalCards, goNext]);
 
+  /* ── Keyboard shortcuts ───────────────────────────────────────────────── */
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      if (e.key === ' ') { e.preventDefault(); handleFlip(); }
+      if (e.key === 'ArrowRight') goNext();
+      if (e.key === 'ArrowLeft') goPrev();
+      if (e.key === '1' || e.key === 'i') handleIncorrect();
+      if (e.key === '2' || e.key === 'k') handleCorrect();
+      if (e.key === 'Escape') navigate(`/study-sets/${id}`);
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [goNext, goPrev, navigate, id, handleCorrect, handleIncorrect]);
+
   /* ── Reset ────────────────────────────────────────────────────────────── */
   const handleReset = () => {
     setKnownCards(new Set());
@@ -156,13 +201,58 @@ export default function StudyPage() {
     toast.success('Đã đặt lại tiến độ');
   };
 
+  const toggleStar = useCallback((cardId) => {
+    setStarredCards((prev) => {
+      const next = new Set(prev);
+      if (next.has(cardId)) {
+        next.delete(cardId);
+        toast.success('Đã bỏ đánh dấu sao');
+      } else {
+        next.add(cardId);
+        toast.success('Đã đánh dấu sao');
+      }
+      return next;
+    });
+  }, []);
+
+  const speakCard = useCallback((text) => {
+    if (!soundEnabled || !text) return;
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'en-US';
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utterance);
+  }, [soundEnabled]);
+
+  const getWordHint = useCallback((word) => {
+    if (!word) return '';
+    const clean = word.trim();
+    if (clean.length === 0) return '';
+    const first = clean.charAt(0);
+    let rest = '';
+    for (let i = 1; i < clean.length; i++) {
+      const char = clean.charAt(i);
+      if (/[a-zA-Z0-9]/.test(char)) {
+        rest += '_';
+      } else {
+        rest += char;
+      }
+    }
+    return first + rest;
+  }, []);
+
   /* ── Loading ─────────────────────────────────────────────────────────── */
   if (loading) {
     return (
-      <div className="sf-container">
-        <div className="sf-loading">
-          <div className="sf-spinner"></div>
-          <span>Đang tải...</span>
+      <div className="ql2-page">
+        <div className="ql2-loading">
+          <motion.div
+            className="ql2-loading__icon"
+            animate={{ rotate: 360 }}
+            transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+          >
+            <BookOpen size={48} />
+          </motion.div>
+          <span className="ql2-loading__text">Đang tải...</span>
         </div>
       </div>
     );
@@ -173,7 +263,7 @@ export default function StudyPage() {
     return (
       <TestMode
         cards={cards.map(c => ({ id: c._id, front: c.front, back: c.back }))}
-        setTitle={set.title}
+        setTitle={studySet.title}
         onClose={() => navigate(returnTo)}
         onModeChange={(newMode) => navigate(`/study-sets/${id}/${newMode}`, { state: { returnTo } })}
         onComplete={(results) => {
@@ -189,21 +279,20 @@ export default function StudyPage() {
       <MatchMode
         cards={cards}
         setId={id}
-        setTitle={set.title}
+        setTitle={studySet.title}
         onClose={() => navigate(returnTo)}
         onModeChange={(newMode) => navigate(`/study-sets/${id}/${newMode}`, { state: { returnTo } })}
       />
     );
   }
 
-  if (error || !set) {
+  if (error || !studySet) {
     return (
-      <div className="sf-container">
-        <div className="sf-error">
-          <p>{error || 'Không tìm thấy bộ thẻ'}</p>
-          <button className="sf-back-btn" onClick={() => navigate(returnTo)}>
-            <ChevronLeft size={18} />
-            Quay lại
+      <div className="ql2-page">
+        <div className="ql2-loading">
+          <p style={{ color: 'var(--ql2-error)' }}>{error || 'Không tìm thấy bộ thẻ'}</p>
+          <button className="ql2-btn ql2-btn--ghost" onClick={() => navigate(returnTo)}>
+            <ChevronLeft size={16} />Quay lại
           </button>
         </div>
       </div>
@@ -212,213 +301,305 @@ export default function StudyPage() {
 
   if (cards.length === 0) {
     return (
-      <div className="sf-container">
-        <div className="sf-error">
-          <p>Không có thẻ để học</p>
-          <button className="sf-back-btn" onClick={() => navigate(returnTo)}>
-            <ChevronLeft size={18} />
-            Quay lại
+      <div className="ql2-page">
+        <div className="ql2-loading">
+          <p style={{ color: 'var(--ql2-text-muted)' }}>Không có thẻ để học</p>
+          <button className="ql2-btn ql2-btn--ghost" onClick={() => navigate(returnTo)}>
+            <ChevronLeft size={16} />Quay lại
           </button>
         </div>
       </div>
     );
   }
 
+  const progressPct = totalCards > 0 ? ((currentIdx + 1) / totalCards) * 100 : 0;
+
   return (
-    <div className="sf-container">
-      {/* ── Top Bar ────────────────────────────────────────────────────── */}
-      <StudyHeader
-        mode="flashcards"
-        setTitle={set.title}
-        currentCard={currentIdx + 1}
-        totalCards={totalCards}
-        progress
-        onClose={() => navigate(returnTo)}
-        onModeChange={(newMode) => navigate(`/study-sets/${id}/${newMode}`, { state: { returnTo } })}
-        soundEnabled={true}
-        onSoundToggle={() => {}}
-        isFullscreen={false}
-        onFullscreenToggle={() => document.documentElement.requestFullscreen?.()}
-        onShuffle={handleReset}
-      />
+    <div className="ql2-page">
+      {/* Floating decorative elements */}
+      <div className="ql2-page__decoration ql2-page__decoration--1" />
+      <div className="ql2-page__decoration ql2-page__decoration--2" />
 
-      {/* ── Progress Pills ─────────────────────────────────────────────── */}
-      <div className="sf-progress-bar">
-        <div 
-          className="sf-progress-fill" 
-          style={{ width: `${((currentIdx + 1) / totalCards) * 100}%` }}
-        />
-      </div>
+      {/* Header - giống hệt StudySetLearn */}
+      <header className="ql2-header">
+        <div className="ql2-header__left">
+          <button className="ql2-header__back" onClick={() => navigate(returnTo)}>
+            <ArrowLeft size={20} />
+          </button>
 
-      {/* ── Status Badges ──────────────────────────────────────────────── */}
-      <div className="sf-badges">
-        <div className="sf-badge sf-badge--learning">
-          <span className="sf-badge-dot sf-badge-dot--orange"></span>
-          <span>Đang học</span>
-          <span className="sf-badge-count">{learningCards.size}</span>
-        </div>
-        <div className="sf-badge sf-badge--known">
-          <span className="sf-badge-dot sf-badge-dot--green"></span>
-          <span>Đã biết</span>
-          <span className="sf-badge-count">{knownCards.size}</span>
-        </div>
-      </div>
-
-      {/* ── Main Card ──────────────────────────────────────────────────── */}
-      <div className="sf-card-area">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={currentIdx}
-            initial={{ opacity: 0, x: 50 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -50 }}
-            transition={{ duration: 0.25, ease: 'easeOut' }}
-            className="sf-flashcard-wrapper"
-          >
-            <div
-              className={`sf-card ${isFlipped ? 'sf-card--flipped' : ''}`}
-              onClick={handleFlip}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => e.key === 'Enter' && handleFlip()}
+          <div className="study-header__mode-selector" style={{ position: 'relative', marginLeft: '12px' }}>
+            <button
+              className="study-header__mode-btn"
+              onClick={() => setModeDropdownOpen((v) => !v)}
+              aria-label="Chuyển chế độ học"
             >
-              {/* Front */}
-              <div className="sf-card-face sf-card-front">
-                <div className="sf-card-controls">
-                  <button 
-                    className={`sf-hint-toggle ${showHint ? 'active' : ''}`}
-                    onClick={(e) => { e.stopPropagation(); setShowHint(!showHint); }}
-                  >
-                    <Lightbulb size={14} />
-                    <span>Gợi ý</span>
-                  </button>
-                </div>
+              <BookOpen size={18} />
+              <span className="study-header__mode-label">Thẻ ghi nhớ</span>
+              <ChevronDown size={14} className={`study-header__chevron ${modeDropdownOpen ? 'open' : ''}`} />
+            </button>
 
-                <div className="sf-card-content">
-                  <AnimatePresence>
-                    {showHint && currentCard?.hint && (
-                      <motion.div 
-                        className="sf-hint-text"
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                      >
-                        {currentCard.hint}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                  
-                  <motion.h1 
-                    className="sf-card-word"
-                    initial={{ scale: 0.95 }}
-                    animate={{ scale: 1 }}
-                    key={currentCard?._id}
-                  >
-                    {currentCard?.front}
-                  </motion.h1>
-                  
-                  {currentCard?.pronunciation && (
-                    <span className="sf-phonetic">{currentCard.pronunciation}</span>
-                  )}
-                </div>
-              </div>
+            <AnimatePresence>
+              {modeDropdownOpen && (
+                <motion.div
+                  className="study-header__mode-menu"
+                  initial={{ opacity: 0, y: -8, scale: 0.96 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -8, scale: 0.96 }}
+                  transition={{ duration: 0.15 }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {STUDY_MODES.map(({ id: mId, label, icon: Icon }) => (
+                    <button
+                      key={mId}
+                      className={`study-header__mode-item ${mId === 'flashcards' ? 'active' : ''}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleModeChange(mId);
+                      }}
+                    >
+                      <Icon size={16} />
+                      {label}
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
 
-              {/* Back */}
-              <div className="sf-card-face sf-card-back">
-                <div className="sf-card-controls">
-                  <span className="sf-definition-label">Định nghĩa</span>
-                </div>
-
-                <div className="sf-card-content">
-                  <motion.h1 
-                    className="sf-card-word"
-                    initial={{ scale: 0.95 }}
-                    animate={{ scale: 1 }}
-                    key={`back-${currentCard?._id}`}
-                  >
-                    {currentCard?.back}
-                  </motion.h1>
-                  
-                  {currentCard?.example && (
-                    <p className="sf-example">"{currentCard.example}"</p>
-                  )}
-                </div>
+        <div className="ql2-header__center">
+          <div className="ql2-progress-bar">
+            <div className="ql2-progress-bar__track">
+              <div
+                className="ql2-progress-bar__batch current"
+                style={{ '--puck-pos': 0 }}
+              >
+                <div className="ql2-progress-bar__batch-bg" />
+                <div
+                  className="ql2-progress-bar__batch-fill"
+                  style={{ width: `${progressPct}%` }}
+                />
               </div>
             </div>
-          </motion.div>
-        </AnimatePresence>
-
-        {/* Navigation Arrows */}
-        <button 
-          className={`sf-nav-btn sf-nav-btn--prev ${currentIdx === 0 ? 'disabled' : ''}`}
-          onClick={goPrev}
-          disabled={currentIdx === 0}
-        >
-          <ChevronLeft size={24} />
-        </button>
-        <button 
-          className={`sf-nav-btn sf-nav-btn--next ${currentIdx === totalCards - 1 ? 'disabled' : ''}`}
-          onClick={goNext}
-          disabled={currentIdx === totalCards - 1}
-        >
-          <ChevronRight size={24} />
-        </button>
-      </div>
-
-      {/* ── Floating Shortcut Bar ──────────────────────────────────────── */}
-      <div className="sf-shortcut-bar">
-        <Keyboard size={16} />
-        <span>Nhấn <kbd>Space</kbd> hoặc click để lật thẻ</span>
-      </div>
-
-      {/* ── Bottom Controls ────────────────────────────────────────────── */}
-      <div className="sf-bottom-controls">
-        {/* Left: Progress Toggle */}
-        <label className="sf-progress-toggle">
-          <input 
-            type="checkbox" 
-            checked={trackProgress}
-            onChange={(e) => setTrackProgress(e.target.checked)}
-          />
-          <span className="sf-toggle-track">
-            <span className="sf-toggle-thumb"></span>
+            <div className="ql2-progress-bar__total">{totalCards}</div>
+          </div>
+          <span className="ql2-progress-label" style={{ marginLeft: '12px' }}>
+            {currentIdx + 1} / {totalCards}
           </span>
-          <span className="sf-toggle-label">Theo dõi tiến độ</span>
-        </label>
-
-        {/* Center: Answer Buttons */}
-        <div className="sf-answer-btns">
-          <motion.button 
-            className="sf-answer-btn sf-answer-btn--wrong"
-            onClick={handleIncorrect}
-            whileHover={{ scale: 1.08 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <XCircle size={28} />
-          </motion.button>
-          <motion.button 
-            className="sf-answer-btn sf-answer-btn--correct"
-            onClick={handleCorrect}
-            whileHover={{ scale: 1.08 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <Check size={28} />
-          </motion.button>
         </div>
 
-        {/* Right: Actions */}
-        <div className="sf-action-btns">
-          <button className="sf-action-btn" onClick={handleReset} title="Học lại">
+        <div className="ql2-header__right">
+          <button
+            className="ql2-header__btn"
+            onClick={handleReset}
+            title="Học lại"
+          >
             <RotateCcw size={18} />
           </button>
-          <button 
-            className="sf-action-btn" 
-            onClick={() => document.documentElement.requestFullscreen?.()}
+          <button
+            className={`ql2-header__btn ${isShuffled ? 'active' : ''}`}
+            onClick={handleShuffle}
+            title="Xáo trộn"
+          >
+            <Shuffle size={18} />
+          </button>
+          <button
+            className={`ql2-header__btn ${soundEnabled ? 'active' : ''}`}
+            onClick={() => setSoundEnabled(!soundEnabled)}
+            title="Âm thanh"
+          >
+            {soundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
+          </button>
+          <button
+            className="ql2-header__btn"
+            onClick={handleFullscreenClick}
             title="Toàn màn hình"
           >
-            <Maximize2 size={18} />
+            {isFS ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
           </button>
         </div>
+
+        {/* Backdrop for mode dropdown */}
+        {modeDropdownOpen && (
+          <div
+            className="study-header__backdrop"
+            onClick={() => setModeDropdownOpen(false)}
+          />
+        )}
+      </header>
+
+      <div className="ql2-content">
+        {/* Main Card */}
+        <div className="ql2-card-area">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={currentIdx}
+              initial={{ opacity: 0, x: 60 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -60 }}
+              transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+              className="ql2-flashcard-wrapper"
+            >
+              <div
+                className={`ql2-flashcard ${isFlipped ? 'ql2-flashcard--flipped' : ''}`}
+                onClick={handleFlip}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => e.key === 'Enter' && handleFlip()}
+              >
+                {/* Front */}
+                <div className="ql2-flashcard__face ql2-flashcard__front">
+                  <div className="ql2-flashcard__controls">
+                    <button
+                      className={`ql2-hint-toggle ${showHint ? 'active' : ''}`}
+                      onClick={(e) => { e.stopPropagation(); setShowHint(!showHint); }}
+                    >
+                      <Lightbulb size={14} />
+                      <span className={showHint ? 'ql2-hint-mask' : ''}>
+                        {showHint ? getWordHint(currentCard?.front) : 'Hiển thị gợi ý'}
+                      </span>
+                    </button>
+
+                    <div className="ql2-flashcard__right-controls">
+                      <button
+                        className="ql2-card-action-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          speakCard(currentCard?.front);
+                        }}
+                        title="Nghe phát âm"
+                      >
+                        <Volume2 size={16} />
+                      </button>
+
+                      <button
+                        className={`ql2-card-action-btn ${starredCards.has(currentCard?._id) ? 'active' : ''}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleStar(currentCard?._id);
+                        }}
+                        title="Đánh dấu sao"
+                      >
+                        <Star
+                          size={16}
+                          fill={starredCards.has(currentCard?._id) ? '#f59e0b' : 'none'}
+                          color={starredCards.has(currentCard?._id) ? '#f59e0b' : 'currentColor'}
+                        />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="ql2-flashcard__content">
+                    <AnimatePresence>
+                      {showHint && currentCard?.hint && (
+                        <motion.div
+                          className="ql2-hint-text"
+                          initial={{ opacity: 0, y: -10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -10 }}
+                        >
+                          {currentCard.hint}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
+                    <motion.h1
+                      className="ql2-flashcard__word"
+                      initial={{ scale: 0.95 }}
+                      animate={{ scale: 1 }}
+                      key={currentCard?._id}
+                    >
+                      {currentCard?.front}
+                    </motion.h1>
+
+                    {currentCard?.pronunciation && (
+                      <span className="ql2-phonetic">{currentCard.pronunciation}</span>
+                    )}
+                  </div>
+
+                  <div className="ql2-flashcard__hint-bottom">
+                    Nhấn để lật thẻ
+                  </div>
+                </div>
+
+                {/* Back */}
+                <div className="ql2-flashcard__face ql2-flashcard__back">
+                  <div className="ql2-flashcard__controls">
+                    <span className="ql2-definition-label">Định nghĩa</span>
+
+                    <div className="ql2-flashcard__right-controls">
+                      <button
+                        className={`ql2-card-action-btn ${starredCards.has(currentCard?._id) ? 'active' : ''}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleStar(currentCard?._id);
+                        }}
+                        title="Đánh dấu sao"
+                      >
+                        <Star
+                          size={16}
+                          fill={starredCards.has(currentCard?._id) ? '#f59e0b' : 'none'}
+                          color={starredCards.has(currentCard?._id) ? '#f59e0b' : 'currentColor'}
+                        />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="ql2-flashcard__content">
+                    <div className="ql2-flashcard__back-content-layout">
+                      <div className="ql2-flashcard__back-text-section">
+                        <motion.h1
+                          className="ql2-flashcard__word ql2-flashcard__word--back"
+                          initial={{ scale: 0.95 }}
+                          animate={{ scale: 1 }}
+                          key={`back-${currentCard?._id}`}
+                        >
+                          {currentCard?.back}
+                        </motion.h1>
+
+                        {currentCard?.example && (
+                          <p className="ql2-example">"{currentCard.example}"</p>
+                        )}
+                      </div>
+
+                      {currentCard?.imageUrl && (
+                        <div className="ql2-flashcard__image-container">
+                          <img
+                            alt={currentCard?.back}
+                            src={currentCard.imageUrl}
+                            className="ql2-flashcard__image"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="ql2-flashcard__hint-bottom ql2-flashcard__hint-bottom--back">
+                    Nhấn để lật lại
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </AnimatePresence>
+
+          {/* Navigation Arrows */}
+          <button
+            className={`ql2-nav-btn ql2-nav-btn--prev ${currentIdx === 0 ? 'disabled' : ''}`}
+            onClick={goPrev}
+            disabled={currentIdx === 0}
+          >
+            <ChevronLeft size={24} />
+          </button>
+          <button
+            className={`ql2-nav-btn ql2-nav-btn--next ${currentIdx === totalCards - 1 ? 'disabled' : ''}`}
+            onClick={goNext}
+            disabled={currentIdx === totalCards - 1}
+          >
+            <ChevronRight size={24} />
+          </button>
+        </div>
+
+
       </div>
     </div>
   );

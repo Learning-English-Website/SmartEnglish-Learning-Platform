@@ -115,7 +115,7 @@ const router = createBrowserRouter([
   {
     element: (
       <ProtectedRoute>
-        <StudyLayout backTo="/dashboard" />
+        <StudyLayout backTo="/dashboard" hideHeader />
       </ProtectedRoute>
     ),
     children: [

@@ -10,6 +10,27 @@ import './components/common/Card/Card.css';
 import './components/common/Badge/Badge.css';
 import App from './App';
 
+// Register PWA service worker
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    import('virtual:pwa-register').then(({ registerSW }) => {
+      registerSW({
+        immediate: true,
+        onNeedRefresh() {
+          if (confirm('New content available. Reload?')) {
+            window.location.reload();
+          }
+        },
+        onOfflineReady() {
+          console.log('App ready to work offline');
+        },
+      });
+    }).catch(() => {
+      // PWA plugin not configured yet, skip registration
+    });
+  });
+}
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <App />
