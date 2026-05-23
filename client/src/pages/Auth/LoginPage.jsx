@@ -12,7 +12,7 @@ export default function LoginPage() {
   const { login, loading } = useAuth();
 
   const handleGoogleLogin = () => {
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
     const backendUrl = apiUrl.replace(/\/api$/, '');
     window.location.href = `${backendUrl}/api/auth/google?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`;
   };

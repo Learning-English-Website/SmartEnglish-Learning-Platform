@@ -1,0 +1,90 @@
+/* VirtualList styles */
+.virtual-list {
+  width: 100%;
+}
+
+.virtual-list__loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 20px;
+  color: var(--text-muted, #6c757d);
+  font-size: 14px;
+}
+
+.virtual-list__spinner {
+  width: 20px;
+  height: 20px;
+  border: 3px solid var(--border-subtle, #e9ecef);
+  border-top-color: var(--color-primary, #4a90d9);
+  border-radius: 50%;
+  animation: virtual-list-spin 0.8s linear infinite;
+}
+
+@keyframes virtual-list-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* VirtualGrid styles */
+.virtual-grid {
+  width: 100%;
+}
+
+.virtual-grid__item {
+  width: 100%;
+}
+
+.virtual-grid__placeholder {
+  width: 100%;
+  background: linear-gradient(
+    90deg,
+    var(--bg-secondary, #f8f9fa) 25%,
+    var(--bg-tertiary, #e9ecef) 50%,
+    var(--bg-secondary, #f8f9fa) 75%
+  );
+  background-size: 200% 100%;
+  border-radius: 8px;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .virtual-list__loading {
+    color: var(--text-muted, #8b949e);
+  }
+
+  .virtual-list__spinner {
+    border-color: var(--bg-tertiary, #373e47);
+    border-top-color: var(--color-primary, #4a90d9);
+  }
+
+  .virtual-grid__placeholder {
+    --bg-secondary: #2d333b;
+    --bg-tertiary: #373e47;
+  }
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .virtual-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .virtual-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .virtual-grid {
+    grid-template-columns: 1fr !important;
+  }
+}

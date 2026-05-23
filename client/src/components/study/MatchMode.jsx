@@ -1,7 +1,18 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Box, X, RotateCcw, Trophy, Clock } from 'lucide-react';
-import StudyHeader from './StudyHeader';
+import {
+  Box, X, RotateCcw, Trophy, Clock,
+  Volume2, VolumeX, Maximize2, Minimize2,
+  ChevronDown, ArrowLeft, BookOpen, Brain, ClipboardCheck,
+  Shuffle,
+} from 'lucide-react';
+
+const MODES = [
+  { id: 'flashcards', label: 'Thẻ ghi nhớ', icon: BookOpen },
+  { id: 'learn', label: 'Học', icon: Brain },
+  { id: 'test', label: 'Kiểm tra', icon: ClipboardCheck },
+  { id: 'match', label: 'Khớp thẻ', icon: Box },
+];
 
 /**
  * MatchMode - Quizlet-style Match game
@@ -65,6 +76,122 @@ function Confetti() {
         }
       `}</style>
     </div>
+  );
+}
+
+// ─── Match Header ────────────────────────────────────────────────────────────────
+function MatchHeader({ mode, currentCard, totalCards, onClose, onModeChange, soundEnabled, onSoundToggle, onFullscreen, isFullscreen, onShuffle }) {
+  const [modeDropdownOpen, setModeDropdownOpen] = useState(false);
+  const [isFS, setIsFS] = useState(false);
+
+  useEffect(() => {
+    const handleFsChange = () => setIsFS(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', handleFsChange);
+    return () => document.removeEventListener('fullscreenchange', handleFsChange);
+  }, []);
+
+  const handleFullscreenClick = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen?.();
+    } else {
+      document.exitFullscreen?.();
+    }
+    if (onFullscreen) onFullscreen();
+  };
+
+  const currentModeConfig = MODES.find((m) => m.id === mode) || MODES[0];
+  const CurrentIcon = currentModeConfig.icon;
+  const progressPercent = totalCards > 0 ? (currentCard / totalCards) * 100 : 0;
+
+  return (
+    <header className="ql2-header">
+      <div className="ql2-header__left">
+        <button className="ql2-header__back" onClick={onClose}>
+          <ArrowLeft size={20} />
+        </button>
+
+        <div className="study-header__mode-selector" style={{ position: 'relative', marginLeft: '12px' }}>
+          <button
+            className="study-header__mode-btn"
+            onClick={() => setModeDropdownOpen((v) => !v)}
+            aria-label="Chuyển chế độ học"
+          >
+            <CurrentIcon size={18} />
+            <span className="study-header__mode-label">{currentModeConfig.label}</span>
+            <ChevronDown size={14} className={`study-header__chevron ${modeDropdownOpen ? 'open' : ''}`} />
+          </button>
+
+          <AnimatePresence>
+            {modeDropdownOpen && (
+              <motion.div
+                className="study-header__mode-menu"
+                initial={{ opacity: 0, y: -8, scale: 0.96 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -8, scale: 0.96 }}
+                transition={{ duration: 0.15 }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {MODES.map(({ id: mId, label, icon: Icon }) => (
+                  <button
+                    key={mId}
+                    className={`study-header__mode-item ${mId === mode ? 'active' : ''}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onModeChange?.(mId);
+                      setModeDropdownOpen(false);
+                    }}
+                  >
+                    <Icon size={16} />
+                    {label}
+                  </button>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+
+      <div className="ql2-header__center">
+        <div className="ql2-progress-bar" style={{ flex: 1 }}>
+          <div className="ql2-progress-bar__track">
+            <div className="ql2-progress-bar__batch current" style={{ '--puck-pos': 0 }}>
+              <div className="ql2-progress-bar__batch-bg" />
+              <div
+                className="ql2-progress-bar__batch-fill"
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
+          </div>
+        </div>
+        <span className="ql2-progress-label">{currentCard} / {totalCards}</span>
+      </div>
+
+      <div className="ql2-header__right">
+        {onShuffle && (
+          <button className="ql2-header__btn" onClick={onShuffle} title="Chơi lại">
+            <Shuffle size={18} />
+          </button>
+        )}
+        <button
+          className={`ql2-header__btn ${soundEnabled ? 'active' : ''}`}
+          onClick={onSoundToggle}
+          title="Âm thanh"
+        >
+          {soundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
+        </button>
+        <button
+          className="ql2-header__btn"
+          onClick={handleFullscreenClick}
+          title="Toàn màn hình"
+        >
+          {isFS ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+        </button>
+      </div>
+
+      {modeDropdownOpen && (
+        <div className="study-header__backdrop" onClick={() => setModeDropdownOpen(false)} />
+      )}
+    </header>
   );
 }
 
@@ -238,18 +365,16 @@ export default function MatchMode({ cards = [], setTitle = '', onClose, onComple
   if (gameOver) {
     return (
       <div className="study-mode-wrap">
-        <StudyHeader
+        <MatchHeader
           mode="match"
-          setTitle={setTitle}
           currentCard={totalPairs}
           totalCards={totalPairs}
-          progress
           onClose={onClose}
           onModeChange={onModeChange}
           soundEnabled={soundEnabled}
           onSoundToggle={() => setSoundEnabled((v) => !v)}
           isFullscreen={isFullscreen}
-          onFullscreenToggle={handleFullscreen}
+          onFullscreen={handleFullscreen}
         />
         <Confetti />
         <div className="match-complete">
@@ -402,18 +527,16 @@ export default function MatchMode({ cards = [], setTitle = '', onClose, onComple
 
   return (
     <div className="study-mode-wrap">
-      <StudyHeader
+      <MatchHeader
         mode="match"
-        setTitle={setTitle}
         currentCard={matchedPairs}
         totalCards={totalPairs}
-        progress
         onClose={onClose}
         onModeChange={onModeChange}
         soundEnabled={soundEnabled}
         onSoundToggle={() => setSoundEnabled((v) => !v)}
         isFullscreen={isFullscreen}
-        onFullscreenToggle={handleFullscreen}
+        onFullscreen={handleFullscreen}
         onShuffle={handleRestart}
       />
 

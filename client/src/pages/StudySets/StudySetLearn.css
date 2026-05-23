@@ -1270,3 +1270,489 @@
 }
 .study-header__mode-item:hover { background: #f0f1f6; }
 .study-header__mode-item.active { background: #e8edff; color: #2c5ef5; }
+
+/* ── Premium Split Learn Layout ───────────────────────────────────────────── */
+
+.ql2-card-wrapper {
+  max-width: 960px !important; /* Scaled to 960px wide! */
+  width: 100%;
+  transition: max-width 0.3s ease;
+}
+
+.ql2-learn-card {
+  background: var(--ql2-surface) !important;
+  border-radius: 20px !important;
+  border: 1.5px solid var(--ql2-border) !important;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04) !important;
+  padding: 48px !important; /* Increased card padding */
+  min-height: 655px !important; /* Scaled to 655px high! */
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.ql2-learn-layout-vertical {
+  display: flex;
+  flex-direction: column;
+  gap: 40px; /* Increased gap */
+  width: 100%;
+  flex: 1;
+  justify-content: space-between;
+}
+
+/* Top Section: split question area (text left, image right) */
+.ql2-learn-top-section {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.ql2-learn-label-container {
+  margin-bottom: 20px;
+  text-align: left;
+}
+
+.ql2-learn-left-label {
+  font-size: 0.95rem; /* Scaled */
+  font-weight: 600;
+  color: var(--ql2-text-muted);
+  text-transform: none;
+  letter-spacing: normal;
+  background: none;
+  border: none;
+  padding: 0;
+  display: inline-block;
+}
+
+.ql2-learn-question-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 40px;
+  width: 100%;
+}
+
+.ql2-learn-text-container {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 1;
+}
+
+.ql2-learn-term-text {
+  font-size: 40px; /* Scaled definition text from 32px */
+  font-weight: 500;
+  color: var(--ql2-text);
+  line-height: 1.25;
+}
+
+.ql2-learn-audio-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px; /* Scaled button from 40px */
+  height: 46px;
+  border-radius: 50%;
+  border: 1.5px solid var(--ql2-border);
+  background: var(--ql2-surface);
+  color: var(--ql2-text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.ql2-learn-audio-btn:hover {
+  background: var(--ql2-primary);
+  border-color: var(--ql2-primary);
+  color: white;
+  transform: scale(1.06);
+}
+
+.ql2-learn-image-container {
+  width: 320px; /* Scaled image container from 240px */
+  height: 210px; /* Scaled image container from 160px */
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+}
+
+.ql2-learn-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Bottom Section: Answer form and inputs */
+.ql2-learn-bottom-section {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.ql2-learn-heading-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  text-align: left;
+}
+
+.ql2-learn-heading-label-text {
+  font-size: 0.95rem; /* Scaled heading label */
+  font-weight: 700;
+  color: var(--ql2-text-2);
+}
+
+.ql2-learn-feedback-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 16px; /* Scaled padding */
+  border-radius: 9999px;
+  font-size: 0.8125rem; /* Scaled text */
+  font-weight: 700;
+}
+
+.ql2-learn-feedback-pill.wrong {
+  background: #ffedd5;
+  color: #f97316;
+  border: 1px solid rgba(249, 115, 22, 0.1);
+}
+
+.ql2-learn-feedback-pill.correct {
+  background: #d1fae5;
+  color: #059669;
+  border: 1px solid rgba(5, 150, 105, 0.1);
+}
+
+.ql2-learn-form {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.ql2-learn-input-group {
+  margin-bottom: 20px;
+  width: 100%;
+}
+
+.ql2-learn-input-wrapper {
+  border-radius: 12px;
+  border: none;
+  background: #f0f2f8;
+  transition: all 0.2s ease;
+  overflow: hidden;
+  width: 100%;
+}
+
+[data-theme='dark'] .ql2-learn-input-wrapper {
+  background: var(--ql2-surface-3);
+}
+
+.ql2-learn-input-wrapper:focus-within {
+  box-shadow: inset 0 0 0 2px var(--ql2-primary);
+  background: var(--ql2-surface);
+}
+
+.ql2-learn-input-wrapper.correct {
+  background: var(--ql2-success-light);
+  box-shadow: inset 0 0 0 2px var(--ql2-success);
+}
+
+.ql2-learn-input-wrapper.wrong {
+  background: var(--ql2-error-light);
+  box-shadow: inset 0 0 0 2px var(--ql2-error);
+}
+
+.ql2-learn-input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  font-size: 1.25rem; /* Scaled text from 1.125rem */
+  font-weight: 500;
+  color: var(--ql2-text);
+  outline: none;
+  padding: 22px 24px; /* Scaled padding from 20px */
+  font-family: inherit;
+}
+
+.ql2-learn-input::placeholder {
+  color: var(--ql2-text-muted);
+  opacity: 0.6;
+}
+
+.ql2-learn-correct-answer {
+  padding: 16px 20px; /* Scaled padding */
+  background: var(--ql2-success-light);
+  border-radius: 12px;
+  color: var(--ql2-success-dark);
+  font-size: 1.05rem; /* Scaled text */
+  margin-bottom: 20px;
+  border: 1px solid rgba(24, 174, 121, 0.15);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+}
+
+.ql2-learn-correct-answer strong {
+  font-size: 1.05rem;
+  color: var(--ql2-success);
+}
+
+.ql2-learn-hint-box {
+  padding: 12px 16px;
+  background: var(--ql2-surface-3);
+  border: 1px solid var(--ql2-border);
+  border-radius: 10px;
+  color: var(--ql2-text-2);
+  font-size: 0.95rem;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ql2-hint-mask-text {
+  font-family: 'Geist Mono', monospace;
+  font-size: 1.1rem;
+  letter-spacing: 3px;
+  font-weight: 700;
+  color: var(--ql2-primary);
+  background: rgba(66, 85, 255, 0.05);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+/* Bottom actions row style matches image */
+.ql2-learn-actions-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 16px;
+  gap: 16px;
+  width: 100%;
+}
+
+.ql2-learn-actions-left {
+  display: flex;
+  align-items: center;
+}
+
+.ql2-learn-actions-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-left: auto;
+}
+
+.ql2-learn-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+  font-size: 0.95rem; /* Scaled font size */
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+  border: none;
+}
+
+.ql2-learn-action-btn--tertiary {
+  background: #f0f2f8;
+  color: #4a5568;
+  padding: 14px 28px; /* Scaled padding */
+}
+
+.ql2-learn-action-btn--tertiary:hover {
+  background: #e2e8f0;
+}
+
+[data-theme='dark'] .ql2-learn-action-btn--tertiary {
+  background: var(--ql2-surface-3);
+  color: var(--ql2-text-2);
+}
+
+[data-theme='dark'] .ql2-learn-action-btn--tertiary:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.ql2-learn-flag-btn {
+  background: transparent;
+  border: none;
+  padding: 10px;
+  color: var(--ql2-text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.ql2-learn-flag-btn:hover {
+  color: var(--ql2-text);
+}
+
+.ql2-learn-action-btn--text-primary {
+  background: transparent;
+  color: #2c5ef5;
+  padding: 12px 20px; /* Scaled padding */
+}
+
+.ql2-learn-action-btn--text-primary:hover {
+  color: #1d4fd8;
+  text-decoration: underline;
+}
+
+.ql2-learn-action-btn--primary {
+  background: #f0f2f8;
+  color: #cdd5e0;
+  padding: 14px 36px; /* Scaled padding */
+  cursor: default;
+}
+
+/* Active primary button */
+.ql2-learn-action-btn--primary:not(:disabled) {
+  background: var(--ql2-primary);
+  color: white;
+  cursor: pointer;
+  box-shadow: 0 4px 12px var(--ql2-primary-glow);
+}
+
+.ql2-learn-action-btn--primary:not(:disabled):hover {
+  background: var(--ql2-primary-dark);
+  transform: translateY(-1px);
+}
+
+/* Multiple choice styling adjustments */
+.ql2-learn-mc-container .ql2-card__options {
+  padding: 0;
+  width: 100%;
+}
+
+.ql2-learn-mc-container .ql2-options-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.ql2-option {
+  display: flex;
+  align-items: center;
+  padding: 20px 24px; /* Scaled padding from 16px 20px */
+  border-radius: 12px;
+  border: 1.5px solid var(--ql2-border);
+  background: var(--ql2-surface);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 100%;
+  color: var(--ql2-text);
+  font-family: inherit;
+}
+
+.ql2-option:hover:not(:disabled) {
+  border-color: var(--ql2-primary);
+  background: var(--ql2-surface-2);
+}
+
+.ql2-option.correct {
+  border-color: var(--ql2-success) !important;
+  background: var(--ql2-success-light) !important;
+  color: var(--ql2-success-dark) !important;
+}
+
+.ql2-option.wrong {
+  border-color: var(--ql2-error) !important;
+  background: var(--ql2-error-light) !important;
+  color: #cc312b !important;
+}
+
+.ql2-option.dimmed {
+  opacity: 0.4;
+}
+
+.ql2-option__number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px; /* Scaled badge from 28px */
+  height: 32px;
+  border-radius: 50%;
+  background: #f0f2f8;
+  color: var(--ql2-text-2);
+  font-size: 0.9rem; /* Scaled text from 0.8125rem */
+  font-weight: 700;
+  flex-shrink: 0;
+  margin-right: 18px; /* Scaled margin from 16px */
+  transition: all 0.2s ease;
+}
+
+[data-theme='dark'] .ql2-option__number {
+  background: var(--ql2-surface-3);
+  color: var(--ql2-text-2);
+}
+
+.ql2-option.correct .ql2-option__number {
+  background: var(--ql2-success) !important;
+  color: white !important;
+}
+
+.ql2-option.wrong .ql2-option__number {
+  background: var(--ql2-error) !important;
+  color: white !important;
+}
+
+.ql2-option__text {
+  flex: 1;
+  font-size: 1.05rem; /* Scaled option text from 0.95rem */
+  font-weight: 500;
+  text-align: left;
+}
+
+.ql2-option__icon {
+  flex-shrink: 0;
+  margin-left: 12px;
+}
+
+/* Mobile responsive collapse */
+@media (max-width: 768px) {
+  .ql2-learn-card {
+    padding: 24px 20px !important;
+    min-height: auto !important; /* Remove height constraint on mobile for perfect fit */
+  }
+  .ql2-learn-question-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 20px;
+  }
+  .ql2-learn-image-container {
+    width: 100%;
+    max-width: 220px;
+    height: 140px;
+  }
+  .ql2-learn-mc-container .ql2-options-grid {
+    grid-template-columns: 1fr;
+  }
+  .ql2-learn-actions-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .ql2-learn-actions-right {
+    margin-left: 0;
+    width: 100%;
+    justify-content: space-between;
+  }
+  .ql2-learn-action-btn {
+    width: auto;
+    flex: 1;
+  }
+  .ql2-learn-flag-btn {
+    order: -1;
+  }
+}

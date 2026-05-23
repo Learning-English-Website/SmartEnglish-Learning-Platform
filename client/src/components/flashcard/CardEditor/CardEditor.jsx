@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { FiSave, FiX, FiVolume2, FiZap, FiSearch, FiImage } from 'react-icons/fi';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { FiSave, FiX, FiVolume2, FiZap, FiSearch, FiImage, FiUpload } from 'react-icons/fi';
 import { lookupWord, searchWords } from '../../../api/dictionaryService';
 import ImagePicker from '../ImagePicker/ImagePicker';
+import ImageUploader from '../../media/ImageUploader';
 import './CardEditor.css';
 
 /**
@@ -21,6 +22,7 @@ export default function CardEditor({ card, onSave, onCancel, loading = false, in
   });
   const [errors, setErrors] = useState({});
   const [showImagePicker, setShowImagePicker] = useState(false);
+  const [imageTab, setImageTab] = useState('search'); // 'search' | 'upload'
 
   /* ── Suggest state ───────────────────────────────────────────────── */
   // Phase 1 — word list from Datamuse
@@ -413,7 +415,7 @@ export default function CardEditor({ card, onSave, onCancel, loading = false, in
         </div>
       </div>
 
-      {/* ── Image picker section ─────────────────────────────────────── */}
+      {/* ── Image section ─────────────────────────────────────────────── */}
       <div className="ce-image-section">
         <button
           type="button"
@@ -440,12 +442,40 @@ export default function CardEditor({ card, onSave, onCancel, loading = false, in
         )}
 
         {showImagePicker && (
-          <ImagePicker
-            selectedUrl={form.imageUrl}
-            defaultQuery={form.front || ''}
-            onSelect={(url) => setForm((p) => ({ ...p, imageUrl: url }))}
-            onClear={() => setForm((p) => ({ ...p, imageUrl: '' }))}
-          />
+          <div className="ce-image-panel">
+            {/* Tab switcher */}
+            <div className="ce-image-tabs">
+              <button
+                type="button"
+                className={`ce-image-tab ${imageTab === 'search' ? 'active' : ''}`}
+                onClick={() => setImageTab('search')}
+              >
+                <FiSearch size={13} /> Search
+              </button>
+              <button
+                type="button"
+                className={`ce-image-tab ${imageTab === 'upload' ? 'active' : ''}`}
+                onClick={() => setImageTab('upload')}
+              >
+                <FiUpload size={13} /> Upload
+              </button>
+            </div>
+
+            {imageTab === 'search' ? (
+              <ImagePicker
+                selectedUrl={form.imageUrl}
+                defaultQuery={form.front || ''}
+                onSelect={(url) => setForm((p) => ({ ...p, imageUrl: url }))}
+                onClear={() => setForm((p) => ({ ...p, imageUrl: '' }))}
+              />
+            ) : (
+              <ImageUploader
+                currentUrl={form.imageUrl}
+                onUpload={(url) => setForm((p) => ({ ...p, imageUrl: url }))}
+                onClear={() => setForm((p) => ({ ...p, imageUrl: '' }))}
+              />
+            )}
+          </div>
         )}
       </div>
 
