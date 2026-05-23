@@ -4,6 +4,85 @@ import { Star, Zap, Trophy, ChevronUp, X } from 'lucide-react';
 
 const XP_PER_LEVEL = 500; // must match server constant
 
+// ─── Floating XP Popup ────────────────────────────────────────────────────────
+function FloatingXP({ gained, onDone }) {
+  useEffect(() => {
+    const t = setTimeout(onDone, 2200);
+    return () => clearTimeout(t);
+  }, [onDone]);
+
+  return (
+    <motion.div
+      style={{
+        position: 'fixed',
+        top: '38%',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        zIndex: 9999,
+        pointerEvents: 'none',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 6,
+      }}
+      initial={{ opacity: 0, y: 0, scale: 0.6 }}
+      animate={{ opacity: [0, 1, 1, 0], y: -90, scale: [0.6, 1.2, 1, 0.9] }}
+      transition={{ duration: 2.0, ease: 'easeOut', times: [0, 0.15, 0.6, 1] }}
+    >
+      {/* Main XP badge */}
+      <div style={{
+        background: 'linear-gradient(135deg, #635bff 0%, #a78bfa 100%)',
+        borderRadius: '999px',
+        padding: '10px 28px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        boxShadow: '0 8px 32px rgba(99,91,255,0.6), 0 0 0 3px rgba(167,139,250,0.3)',
+        backdropFilter: 'blur(8px)',
+      }}>
+        <motion.span
+          animate={{ rotate: [0, -20, 20, -10, 0] }}
+          transition={{ duration: 0.5, delay: 0.1 }}
+          style={{ fontSize: '1.4rem', lineHeight: 1 }}
+        >
+          ⚡
+        </motion.span>
+        <span style={{
+          color: '#fff',
+          fontWeight: 900,
+          fontSize: '1.6rem',
+          letterSpacing: '-0.02em',
+          textShadow: '0 2px 8px rgba(0,0,0,0.3)',
+        }}>
+          +{gained} XP
+        </span>
+      </div>
+
+      {/* Sparkle particles */}
+      {[...Array(6)].map((_, i) => (
+        <motion.div
+          key={i}
+          style={{
+            position: 'absolute',
+            width: 8,
+            height: 8,
+            borderRadius: '50%',
+            background: ['#f59e0b','#a78bfa','#10b981','#ec4899','#635bff','#f97316'][i],
+          }}
+          initial={{ x: 0, y: 0, opacity: 1, scale: 0 }}
+          animate={{
+            x: Math.cos((i / 6) * Math.PI * 2) * 50,
+            y: Math.sin((i / 6) * Math.PI * 2) * 50,
+            opacity: 0,
+            scale: [0, 1.5, 0],
+          }}
+          transition={{ duration: 0.8, delay: 0.1 + i * 0.05, ease: 'easeOut' }}
+        />
+      ))}
+    </motion.div>
+  );
+}
+
 // ─── Confetti particles ────────────────────────────────────────────────────────
 function Confetti() {
   const colors = ['#f59e0b', '#2c5ef5', '#10b981', '#ec4899', '#a78bfa', '#f97316'];
@@ -46,7 +125,7 @@ function LevelUpModal({ level, onClose }) {
       style={{
         position: 'fixed', inset: 0, zIndex: 9997,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)',
+        background: 'rgba(99,91,255,0.18)', backdropFilter: 'blur(12px)',
       }}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -56,14 +135,14 @@ function LevelUpModal({ level, onClose }) {
       <Confetti />
       <motion.div
         style={{
-          background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
+          background: '#ffffff',
           borderRadius: '28px',
           padding: '48px 52px',
           textAlign: 'center',
           maxWidth: '400px',
           width: '90%',
-          border: '1px solid rgba(255,255,255,0.12)',
-          boxShadow: '0 32px 80px rgba(0,0,0,0.6), 0 0 60px rgba(99,91,255,0.3)',
+          border: '1px solid rgba(99,91,255,0.15)',
+          boxShadow: '0 24px 80px rgba(99,91,255,0.18), 0 4px 24px rgba(0,0,0,0.08)',
           position: 'relative',
           zIndex: 1,
         }}
@@ -88,7 +167,7 @@ function LevelUpModal({ level, onClose }) {
         </motion.div>
 
         <motion.p
-          style={{ color: '#f59e0b', fontSize: '0.875rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', margin: '0 0 8px' }}
+          style={{ color: '#635bff', fontSize: '0.875rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', margin: '0 0 8px' }}
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
@@ -96,7 +175,7 @@ function LevelUpModal({ level, onClose }) {
           Chúc mừng!
         </motion.p>
         <motion.h2
-          style={{ color: '#fff', fontSize: '2.25rem', fontWeight: 900, margin: '0 0 6px', letterSpacing: '-0.03em' }}
+          style={{ color: '#1e1b4b', fontSize: '2.25rem', fontWeight: 900, margin: '0 0 6px', letterSpacing: '-0.03em' }}
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5 }}
@@ -106,7 +185,7 @@ function LevelUpModal({ level, onClose }) {
         <motion.div
           style={{
             display: 'inline-flex', alignItems: 'center', gap: 12,
-            background: 'linear-gradient(135deg, #635bff, #a78bfa)',
+            background: 'linear-gradient(135deg, #635bff, #818cf8)',
             borderRadius: '16px', padding: '10px 28px',
             margin: '12px 0 20px',
           }}
@@ -119,7 +198,7 @@ function LevelUpModal({ level, onClose }) {
           <ChevronUp size={20} color="#fff" strokeWidth={3} />
         </motion.div>
         <motion.p
-          style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', margin: '0 0 28px' }}
+          style={{ color: '#64748b', fontSize: '0.9rem', margin: '0 0 28px' }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.7 }}
@@ -128,11 +207,11 @@ function LevelUpModal({ level, onClose }) {
         </motion.p>
         <motion.button
           style={{
-            background: 'linear-gradient(135deg, #635bff, #a78bfa)',
+            background: 'linear-gradient(135deg, #635bff, #818cf8)',
             color: '#fff', border: 'none', borderRadius: '14px',
             padding: '14px 36px', fontSize: '1rem', fontWeight: 700,
             cursor: 'pointer', width: '100%',
-            boxShadow: '0 8px 24px rgba(99,91,255,0.4)',
+            boxShadow: '0 8px 24px rgba(99,91,255,0.25)',
           }}
           onClick={onClose}
           whileHover={{ scale: 1.03, boxShadow: '0 12px 32px rgba(99,91,255,0.5)' }}
@@ -163,13 +242,13 @@ function AchievementToast({ achievement, onDismiss }) {
       exit={{ opacity: 0, x: 320, scale: 0.9 }}
       transition={{ type: 'spring', stiffness: 220, damping: 22 }}
       style={{
-        background: 'linear-gradient(135deg, #1a1a2e 0%, #0f3460 100%)',
-        border: '1px solid rgba(99,91,255,0.4)',
+        background: '#ffffff',
+        border: '1px solid rgba(99,91,255,0.18)',
         borderRadius: '18px',
-        padding: '16px 20px',
+        padding: '14px 18px',
         display: 'flex', alignItems: 'center', gap: '14px',
         minWidth: '300px', maxWidth: '360px',
-        boxShadow: '0 16px 48px rgba(0,0,0,0.4), 0 0 30px rgba(99,91,255,0.2)',
+        boxShadow: '0 8px 32px rgba(99,91,255,0.12), 0 2px 8px rgba(0,0,0,0.06)',
         cursor: 'pointer',
         position: 'relative',
         overflow: 'hidden',
@@ -180,18 +259,18 @@ function AchievementToast({ achievement, onDismiss }) {
       <motion.div
         style={{
           position: 'absolute', inset: 0,
-          background: 'linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.06) 50%, transparent 60%)',
+          background: 'linear-gradient(105deg, transparent 40%, rgba(99,91,255,0.05) 50%, transparent 60%)',
         }}
         animate={{ x: ['-100%', '200%'] }}
         transition={{ duration: 1.2, delay: 0.3 }}
       />
 
-      {/* Badge glow */}
+      {/* Badge */}
       <motion.div
         style={{
           width: 52, height: 52, borderRadius: '14px',
-          background: 'linear-gradient(135deg, rgba(99,91,255,0.3), rgba(167,139,250,0.3))',
-          border: '1px solid rgba(99,91,255,0.5)',
+          background: 'linear-gradient(135deg, #ede9fe, #ddd6fe)',
+          border: '1px solid rgba(99,91,255,0.2)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontSize: '1.75rem', flexShrink: 0,
         }}
@@ -202,18 +281,18 @@ function AchievementToast({ achievement, onDismiss }) {
       </motion.div>
 
       <div style={{ flex: 1, minWidth: 0 }}>
-        <p style={{ color: 'rgba(167,139,250,0.9)', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 2px' }}>
+        <p style={{ color: '#635bff', fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 2px' }}>
           🏆 Thành tựu mở khóa!
         </p>
-        <p style={{ color: '#fff', fontSize: '0.95rem', fontWeight: 700, margin: '0 0 2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        <p style={{ color: '#1e1b4b', fontSize: '0.95rem', fontWeight: 700, margin: '0 0 2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {achievement.title}
         </p>
-        <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.78rem', margin: '0 0 6px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        <p style={{ color: '#64748b', fontSize: '0.78rem', margin: '0 0 6px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {achievement.description}
         </p>
         <span style={{
           display: 'inline-flex', alignItems: 'center', gap: 4,
-          background: 'linear-gradient(135deg, #f59e0b, #ef4444)',
+          background: 'linear-gradient(135deg, #f59e0b, #f97316)',
           color: '#fff', borderRadius: '10px',
           padding: '2px 10px', fontSize: '0.75rem', fontWeight: 800,
         }}>
@@ -222,7 +301,7 @@ function AchievementToast({ achievement, onDismiss }) {
       </div>
 
       <button
-        style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', flexShrink: 0, padding: 2 }}
+        style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', flexShrink: 0, padding: 2 }}
         onClick={e => { e.stopPropagation(); onDismiss(); }}
       >
         <X size={16} />
@@ -230,7 +309,7 @@ function AchievementToast({ achievement, onDismiss }) {
 
       {/* Timer bar */}
       <motion.div
-        style={{ position: 'absolute', bottom: 0, left: 0, height: 3, background: 'linear-gradient(90deg, #635bff, #a78bfa)', borderRadius: '0 0 18px 18px' }}
+        style={{ position: 'absolute', bottom: 0, left: 0, height: 3, background: 'linear-gradient(90deg, #635bff, #818cf8)', borderRadius: '0 0 18px 18px' }}
         initial={{ width: '100%' }}
         animate={{ width: '0%' }}
         transition={{ duration: 5, ease: 'linear' }}
@@ -274,20 +353,20 @@ function XPBar({ xpData }) {
 
   return (
     <div style={{
-      background: 'rgba(255,255,255,0.08)',
+      background: '#f8f7ff',
       borderRadius: '12px',
       padding: '14px 18px',
-      border: '1px solid rgba(255,255,255,0.1)',
+      border: '1px solid rgba(99,91,255,0.15)',
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Star size={16} color="#f59e0b" fill="#f59e0b" />
-          <span style={{ color: '#fff', fontWeight: 700, fontSize: '0.9rem' }}>
+          <span style={{ color: '#1e1b4b', fontWeight: 700, fontSize: '0.9rem' }}>
             Level {phase === 'reset' ? level : (levelUp && phase === 'filling' ? oldLevel : level)}
           </span>
         </div>
         <motion.span
-          style={{ color: '#a78bfa', fontSize: '0.8rem', fontWeight: 700 }}
+          style={{ color: '#635bff', fontSize: '0.8rem', fontWeight: 700 }}
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.2 }}
@@ -296,9 +375,9 @@ function XPBar({ xpData }) {
         </motion.span>
       </div>
 
-      <div style={{ height: 10, background: 'rgba(255,255,255,0.1)', borderRadius: '99px', overflow: 'hidden', position: 'relative' }}>
+      <div style={{ height: 10, background: '#e0e7ff', borderRadius: '99px', overflow: 'hidden', position: 'relative' }}>
         <motion.div
-          style={{ height: '100%', borderRadius: '99px', background: 'linear-gradient(90deg, #635bff, #a78bfa)' }}
+          style={{ height: '100%', borderRadius: '99px', background: 'linear-gradient(90deg, #635bff, #818cf8)' }}
           initial={{ width: `${oldPct}%` }}
           animate={{ width: `${displayPct}%` }}
           transition={{ duration: phase === 'reset' ? 0 : 0.8, ease: 'easeOut' }}
@@ -307,7 +386,7 @@ function XPBar({ xpData }) {
         <motion.div
           style={{
             position: 'absolute', inset: 0,
-            background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent)',
+            background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent)',
           }}
           animate={{ x: ['-100%', '200%'] }}
           transition={{ duration: 1.2, delay: 0.5, ease: 'easeInOut' }}
@@ -315,8 +394,8 @@ function XPBar({ xpData }) {
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
-        <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.72rem' }}>{total % xpPerLevel} XP</span>
-        <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.72rem' }}>{xpPerLevel} XP</span>
+        <span style={{ color: '#94a3b8', fontSize: '0.72rem' }}>{total % xpPerLevel} XP</span>
+        <span style={{ color: '#94a3b8', fontSize: '0.72rem' }}>{xpPerLevel} XP</span>
       </div>
     </div>
   );
@@ -331,26 +410,41 @@ export default function GamificationRewards({ result, show }) {
   const [achievements, setAchievements] = useState([]);
   const [showLevelUp, setShowLevelUp] = useState(false);
   const [showXPBar, setShowXPBar] = useState(false);
-  const [dismissed, setDismissed] = useState(false);
+  const [showFloatingXP, setShowFloatingXP] = useState(false);
 
   useEffect(() => {
-    if (!show || !result || dismissed) return;
+    if (!show || !result) return;
+
+    // Reset all states for re-trigger
+    setAchievements([]);
+    setShowLevelUp(false);
+    setShowXPBar(false);
+    setShowFloatingXP(false);
+
+    // Small delay to allow reset to flush before showing new data
+    const timers = [];
 
     // Queue achievements
     if (result.newAchievements?.length > 0) {
-      setAchievements(result.newAchievements.map((a, i) => ({ ...a, toastId: `${a.key}-${i}` })));
+      setAchievements(result.newAchievements.map((a, i) => ({ ...a, toastId: `${a.key}-${i}-${Date.now()}` })));
     }
 
-    // Show XP bar after a short delay
     if (result.xp?.gained > 0) {
-      setTimeout(() => setShowXPBar(true), 300);
+      // 1. Show floating XP popup immediately
+      timers.push(setTimeout(() => setShowFloatingXP(true), 100));
+      // 2. Show XP progress bar shortly after
+      timers.push(setTimeout(() => setShowXPBar(true), 600));
+      // 3. Auto-hide XP bar after 6s
+      timers.push(setTimeout(() => setShowXPBar(false), 6500));
     }
 
     // Show level-up modal with delay for dramatic effect
     if (result.xp?.levelUp) {
-      setTimeout(() => setShowLevelUp(true), 1000);
+      timers.push(setTimeout(() => setShowLevelUp(true), 1400));
     }
-  }, [show, result]);
+
+    return () => timers.forEach(clearTimeout);
+  }, [result]); // only re-run when result object changes (new reward event)
 
   const dismissAchievement = useCallback((toastId) => {
     setAchievements(prev => prev.filter(a => a.toastId !== toastId));
@@ -360,6 +454,16 @@ export default function GamificationRewards({ result, show }) {
 
   return (
     <>
+      {/* Floating XP popup - immediate feedback */}
+      <AnimatePresence>
+        {showFloatingXP && result.xp && (
+          <FloatingXP
+            gained={result.xp.gained}
+            onDone={() => setShowFloatingXP(false)}
+          />
+        )}
+      </AnimatePresence>
+
       {/* Level Up Modal */}
       <AnimatePresence>
         {showLevelUp && (
@@ -387,21 +491,21 @@ export default function GamificationRewards({ result, show }) {
         </AnimatePresence>
       </div>
 
-      {/* XP bar - bottom center */}
+      {/* XP bar - bottom right */}
       <AnimatePresence>
         {showXPBar && result.xp && (
           <motion.div
-            initial={{ opacity: 0, y: 80 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 80 }}
+            initial={{ opacity: 0, y: 50, x: 50 }}
+            animate={{ opacity: 1, y: 0, x: 0 }}
+            exit={{ opacity: 0, y: 50, x: 50 }}
             transition={{ type: 'spring', stiffness: 200, damping: 20 }}
             style={{
-              position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
+              position: 'fixed', bottom: 24, right: 24,
               zIndex: 9989, width: '90%', maxWidth: 420,
-              background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
+              background: '#ffffff',
               borderRadius: '20px', padding: '18px 22px',
-              boxShadow: '0 16px 48px rgba(0,0,0,0.5), 0 0 30px rgba(99,91,255,0.25)',
-              border: '1px solid rgba(99,91,255,0.3)',
+              boxShadow: '0 12px 48px rgba(99,91,255,0.15), 0 2px 16px rgba(0,0,0,0.06)',
+              border: '1px solid rgba(99,91,255,0.15)',
             }}
           >
             <XPBar xpData={result.xp} />
@@ -409,25 +513,23 @@ export default function GamificationRewards({ result, show }) {
             {result.streak && (
               <div style={{
                 marginTop: 10, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                gap: 6, color: '#f59e0b', fontSize: '0.82rem', fontWeight: 700,
+                gap: 6, color: '#f97316', fontSize: '0.82rem', fontWeight: 700,
               }}>
                 🔥 Streak {result.streak.current} ngày liên tiếp!
               </div>
             )}
 
-            <motion.button
-              style={{
-                display: 'block', width: '100%', marginTop: 14,
-                background: 'rgba(99,91,255,0.2)', color: 'rgba(255,255,255,0.7)',
-                border: '1px solid rgba(99,91,255,0.3)', borderRadius: '10px',
-                padding: '8px', fontSize: '0.8rem', cursor: 'pointer',
-                fontWeight: 600,
-              }}
-              onClick={() => setShowXPBar(false)}
-              whileHover={{ background: 'rgba(99,91,255,0.35)' }}
+            {/* Auto-dismiss progress bar */}
+            <motion.div
+              style={{ height: 2, background: '#e0e7ff', borderRadius: 99, marginTop: 14, overflow: 'hidden' }}
             >
-              OK
-            </motion.button>
+              <motion.div
+                style={{ height: '100%', background: 'linear-gradient(90deg, #635bff, #818cf8)' }}
+                initial={{ width: '100%' }}
+                animate={{ width: '0%' }}
+                transition={{ duration: 5, ease: 'linear' }}
+              />
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

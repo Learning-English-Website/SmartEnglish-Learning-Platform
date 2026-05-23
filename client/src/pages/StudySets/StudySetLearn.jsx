@@ -13,7 +13,7 @@ import { toast } from 'react-hot-toast';
 import { setService } from '../../api/setService';
 import { cardService } from '../../api/cardService';
 import { gamificationService } from '../../api/gamificationService';
-import GamificationRewards from '../../components/gamification/GamificationRewards';
+import { useGamification } from '../../context/GamificationContext';
 import './StudySetLearn.css';
 
 const BATCH_SIZE = 7;
@@ -142,8 +142,8 @@ export default function StudySetLearn() {
   const [isShuffled, setIsShuffled] = useState(false);
   const [starredCards, setStarredCards] = useState(new Set());
   const [screen, setScreen] = useState('loading');
-  const [gamificationResult, setGamificationResult] = useState(null);
   const [sessionStartTime] = useState(Date.now());
+  const { triggerRewards } = useGamification();
 
   const inputRef = useRef(null);
   const audioRef = useRef(null);
@@ -195,8 +195,12 @@ export default function StudySetLearn() {
             // Trigger gamification
             const acc = Math.round((newCorrect / actualBatchSize) * 100);
             gamificationService.triggerLearnComplete({ accuracy: acc, cardsStudied: totalItems })
-              .then(r => setGamificationResult(r.data?.data || null))
-              .catch(() => {});
+              .then(r => {
+                const data = r.data?.data ?? r.data;
+                console.log('[Gamification] Learn result:', data);
+                if (data?.xp || data?.newAchievements?.length > 0) triggerRewards(data);
+              })
+              .catch(err => console.error('[Gamification] Learn error:', err));
           } else {
             setScreen('batch-complete');
           }
@@ -204,7 +208,7 @@ export default function StudySetLearn() {
         return next;
       });
     }
-  }, [answered, currentItem, currentBatchIdx, totalBatches_, totalItems, playCorrectSound]);
+  }, [answered, currentItem, currentBatchIdx, totalBatches_, totalItems, playCorrectSound, triggerRewards]);
 
   const handleTypeAnswer = useCallback(() => {
     if (answered || !typedAnswer.trim() || !currentItem) return;
@@ -227,8 +231,12 @@ export default function StudySetLearn() {
             // Trigger gamification
             const acc = Math.round((newCorrect / actualBatchSize) * 100);
             gamificationService.triggerLearnComplete({ accuracy: acc, cardsStudied: totalItems })
-              .then(r => setGamificationResult(r.data?.data || null))
-              .catch(() => {});
+              .then(r => {
+                const data = r.data?.data ?? r.data;
+                console.log('[Gamification] Learn result:', data);
+                if (data?.xp || data?.newAchievements?.length > 0) triggerRewards(data);
+              })
+              .catch(err => console.error('[Gamification] Learn error:', err));
           } else {
             setScreen('batch-complete');
           }
@@ -236,7 +244,7 @@ export default function StudySetLearn() {
         return next;
       });
     }
-  }, [answered, typedAnswer, currentItem, currentBatchIdx, totalBatches_, totalItems, playCorrectSound]);
+  }, [answered, typedAnswer, currentItem, currentBatchIdx, totalBatches_, totalItems, playCorrectSound, triggerRewards]);
 
   const handleDontKnow = useCallback(() => {
     if (answered || !currentItem) return;
@@ -608,8 +616,6 @@ export default function StudySetLearn() {
             </motion.div>
           </div>
         </div>
-
-        <GamificationRewards result={gamificationResult} show={!!gamificationResult} />
       </>
     );
   }

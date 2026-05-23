@@ -3,6 +3,7 @@ import { Provider } from 'react-redux';
 import { Toaster } from 'react-hot-toast';
 import { store } from './store/store';
 import { DarkModeProvider, useDarkMode } from './context/DarkModeContext';
+import { GamificationProvider } from './context/GamificationContext';
 import ErrorBoundary from './components/ErrorBoundary/ErrorBoundary';
 import AppInitializer from './components/AppInitializer/AppInitializer';
 import router from './routes';
@@ -35,10 +36,12 @@ export default function App() {
     <ErrorBoundary>
       <Provider store={store}>
         <DarkModeProvider>
-          <AppInitializer>
-            <RouterProvider router={router} />
-            <ToasterWithTheme />
-          </AppInitializer>
+          <GamificationProvider>
+            <AppInitializer>
+              <RouterProvider router={router} />
+              <ToasterWithTheme />
+            </AppInitializer>
+          </GamificationProvider>
         </DarkModeProvider>
       </Provider>
     </ErrorBoundary>

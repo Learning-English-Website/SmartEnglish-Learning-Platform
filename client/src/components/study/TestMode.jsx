@@ -7,7 +7,7 @@ import {
 import StudyHeader from './StudyHeader';
 import { progressService } from '../../services/progressService';
 import { gamificationService } from '../../api/gamificationService';
-import GamificationRewards from '../gamification/GamificationRewards';
+import { useGamification } from '../../context/GamificationContext';
 
 /**
  * TestMode - Quizlet-style Test mode with setup modal and question types
@@ -543,7 +543,7 @@ export default function TestMode({ cards = [], setTitle = '', onClose, onComplet
   const [allDone, setAllDone] = useState(false);
   const [cardResults, setCardResults] = useState({});
   const [isUpdating, setIsUpdating] = useState(false);
-  const [testGamificationResult, setTestGamificationResult] = useState(null);
+  const { triggerRewards } = useGamification();
 
   const currentQ = questions[currentIndex];
   const progressPercent = questions.length > 0 ? ((currentIndex + 1) / questions.length) * 100 : 0;
@@ -719,8 +719,12 @@ export default function TestMode({ cards = [], setTitle = '', onClose, onComplet
       }, 0);
       const acc = questions.length > 0 ? Math.round((totalCorrect / questions.length) * 100) : 0;
       gamificationService.triggerTestComplete({ accuracy: acc, cardsStudied: cards.length })
-        .then(r => setTestGamificationResult(r.data?.data || null))
-        .catch(() => {});
+        .then(r => {
+          const data = r.data?.data ?? r.data;
+          console.log('[Gamification] Test result:', data);
+          if (data?.xp || data?.newAchievements?.length > 0) triggerRewards(data);
+        })
+        .catch(err => console.error('[Gamification] Test error:', err));
     }
   };
 
@@ -892,7 +896,6 @@ export default function TestMode({ cards = [], setTitle = '', onClose, onComplet
             </div>
           </motion.div>
         </div>
-        <GamificationRewards result={testGamificationResult} show={!!testGamificationResult} />
         <style>{`
           .test-results__updating {
             display: flex;

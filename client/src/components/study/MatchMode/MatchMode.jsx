@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { gamificationService } from '../../../api/gamificationService';
 import StudyHeader from '../StudyHeader';
-import GamificationRewards from '../../gamification/GamificationRewards';
+import { useGamification } from '../../../context/GamificationContext';
 import './MatchMode.css';
 
 /**
@@ -37,8 +37,8 @@ export default function MatchMode({ cards, setId, setTitle, onClose, onModeChang
   // Game states
   const [gameState, setGameState] = useState('playing'); // 'playing' | 'finished'
   const [leaderboardResult, setLeaderboardResult] = useState(null);
-  const [matchGamificationResult, setMatchGamificationResult] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const { triggerRewards } = useGamification();
 
   // ── Build tiles ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -122,9 +122,8 @@ export default function MatchMode({ cards, setId, setTitle, onClose, onModeChang
       const res = await gamificationService.submitMatchScore(setId, finalTimeMs);
       const data = res?.data?.data ?? res?.data ?? res;
       setLeaderboardResult(data);
-      // Extract gamification rewards from response
       if (data.gamification) {
-        setMatchGamificationResult(data.gamification);
+        triggerRewards(data.gamification);
       }
       if (data.isPersonalBest) {
         toast.success(`🏆 Kỷ lục mới! ${formatTime(finalTimeMs)}`, { duration: 3000 });
@@ -299,8 +298,6 @@ export default function MatchMode({ cards, setId, setTitle, onClose, onModeChang
           </p>
         )}
       </div>
-
-      <GamificationRewards result={matchGamificationResult} show={!!matchGamificationResult} />
     </>
   );
 }
