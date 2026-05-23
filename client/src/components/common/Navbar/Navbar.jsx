@@ -2,6 +2,7 @@ import { Link, NavLink } from 'react-router-dom';
 import { Navbar, Nav, Container, Button, Dropdown } from 'react-bootstrap';
 import { FiUser, FiLogOut, FiSettings, FiSun, FiMoon } from 'react-icons/fi';
 import { useAuth } from '../../../hooks/useAuth';
+import StreakCounter from '../../gamification/StreakCounter/StreakCounter';
 import './Navbar.css';
 
 export default function AppNavbar({ darkMode, onToggleDark }) {
@@ -38,6 +39,9 @@ export default function AppNavbar({ darkMode, onToggleDark }) {
             >
               {darkMode ? <FiSun /> : <FiMoon />}
             </Button>
+
+            {/* Streak counter — chỉ hiện khi đã đăng nhập */}
+            {isAuthenticated && <StreakCounter />}
 
             {isAuthenticated ? (
               <Dropdown align="end">

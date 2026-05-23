@@ -1,0 +1,54 @@
+/* ── StreakCounter ─────────────────────────────────────────────────────────── */
+.streak-counter {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border-radius: 20px;
+  cursor: default;
+  user-select: none;
+  transition: all 0.2s ease;
+  font-weight: 700;
+  font-size: 0.875rem;
+  line-height: 1;
+}
+
+/* Đã học hôm nay — cam rực */
+.streak-counter--active {
+  background: linear-gradient(135deg, #ff6b35 0%, #ff9500 100%);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(255, 107, 53, 0.4);
+  animation: streak-pulse 2s ease-in-out infinite;
+}
+
+/* Chưa học hôm nay — xám mờ */
+.streak-counter--inactive {
+  background: rgba(128, 128, 128, 0.12);
+  color: #888;
+  filter: grayscale(1);
+}
+
+.streak-counter--inactive .streak-counter__flame {
+  opacity: 0.5;
+}
+
+.streak-counter:hover {
+  transform: scale(1.05);
+}
+
+.streak-counter__flame {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.streak-counter__number {
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+}
+
+/* Hiệu ứng nhịp đập nhẹ khi active */
+@keyframes streak-pulse {
+  0%, 100% { box-shadow: 0 2px 8px rgba(255, 107, 53, 0.4); }
+  50%       { box-shadow: 0 4px 16px rgba(255, 107, 53, 0.6); }
+}

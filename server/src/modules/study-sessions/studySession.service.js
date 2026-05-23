@@ -270,7 +270,42 @@ const completeSession = async (userId, sessionId, durationMs) => {
 
   await session.save();
 
-  return session;
+  // ── Trigger Gamification (fire-and-forget style, không block response) ──────
+  let gamificationResult = { streak: null, xp: null, newAchievements: [] };
+
+  try {
+    const gamificationService = require('../gamification/gamification.service');
+
+    const [streakResult, xpResult] = await Promise.allSettled([
+      gamificationService.updateStreak(userId),
+      gamificationService.awardXP(userId, session),
+    ]);
+
+    const streak = streakResult.status === 'fulfilled' ? streakResult.value : null;
+    const xp    = xpResult.status === 'fulfilled'    ? xpResult.value    : null;
+
+    // Kiểm tra achievements dựa trên context mới nhất
+    if (streak || xp) {
+      const studyHour = new Date().getHours();
+      const context = {
+        streak:        streak?.current || 0,
+        totalXP:       xp?.totalXP || 0,
+        level:         xp?.newLevel || 1,
+        totalSessions: 1,                        // Tối thiểu 1 (session vừa hoàn thành)
+        accuracy:      session.accuracy || 0,
+        matchTimeMs:   0,
+        studyHour,
+      };
+      const newAchievements = await gamificationService.checkAndUnlockAchievements(userId, context);
+      gamificationResult = { streak, xp, newAchievements };
+    }
+  } catch (gamErr) {
+    // Không làm lỗi session — chỉ log
+    console.error('[Gamification] Error after completeSession:', gamErr.message);
+  }
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  return { session, gamification: gamificationResult };
 };
 
 /**

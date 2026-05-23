@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Container } from 'react-bootstrap';
 import {
   FiArrowLeft, FiEdit2, FiTrash2, FiPlus,
@@ -43,6 +43,7 @@ import NoteCard from '../../components/common/NoteCard/NoteCard';
 import { LoadingSpinner } from '../../components/common';
 import { ConfirmModal } from '../../components/common/Modal/Modal';
 import ShareModal from '../../components/common/ShareModal/ShareModal';
+import Leaderboard from '../../components/gamification/Leaderboard/Leaderboard';
 import './SetDetail.css';
 
 const LAYOUT = { LIST: 'list', GRID: 'grid' };
@@ -50,6 +51,7 @@ const LAYOUT = { LIST: 'list', GRID: 'grid' };
 export default function SetDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user: currentUser } = useAuth();
   const isAuthenticated = useSelector(selectIsAuthenticated);
   const authLoading = useSelector(selectAuthLoading);
@@ -416,31 +418,36 @@ export default function SetDetail() {
           {/* ── Mode Cards Grid ───────────────────────────────────────── */}
           <div className="sd-modes-section">
             <div className="sd-modes-grid">
-              <button className="sd-mode-card" onClick={() => navigate(`/study-sets/${id}/flashcards`)}>
+              <button className="sd-mode-card" onClick={() => navigate(`/study-sets/${id}/flashcards`, { state: { returnTo: location.pathname } })}>
                 <div className="sd-mode-icon sd-mode-icon--blue">
                   <FiBookOpen size={24} />
                 </div>
                 <span className="sd-mode-label">Thẻ ghi nhớ</span>
               </button>
-              <button className="sd-mode-card" onClick={() => navigate(`/study-sets/${id}/learn`)}>
+              <button className="sd-mode-card" onClick={() => navigate(`/study-sets/${id}/learn`, { state: { returnTo: location.pathname } })}>
                 <div className="sd-mode-icon sd-mode-icon--purple">
                   <FiZap size={24} />
                 </div>
                 <span className="sd-mode-label">Học</span>
               </button>
-              <button className="sd-mode-card" onClick={() => navigate(`/study-sets/${id}/test`)}>
+              <button className="sd-mode-card" onClick={() => navigate(`/study-sets/${id}/test`, { state: { returnTo: location.pathname } })}>
                 <div className="sd-mode-icon sd-mode-icon--green">
                   <FiTarget size={24} />
                 </div>
                 <span className="sd-mode-label">Kiểm tra</span>
               </button>
-              <button className="sd-mode-card" onClick={() => navigate(`/study-sets/${id}/match`)}>
+              <button className="sd-mode-card" onClick={() => navigate(`/study-sets/${id}/match`, { state: { returnTo: location.pathname } })}>
                 <div className="sd-mode-icon sd-mode-icon--orange">
                   <FiGrid size={24} />
                 </div>
                 <span className="sd-mode-label">Khớp thẻ</span>
               </button>
             </div>
+          </div>
+
+          {/* ── Match Leaderboard ──────────────────────────────────────────── */}
+          <div className="sd-leaderboard-section">
+            <Leaderboard setId={id} />
           </div>
 
           {/* ── Author Section ─────────────────────────────────────────── */}

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   BookOpen, Brain, ClipboardCheck, Box,
@@ -44,6 +44,25 @@ export default function StudyHeader({
   isFullscreen = false,
 }) {
   const [modeMenuOpen, setModeMenuOpen] = useState(false);
+  const [isFS, setIsFS] = useState(false);
+
+  useEffect(() => {
+    const handleFsChange = () => {
+      setIsFS(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFsChange);
+    return () => document.removeEventListener('fullscreenchange', handleFsChange);
+  }, []);
+
+  const handleFullscreenClick = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen?.();
+    } else {
+      document.exitFullscreen?.();
+    }
+    if (onFullscreenToggle) onFullscreenToggle();
+  };
+
   const currentModeConfig = MODES.find((m) => m.id === mode) || MODES[0];
   const CurrentIcon = currentModeConfig.icon;
   const progressPercent = totalCards > 0 ? (currentCard / totalCards) * 100 : 0;
@@ -137,11 +156,11 @@ export default function StudyHeader({
 
         <button
           className="study-header__icon-btn"
-          onClick={onFullscreenToggle}
+          onClick={handleFullscreenClick}
           aria-label="Toàn màn hình"
           title="Toàn màn hình"
         >
-          {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+          {isFS ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
         </button>
 
         <button

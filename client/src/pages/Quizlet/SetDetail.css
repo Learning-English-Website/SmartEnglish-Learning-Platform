@@ -807,6 +807,11 @@
   box-shadow: 0 6px 24px rgba(54, 88, 232, 0.4);
 }
 
+/* ── Leaderboard Section ────────────────────────────────────────── */
+.sd-leaderboard-section {
+  margin-bottom: 32px;
+}
+
 /* ── Responsive Design ──────────────────────────────────────────── */
 @media (max-width: 1024px) {
   .sd-modes-grid {
