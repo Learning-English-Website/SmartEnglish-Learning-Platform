@@ -8,6 +8,7 @@ const {
   refreshToken,
   logout,
   forgotPassword,
+  verifyResetOtp,
   verifyEmailOtp,
   resetPasswordWithOtp,
 } = require('./auth.controller');
@@ -70,6 +71,9 @@ router.post('/logout', authenticate, logout);
 
 // POST /api/auth/forgot-password
 router.post('/forgot-password', validate(forgotPasswordSchema), forgotPassword);
+
+// POST /api/auth/verify-reset-otp
+router.post('/verify-reset-otp', verifyOtpRateLimiter, validate(verifyEmailOtpSchema), verifyResetOtp);
 
 // POST /api/auth/verify-email-otp
 router.post('/verify-email-otp', verifyOtpRateLimiter, validate(verifyEmailOtpSchema), verifyEmailOtp);
