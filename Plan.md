@@ -5235,63 +5235,43 @@ interface StudyApi {
 
 **Milestone Week 3:** All study modes playable on web. Android flashcard + SRS review working. SM-2 functional.
 
-### WEEK 4: Duolingo Mode + Practice
+### WEEK 4: Duolingo Layouts, Sidebar & Snake Path Map (UI Foundation)
 
 | Dev A (Backend) | Dev B (Web) | Dev C (Android) |
 |---|---|---|
-| Course/Unit/Lesson/Exercise CRUD APIs | Duolingo home page (course list) | Practice screen: Multiple choice |
-| Exercise validation + scoring | Course detail page (unit tree, lesson bubbles) | Practice screen: Typing answer |
-| Lesson start/complete APIs | Lesson page (exercise renderer) | Practice screen: Matching pairs |
-| Exercise types: MC, Fill-blank, Typing, Matching, Word bank, Translation | ExerciseRenderer components (all types) | Practice session result screen |
-| Course progress APIs | Lesson completion screen (XP animation) | Export word set (CSV) |
-| Course seeder data (3 units, 15 lessons, 100+ exercises) | -- | PracticeViewModel |
-| -- | -- | Session result syncing to backend |
+| Course CRUD APIs | Left Sidebar (3D bouncy buttons) | Practice screen: Multiple choice |
+| UserProgress APIs (Tim, Gems, XP) | Right Sidebar (cờ, tim, gems, streak) | Practice screen: Typing answer |
+| Progress & Learn Feed APIs | Unit Banner component (green, purple...) | Practice screen: Matching pairs |
+| Seeders dữ liệu (2 Units, 8 Lessons) | LessonButton (Curvy Indent Offset) | Practice session result screen |
+| Course Progress MongoDB schemas | Courses Selection page (cards) | PracticeViewModel |
 
-**Milestone Week 4:** Duolingo mode fully playable on web. Android practice modes working. Course content seeded.
+**Milestone Week 4:** Duolingo layouts, Sidebars, Courses Page and Curvy Snake Path map fully working on Web. Android practice screens configured.
 
-### WEEK 5: Gamification + Progress
+### WEEK 5: Immersive Lesson Screen, Tactile Exercises & SFX (Core Interactive Engine)
 
 | Dev A (Backend) | Dev B (Web) | Dev C (Android) |
 |---|---|---|
-| UserProgress APIs (totalXP, currentStreak, skillLevels) | XP bar, level badge components | Dashboard screen (words learned, streak, accuracy) |
-| Streak service (daily check, freeze, reset cron job) | Streak counter component | Charts: daily activity, retention rate (MPAndroidChart) |
-| LeaderboardEntry APIs + Redis caching | Leaderboard page (weekly, by league) | Level estimation display (A1-C2) |
-| Achievement + UserAchievement check engine | Achievement page, badge cards | Streak badge + XP progress bar components |
-| DailyQuest generator (cron job) | DailyQuest widget on home page | ProgressViewModel + local caching |
-| League system (promote/demote logic) | League display | Home screen dashboard (daily plan + stats) |
-| LearningHistory logging service | LearningHistory chart components | -- |
-| MistakeLog APIs (weak skill review) | Mistake review page | -- |
-| Notification APIs + FCM backend | Notification dropdown component | -- |
+| Exercise validation APIs | Immersive LessonScreen (no sidebars) | Dashboard screen (words, streak, accuracy) |
+| Lesson session complete APIs | Option Cards (Shortcut Key list) | Charts: daily activity, retention |
+| XP, Gems, Hearts updater backend | WordBank (click chip to move layout) | Level estimation display (A1-C2) |
+| Audio assets delivery | MatchingPairs (sfx ting/buzz pop grid) | Streak badge & XP progress bar components |
+| Text-to-speech speaker endpoints | BottomDrawer (success/fail check slides) | -- |
+| -- | Confetti Complete page | -- |
 
-**Milestone Week 5:** Gamification fully working on web. Android dashboard + charts complete. Leaderboard live.
+**Milestone Week 5:** Core interactive lesson screen, segmented progress bar, hearts count, select/word bank/matching exercises, sfx audio, and bottom drawers complete.
 
-### WEEK 6: AI + Premium + Notifications
+### WEEK 6: Gamification, Shop, Billing & Production Deploy (Release & Polish)
 
 | Dev A (Backend) | Dev B (Web) | Dev C (Android) |
 |---|---|---|
-| OpenAI integration (Q-Chat API) | AI Chat UI (ChatBot component) | Push notifications (FCM integration) |
-| Recommendation API | Recommendations widget | Daily reminder (WorkManager) |
-| Stripe payment integration | Premium page + checkout flow | Review schedule notifications |
-| Subscription webhook handler | Profile page (stats charts, LearningHistory) | Settings screen (LearningPreferences: reminder, goals, level) |
-| Notification cron jobs (reminders) | Settings page (LearningPreferences UI) | Profile screen |
-| Premium middleware (feature gating) | Admin panel (basic course management) | Offline mode polish (Room sync) |
+| MongoDB Weekly Leaderboard API | WeeklyLeaderboard page (top 10 medals) | FCM push notifications |
+| Gem Shop purchase API (refill, freeze) | GemShop page (purchase card items) | WorkManager daily reminders |
+| Stripe Checkout session backend | Stripe Checkout subscription flow | Settings & Profile screens polish |
+| Stripe Webhook updates (isPro) | Confetti & celebratory animations | Play Store distribution APK |
+| Docker compose configurations | Playwright E2E automation tests | -- |
+| Security hardening & production deploy | SEO basics, lazy loading, final polish | -- |
 
-**Milestone Week 6:** AI chat working on web. Premium flow complete. Android notifications + full offline support.
-
-### WEEK 7: Testing + Deploy + Release
-
-| Dev A (Backend) | Dev B (Web) | Dev C (Android) |
-|---|---|---|
-| Docker production setup | Cross-browser testing (Chrome, Firefox, Safari, Edge) | UI polish, animations, edge cases |
-| CI/CD pipeline (GitHub Actions) | Responsive testing (mobile, tablet, desktop) | Unit tests (ViewModel, UseCase) |
-| MongoDB Atlas production migration | Performance: lazy loading, code splitting | Instrumented tests (Espresso) |
-| PM2 + Sentry monitoring | Bug fixes, final UI polish | ProGuard/R8 optimization |
-| Load testing (1k concurrent) | SEO basics (meta tags, sitemap) | Generate signed APK / AAB |
-| SSL, CORS, security hardening | Documentation (README, API docs) | Play Store listing preparation |
-| DNS + Cloudflare CDN setup | -- | Internal testing distribution (Firebase App Distribution) |
-| Backup strategy (MongoDB scheduled backups) | -- | -- |
-
-**Milestone Week 7:** Web deployed to production. Android APK ready for distribution/Play Store.
+**Milestone Week 6: RELEASE.** Weekly Leaderboard, Gem Shop, and Stripe Pro billing live. E2E tests fully green. Web deployed to production and Android APK compiled.
 
 ### Key Milestones Summary
 
@@ -5300,10 +5280,9 @@ interface StudyApi {
 | 1 | Auth working | Login/Register done | Login/Register done |
 | 2 | Content CRUD | Flashcard sets full CRUD | Word sets + words CRUD |
 | 3 | Study modes | Learn/Test/Write/Match modes | Flashcard flip + SRS review |
-| 4 | Duolingo + Practice | Duolingo mode playable | Practice modes (MC/Typing/Match) |
-| 5 | Gamification | XP/Streak/Leaderboard live | Dashboard + Charts + Level |
-| 6 | AI + Premium + Notif | AI Chat + Stripe + Notif | FCM + Reminders + Offline |
-| 7 | **RELEASE** | **Production deploy** | **APK/AAB ready** |
+| 4 | Duolingo Path Map | Sidebars + Snake Path | Practice modes (MC/Typing/Match) |
+| 5 | Duolingo Lesson | Quiz + WordBank + Matching Grid | Dashboard + Charts + Level |
+| 6 | **RELEASE** | **BXH + Shop + Stripe + Production Deploy** | **APK/AAB ready + Offline mode** |
 
 ### Risk Mitigation
 
