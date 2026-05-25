@@ -8,6 +8,7 @@ import com.example.smartenglish.data.local.dao.FlashcardDao
 import com.example.smartenglish.data.local.dao.FlashcardSetDao
 import com.example.smartenglish.data.remote.api.*
 import com.example.smartenglish.data.remote.interceptor.AuthInterceptor
+import com.example.smartenglish.data.remote.interceptor.TokenAuthenticator
 import com.example.smartenglish.data.repository.*
 import com.example.smartenglish.domain.repository.*
 import com.example.smartenglish.util.TokenManager
@@ -18,11 +19,13 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import okhttp3.Authenticator
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
 import java.util.concurrent.TimeUnit
+import javax.inject.Named
 import javax.inject.Singleton
 
 @Module
@@ -70,7 +73,18 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideOkHttpClient(authInterceptor: AuthInterceptor): OkHttpClient {
+    fun provideTokenAuthenticator(
+        tokenManager: TokenManager
+    ): TokenAuthenticator {
+        return TokenAuthenticator(tokenManager)
+    }
+
+    @Provides
+    @Singleton
+    fun provideOkHttpClient(
+        authInterceptor: AuthInterceptor,
+        tokenAuthenticator: TokenAuthenticator
+    ): OkHttpClient {
         val loggingInterceptor = HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.BODY
         }
@@ -78,6 +92,7 @@ object AppModule {
         return OkHttpClient.Builder()
             .addInterceptor(authInterceptor)
             .addInterceptor(loggingInterceptor)
+            .authenticator(tokenAuthenticator)
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)

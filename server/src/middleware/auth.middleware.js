@@ -18,6 +18,8 @@ const authenticate = async (req, res, next) => {
       }
     }
 
+    console.log(`[Auth] Request: ${req.method} ${req.path} | Token present: ${!!token} | Has cookie: ${!!req.cookies?.accessToken}`);
+
     if (!token) {
       return next(new AppError('No token provided', 401));
     }
@@ -32,6 +34,7 @@ const authenticate = async (req, res, next) => {
     req.userId = user._id;
     next();
   } catch (err) {
+    console.log(`[Auth] Error type: ${err.name} | message: ${err.message}`);
     next(err);
   }
 };

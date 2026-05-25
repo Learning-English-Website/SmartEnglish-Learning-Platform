@@ -23,6 +23,7 @@ import com.example.smartenglish.presentation.sets.SetDetailScreen
 import com.example.smartenglish.presentation.cards.CardListScreen
 import com.example.smartenglish.presentation.cards.CardEditorScreen
 import com.example.smartenglish.presentation.search.SearchScreen
+import com.example.smartenglish.presentation.browse.BrowseScreen
 
 @Composable
 fun AppNavGraph(
@@ -180,6 +181,9 @@ fun AppNavGraph(
                 },
                 onNavigateToCreateSet = {
                     // CreateSetDialog is shown within SetListScreen
+                },
+                onNavigateToBrowse = {
+                    navController.navigate(Screen.Browse.route)
                 }
             )
         }
@@ -187,8 +191,8 @@ fun AppNavGraph(
         // Study Screen
         composable(Screen.Study.route) {
             StudyScreen(
-                onNavigateToSets = {
-                    navController.navigate(Screen.SetList.route)
+                onNavigateToStudyMode = { setId ->
+                    navController.navigate(Screen.StudyMode.createRoute(setId))
                 }
             )
         }
@@ -225,6 +229,9 @@ fun AppNavGraph(
                 },
                 onNavigateToCreateSet = {
                     // CreateSetDialog is shown within SetListScreen
+                },
+                onNavigateToBrowse = {
+                    navController.navigate(Screen.Browse.route)
                 }
             )
         }
@@ -296,9 +303,23 @@ fun AppNavGraph(
                 navArgument("setId") { type = NavType.StringType }
             )
         ) { backStackEntry ->
+            val setId = backStackEntry.arguments?.getString("setId") ?: ""
             FlashcardStudyScreen(
+                setId = setId,
                 onNavigateBack = {
                     navController.popBackStack()
+                }
+            )
+        }
+
+        // Browse Screen
+        composable(Screen.Browse.route) {
+            BrowseScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
+                },
+                onNavigateToSetDetail = { setId ->
+                    navController.navigate(Screen.SetDetail.createRoute(setId))
                 }
             )
         }

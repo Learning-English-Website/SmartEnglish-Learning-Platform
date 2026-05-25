@@ -15,10 +15,19 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+data class HomeStats(
+    val streak: Int = 0,
+    val xp: Int = 0,
+    val level: Int = 1,
+    val totalSets: Int = 0,
+    val masteredCards: Int = 0
+)
+
 sealed class HomeUiState {
     data object Loading : HomeUiState()
     data class Success(
         val user: User,
+        val stats: HomeStats,
         val recentSets: List<FlashcardSet> = emptyList()
     ) : HomeUiState()
     data class Error(val message: String) : HomeUiState()
@@ -40,19 +49,29 @@ class HomeViewModel @Inject constructor(
     fun loadUser() {
         viewModelScope.launch {
             _uiState.value = HomeUiState.Loading
-            
+
             when (val result = userRepository.getMe()) {
                 is ApiResult.Success -> {
                     val user = result.data
                     val sets = try {
-                        setRepository.getSets().first().take(5)
+                        setRepository.getSets().first()
                     } catch (e: Exception) {
                         emptyList()
                     }
-                    
+
+                    val totalSets = sets.size
+                    val masteredCards = sets.sumOf { it.cardCount }
+
                     _uiState.value = HomeUiState.Success(
                         user = user,
-                        recentSets = sets
+                        stats = HomeStats(
+                            streak = user.streak.current,
+                            xp = user.gamification.xp,
+                            level = user.gamification.level,
+                            totalSets = totalSets,
+                            masteredCards = masteredCards
+                        ),
+                        recentSets = sets.take(5)
                     )
                 }
                 is ApiResult.Error -> _uiState.value = HomeUiState.Error(result.message)

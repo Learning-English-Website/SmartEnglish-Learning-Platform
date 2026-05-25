@@ -18,15 +18,73 @@ class SetListViewModel @Inject constructor(
     val state: StateFlow<SetListState> = _state.asStateFlow()
 
     init {
-        observeSets()
-        // Don't call refresh() here - Flow will emit initial data from local DB
-        // Refresh will be called when user manually pulls to refresh
+        observeMySets()
+        refreshMySets()
+        refreshCommunitySets()
     }
 
-    private fun observeSets() {
+    private fun observeMySets() {
         viewModelScope.launch {
-            setRepository.getSets().collect { sets ->
-                _state.update { it.copy(sets = sets) }
+            setRepository.getMySets().collect { sets ->
+                _state.update { currentState ->
+                    currentState.copy(
+                        mySets = sets,
+                        displayedSets = computeDisplayedSets(sets, currentState.communitySets, currentState.selectedTab, currentState.selectedFilter, currentState.searchQuery)
+                    )
+                }
+            }
+        }
+    }
+
+    private fun computeDisplayedSets(
+        mySets: List<com.example.smartenglish.domain.model.FlashcardSet>,
+        communitySets: List<com.example.smartenglish.domain.model.FlashcardSet>,
+        tab: LibraryTab,
+        filter: SetFilter,
+        query: String
+    ): List<com.example.smartenglish.domain.model.FlashcardSet> {
+        val source = if (tab == LibraryTab.MY_SETS) mySets else communitySets
+        val filtered = when (filter) {
+            SetFilter.ALL -> source
+            SetFilter.PUBLIC -> source.filter { it.isPublic }
+            SetFilter.PRIVATE -> source.filter { !it.isPublic }
+        }
+        if (query.isBlank()) return filtered
+        return filtered.filter {
+            it.title.contains(query, ignoreCase = true) ||
+                    it.description?.contains(query, ignoreCase = true) == true
+        }
+    }
+
+    private fun refreshMySets() {
+        viewModelScope.launch {
+            setRepository.syncSets()
+        }
+    }
+
+    private fun refreshCommunitySets() {
+        viewModelScope.launch {
+            _state.update { it.copy(isLoading = true) }
+            when (val result = setRepository.getPublicSets(null, null)) {
+                is ApiResult.Success -> {
+                    _state.update { currentState ->
+                        currentState.copy(
+                            communitySets = result.data,
+                            displayedSets = computeDisplayedSets(
+                                currentState.mySets,
+                                result.data,
+                                currentState.selectedTab,
+                                currentState.selectedFilter,
+                                currentState.searchQuery
+                            ),
+                            isLoading = false
+                        )
+                    }
+                }
+                is ApiResult.Error -> {
+                    _state.update { it.copy(isLoading = false) }
+                }
+                else -> {}
             }
         }
     }
@@ -36,29 +94,59 @@ class SetListViewModel @Inject constructor(
             is SetListEvent.SearchSets -> searchSets(event.query)
             is SetListEvent.CreateSet -> createSet(event.title, event.description, event.language, event.isPublic)
             is SetListEvent.DeleteSet -> deleteSet(event.setId)
-            SetListEvent.Refresh -> refresh()
+            SetListEvent.Refresh -> {
+                refreshMySets()
+                refreshCommunitySets()
+            }
             SetListEvent.ClearError -> _state.update { it.copy(error = null) }
+            is SetListEvent.SelectTab -> selectTab(event.tab)
+            is SetListEvent.SelectFilter -> selectFilter(event.filter)
+        }
+    }
+
+    private fun selectTab(tab: LibraryTab) {
+        _state.update { currentState ->
+            currentState.copy(
+                selectedTab = tab,
+                displayedSets = computeDisplayedSets(
+                    currentState.mySets,
+                    currentState.communitySets,
+                    tab,
+                    currentState.selectedFilter,
+                    currentState.searchQuery
+                ),
+                searchQuery = ""
+            )
+        }
+    }
+
+    private fun selectFilter(filter: SetFilter) {
+        _state.update { currentState ->
+            currentState.copy(
+                selectedFilter = filter,
+                displayedSets = computeDisplayedSets(
+                    currentState.mySets,
+                    currentState.communitySets,
+                    currentState.selectedTab,
+                    filter,
+                    currentState.searchQuery
+                )
+            )
         }
     }
 
     private fun searchSets(query: String) {
-        _state.update { it.copy(searchQuery = query) }
-        if (query.isBlank()) {
-            refresh()
-            return
-        }
-
-        viewModelScope.launch {
-            _state.update { it.copy(isLoading = true, error = null) }
-            when (val result = setRepository.searchSets(query)) {
-                is ApiResult.Success -> {
-                    _state.update { it.copy(sets = result.data, isLoading = false) }
-                }
-                is ApiResult.Error -> {
-                    _state.update { it.copy(error = result.message, isLoading = false) }
-                }
-                else -> {}
-            }
+        _state.update { currentState ->
+            currentState.copy(
+                searchQuery = query,
+                displayedSets = computeDisplayedSets(
+                    currentState.mySets,
+                    currentState.communitySets,
+                    currentState.selectedTab,
+                    currentState.selectedFilter,
+                    query
+                )
+            )
         }
     }
 
@@ -68,7 +156,6 @@ class SetListViewModel @Inject constructor(
             when (val result = setRepository.createSet(title, description, language, isPublic, emptyList())) {
                 is ApiResult.Success -> {
                     _state.update { it.copy(isLoading = false) }
-                    // Don't call refresh() here - the Flow will automatically emit the new set
                 }
                 is ApiResult.Error -> {
                     _state.update { it.copy(error = result.message, isLoading = false) }
@@ -81,20 +168,10 @@ class SetListViewModel @Inject constructor(
     private fun deleteSet(setId: String) {
         viewModelScope.launch {
             when (val result = setRepository.deleteSet(setId)) {
-                is ApiResult.Success -> {
-                    // Don't call refresh() - Flow will automatically update when DB changes
-                }
+                is ApiResult.Success -> {}
                 is ApiResult.Error -> _state.update { it.copy(error = result.message) }
                 else -> {}
             }
-        }
-    }
-
-    private fun refresh() {
-        viewModelScope.launch {
-            _state.update { it.copy(isRefreshing = true, error = null) }
-            setRepository.syncSets()
-            _state.update { it.copy(isRefreshing = false) }
         }
     }
 }

@@ -32,6 +32,16 @@ class SetRepositoryImpl @Inject constructor(
         }
     }
 
+    override fun getMySets(): Flow<List<FlashcardSet>> {
+        return setDao.getMySets().map { entities ->
+            entities.map { it.toDomain() }
+        }
+    }
+
+    override suspend fun getMySetsList(): List<FlashcardSet> {
+        return setDao.getMySetsList().map { it.toDomain() }
+    }
+
     override suspend fun getSetById(id: String): ApiResult<FlashcardSet> {
         Log.d(TAG, "getSetById: $id")
         
@@ -259,6 +269,28 @@ class SetRepositoryImpl @Inject constructor(
         } catch (e: Exception) {
             ApiResult.Error(e.message ?: "Network error")
         }
+    }
+
+    override suspend fun syncPublicSets() {
+        Log.d(TAG, "syncPublicSets: Starting...")
+        try {
+            val response = setApi.getPublicSets(query = null, tags = null)
+            if (response.isSuccessful && response.body()?.success == true) {
+                val data = response.body()?.data ?: emptyList()
+                Log.d(TAG, "syncPublicSets: Got ${data.size} public sets from server")
+                val entities = data.map { FlashcardSetEntity.fromDomain(it.toDomain()) }
+                // Insert public sets (they may be shared by others — don't overwrite user's own sets)
+                for (entity in entities) {
+                    val existing = setDao.getSetById(entity.id)
+                    if (existing == null || existing.userId == entity.userId) {
+                        setDao.insertSet(entity)
+                    }
+                }
+            }
+        } catch (_: Exception) {
+            Log.e(TAG, "syncPublicSets: Exception")
+        }
+        Log.d(TAG, "syncPublicSets: Done")
     }
 
     override suspend fun syncSets() {

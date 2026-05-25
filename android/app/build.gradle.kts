@@ -89,6 +89,9 @@ dependencies {
     // Coil
     implementation(libs.coil.compose)
 
+    // ZXing for QR code generation
+    implementation(libs.zxing.core)
+
     // WorkManager for background sync
     implementation("androidx.work:work-runtime-ktx:2.9.0")
     implementation("androidx.hilt:hilt-work:1.2.0")

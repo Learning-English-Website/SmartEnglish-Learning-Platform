@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.smartenglish.domain.model.FlashcardSet
 import com.example.smartenglish.domain.repository.SetRepository
+import com.example.smartenglish.domain.repository.ShareRepository
 import com.example.smartenglish.util.ApiResult
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
@@ -15,12 +16,15 @@ data class SetDetailState(
     val set: FlashcardSet? = null,
     val isLoading: Boolean = false,
     val error: String? = null,
-    val isEditing: Boolean = false
+    val isEditing: Boolean = false,
+    val isCreatingShare: Boolean = false,
+    val shareCode: String? = null
 )
 
 @HiltViewModel
 class SetDetailViewModel @Inject constructor(
     private val setRepository: SetRepository,
+    private val shareRepository: ShareRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -86,5 +90,21 @@ class SetDetailViewModel @Inject constructor(
 
     fun clearError() {
         _state.update { it.copy(error = null) }
+    }
+
+    fun createShareCode() {
+        val currentSet = _state.value.set ?: return
+        viewModelScope.launch {
+            _state.update { it.copy(isCreatingShare = true, error = null) }
+            when (val result = shareRepository.createShare(currentSet.id, null)) {
+                is ApiResult.Success -> {
+                    _state.update { it.copy(shareCode = result.data.shareCode, isCreatingShare = false) }
+                }
+                is ApiResult.Error -> {
+                    _state.update { it.copy(error = result.message, isCreatingShare = false) }
+                }
+                else -> {}
+            }
+        }
     }
 }

@@ -8,8 +8,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Style
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -17,14 +20,17 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.smartenglish.presentation.components.StatCard
 
 private val QuizletBlue = Color(0xFF4255FF)
+private val QuizletCoral = Color(0xFFFF6B6B)
+private val QuizletGreen = Color(0xFF00C853)
+private val QuizletYellow = Color(0xFFFFB300)
 
 private val QuizletColors = listOf(
     androidx.compose.ui.graphics.Color(0xFF4255FF),
@@ -90,43 +96,19 @@ fun HomeScreen(
                         .verticalScroll(rememberScrollState())
                         .padding(16.dp)
                 ) {
-                    // Welcome banner
                     WelcomeBanner(username = state.user.username)
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    StatsSection(stats = state.stats)
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // Recent Sets section
-                    Text(
-                        text = "Recent Sets",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                    ContinueLearningSection(
+                        sets = state.recentSets,
+                        onSetClick = onNavigateToSetDetail,
+                        onSeeAllClick = onNavigateToLibrary
                     )
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    if (state.recentSets.isEmpty()) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(32.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "No sets yet. Go to Library to create your first set!",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.outline
-                            )
-                        }
-                    } else {
-                        state.recentSets.forEach { set ->
-                            RecentSetItem(
-                                title = set.title,
-                                cardCount = set.cardCount,
-                                onClick = { onNavigateToSetDetail(set.id) }
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                        }
-                    }
                 }
             }
             is HomeUiState.Error -> {
@@ -148,6 +130,124 @@ fun HomeScreen(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun StatsSection(stats: HomeStats) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        StatCard(
+            icon = Icons.Default.LocalFireDepartment,
+            iconTint = QuizletCoral,
+            value = "${stats.streak}",
+            label = "Day Streak",
+            modifier = Modifier.weight(1f),
+            backgroundColor = QuizletCoral.copy(alpha = 0.08f)
+        )
+        StatCard(
+            icon = Icons.Default.Star,
+            iconTint = QuizletYellow,
+            value = "${stats.xp}",
+            label = "XP",
+            modifier = Modifier.weight(1f),
+            backgroundColor = QuizletYellow.copy(alpha = 0.08f)
+        )
+    }
+    Spacer(modifier = Modifier.height(12.dp))
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        StatCard(
+            icon = Icons.Default.MenuBook,
+            iconTint = QuizletBlue,
+            value = "${stats.totalSets}",
+            label = "Sets",
+            modifier = Modifier.weight(1f),
+            backgroundColor = QuizletBlue.copy(alpha = 0.08f)
+        )
+        StatCard(
+            icon = Icons.Default.Style,
+            iconTint = QuizletGreen,
+            value = "${stats.masteredCards}",
+            label = "Mastered",
+            modifier = Modifier.weight(1f),
+            backgroundColor = QuizletGreen.copy(alpha = 0.08f)
+        )
+    }
+}
+
+@Composable
+private fun ContinueLearningSection(
+    sets: List<com.example.smartenglish.domain.model.FlashcardSet>,
+    onSetClick: (String) -> Unit,
+    onSeeAllClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = "Continue Learning",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold
+        )
+        if (sets.isNotEmpty()) {
+            TextButton(onClick = onSeeAllClick) {
+                Text("See all")
+            }
+        }
+    }
+
+    Spacer(modifier = Modifier.height(8.dp))
+
+    if (sets.isEmpty()) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            )
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Icon(
+                    Icons.Default.MenuBook,
+                    contentDescription = null,
+                    modifier = Modifier.size(48.dp),
+                    tint = MaterialTheme.colorScheme.outline
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = "No sets yet",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.outline
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Go to Library to create your first set!",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.outline
+                )
+            }
+        }
+    } else {
+        sets.forEach { set ->
+            RecentSetItem(
+                title = set.title,
+                cardCount = set.cardCount,
+                onClick = { onSetClick(set.id) }
+            )
+            Spacer(modifier = Modifier.height(8.dp))
         }
     }
 }

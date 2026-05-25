@@ -33,6 +33,25 @@ class CardRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun getCardsBySetList(setId: String): List<Flashcard> {
+        return try {
+            val response = cardApi.getCardsBySet(setId)
+            if (response.isSuccessful && response.body()?.success == true) {
+                val data = response.body()?.data ?: emptyList()
+                val cards = data.map { it.toDomain() }
+                // Cache to local DB
+                val entities = cards.map { FlashcardEntity.fromDomain(it) }
+                cardDao.deleteCardsBySet(setId)
+                cardDao.insertCards(entities)
+                cards
+            } else {
+                cardDao.getCardsBySetList(setId).map { it.toDomain() }
+            }
+        } catch (_: Exception) {
+            cardDao.getCardsBySetList(setId).map { it.toDomain() }
+        }
+    }
+
     override suspend fun getCardById(id: String): ApiResult<Flashcard> {
         // Check if it's a valid ObjectId
         if (!isValidObjectId(id)) {

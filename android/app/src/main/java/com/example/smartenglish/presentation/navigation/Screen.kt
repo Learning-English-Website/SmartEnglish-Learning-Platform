@@ -5,6 +5,7 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LibraryBooks
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.ui.graphics.vector.ImageVector
 
 sealed class Screen(val route: String, val title: String, val icon: ImageVector) {
@@ -46,7 +47,8 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector)
     data object StudyMode : Screen("study/{setId}", "Study", Icons.Default.School) {
         fun createRoute(setId: String) = "study/$setId"
     }
-    data object Search : Screen("search", "Search", Icons.Default.Person)
+    data object Browse : Screen("browse", "Browse", Icons.Default.Search)
+    data object Search : Screen("search", "Search", Icons.Default.Search)
 
     companion object {
         val bottomNavItems = listOf(Home, Library, Study, Profile)

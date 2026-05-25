@@ -13,6 +13,12 @@ interface FlashcardSetDao {
     @Query("SELECT * FROM flashcard_sets WHERE syncStatus != 'DELETED' ORDER BY localUpdatedAt DESC")
     suspend fun getAllSetsList(): List<FlashcardSetEntity>
 
+    @Query("SELECT * FROM flashcard_sets WHERE syncStatus != 'DELETED' ORDER BY localUpdatedAt DESC")
+    suspend fun getMySetsList(): List<FlashcardSetEntity>
+
+    @Query("SELECT * FROM flashcard_sets WHERE syncStatus != 'DELETED' ORDER BY localUpdatedAt DESC")
+    fun getMySets(): Flow<List<FlashcardSetEntity>>
+
     @Query("SELECT * FROM flashcard_sets WHERE id = :id")
     suspend fun getSetById(id: String): FlashcardSetEntity?
 

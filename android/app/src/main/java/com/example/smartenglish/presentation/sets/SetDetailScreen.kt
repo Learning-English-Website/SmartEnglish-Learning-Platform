@@ -286,7 +286,15 @@ fun SetDetailScreen(
     if (showShareSheet && state.set != null) {
         ShareBottomSheet(
             set = state.set!!,
-            onDismiss = { showShareSheet = false }
+            shareCode = state.shareCode,
+            isCreatingShare = state.isCreatingShare,
+            onDismiss = { showShareSheet = false },
+            onTogglePublic = { isPublic ->
+                viewModel.updateSet(null, null, null, isPublic, null)
+            },
+            onGenerateShare = {
+                viewModel.createShareCode()
+            }
         )
     }
 }

@@ -35,11 +35,12 @@ data class StudyState(
     val sessionId: String? = null,
     val startTime: Long = 0,
     val error: String? = null,
-    val studiedCardIds: Set<String> = emptySet()
+    val studiedCardIds: Set<String> = emptySet(),
+    val incorrectCardIds: Set<String> = emptySet()
 ) {
     val currentCard: Flashcard? get() = cards.getOrNull(currentIndex)
     val totalCards: Int get() = cards.size
-    val progress: Float get() = if (totalCards > 0) currentIndex.toFloat() / totalCards else 0f
+    val progress: Float get() = if (totalCards > 0) (currentIndex + 1).toFloat() / totalCards else 0f
     val isLastCard: Boolean get() = currentIndex >= totalCards - 1
 }
 
@@ -59,12 +60,18 @@ class StudyViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
-    private val setId: String = savedStateHandle.get<String>("setId") ?: ""
+    private var setId: String = savedStateHandle.get<String>("setId") ?: ""
 
     private val _state = MutableStateFlow(StudyState())
     val state: StateFlow<StudyState> = _state.asStateFlow()
 
-    init {
+    private var initialized = false
+
+    fun setSetId(id: String) {
+        if (initialized) return
+        if (id.isBlank()) return
+        setId = id
+        initialized = true
         loadData()
     }
 
@@ -84,12 +91,12 @@ class StudyViewModel @Inject constructor(
                 else -> {}
             }
 
-            // Load cards for study
-            val cards = cardRepository.getCardsForStudy(setId)
+            // Load cards from server (not just local cache)
+            val cards = cardRepository.getCardsBySetList(setId)
             if (cards.isEmpty()) {
-                // If no cards due for review, load all cards
-                val allCards = cardRepository.getCardsBySet(setId).first()
-                _state.update { it.copy(cards = allCards, isLoading = false) }
+                // If still no cards, try getCardsForStudy for due cards
+                val dueCards = cardRepository.getCardsForStudy(setId)
+                _state.update { it.copy(cards = dueCards.ifEmpty { emptyList() }, isLoading = false) }
             } else {
                 _state.update { it.copy(cards = cards, isLoading = false) }
             }
@@ -132,20 +139,18 @@ class StudyViewModel @Inject constructor(
         val currentCard = _state.value.currentCard ?: return
 
         viewModelScope.launch {
-            // Update card study progress (for spaced repetition)
             val correct = answer.value >= StudyAnswer.GOOD.value
             cardRepository.updateCardStudyProgress(currentCard.id, correct)
 
-            // Update counts
             _state.update { state ->
                 state.copy(
                     correctCount = if (correct) state.correctCount + 1 else state.correctCount,
                     incorrectCount = if (!correct) state.incorrectCount + 1 else state.incorrectCount,
-                    studiedCardIds = state.studiedCardIds + currentCard.id
+                    studiedCardIds = state.studiedCardIds + currentCard.id,
+                    incorrectCardIds = if (!correct) state.incorrectCardIds + currentCard.id else state.incorrectCardIds
                 )
             }
 
-            // Auto advance after short delay
             delay(300)
             nextCard()
         }
@@ -173,6 +178,7 @@ class StudyViewModel @Inject constructor(
                 incorrectCount = 0,
                 isFinished = false,
                 studiedCardIds = emptySet(),
+                incorrectCardIds = emptySet(),
                 startTime = System.currentTimeMillis()
             )
         }

@@ -6,6 +6,8 @@ import kotlinx.coroutines.flow.Flow
 
 interface SetRepository {
     fun getSets(): Flow<List<FlashcardSet>>
+    fun getMySets(): Flow<List<FlashcardSet>>
+    suspend fun getMySetsList(): List<FlashcardSet>
     suspend fun getSetById(id: String): ApiResult<FlashcardSet>
     suspend fun createSet(title: String, description: String?, language: String?, isPublic: Boolean, tags: List<String>): ApiResult<FlashcardSet>
     suspend fun updateSet(id: String, title: String?, description: String?, language: String?, isPublic: Boolean?, tags: List<String>?): ApiResult<FlashcardSet>
@@ -13,4 +15,5 @@ interface SetRepository {
     suspend fun searchSets(query: String): ApiResult<List<FlashcardSet>>
     suspend fun getPublicSets(query: String?, tags: List<String>?): ApiResult<List<FlashcardSet>>
     suspend fun syncSets()
+    suspend fun syncPublicSets()
 }

@@ -891,25 +891,22 @@ App hoàn chỉnh, sẵn sàng deploy.
 ## 📋 Week 2 Checklist
 
 | # | Checkpoint | Status |
-|---|---|---|
-| 1 | Bottom Nav (4 tabs) | ⬜ |
-| 2 | Home Screen | ⬜ |
-| 3 | Library Screen (Grid) | ⬜ |
-| 4 | SetCard Component | ⬜ |
-| 5 | Create Set Dialog | ⬜ |
-| 6 | Set Detail Screen | ⬜ |
-| 7 | Card Item Component | ⬜ |
-| 8 | Study Mode | ⬜ |
-| 9 | Card Flip Animation | ⬜ |
-| 10 | Study Results | ⬜ |
-| 11 | Browse Screen | ⬜ |
-| 12 | Search/Filter | ⬜ |
-| 13 | Share Bottom Sheet | ⬜ |
-| 14 | Polish UI | ⬜ |
-| 15 | E2E Test | ⬜ |
-
----
-
+|---|-----------|--------|
+| 1 | Bottom Nav (4 tabs) | :white_check_mark: Done |
+| 2 | Home Screen | :white_check_mark: Done (StatCards added Day 4) |
+| 3 | Library Screen (Grid) | :white_check_mark: Done |
+| 4 | SetCard Component | :white_check_mark: Done |
+| 5 | Create Set Dialog | :white_check_mark: Done |
+| 6 | Set Detail Screen | :warning: Partial (missing cards preview) |
+| 7 | Card Item Component | :warning: In cards/CardListScreen |
+| 8 | Study Mode | :white_check_mark: Done (polished Day 4) |
+| 9 | Card Flip Animation | :white_check_mark: Done |
+| 10 | Study Results | :white_check_mark: Done |
+| 11 | Browse Screen | :white_check_mark: Done |
+| 12 | Search/Filter | :white_check_mark: Done |
+| 13 | Share Bottom Sheet | :warning: Partial (clipboard not implemented) |
+| 14 | Polish UI | :warning: In progress |
+| 15 | E2E Test | :black_square_button: Not done |
 ## 🎨 Quizlet Color Palette
 
 ```kotlin
