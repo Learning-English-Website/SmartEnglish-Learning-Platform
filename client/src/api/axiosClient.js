@@ -1,7 +1,10 @@
 import axios from 'axios';
 
+const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const apiBase = baseUrl.endsWith('/api') ? baseUrl : `${baseUrl}/api`;
+
 const axiosClient = axios.create({
-  baseURL: `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api`,
+  baseURL: apiBase,
   timeout: 10000,
   headers: { 'Content-Type': 'application/json' },
   withCredentials: true, // ✅ Gửi HttpOnly cookies tự động trong mọi request
@@ -12,8 +15,7 @@ axiosClient.interceptors.response.use(
   (response) => response.data, // unwrap .data automatically
   async (error) => {
     const originalRequest = error.config;
-    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-    const refreshUrl = `${baseUrl}/api/auth/refresh`;
+    const refreshUrl = `${apiBase}/auth/refresh`;
 
     if (
       error.response?.status === 401 &&

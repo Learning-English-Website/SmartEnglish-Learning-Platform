@@ -1,15 +1,15 @@
 package com.example.smartenglish.di
 
 import android.content.Context
+import android.content.SharedPreferences
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
-import com.example.smartenglish.data.remote.api.AuthApi
-import com.example.smartenglish.data.remote.api.UserApi
+import com.example.smartenglish.data.local.dao.FlashcardDao
+import com.example.smartenglish.data.local.dao.FlashcardSetDao
+import com.example.smartenglish.data.remote.api.*
 import com.example.smartenglish.data.remote.interceptor.AuthInterceptor
-import com.example.smartenglish.data.repository.AuthRepositoryImpl
-import com.example.smartenglish.data.repository.UserRepositoryImpl
-import com.example.smartenglish.domain.repository.AuthRepository
-import com.example.smartenglish.domain.repository.UserRepository
+import com.example.smartenglish.data.repository.*
+import com.example.smartenglish.domain.repository.*
 import com.example.smartenglish.util.TokenManager
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
@@ -41,18 +41,24 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideTokenManager(@ApplicationContext context: Context): TokenManager {
-        val masterKey = MasterKey.Builder(context)
-            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-            .build()
+    fun provideEncryptedSharedPreferences(@ApplicationContext context: Context): SharedPreferences {
+        // TODO: Replace with EncryptedSharedPreferences for production
+        // val masterKey = MasterKey.Builder(context)
+        //     .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+        //     .build()
+        // return EncryptedSharedPreferences.create(
+        //     context,
+        //     "auth_prefs",
+        //     masterKey,
+        //     EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+        //     EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        // )
+        return context.getSharedPreferences("auth_prefs", Context.MODE_PRIVATE)
+    }
 
-        val prefs = EncryptedSharedPreferences.create(
-            context,
-            "auth_prefs",
-            masterKey,
-            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-        )
+    @Provides
+    @Singleton
+    fun provideTokenManager(prefs: SharedPreferences): TokenManager {
         return TokenManager(prefs)
     }
 
@@ -64,7 +70,7 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideOkHttpClient(authInterceptor: AuthInterceptor, tokenManager: TokenManager): OkHttpClient {
+    fun provideOkHttpClient(authInterceptor: AuthInterceptor): OkHttpClient {
         val loggingInterceptor = HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.BODY
         }
@@ -72,20 +78,6 @@ object AppModule {
         return OkHttpClient.Builder()
             .addInterceptor(authInterceptor)
             .addInterceptor(loggingInterceptor)
-            .cookieJar(object : okhttp3.CookieJar {
-                override fun saveFromResponse(url: okhttp3.HttpUrl, cookies: List<okhttp3.Cookie>) {
-                    cookies.forEach { cookie ->
-                        when (cookie.name) {
-                            "accessToken" -> tokenManager.saveAccessToken(cookie.value)
-                            "refreshToken" -> tokenManager.saveRefreshToken(cookie.value)
-                        }
-                    }
-                }
-
-                override fun loadForRequest(url: okhttp3.HttpUrl): List<okhttp3.Cookie> {
-                    return emptyList()
-                }
-            })
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)
@@ -102,6 +94,7 @@ object AppModule {
             .build()
     }
 
+    // Auth APIs
     @Provides
     @Singleton
     fun provideAuthApi(retrofit: Retrofit): AuthApi {
@@ -114,6 +107,38 @@ object AppModule {
         return retrofit.create(UserApi::class.java)
     }
 
+    // Flashcard APIs
+    @Provides
+    @Singleton
+    fun provideSetApi(retrofit: Retrofit): SetApi {
+        return retrofit.create(SetApi::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideCardApi(retrofit: Retrofit): CardApi {
+        return retrofit.create(CardApi::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideStudyApi(retrofit: Retrofit): StudyApi {
+        return retrofit.create(StudyApi::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideShareApi(retrofit: Retrofit): ShareApi {
+        return retrofit.create(ShareApi::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideTagApi(retrofit: Retrofit): TagApi {
+        return retrofit.create(TagApi::class.java)
+    }
+
+    // Repositories
     @Provides
     @Singleton
     fun provideAuthRepository(
@@ -127,5 +152,39 @@ object AppModule {
     @Singleton
     fun provideUserRepository(userApi: UserApi): UserRepository {
         return UserRepositoryImpl(userApi)
+    }
+
+    @Provides
+    @Singleton
+    fun provideSetRepository(
+        setApi: SetApi,
+        setDao: FlashcardSetDao
+    ): SetRepository {
+        return SetRepositoryImpl(setApi, setDao)
+    }
+
+    @Provides
+    @Singleton
+    fun provideCardRepository(
+        cardApi: CardApi,
+        cardDao: FlashcardDao,
+        setDao: FlashcardSetDao
+    ): CardRepository {
+        return CardRepositoryImpl(cardApi, cardDao, setDao)
+    }
+
+    @Provides
+    @Singleton
+    fun provideStudyRepository(studyApi: StudyApi): StudyRepository {
+        return StudyRepositoryImpl(studyApi)
+    }
+
+    @Provides
+    @Singleton
+    fun provideShareRepository(
+        shareApi: ShareApi,
+        tagApi: TagApi
+    ): ShareRepository {
+        return ShareRepositoryImpl(shareApi, tagApi)
     }
 }

@@ -39,17 +39,15 @@ const login = async (req, res) => {
   const { email, password } = req.body;
   const result = await authService.login(email, password);
   setAuthCookies(res, result);
-  const { accessToken, refreshToken, ...rest } = result;
-  res.status(200).json(ApiResponse.success(rest, 'Login successful'));
+  res.status(200).json(ApiResponse.success(result, 'Login successful'));
 };
 
 const refreshToken = async (req, res) => {
-  // Read refresh token from HttpOnly cookie only
-  const token = req.cookies?.refreshToken;
+  const token = req.cookies?.refreshToken || req.body?.refreshToken;
   if (!token) throw new AppError('No refresh token provided', 401);
   const result = await authService.refreshToken(token);
   setAuthCookies(res, result);
-  res.status(200).json(ApiResponse.success(null, 'Token refreshed'));
+  res.status(200).json(ApiResponse.success(result, 'Token refreshed'));
 };
 
 const logout = async (req, res) => {
@@ -76,8 +74,7 @@ const verifyEmailOtp = async (req, res) => {
   const { email, otp } = req.body;
   const result = await authService.verifyEmailOtp(email, otp);
   setAuthCookies(res, result);
-  const { accessToken, refreshToken, ...rest } = result;
-  res.status(200).json(ApiResponse.success(rest, result.message));
+  res.status(200).json(ApiResponse.success(result, result.message));
 };
 
 const resetPasswordWithOtp = async (req, res) => {

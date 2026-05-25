@@ -3,6 +3,8 @@ package com.example.smartenglish.di
 import android.content.Context
 import androidx.room.Room
 import com.example.smartenglish.data.local.AppDatabase
+import com.example.smartenglish.data.local.dao.FlashcardDao
+import com.example.smartenglish.data.local.dao.FlashcardSetDao
 import com.example.smartenglish.data.local.dao.ProgressDao
 import com.example.smartenglish.data.local.dao.VocabularyDao
 import dagger.Module
@@ -38,5 +40,17 @@ object DatabaseModule {
     @Singleton
     fun provideProgressDao(database: AppDatabase): ProgressDao {
         return database.progressDao()
+    }
+
+    @Provides
+    @Singleton
+    fun provideFlashcardSetDao(database: AppDatabase): FlashcardSetDao {
+        return database.flashcardSetDao()
+    }
+
+    @Provides
+    @Singleton
+    fun provideFlashcardDao(database: AppDatabase): FlashcardDao {
+        return database.flashcardDao()
     }
 }

@@ -1,605 +1,974 @@
-# 📱 WEEK 2: ANDROID APP — Dev C Plan (7 Ngày)
+# 📱 WEEK 2: ANDROID APP — Quizlet-Style UI
 
-> **Tech Stack:** Kotlin + Jetpack Compose + Hilt + Retrofit + Room + Navigation Compose
-> **Architecture:** MVVM + Clean Architecture (data/domain/presentation)
-> **Mục tiêu:** Auto-login, Flashcard Set CRUD, Browse/Search, Study Session, Share
+> **Tech Stack:** Kotlin + Jetpack Compose + Hilt + Retrofit + Room
+> **Architecture:** MVVM + Clean Architecture
+> **Mục tiêu:** Giao diện Quizlet-style đơn giản như Quicklet - Home, My Sets, Study, Browse
 
 ---
 
-## 📆 NGÀY 1 — Auto-login + Splash Screen (Carryover từ Week 1)
+## 📌 Thiết kế Quizlet-Style (Quicklet)
+
+### UI Philosophy
+- **Đơn giản như Quizlet** - không cần quá phức tạp
+- **Grid view** cho library (2 columns)
+- **Card flip animation** cho study mode
+- **Bottom navigation** đơn giản: Home | Library | Study | Profile
+
+### Color Scheme (Quizlet-inspired)
+```kotlin
+private val QuizletColorScheme = lightColorScheme(
+    primary = Color(0xFF4255FF),      // Quizlet Blue
+    onPrimary = Color.White,
+    secondary = Color(0xFFFF6B6B),   // Coral accent
+    background = Color(0xFFF8F9FA),
+    surface = Color.White,
+    surfaceVariant = Color(0xFFE8EAED),
+    onBackground = Color(0xFF202124),
+    onSurface = Color(0xFF202124),
+)
+```
+
+### Font
+- Primary: System default (Roboto)
+- Headings: Medium weight
+
+---
+
+## 📆 NGÀY 1 — Bottom Navigation + Home Screen
 
 ### Tasks
-- [ ] Tạo `presentation/auth/SplashScreen.kt`:
+
+- [ ] **Simplify Bottom Navigation:**
+  ```kotlin
+  // Screen.kt
+  sealed class Screen(val route: String, val title: String, val icon: ImageVector) {
+      data object Home : Screen("home", "Home", Icons.Default.Home)
+      data object Library : Screen("library", "Library", Icons.Default.LibraryBooks)
+      data object Study : Screen("study", "Study", Icons.Default.School)
+      data object Profile : Screen("profile", "Profile", Icons.Default.Person)
+  }
+
+  companion object {
+      val bottomNavItems = listOf(Home, Library, Study, Profile)
+  }
+  ```
+
+- [ ] **Update BottomNavBar:**
+  - 4 tabs thay vì 5 (gộp Vocabulary + Progress)
+  - Active tab highlight với Quizlet blue
+  - Smooth transitions
+
+- [ ] **Home Screen (Quizlet-style):**
   ```kotlin
   @Composable
-  fun SplashScreen(
-      onNavigateToLogin: () -> Unit,
-      onNavigateToHome: () -> Unit,
-      viewModel: AuthViewModel = hiltViewModel()
+  fun HomeScreen(
+      onNavigateToProfile: () -> Unit,
+      onNavigateToLibrary: () -> Unit,
+      onNavigateToStudy: () -> Unit,
+      viewModel: HomeViewModel = hiltViewModel()
   ) {
-      val uiState by viewModel.uiState.collectAsState()
+      Column(
+          modifier = Modifier
+              .fillMaxSize()
+              .padding(16.dp)
+      ) {
+          // Welcome section
+          Text("Hello, {username}!", style = MaterialTheme.typography.headlineMedium)
+          Text("Ready to learn?", style = MaterialTheme.typography.bodyLarge)
 
-      LaunchedEffect(Unit) {
-          viewModel.checkAuthState()
-      }
+          Spacer(modifier = Modifier.height(24.dp))
 
-      LaunchedEffect(uiState) {
-          when (uiState) {
-              is AuthUiState.Success -> onNavigateToHome()
-              is AuthUiState.Error -> onNavigateToLogin()
-              else -> {} // Still loading
+          // Quick stats (Quizlet-style cards)
+          Row(
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.spacedBy(12.dp)
+          ) {
+              StatCard("🔥", "0", "Streak", modifier = Modifier.weight(1f))
+              StatCard("⭐", "0", "XP", modifier = Modifier.weight(1f))
           }
-      }
 
-      // Show logo + loading indicator
-  }
-  ```
-- [ ] Cập nhật `AuthViewModel.kt` - thêm `checkAuthState()`:
-  ```kotlin
-  fun checkAuthState() {
-      viewModelScope.launch {
-          _uiState.value = AuthUiState.Loading
-          if (authRepository.isLoggedIn()) {
-              when (val result = authRepository.getMe()) {
-                  is ApiResult.Success -> _uiState.value = AuthUiState.Success(result.data)
-                  is ApiResult.Error -> {
-                      authRepository.logout()
-                      _uiState.value = AuthUiState.Idle
-                  }
-                  else -> {}
+          Spacer(modifier = Modifier.height(16.dp))
+
+          Row(
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.spacedBy(12.dp)
+          ) {
+              StatCard("📚", "0", "Sets", modifier = Modifier.weight(1f))
+              StatCard("✓", "0%", "Mastered", modifier = Modifier.weight(1f))
+          }
+
+          Spacer(modifier = Modifier.height(32.dp))
+
+          // Quick actions
+          Text("Continue Learning", style = MaterialTheme.typography.titleMedium)
+          Spacer(modifier = Modifier.height(12.dp))
+
+          // Recent sets (if any)
+          LazyColumn {
+              items(recentSets) { set ->
+                  RecentSetCard(set, onClick = { onNavigateToStudy() })
               }
-          } else {
-              _uiState.value = AuthUiState.Idle
           }
       }
   }
   ```
-- [ ] Cập nhật `MainActivity.kt`:
+
+- [ ] **StatCard component:**
   ```kotlin
   @Composable
-  fun MainContent() {
-      val navController = rememberNavController()
-      val navBackStackEntry by navController.currentBackStackEntryAsState()
-      val currentRoute = navBackStackEntry?.destination?.route
-
-      val startDestination = Screen.Splash.route
-
-      // ... rest of navigation setup
+  fun StatCard(emoji: String, value: String, label: String, modifier: Modifier = Modifier) {
+      Card(
+          modifier = modifier,
+          colors = CardDefaults.cardColors(containerColor = Color.White)
+      ) {
+          Column(
+              modifier = Modifier.padding(16.dp),
+              horizontalAlignment = Alignment.CenterHorizontally
+          ) {
+              Text(emoji, style = MaterialTheme.typography.headlineMedium)
+              Text(value, style = MaterialTheme.typography.titleLarge)
+              Text(label, style = MaterialTheme.typography.bodySmall)
+          }
+      }
   }
   ```
-- [ ] Thêm route trong `Screen.kt`:
+
+### ✅ Deliverable
+Bottom nav đơn giản + Home screen Quizlet-style.
+
+---
+
+## 📆 NGÀY 2 — Library Screen (My Sets)
+
+### Tasks
+
+- [ ] **Library Screen (Quizlet-style Grid):**
   ```kotlin
-  data object Splash : Screen("splash", "Splash", Icons.Default.Home)
-  ```
-- [ ] Cập nhật `AppNavGraph.kt`:
-  ```kotlin
-  composable(Screen.Splash.route) {
-      SplashScreen(
-          onNavigateToLogin = {
-              navController.navigate(Screen.Login.route) {
-                  popUpTo(Screen.Splash.route) { inclusive = true }
-              }
+  @Composable
+  fun LibraryScreen(
+      onNavigateToSetDetail: (String) -> Unit,
+      viewModel: LibraryViewModel = hiltViewModel()
+  ) {
+      var showCreateDialog by remember { mutableStateOf(false) }
+
+      Scaffold(
+          topBar = {
+              TopAppBar(
+                  title = { Text("My Library") },
+                  actions = {
+                      IconButton(onClick = { /* Search */ }) {
+                          Icon(Icons.Default.Search, "Search")
+                      }
+                  }
+              )
           },
-          onNavigateToHome = {
-              navController.navigate(Screen.Home.route) {
-                  popUpTo(Screen.Splash.route) { inclusive = true }
+          floatingActionButton = {
+              FloatingActionButton(
+                  onClick = { showCreateDialog = true },
+                  containerColor = MaterialTheme.colorScheme.primary
+              ) {
+                  Icon(Icons.Default.Add, "Create Set")
               }
           }
-      )
+      ) { padding ->
+          Column(
+              modifier = Modifier
+                  .fillMaxSize()
+                  .padding(padding)
+          ) {
+              // Search bar
+              OutlinedTextField(
+                  value = searchQuery,
+                  onValueChange = { viewModel.search(it) },
+                  modifier = Modifier
+                      .fillMaxWidth()
+                      .padding(horizontal = 16.dp, vertical = 8.dp),
+                  placeholder = { Text("Search sets...") },
+                  leadingIcon = { Icon(Icons.Default.Search, null) },
+                  singleLine = true,
+                  shape = RoundedCornerShape(12.dp)
+              )
+
+              if (sets.isEmpty() && !isLoading) {
+                  EmptyLibraryState(onCreateClick = { showCreateDialog = true })
+              } else {
+                  LazyVerticalGrid(
+                      columns = GridCells.Fixed(2),
+                      contentPadding = PaddingValues(16.dp),
+                      horizontalArrangement = Arrangement.spacedBy(12.dp),
+                      verticalArrangement = Arrangement.spacedBy(12.dp)
+                  ) {
+                      items(sets, key = { it.id }) { set ->
+                          SetCard(
+                              set = set,
+                              onClick = { onNavigateToSetDetail(set.id) }
+                          )
+                      }
+                  }
+              }
+          }
+      }
   }
   ```
-- [ ] **Test auto-login:**
-  - [ ] Login → kill app → mở lại → vẫn logged in
-  - [ ] Token hết hạn → redirect login
 
-### ✅ Deliverable
-Auto-login hoạt động. Splash screen hiển thị khi app khởi động.
-
----
-
-## 📆 NGÀY 2 — Flashcard Set CRUD API Integration
-
-### Tasks
-- [ ] Tạo `data/remote/dto/FlashcardSetDto.kt`:
-  ```kotlin
-  @JsonClass(generateAdapter = true)
-  data class FlashcardSetDto(
-      val _id: String,
-      val title: String,
-      val description: String?,
-      val language: String,
-      val isPublic: Boolean,
-      val cardCount: Int,
-      val user: UserDto?,
-      val tags: List<String>,
-      val tagObjects: List<TagDto>?,
-      val createdAt: String,
-      val updatedAt: String
-  )
-
-  @JsonClass(generateAdapter = true)
-  data class CreateSetRequest(
-      val title: String,
-      val description: String?,
-      val language: String,
-      val isPublic: Boolean,
-      val tags: List<String>
-  )
-  ```
-- [ ] Tạo `data/remote/api/FlashcardSetApi.kt`:
-  ```kotlin
-  interface FlashcardSetApi {
-      @GET("flashcard-sets/my")
-      suspend fun getMySets(): Response<ApiResponse<List<FlashcardSetDto>>>
-
-      @GET("flashcard-sets/public")
-      suspend fun getPublicSets(
-          @Query("search") search: String?,
-          @Query("tags") tags: String?,
-          @Query("sort") sort: String?,
-          @Query("page") page: Int?,
-          @Query("limit") limit: Int?
-      ): Response<ApiResponse<List<FlashcardSetDto>>>
-
-      @GET("flashcard-sets/{id}")
-      suspend fun getSetById(@Path("id") id: String): Response<ApiResponse<FlashcardSetDto>>
-
-      @POST("flashcard-sets")
-      suspend fun createSet(@Body body: CreateSetRequest): Response<ApiResponse<FlashcardSetDto>>
-
-      @PUT("flashcard-sets/{id}")
-      suspend fun updateSet(@Path("id") id: String, @Body body: CreateSetRequest): Response<ApiResponse<FlashcardSetDto>>
-
-      @DELETE("flashcard-sets/{id}")
-      suspend fun deleteSet(@Path("id") id: String): Response<ApiResponse<Unit>>
-  }
-  ```
-- [ ] Tạo `domain/model/FlashcardSet.kt`:
-  ```kotlin
-  data class FlashcardSet(
-      val id: String,
-      val title: String,
-      val description: String?,
-      val language: String,
-      val isPublic: Boolean,
-      val cardCount: Int,
-      val userId: String?,
-      val username: String?,
-      val tags: List<String>,
-      val createdAt: String,
-      val updatedAt: String
-  )
-  ```
-- [ ] Tạo `domain/repository/FlashcardSetRepository.kt`:
-  ```kotlin
-  interface FlashcardSetRepository {
-      suspend fun getMySets(): ApiResult<List<FlashcardSet>>
-      suspend fun getPublicSets(search: String?, tags: List<String>?, sort: String?, page: Int?): ApiResult<List<FlashcardSet>>
-      suspend fun getSetById(id: String): ApiResult<FlashcardSet>
-      suspend fun createSet(title: String, description: String?, language: String, isPublic: Boolean, tags: List<String>): ApiResult<FlashcardSet>
-      suspend fun updateSet(id: String, title: String, description: String?, language: String, isPublic: Boolean, tags: List<String>): ApiResult<FlashcardSet>
-      suspend fun deleteSet(id: String): ApiResult<Unit>
-  }
-  ```
-- [ ] Tạo `data/repository/FlashcardSetRepositoryImpl.kt`
-- [ ] Tạo Use Cases:
-  - `GetMySetsUseCase.kt`
-  - `GetPublicSetsUseCase.kt`
-  - `CreateSetUseCase.kt`
-  - `UpdateSetUseCase.kt`
-  - `DeleteSetUseCase.kt`
-- [ ] Cập nhật `AppModule.kt` - thêm FlashcardSetApi provider
-- [ ] **Test:**
-  - [ ] Get my sets → list hiển thị đúng
-  - [ ] Create set → set mới xuất hiện
-
-### ✅ Deliverable
-FlashcardSet repository + API layer hoàn chỉnh.
-
----
-
-## 📆 NGÀY 3 — Vocabulary Screen + Create/Edit Set
-
-### Tasks
-- [ ] Tạo `presentation/vocabulary/VocabularyViewModel.kt`:
-  ```kotlin
-  @HiltViewModel
-  class VocabularyViewModel @Inject constructor(
-      private val getMySetsUseCase: GetMySetsUseCase,
-      private val deleteSetUseCase: DeleteSetUseCase
-  ) : ViewModel() {
-      private val _sets = MutableStateFlow<List<FlashcardSet>>(emptyList())
-      val sets: StateFlow<List<FlashcardSet>> = _sets.asStateFlow()
-
-      private val _uiState = MutableStateFlow<VocabularyUiState>(VocabularyUiState.Loading)
-      val uiState: StateFlow<VocabularyUiState> = _uiState.asStateFlow()
-
-      fun loadSets() { /* load from API */ }
-      fun deleteSet(id: String) { /* delete + refresh */ }
-  }
-
-  sealed class VocabularyUiState {
-      object Loading : VocabularyUiState()
-      data class Success(val sets: List<FlashcardSet>) : VocabularyUiState()
-      data class Error(val message: String) : VocabularyUiState()
-  }
-  ```
-- [ ] Cập nhật `presentation/vocabulary/VocabularyScreen.kt`:
-  - Grid layout hiển thị danh sách sets (Card component)
-  - Mỗi card: title, card count, language, created date
-  - Swipe to delete hoặc long press menu
-  - FAB "Create New Set" button
-  - Pull to refresh
-  - Empty state: "Bạn chưa có flashcard set nào"
-- [ ] Tạo `presentation/vocabulary/CreateSetScreen.kt`:
-  - Form: title, description, language (dropdown), isPublic (switch)
-  - Tag picker (chips)
-  - Validation: title required, min 3 chars
-  - Submit → POST /flashcard-sets → navigate to SetDetail
-  - Loading state + error handling
-- [ ] Tạo `presentation/vocabulary/EditSetScreen.kt`:
-  - Pre-fill form với existing data
-  - Save → PUT /flashcard-sets/:id
-  - Delete button với confirmation dialog
-- [ ] Cập nhật navigation:
-  - VocabularyScreen → CreateSetScreen
-  - VocabularyScreen → SetDetailScreen
-- [ ] **Test:**
-  - [ ] Create set → set mới xuất hiện trong danh sách
-  - [ ] Edit set → thông tin cập nhật
-  - [ ] Delete set → set biến mất
-
-### ✅ Deliverable
-Vocabulary screen + Create/Edit Set hoàn chỉnh.
-
----
-
-## 📆 NGÀY 4 — SetDetail Screen + Flashcard CRUD
-
-### Tasks
-- [ ] Tạo `data/remote/dto/FlashcardDto.kt`:
-  ```kotlin
-  @JsonClass(generateAdapter = true)
-  data class FlashcardDto(
-      val _id: String,
-      val setId: String,
-      val front: String,
-      val back: String,
-      val pronunciation: String?,
-      val example: String?,
-      val note: String?,
-      val collocation: String?,
-      val relatedWords: List<String>?,
-      val image: String?,
-      val audio: String?,
-      val order: Int
-  )
-
-  @JsonClass(generateAdapter = true)
-  data class CreateCardRequest(
-      val front: String,
-      val back: String,
-      val pronunciation: String?,
-      val example: String?,
-      val note: String?,
-      val collocation: String?,
-      val relatedWords: List<String>?
-  )
-  ```
-- [ ] Tạo `data/remote/api/FlashcardApi.kt`:
-  ```kotlin
-  interface FlashcardApi {
-      @GET("flashcards/set/{setId}")
-      suspend fun getCardsBySet(@Path("setId") setId: String): Response<ApiResponse<List<FlashcardDto>>>
-
-      @POST("flashcards/set/{setId}")
-      suspend fun createCard(@Path("setId") setId: String, @Body body: CreateCardRequest): Response<ApiResponse<FlashcardDto>>
-
-      @POST("flashcards/set/{setId}/bulk")
-      suspend fun bulkCreateCards(@Path("setId") setId: String, @Body body: Map<String, Any>): Response<ApiResponse<List<FlashcardDto>>>
-
-      @PUT("flashcards/{cardId}")
-      suspend fun updateCard(@Path("cardId") cardId: String, @Body body: CreateCardRequest): Response<ApiResponse<FlashcardDto>>
-
-      @DELETE("flashcards/{cardId}")
-      suspend fun deleteCard(@Path("cardId") cardId: String): Response<ApiResponse<Unit>>
-  }
-  ```
-- [ ] Tạo `domain/model/Flashcard.kt` + Repository + UseCases
-- [ ] Tạo `presentation/vocabulary/SetDetailViewModel.kt`:
-  ```kotlin
-  @HiltViewModel
-  class SetDetailViewModel @Inject constructor(
-      private val getSetByIdUseCase: GetSetByIdUseCase,
-      private val getCardsUseCase: GetCardsUseCase,
-      private val createCardUseCase: CreateCardUseCase,
-      private val deleteCardUseCase: DeleteCardUseCase
-  ) : ViewModel() {
-      // State: set, cards, loading, error
-      // Functions: loadSet, loadCards, addCard, deleteCard
-  }
-  ```
-- [ ] Tạo `presentation/vocabulary/SetDetailScreen.kt`:
-  - Header: Set title, description, card count, edit set button
-  - Card list (LazyColumn)
-  - Each card: front, back (expandable), edit button, delete button
-  - "Add Card" FAB → inline form hoặc dialog
-  - "Study" button → navigate to Study screen
-- [ ] Tạo `presentation/components/CardItem.kt`:
-  - Card front/back display
-  - Flip animation (optional for v1)
-  - Edit/Delete actions
-- [ ] **Test:**
-  - [ ] View set detail → cards hiển thị
-  - [ ] Add card → card mới xuất hiện
-  - [ ] Edit card → nội dung cập nhật
-  - [ ] Delete card → card biến mất
-
-### ✅ Deliverable
-SetDetail screen hoàn chỉnh. Flashcard CRUD hoạt động.
-
----
-
-## 📆 NGÀY 5 — Browse/Search + Tags
-
-### Tasks
-- [ ] Tạo `data/remote/dto/TagDto.kt`:
-  ```kotlin
-  @JsonClass(generateAdapter = true)
-  data class TagDto(
-      val _id: String,
-      val name: String,
-      val color: String?
-  )
-  ```
-- [ ] Tạo `data/remote/api/TagApi.kt`:
-  ```kotlin
-  interface TagApi {
-      @GET("tags")
-      suspend fun getAllTags(): Response<ApiResponse<List<TagDto>>>
-
-      @POST("tags")
-      suspend fun createTag(@Body body: Map<String, String>): Response<ApiResponse<TagDto>>
-  }
-  ```
-- [ ] Tạo Tag Repository + UseCases
-- [ ] Tạo `presentation/browse/BrowseViewModel.kt`:
-  ```kotlin
-  @HiltViewModel
-  class BrowseViewModel @Inject constructor(
-      private val getPublicSetsUseCase: GetPublicSetsUseCase
-  ) : ViewModel() {
-      private val _sets = MutableStateFlow<List<FlashcardSet>>(emptyList())
-      private val _isLoading = MutableStateFlow(false)
-      private val _searchQuery = MutableStateFlow("")
-      private val _selectedTags = MutableStateFlow<List<String>>(emptyList())
-
-      fun search(query: String) { _searchQuery.value = query }
-      fun toggleTag(tagId: String) { /* toggle selection */ }
-      fun loadSets() { /* load with filters */ }
-  }
-  ```
-- [ ] Cập nhật `Screen.kt`:
-  ```kotlin
-  data object Browse : Screen("browse", "Browse", Icons.Default.Search)
-  ```
-- [ ] Tạo `presentation/browse/BrowseScreen.kt`:
-  - Search bar (debounced)
-  - Filter chips (tags)
-  - Sort dropdown: newest, most cards
-  - Results grid (SetCard components)
-  - Pull to refresh
-  - Empty state: "No sets found"
-- [ ] Tạo `presentation/components/SetCard.kt`:
+- [ ] **SetCard (Quizlet-style):**
   ```kotlin
   @Composable
   fun SetCard(
       set: FlashcardSet,
       onClick: () -> Unit,
-      onStudyClick: () -> Unit,
       modifier: Modifier = Modifier
-  )
+  ) {
+      Card(
+          modifier = modifier
+              .fillMaxWidth()
+              .aspectRatio(0.85f)
+              .clickable(onClick = onClick),
+          colors = CardDefaults.cardColors(
+              containerColor = getRandomSetColor(set.id) // Quizlet-style colors
+          ),
+          shape = RoundedCornerShape(12.dp)
+      ) {
+          Column(
+              modifier = Modifier
+                  .fillMaxSize()
+                  .padding(16.dp)
+          ) {
+              Text(
+                  text = set.title,
+                  style = MaterialTheme.typography.titleMedium,
+                  color = Color.White,
+                  maxLines = 2,
+                  overflow = TextOverflow.Ellipsis
+              )
+              Spacer(modifier = Modifier.weight(1f))
+              Row(
+                  modifier = Modifier.fillMaxWidth(),
+                  horizontalArrangement = Arrangement.SpaceBetween
+              ) {
+                  Text(
+                      text = "${set.cardCount} cards",
+                      style = MaterialTheme.typography.bodySmall,
+                      color = Color.White.copy(alpha = 0.8f)
+                  )
+                  Text(
+                      text = set.language,
+                      style = MaterialTheme.typography.bodySmall,
+                      color = Color.White.copy(alpha = 0.8f)
+                  )
+              }
+          }
+  }
   ```
-- [ ] Cập nhật `BottomNavBar.kt` - thêm Browse tab
-- [ ] **Test:**
-  - [ ] Search → results hiển thị
-  - [ ] Filter by tag → kết quả đúng
-  - [ ] Sort → thứ tự đúng
+
+- [ ] **CreateSetDialog (Simple):**
+  ```kotlin
+  @Composable
+  fun CreateSetDialog(
+      onDismiss: () -> Unit,
+      onCreated: (String) -> Unit
+  ) {
+      var title by remember { mutableStateOf("") }
+      var description by remember { mutableStateOf("") }
+      var isLoading by remember { mutableStateOf(false) }
+
+      AlertDialog(
+          onDismissRequest = onDismiss,
+          title = { Text("Create New Set") },
+          text = {
+              Column {
+                  OutlinedTextField(
+                      value = title,
+                      onValueChange = { title = it },
+                      label = { Text("Title") },
+                      singleLine = true,
+                      modifier = Modifier.fillMaxWidth()
+                  )
+                  Spacer(modifier = Modifier.height(8.dp))
+                  OutlinedTextField(
+                      value = description,
+                      onValueChange = { description = it },
+                      label = { Text("Description (optional)") },
+                      maxLines = 3,
+                      modifier = Modifier.fillMaxWidth()
+                  )
+              }
+          },
+          confirmButton = {
+              TextButton(
+                  onClick = { /* Create set */ },
+                  enabled = title.length >= 3 && !isLoading
+              ) {
+                  Text("Create")
+              }
+          },
+          dismissButton = {
+              TextButton(onClick = onDismiss) {
+                  Text("Cancel")
+              }
+          }
+      )
+  }
+  ```
+
+- [ ] **Empty Library State:**
+  ```kotlin
+  @Composable
+  fun EmptyLibraryState(onCreateClick: () -> Unit) {
+      Column(
+          modifier = Modifier
+              .fillMaxSize()
+              .padding(32.dp),
+          horizontalAlignment = Alignment.CenterHorizontally,
+          verticalArrangement = Arrangement.Center
+      ) {
+          Text("📚", style = MaterialTheme.typography.displayLarge)
+          Spacer(modifier = Modifier.height(16.dp))
+          Text("No sets yet", style = MaterialTheme.typography.titleLarge)
+          Text("Create your first set to start learning")
+          Spacer(modifier = Modifier.height(24.dp))
+          Button(onClick = onCreateClick) {
+              Icon(Icons.Default.Add, null)
+              Spacer(modifier = Modifier.width(8.dp))
+              Text("Create Set")
+          }
+      }
+  }
+  ```
 
 ### ✅ Deliverable
-Browse screen với search + filter. Tag system hoạt động.
+Library screen với grid layout Quizlet-style + Create set dialog.
 
 ---
 
-## 📆 NGÀY 6 — Study Session + Share
+## 📆 NGÀY 3 — Set Detail Screen
 
 ### Tasks
-- [ ] Tạo `data/remote/dto/StudySessionDto.kt`:
+
+- [ ] **SetDetailScreen:**
   ```kotlin
-  @JsonClass(generateAdapter = true)
-  data class StudySessionDto(
-      val _id: String,
-      val setId: String,
-      val userId: String,
-      val startedAt: String
-  )
+  @Composable
+  fun SetDetailScreen(
+      setId: String,
+      onNavigateBack: () -> Unit,
+      onNavigateToStudy: (String) -> Unit,
+      onNavigateToCards: (String) -> Unit,
+      viewModel: SetDetailViewModel = hiltViewModel()
+  ) {
+      val set by viewModel.set.collectAsState()
+      val cards by viewModel.cards.collectAsState()
 
-  @JsonClass(generateAdapter = true)
-  data class StudyResultDto(
-      val sessionId: String,
-      val totalCards: Int,
-      val correctCount: Int,
-      val incorrectCount: Int,
-      val accuracy: Double,
-      val timeSpentSeconds: Int
-  )
-  ```
-- [ ] Tạo `data/remote/api/StudyApi.kt`:
-  ```kotlin
-  interface StudyApi {
-      @POST("study-sessions/start")
-      suspend fun startSession(@Body body: Map<String, String>): Response<ApiResponse<StudySessionDto>>
+      Scaffold(
+          topBar = {
+              TopAppBar(
+                  title = { Text(set?.title ?: "Set") },
+                  navigationIcon = {
+                      IconButton(onClick = onNavigateBack) {
+                          Icon(Icons.Default.ArrowBack, "Back")
+                      }
+                  },
+                  actions = {
+                      IconButton(onClick = { /* Edit */ }) {
+                          Icon(Icons.Default.Edit, "Edit")
+                      }
+                  }
+              )
+          }
+      ) { padding ->
+          Column(
+              modifier = Modifier
+                  .fillMaxSize()
+                  .padding(padding)
+          ) {
+              // Set info card
+              Card(
+                  modifier = Modifier
+                      .fillMaxWidth()
+                      .padding(16.dp),
+                  colors = CardDefaults.cardColors(
+                      containerColor = MaterialTheme.colorScheme.primaryContainer
+                  )
+              ) {
+                  Column(modifier = Modifier.padding(16.dp)) {
+                      set?.let {
+                          Text(it.title, style = MaterialTheme.typography.titleLarge)
+                          if (!it.description.isNullOrEmpty()) {
+                              Text(it.description, style = MaterialTheme.typography.bodyMedium)
+                          }
+                          Spacer(modifier = Modifier.height(8.dp))
+                          Text("${it.cardCount} cards • ${it.language}")
+                      }
+                  }
+              }
 
-      @POST("study-sessions/{id}/answer")
-      suspend fun submitAnswer(@Path("id") id: String, @Body body: Map<String, Any>): Response<ApiResponse<Unit>>
+              // Study button
+              Button(
+                  onClick = { onNavigateToStudy(setId) },
+                  modifier = Modifier
+                      .fillMaxWidth()
+                      .padding(horizontal = 16.dp),
+                  enabled = (cards.isNotEmpty())
+              ) {
+                  Icon(Icons.Default.PlayArrow, null)
+                  Spacer(modifier = Modifier.width(8.dp))
+                  Text("Study")
+              }
 
-      @POST("study-sessions/{id}/complete")
-      suspend fun completeSession(@Path("id") id: String): Response<ApiResponse<StudyResultDto>>
+              Spacer(modifier = Modifier.height(16.dp))
+
+              // Cards section header
+              Row(
+                  modifier = Modifier
+                      .fillMaxWidth()
+                      .padding(horizontal = 16.dp),
+                  horizontalArrangement = Arrangement.SpaceBetween,
+                  verticalAlignment = Alignment.CenterVertically
+              ) {
+                  Text("Cards", style = MaterialTheme.typography.titleMedium)
+                  TextButton(onClick = { onNavigateToCards(setId) }) {
+                      Text("See All")
+                  }
+              }
+
+              // Cards list
+              LazyColumn(
+                  modifier = Modifier.fillMaxSize(),
+                  contentPadding = PaddingValues(16.dp),
+                  verticalArrangement = Arrangement.spacedBy(8.dp)
+              ) {
+                  items(cards.take(5)) { card ->
+                      CardItem(card)
+                  }
+              }
+          }
+      }
   }
   ```
-- [ ] Tạo `domain/model/StudySession.kt` + Repository + UseCases
-- [ ] Tạo `presentation/study/StudyViewModel.kt`:
+
+- [ ] **CardItem:**
+  ```kotlin
+  @Composable
+  fun CardItem(card: Flashcard) {
+      Card(
+          modifier = Modifier.fillMaxWidth()
+      ) {
+          Row(
+              modifier = Modifier
+                  .fillMaxWidth()
+                  .padding(16.dp),
+              horizontalArrangement = Arrangement.SpaceBetween
+          ) {
+              Column(modifier = Modifier.weight(1f)) {
+                  Text(card.front, style = MaterialTheme.typography.bodyLarge)
+                  Spacer(modifier = Modifier.height(4.dp))
+                  Text(
+                      card.back,
+                      style = MaterialTheme.typography.bodyMedium,
+                      color = MaterialTheme.colorScheme.onSurfaceVariant
+                  )
+              }
+              Icon(
+                  Icons.Default.ChevronRight,
+                  contentDescription = null,
+                  tint = MaterialTheme.colorScheme.onSurfaceVariant
+              )
+          }
+      }
+  }
+  ```
+
+### ✅ Deliverable
+Set detail screen hiển thị set info và cards list.
+
+---
+
+## 📆 NGÀY 4 — Study Mode (Card Flip)
+
+### Tasks
+
+- [ ] **StudyViewModel:**
   ```kotlin
   @HiltViewModel
   class StudyViewModel @Inject constructor(
-      private val getSetByIdUseCase: GetSetByIdUseCase,
-      private val startSessionUseCase: StartSessionUseCase,
-      private val completeSessionUseCase: CompleteSessionUseCase
+      private val cardRepository: CardRepository,
+      private val studyRepository: StudyRepository
   ) : ViewModel() {
-      private val _currentCardIndex = MutableStateFlow(0)
+
+      private val _cards = MutableStateFlow<List<Flashcard>>(emptyList())
+      private val _currentIndex = MutableStateFlow(0)
+      private val _isFlipped = MutableStateFlow(false)
       private val _knownCards = MutableStateFlow<Set<String>>(emptySet())
       private val _unknownCards = MutableStateFlow<Set<String>>(emptySet())
 
-      fun markKnown(cardId: String) { /* record */ }
-      fun markUnknown(cardId: String) { /* record */ }
-      fun finishSession() { /* complete + get result */ }
+      val progress: Float get() = (_currentIndex.value.toFloat() / _cards.value.size)
+      val currentCard: Flashcard? get() = _cards.value.getOrNull(_currentIndex.value)
   }
   ```
-- [ ] Cập nhật `presentation/study/StudyScreen.kt`:
-  - Fetch cards từ set
-  - Shuffle option
-  - Card flip interaction (click to flip)
-  - "Know" / "Don't Know" buttons
-  - Session progress bar (X/Y)
-  - Results summary at end
-- [ ] Tạo `presentation/components/FlashcardViewer.kt`:
-  - Card flip animation (AnimatedVisibility)
-  - Front: word, pronunciation
-  - Back: meaning, example, note
-  - Click to flip
-- [ ] Tạo `presentation/study/StudyResultScreen.kt`:
-  - Score: "8/10 correct"
-  - Time spent
-  - "Study Again" / "Back to Set" buttons
-- [ ] **Test:**
-  - [ ] Study session → flip cards → mark known/unknown
-  - [ ] Complete session → results hiển thị
+
+- [ ] **FlashcardStudyScreen (Quizlet-style flip):**
+  ```kotlin
+  @Composable
+  fun FlashcardStudyScreen(
+      setId: String,
+      onNavigateBack: () -> Unit,
+      viewModel: StudyViewModel = hiltViewModel()
+  ) {
+      val cards by viewModel.cards.collectAsState()
+      val currentIndex by viewModel.currentIndex.collectAsState()
+      val isFlipped by viewModel.isFlipped.collectAsState()
+      val knownCards by viewModel.knownCards.collectAsState()
+      val unknownCards by viewModel.unknownCards.collectAsState()
+
+      if (cards.isEmpty()) {
+          EmptyStudyState(onBack = onNavigateBack)
+          return
+      }
+
+      Column(
+          modifier = Modifier.fillMaxSize()
+      ) {
+          // Progress bar
+          LinearProgressIndicator(
+              progress = { (currentIndex.toFloat() / cards.size) },
+              modifier = Modifier.fillMaxWidth()
+          )
+
+          // Card counter
+          Text(
+              text = "${currentIndex + 1} / ${cards.size}",
+              modifier = Modifier.padding(16.dp),
+              style = MaterialTheme.typography.bodyMedium
+          )
+
+          // Flashcard
+          Box(
+              modifier = Modifier
+                  .weight(1f)
+                  .fillMaxWidth()
+                  .padding(16.dp),
+              contentAlignment = Alignment.Center
+          ) {
+              FlashcardView(
+                  card = cards[currentIndex],
+                  isFlipped = isFlipped,
+                  onFlip = { viewModel.flipCard() }
+              )
+          }
+
+          // Action buttons
+          Row(
+              modifier = Modifier
+                  .fillMaxWidth()
+                  .padding(16.dp),
+              horizontalArrangement = Arrangement.spacedBy(16.dp)
+          ) {
+              Button(
+                  onClick = { viewModel.markUnknown() },
+                  modifier = Modifier.weight(1f),
+                  colors = ButtonDefaults.buttonColors(
+                      containerColor = Color(0xFFFF6B6B)
+                  )
+              ) {
+                  Text("Still learning")
+              }
+              Button(
+                  onClick = { viewModel.markKnown() },
+                  modifier = Modifier.weight(1f),
+                  colors = ButtonDefaults.buttonColors(
+                      containerColor = Color(0xFF00C853)
+                  )
+              ) {
+                  Text("Got it!")
+              }
+          }
+      }
+  }
+  ```
+
+- [ ] **FlashcardView (Flip animation):**
+  ```kotlin
+  @Composable
+  fun FlashcardView(
+      card: Flashcard,
+      isFlipped: Boolean,
+      onFlip: () -> Unit
+  ) {
+      Card(
+          modifier = Modifier
+              .fillMaxWidth()
+              .aspectRatio(0.7f)
+              .clickable(onClick = onFlip),
+          elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+          shape = RoundedCornerShape(16.dp)
+      ) {
+          Box(
+              modifier = Modifier.fillMaxSize(),
+              contentAlignment = Alignment.Center
+          ) {
+              AnimatedContent(
+                  targetState = isFlipped,
+                  transitionSpec = {
+                      fadeIn(animationDurationMs = 300) + slideInHorizontally { it / 2 } togetherWith
+                              fadeOut(animationDurationMs = 300) + slideOutHorizontally { -it / 2 }
+                  }
+              ) { flipped ->
+                  Column(
+                      horizontalAlignment = Alignment.CenterHorizontally,
+                      verticalArrangement = Arrangement.Center,
+                      modifier = Modifier.padding(24.dp)
+                  ) {
+                      if (!flipped) {
+                          Text(
+                              text = card.front,
+                              style = MaterialTheme.typography.headlineMedium,
+                              textAlign = TextAlign.Center
+                          )
+                          Spacer(modifier = Modifier.height(16.dp))
+                          Text(
+                              "Tap to flip",
+                              style = MaterialTheme.typography.bodySmall,
+                              color = MaterialTheme.colorScheme.onSurfaceVariant
+                          )
+                      } else {
+                          Text(
+                              text = card.back,
+                              style = MaterialTheme.typography.headlineMedium,
+                              textAlign = TextAlign.Center
+                          )
+                          card.example?.let {
+                              Spacer(modifier = Modifier.height(16.dp))
+                              Text(
+                                  "Example: $it",
+                                  style = MaterialTheme.typography.bodyMedium,
+                                  color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                  textAlign = TextAlign.Center
+                              )
+                          }
+                      }
+                  }
+              }
+          }
+      }
+  }
+  ```
+
+- [ ] **Study Results:**
+  ```kotlin
+  @Composable
+  fun StudyResultsScreen(
+      knownCount: Int,
+      unknownCount: Int,
+      onStudyAgain: () -> Unit,
+      onBack: () -> Unit
+  ) {
+      Column(
+          modifier = Modifier
+              .fillMaxSize()
+              .padding(32.dp),
+          horizontalAlignment = Alignment.CenterHorizontally,
+          verticalArrangement = Arrangement.Center
+      ) {
+          Text("🎉", style = MaterialTheme.typography.displayLarge)
+          Spacer(modifier = Modifier.height(24.dp))
+          Text("Session Complete!", style = MaterialTheme.typography.headlineMedium)
+
+          Spacer(modifier = Modifier.height(32.dp))
+
+          Row(
+              horizontalArrangement = Arrangement.spacedBy(24.dp)
+          ) {
+              Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                  Text("$knownCount", style = MaterialTheme.typography.displaySmall, color = Color(0xFF00C853))
+                  Text("Got it")
+              }
+              Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                  Text("$unknownCount", style = MaterialTheme.typography.displaySmall, color = Color(0xFFFF6B6B))
+                  Text("Learning")
+              }
+          }
+
+          Spacer(modifier = Modifier.height(48.dp))
+
+          Button(onClick = onStudyAgain, modifier = Modifier.fillMaxWidth()) {
+              Text("Study Again")
+          }
+          TextButton(onClick = onBack) {
+              Text("Back to Set")
+          }
+      }
+  }
+  ```
 
 ### ✅ Deliverable
-Study session flow hoàn chỉnh. Card flip animation mượt.
+Study mode với card flip animation Quizlet-style.
 
 ---
 
-## 📆 NGÀY 7 — Share + Polish + Integration Test
+## 📆 NGÀY 5 — Browse/Search
 
 ### Tasks
-- [ ] Tạo `data/remote/api/ShareApi.kt`:
-  ```kotlin
-  interface ShareApi {
-      @POST("shares")
-      suspend fun createShareLink(@Body body: Map<String, String>): Response<ApiResponse<ShareLinkDto>>
 
-      @GET("shares/{code}")
-      suspend fun getSharedSet(@Path("code") code: String): Response<ApiResponse<FlashcardSetDto>>
+- [ ] **BrowseScreen (Quizlet-style):**
+  ```kotlin
+  @Composable
+  fun BrowseScreen(
+      onNavigateToSetDetail: (String) -> Unit,
+      viewModel: BrowseViewModel = hiltViewModel()
+  ) {
+      Column(modifier = Modifier.fillMaxSize()) {
+          // Search bar
+          OutlinedTextField(
+              value = searchQuery,
+              onValueChange = { viewModel.search(it) },
+              modifier = Modifier
+                  .fillMaxWidth()
+                  .padding(16.dp),
+              placeholder = { Text("Search public sets...") },
+              leadingIcon = { Icon(Icons.Default.Search, null) },
+              shape = RoundedCornerShape(12.dp)
+          )
+
+          // Sort options
+          Row(
+              modifier = Modifier
+                  .fillMaxWidth()
+                  .padding(horizontal = 16.dp),
+              horizontalArrangement = Arrangement.spacedBy(8.dp)
+          ) {
+              FilterChip("Newest", selected = sort == "newest")
+              FilterChip("Most Cards", selected = sort == "mostCards")
+              FilterChip("Popular", selected = sort == "popular")
+          }
+
+          Spacer(modifier = Modifier.height(8.dp))
+
+          // Results
+          if (isLoading) {
+              Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                  CircularProgressIndicator()
+              }
+          } else if (sets.isEmpty()) {
+              EmptyBrowseState()
+          } else {
+              LazyVerticalGrid(
+                  columns = GridCells.Fixed(2),
+                  contentPadding = PaddingValues(16.dp),
+                  horizontalArrangement = Arrangement.spacedBy(12.dp),
+                  verticalArrangement = Arrangement.spacedBy(12.dp)
+              ) {
+                  items(sets) { set ->
+                      BrowseSetCard(set, onClick = { onNavigateToSetDetail(set.id) })
+                  }
+              }
+          }
+      }
   }
   ```
-- [ ] Tạo Share Repository + UseCases
-- [ ] Cập nhật `SetDetailScreen.kt`:
-  - Add "Share" button in toolbar
-  - Show share dialog/sheet
-- [ ] Tạo `presentation/components/ShareBottomSheet.kt`:
+
+- [ ] **BrowseSetCard:**
+  ```kotlin
+  @Composable
+  fun BrowseSetCard(set: FlashcardSet, onClick: () -> Unit) {
+      Card(
+          modifier = Modifier
+              .fillMaxWidth()
+              .aspectRatio(0.85f)
+              .clickable(onClick = onClick),
+          shape = RoundedCornerShape(12.dp)
+      ) {
+          Column(modifier = Modifier.padding(16.dp)) {
+              Text(
+                  set.title,
+                  style = MaterialTheme.typography.titleMedium,
+                  maxLines = 2
+              )
+              Spacer(modifier = Modifier.height(4.dp))
+              set.userName?.let {
+                  Text(
+                      "by $it",
+                      style = MaterialTheme.typography.bodySmall,
+                      color = MaterialTheme.colorScheme.onSurfaceVariant
+                  )
+              }
+              Spacer(modifier = Modifier.weight(1f))
+              Row {
+                  Text("${set.cardCount} cards", style = MaterialTheme.typography.bodySmall)
+                  Spacer(modifier = Modifier.weight(1f))
+                  Icon(Icons.Default.Star, null, modifier = Modifier.size(14.dp))
+              }
+          }
+      }
+  }
+  ```
+
+### ✅ Deliverable
+Browse screen với search và filter.
+
+---
+
+## 📆 NGÀY 6 — Polish + Share
+
+### Tasks
+
+- [ ] **Share Bottom Sheet:**
   ```kotlin
   @Composable
   fun ShareBottomSheet(
       setId: String,
       onDismiss: () -> Unit
   ) {
-      // Generate share link
-      // Copy to clipboard button
-      // Share via other apps (Intent)
+      val shareCode by viewModel.shareCode.collectAsState()
+
+      Column(
+          modifier = Modifier.padding(24.dp),
+          horizontalAlignment = Alignment.CenterHorizontally
+      ) {
+          Text("Share Set", style = MaterialTheme.typography.titleLarge)
+          Spacer(modifier = Modifier.height(16.dp))
+
+          if (shareCode != null) {
+              Card(
+                  colors = CardDefaults.cardColors(
+                      containerColor = MaterialTheme.colorScheme.surfaceVariant
+                  )
+              ) {
+                  Row(
+                      modifier = Modifier.padding(16.dp),
+                      verticalAlignment = Alignment.CenterVertically
+                  ) {
+                      Text(shareCode!!, style = MaterialTheme.typography.headlineSmall)
+                      IconButton(onClick = { /* Copy */ }) {
+                          Icon(Icons.Default.ContentCopy, "Copy")
+                      }
+                  }
+              }
+          } else {
+              Button(onClick = { viewModel.createShareLink(setId) }) {
+                  Text("Generate Share Link")
+              }
+          }
+
+          Spacer(modifier = Modifier.height(16.dp))
+          TextButton(onClick = onDismiss) {
+              Text("Close")
+          }
+      }
   }
   ```
-- [ ] Tạo `presentation/sharedset/SharedSetScreen.kt`:
-  - View shared set (read-only)
-  - "Add to My Sets" button
-  - "Study This Set" button
-- [ ] Polish:
-  - Loading states (CircularProgressIndicator)
-  - Error handling (ErrorDialog)
-  - Empty states (Illustrations)
+
+- [ ] **Polish:**
+  - Loading states với shimmer
+  - Error handling với retry
   - Pull to refresh
-- [ ] **Integration Test:**
-  - [ ] Create set → add cards → edit → delete
-  - [ ] Browse → search → filter → open set
-  - [ ] Study session → flip cards → complete
-  - [ ] Share set → copy link → view shared
-  - [ ] Cross-check với Web: cùng account login → data đồng bộ
+  - Empty states với illustrations
 
 ### ✅ Deliverable
-Share hoàn chỉnh. App stable. Sẵn sàng cho Week 3 (Spaced Repetition).
+Share functionality + Polish UI.
 
 ---
 
-## 📋 Week 2 Android Checklist
+## 📆 NGÀY 7 — Integration + Testing
+
+### Tasks
+
+- [ ] **Full E2E Test:**
+  - [ ] Home → Library → Create Set
+  - [ ] Set Detail → Add Cards
+  - [ ] Study Mode → Card Flip
+  - [ ] Browse → Search Sets
+  - [ ] Share Set
+  - [ ] Logout
+
+- [ ] **Cross-check:**
+  - [ ] Data đồng bộ với web
+  - [ ] Login → data hiển thị đúng
+
+### ✅ Deliverable
+App hoàn chỉnh, sẵn sàng deploy.
+
+---
+
+## 📋 Week 2 Checklist
 
 | # | Checkpoint | Status |
 |---|---|---|
-| 1 | Splash Screen + Auto-login | ⬜ |
-| 2 | FlashcardSet API layer (Repository, UseCases) | ⬜ |
-| 3 | Vocabulary screen (My Sets) | ⬜ |
-| 4 | Create/Edit Set screen | ⬜ |
-| 5 | SetDetail screen | ⬜ |
-| 6 | Flashcard CRUD (add/edit/delete cards) | ⬜ |
-| 7 | Browse screen + search | ⬜ |
-| 8 | Tag filter | ⬜ |
-| 9 | Study session flow | ⬜ |
-| 10 | FlashcardViewer (flip animation) | ⬜ |
-| 11 | Study result screen | ⬜ |
-| 12 | Share functionality | ⬜ |
-| 13 | Loading/Error/Empty states | ⬜ |
-| 14 | Pull to refresh | ⬜ |
-| 15 | Integration test với Web | ⬜ |
+| 1 | Bottom Nav (4 tabs) | ⬜ |
+| 2 | Home Screen | ⬜ |
+| 3 | Library Screen (Grid) | ⬜ |
+| 4 | SetCard Component | ⬜ |
+| 5 | Create Set Dialog | ⬜ |
+| 6 | Set Detail Screen | ⬜ |
+| 7 | Card Item Component | ⬜ |
+| 8 | Study Mode | ⬜ |
+| 9 | Card Flip Animation | ⬜ |
+| 10 | Study Results | ⬜ |
+| 11 | Browse Screen | ⬜ |
+| 12 | Search/Filter | ⬜ |
+| 13 | Share Bottom Sheet | ⬜ |
+| 14 | Polish UI | ⬜ |
+| 15 | E2E Test | ⬜ |
 
 ---
 
-## 🔗 API Endpoints Cần Dùng (Tuần 2)
+## 🎨 Quizlet Color Palette
 
-```
-# Flashcard Set CRUD
-GET    /api/flashcard-sets/my                    → FlashcardSet[]
-GET    /api/flashcard-sets/public               → FlashcardSet[]
-GET    /api/flashcard-sets/:id                  → FlashcardSet
-POST   /api/flashcard-sets                       → FlashcardSet
-PUT    /api/flashcard-sets/:id                  → FlashcardSet
-DELETE /api/flashcard-sets/:id                  → void
+```kotlin
+// Primary colors
+val QuizletBlue = Color(0xFF4255FF)
+val QuizletCoral = Color(0xFFFF6B6B)
+val QuizletGreen = Color(0xFF00C853)
+val QuizletYellow = Color(0xFFFFD93D)
 
-# Flashcard CRUD
-GET    /api/flashcards/set/:setId               → Flashcard[]
-POST   /api/flashcards/set/:setId                → Flashcard
-POST   /api/flashcards/set/:setId/bulk          → Flashcard[]
-PUT    /api/flashcards/:cardId                   → Flashcard
-DELETE /api/flashcards/:cardId                  → void
-
-# Tags
-GET    /api/tags                                 → Tag[]
-POST   /api/tags                                 → Tag
-
-# Study Sessions
-POST   /api/study-sessions/start                 → StudySession
-POST   /api/study-sessions/:id/answer            → void
-POST   /api/study-sessions/:id/complete          → StudyResult
-
-# Share
-POST   /api/shares                               → ShareLink
-GET    /api/shares/:code                         → FlashcardSet
+// Card colors for sets (random rotation)
+val SetColors = listOf(
+    Color(0xFF4255FF), // Blue
+    Color(0xFFFF6B6B), // Coral
+    Color(0xFF00C853), // Green
+    Color(0xFFFFD93D), // Yellow
+    Color(0xFF9C27B0), // Purple
+    Color(0xFFFF9800), // Orange
+    Color(0xFF00BCD4), // Cyan
+    Color(0xFFE91E63), // Pink
+)
 ```
 
 ---
 
-## 📌 Dependencies
-- Backend APIs đã có sẵn từ Dev A
-- Web frontend đã hoàn thành Week 2
-- Android Week 1 infrastructure đã sẵn sàng (Hilt, Room, Retrofit)
+## 📱 Quicklet App Structure
 
-> [!TIP]
-> Test API với Postman/curl trước khi implement Android layer.
+```
+Quicklet/
+├── presentation/
+│   ├── home/
+│   │   └── HomeScreen.kt
+│   ├── library/
+│   │   ├── LibraryScreen.kt
+│   │   ├── LibraryViewModel.kt
+│   │   ├── SetCard.kt
+│   │   └── CreateSetDialog.kt
+│   ├── detail/
+│   │   ├── SetDetailScreen.kt
+│   │   └── CardItem.kt
+│   ├── study/
+│   │   ├── FlashcardStudyScreen.kt
+│   │   ├── FlashcardView.kt
+│   │   └── StudyResultsScreen.kt
+│   ├── browse/
+│   │   ├── BrowseScreen.kt
+│   │   └── BrowseSetCard.kt
+│   └── components/
+│       ├── StatCard.kt
+│       └── EmptyState.kt
+└── navigation/
+    └── Screen.kt (4 tabs)
+```
+
+---
+
+## 📌 Reminders
+
+1. **Keep it simple** - chỉ cần ngang Quicklet
+2. **Quizlet-style** - không cần design quá phức tạp
+3. **Bottom nav** - 4 tabs: Home, Library, Study, Profile
+4. **Grid layout** - Library hiển thị 2 columns
+5. **Card flip** - animation mượt cho study mode
