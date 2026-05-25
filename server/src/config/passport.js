@@ -42,13 +42,31 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET && process.
               await user.save();
             }
           } else {
+            // Generate a unique, valid username based on Google display name
+            let baseUsername = profile.displayName ? profile.displayName.replace(/\s+/g, '') : 'User';
+            // strip special characters to keep it alphanumeric
+            baseUsername = baseUsername.replace(/[^a-zA-Z0-9]/g, '');
+            if (baseUsername.length < 3) {
+              baseUsername = (baseUsername + '123').slice(0, 5);
+            }
+            if (baseUsername.length > 25) {
+              baseUsername = baseUsername.slice(0, 25);
+            }
+
+            let username = baseUsername;
+            let count = 1;
+            // loop to ensure unique username is generated
+            while (await User.findOne({ username })) {
+              username = `${baseUsername}${count}`;
+              count++;
+            }
+
             // Create a new user with Google info
             user = await User.create({
               email,
-              username: profile.displayName.replace(/\s+/g, ''),
+              username,
               password: undefined, // No local password
               oauth: { googleId: profile.id },
-              provider: 'google',
               avatar: profile.photos?.[0]?.value,
             });
           }

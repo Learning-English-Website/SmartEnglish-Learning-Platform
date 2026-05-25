@@ -44,15 +44,10 @@ router.get('/google', (req, res, next) => {
 
 // Google OAuth callback – set cookies rồi redirect về frontend (KHÔNG truyền token qua URL)
 router.get('/google/callback', (req, res, next) => {
-  const rawState = req.query.state || '';
-  let redirectPath = '/dashboard';
-  try {
-    const parsed = JSON.parse(Buffer.from(rawState, 'base64').toString('utf-8'));
-    if (parsed?.redirect) redirectPath = parsed.redirect;
-  } catch (_) { /* ignore malformed state */ }
-  passport.authenticate('google', { session: false, failureRedirect: `${process.env.CLIENT_URL}/login?error=google_failed` }, (err, user) => {
-    if (!user) return res.redirect(`${process.env.CLIENT_URL}/login?error=google_failed`);
-    const tokens = req.user;
+  const redirectPath = '/';
+  passport.authenticate('google', { session: false, failureRedirect: `${process.env.CLIENT_URL}/login?error=google_failed` }, (err, authData) => {
+    if (err || !authData) return res.redirect(`${process.env.CLIENT_URL}/login?error=google_failed`);
+    const tokens = authData;
     const isProd = process.env.NODE_ENV === 'production';
     const sameSite = isProd ? 'none' : 'lax';
     res.cookie('accessToken', tokens.accessToken, { httpOnly: true, secure: isProd, sameSite, maxAge: 15 * 60 * 1000 });
