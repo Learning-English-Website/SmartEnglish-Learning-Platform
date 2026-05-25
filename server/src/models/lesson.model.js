@@ -12,6 +12,15 @@ const lessonSchema = new Schema(
     estimatedMinutes: { type: Number, default: 5 },
     grammarFocus: [{ type: String }],
     vocabFocus: [{ type: String }],
+    
+    // Duolingo support
+    type: { 
+      type: String, 
+      enum: ['challenge', 'practice'], 
+      default: 'challenge' 
+    },
+    isCompleted: { type: Boolean, default: false },
+    completedAt: { type: Date, default: null },
   },
   { timestamps: true }
 );

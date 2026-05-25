@@ -1,7 +1,7 @@
 # WEEK 4: WEB APP — Duolingo Course Structure + Quiz System
 
 > **Tech Stack:** React + Vite + Express + MongoDB + Mongoose
-> **Reference:** `duolingo-clone` (Next.js + Drizzle + PostgreSQL)
+> **Reference:** `duolingo-clone` (Next.js + Drizzle + PostgreSQL) (C:\Users\Vip\Documents\GitHub\SmartEnglish-Learning-Platform\duolingo-clone)
 > **Mục tiêu:** Tạo cấu trúc Course → Unit → Lesson → Challenge theo phong cách Duolingo, tích hợp Quiz System với Hearts System, Media Support (audio/image), và Course Selection UI
 
 ---

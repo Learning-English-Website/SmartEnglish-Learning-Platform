@@ -23,3 +23,8 @@ require('./learningHistory.model');
 require('./achievement.model');
 require('./userAchievement.model');
 require('./notification.model');
+
+// Duolingo support
+require('./challenge.model');
+require('./challengeOption.model');
+require('./challengeProgress.model');

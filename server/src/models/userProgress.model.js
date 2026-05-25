@@ -11,6 +11,17 @@ const userProgressSchema = new Schema(
     lastActivityDate: { type: Date, default: null },
     skillLevels: { type: Map, of: Number, default: () => new Map() },
     crownsByLesson: { type: Map, of: Number, default: () => new Map() },
+    
+    // Duolingo Hearts & Progress
+    activeCourse: { type: mongoose.Schema.Types.ObjectId, ref: 'Course', default: null },
+    hearts: { type: Number, default: 5 },             // Max 5 hearts
+    maxHearts: { type: Number, default: 5 },
+    points: { type: Number, default: 0 },            // XP
+    streak: { type: Number, default: 0 },
+    lastStudyDate: { type: Date, default: null },
+    isPro: { type: Boolean, default: false },        // Pro subscription
+    stripeCustomerId: { type: String, default: null },
+    stripeSubscriptionId: { type: String, default: null },
   },
   { timestamps: true }
 );

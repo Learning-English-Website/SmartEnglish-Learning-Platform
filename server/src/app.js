@@ -66,6 +66,7 @@ app.use('/api/progress', require('./modules/progress/progress.routes'));
 app.use('/api/notes', require('./modules/notes/note.routes'));
 app.use('/api/gamification', require('./modules/gamification/gamification.routes'));
 app.use('/api/media', require('./modules/media/media.routes'));
+app.use('/api/duolingo', require('./modules/duolingo/duolingo.routes'));
 
 // ── 404 Handler ───────────────────────────────────────────────────────────────
 app.use('/{*path}', (req, res) => {

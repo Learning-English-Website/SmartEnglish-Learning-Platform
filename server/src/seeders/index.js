@@ -11,6 +11,7 @@ const Lesson = require('../models/lesson.model');
 const Achievement = require('../models/achievement.model');
 const FlashcardSet = require('../models/flashcardSet.model');
 const Flashcard = require('../models/flashcard.model');
+const { seedDuolingo } = require('./duolingo.seeder');
 
 async function seedUsers() {
   const users = [
@@ -156,6 +157,7 @@ async function run() {
     await seedLearningContent();
     await seedAchievements();
     await seedFlashcards();
+    await seedDuolingo();
     console.log('✅ All seeders completed');
   } catch (error) {
     console.error('❌ Seed failed:', error.message);

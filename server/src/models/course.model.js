@@ -13,6 +13,16 @@ const courseSchema = new Schema(
     order: { type: Number, default: 0 },
     isPublished: { type: Boolean, default: false },
     thumbnailUrl: { type: String, default: null },
+    
+    // Duolingo support
+    imageSrc: { type: String, default: null },
+    language: { type: String, default: 'en' },
+    difficulty: { 
+      type: String, 
+      enum: ['beginner', 'intermediate', 'advanced'],
+      default: 'beginner'
+    },
+    isActive: { type: Boolean, default: true },
   },
   { timestamps: true }
 );
