@@ -1,0 +1,264 @@
+/* AudioPlayer Component Styles */
+
+/* Base Container */
+.audio-player {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  position: relative;
+}
+
+/* Size Variants */
+.audio-player-sm {
+  padding: 0.5rem;
+  border-radius: 12px;
+}
+
+.audio-player-md {
+  padding: 0.75rem 1rem;
+  border-radius: 16px;
+}
+
+.audio-player-lg {
+  padding: 1rem 1.5rem;
+  border-radius: 20px;
+}
+
+/* Variant Styles */
+.audio-player-primary {
+  background: #f0f7ff;
+  border: 2px solid #e1effa;
+}
+
+.audio-player-primary .audio-play-btn {
+  background: #1cb0f6;
+  color: white;
+}
+
+.audio-player-secondary {
+  background: #f8f9fa;
+  border: 2px solid #e9ecef;
+}
+
+.audio-player-secondary .audio-play-btn {
+  background: #58cc02;
+  color: white;
+}
+
+.audio-player-minimal {
+  background: transparent;
+  padding: 0;
+}
+
+.audio-player-minimal .audio-play-btn {
+  background: transparent;
+  color: #777;
+}
+
+/* Play Button */
+.audio-play-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.audio-player-sm .audio-play-btn {
+  width: 32px;
+  height: 32px;
+}
+
+.audio-player-lg .audio-play-btn {
+  width: 48px;
+  height: 48px;
+}
+
+.audio-play-btn:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transform: scale(1.05);
+}
+
+.audio-play-btn:active {
+  transform: scale(0.95);
+}
+
+/* Progress Bar */
+.audio-progress-container {
+  flex: 1;
+  min-width: 60px;
+  cursor: pointer;
+  padding: 8px 0;
+}
+
+.audio-progress-track {
+  height: 6px;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+}
+
+.audio-player-sm .audio-progress-track {
+  height: 4px;
+}
+
+.audio-player-lg .audio-progress-track {
+  height: 8px;
+  border-radius: 4px;
+}
+
+.audio-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #58cc02, #4caf00);
+  border-radius: 3px;
+  transition: width 0.1s linear;
+}
+
+/* Duration Display */
+.audio-duration {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #777;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.audio-current {
+  color: #3c3c3c;
+}
+
+.audio-separator {
+  margin: 0 0.125rem;
+  opacity: 0.5;
+}
+
+/* Mute Button */
+.audio-mute-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: #777;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.audio-mute-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: #3c3c3c;
+}
+
+/* Loading Spinner */
+.audio-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+}
+
+.audio-spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid #e9ecef;
+  border-top-color: #58cc02;
+  border-radius: 50%;
+  animation: audio-spin 0.8s linear infinite;
+}
+
+@keyframes audio-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Error State */
+.audio-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  font-size: 1.25rem;
+  cursor: help;
+}
+
+/* Responsive */
+@media (max-width: 576px) {
+  .audio-duration {
+    display: none;
+  }
+
+  .audio-player {
+    gap: 0.5rem;
+  }
+
+  .audio-mute-btn {
+    display: none;
+  }
+}
+
+/* Pulse animation for playing state */
+@keyframes audio-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(88, 204, 2, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(88, 204, 2, 0);
+  }
+}
+
+.audio-player:has(.audio-play-btn svg) .audio-play-btn.is-playing {
+  animation: audio-pulse 1.5s ease-in-out infinite;
+}
+
+/* Mini inline audio button (for challenge questions) */
+.audio-btn-mini {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, #1cb0f6 0%, #1a9fd8 100%);
+  border: none;
+  border-radius: 50%;
+  color: white;
+  font-size: 1.25rem;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(28, 176, 246, 0.4);
+  transition: all 0.2s ease;
+}
+
+.audio-btn-mini:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 16px rgba(28, 176, 246, 0.5);
+}
+
+.audio-btn-mini:active {
+  transform: scale(0.95);
+}
+
+.audio-btn-mini.is-playing {
+  animation: audio-btn-pulse 1s ease-in-out infinite;
+}
+
+@keyframes audio-btn-pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
