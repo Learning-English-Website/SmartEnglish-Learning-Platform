@@ -28,6 +28,100 @@
   --q-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.10);
 }
 
+/* ── Dark Theme Overrides ────────────────────────────────────── */
+[data-theme='dark'] {
+  --q-bg: var(--bg-page);
+  --q-sidebar-bg: var(--bg-elevated);
+  --q-sidebar-hover: rgba(255, 255, 255, 0.04);
+  --q-sidebar-active: rgba(44, 94, 245, 0.15);
+  --q-sidebar-active-text: var(--gl-tertiary);
+  --q-sidebar-text: var(--text-muted);
+  --q-sidebar-text-hover: var(--text-heading);
+  --q-sidebar-title: #4b5563;
+  --q-sidebar-border: var(--border-subtle);
+  --q-topbar-bg: var(--bg-elevated);
+  --q-topbar-border: var(--border-subtle);
+  --q-primary: var(--gl-tertiary);
+}
+
+[data-theme='dark'] .q-topbar-search input {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-heading);
+}
+
+[data-theme='dark'] .q-topbar-search input:focus {
+  background: rgba(0, 0, 0, 0.2);
+  border-color: var(--q-primary);
+}
+
+[data-theme='dark'] .q-topbar-create-btn {
+  border-color: var(--border-subtle);
+  color: var(--text-muted);
+}
+
+[data-theme='dark'] .q-topbar-create-btn:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-heading);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+[data-theme='dark'] .q-logo {
+  color: var(--text-heading);
+}
+
+[data-theme='dark'] .q-hamburger:hover,
+[data-theme='dark'] .q-topbar-iconbtn:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-heading);
+}
+
+[data-theme='dark'] .q-user-dropdown {
+  background: var(--bg-elevated);
+  border-color: var(--border-subtle);
+}
+
+[data-theme='dark'] .q-ud-name {
+  color: var(--text-heading);
+}
+
+[data-theme='dark'] .q-ud-divider {
+  background: var(--border-subtle);
+}
+
+[data-theme='dark'] .q-ud-item {
+  color: var(--text-muted);
+}
+
+[data-theme='dark'] .q-ud-item:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-heading);
+}
+
+[data-theme='dark'] .q-new-folder-input {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--border-subtle);
+  color: var(--text-heading);
+}
+
+[data-theme='dark'] .q-new-folder-input:focus {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+[data-theme='dark'] .q-new-folder-cancel {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-muted);
+}
+
+[data-theme='dark'] .q-new-folder-cancel:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-heading);
+}
+
+[data-theme='dark'] .q-sidebar-addbtn:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-heading);
+}
+
 /* ── Root ───────────────────────────────────────────────────── */
 .q-root {
   display: flex;
@@ -656,6 +750,14 @@
   background: var(--q-bg);
   min-height: calc(100vh - var(--q-topbar-h));
   transition: margin-left 0.25s ease;
+}
+
+/* Keep .q-content full-bleed for Memoris/Duolingo learning subpages to let backgrounds stretch seamlessly */
+.q-content:has(.memoris-home),
+.q-content:has(.courses-page),
+.q-content:has(.learn-page),
+.q-content:has(.lesson-page) {
+  padding: 0;
 }
 
 .q-content.sidebar-collapsed {

@@ -23,6 +23,9 @@ const EditSet = lazy(() => import('./pages/Quizlet/EditSet'));
 const SetDetail = lazy(() => import('./pages/Quizlet/SetDetail'));
 const CommunitySetDetail = lazy(() => import('./pages/Quizlet/CommunitySetDetail'));
 const DuolingoHomePage = lazy(() => import('./pages/Duolingo/DuolingoHomePage'));
+const CoursesPage = lazy(() => import('./pages/Duolingo/CoursesPage'));
+const DuolingoLearnPage = lazy(() => import('./pages/Duolingo/LearnPage'));
+const LessonPage = lazy(() => import('./pages/Duolingo/LessonPage'));
 const Browse = lazy(() => import('./pages/Quizlet/Browse'));
 const StudyPage = lazy(() => import('./pages/Quizlet/StudyPage'));
 const SharedSet = lazy(() => import('./pages/Quizlet/SharedSet'));
@@ -101,6 +104,9 @@ const router = createBrowserRouter([
       { path: '/flashcards/sets/:id/edit', element: withSuspense(<EditSet />) },
       { path: '/flashcards/sets/:id/study', element: withSuspense(<StudyPage />) },
       { path: '/duolingo', element: withSuspense(<DuolingoHomePage />) },
+      { path: '/duolingo/courses', element: withSuspense(<CoursesPage />) },
+      { path: '/duolingo/learn', element: withSuspense(<DuolingoLearnPage />) },
+      { path: '/duolingo/lesson/:lessonId', element: withSuspense(<LessonPage />) },
       { path: '/profile', element: withSuspense(<ProfilePage />) },
       { path: '/user/profile', element: withSuspense(<ProfilePage />) },
       { path: '/admin/profile', element: withSuspense(<ProfilePage />) },
