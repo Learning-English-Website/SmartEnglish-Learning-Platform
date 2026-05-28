@@ -4,13 +4,15 @@ import {
   Search, Bell, Plus, ChevronLeft, ChevronRight,
   Home, LibraryBig, FolderPlus, Folder, CreditCard,
   Menu, X, Check, LogOut, User, Settings,
-  Compass, BookText
+  Compass, BookText, Languages, Sun, Moon
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { folderService } from '../../api/folderService';
+import { useDarkMode } from '../../context/DarkModeContext';
 import './DashboardLayout.css';
 
 export default function DashboardLayout({ children }) {
+  const { darkMode, toggleDark } = useDarkMode();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [topNavSearch, setTopNavSearch] = useState('');
@@ -112,6 +114,14 @@ export default function DashboardLayout({ children }) {
 
           <button className="q-topbar-iconbtn" title="Thông báo">
             <Bell size={18} />
+          </button>
+
+          <button
+            className="q-topbar-iconbtn"
+            onClick={toggleDark}
+            title={darkMode ? 'Chuyển sang giao diện sáng' : 'Chuyển sang giao diện tối'}
+          >
+            {darkMode ? <Sun size={18} /> : <Moon size={18} />}
           </button>
 
           <button className="q-plus-btn">Nâng cấp lên Plus</button>
@@ -316,6 +326,15 @@ export default function DashboardLayout({ children }) {
               >
                 <Compass size={17} />
                 <span>Khám phá học phần</span>
+              </NavLink>
+
+              <NavLink
+                to="/duolingo"
+                className={({ isActive }) => `q-nav-item ${isActive ? 'active' : ''}`}
+                onClick={closeMobileSidebar}
+              >
+                <Languages size={17} />
+                <span>Học tiếng Anh</span>
               </NavLink>
             </div>
 
