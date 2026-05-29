@@ -50,6 +50,8 @@ sealed class StudyEvent {
     data object NextCard : StudyEvent()
     data object Restart : StudyEvent()
     data object FinishSession : StudyEvent()
+    data class UpdateCardStudyProgress(val cardId: String, val correct: Boolean) : StudyEvent()
+    data class FinishCustomSession(val cardsStudied: Int, val correctCount: Int, val incorrectCount: Int) : StudyEvent()
 }
 
 @HiltViewModel
@@ -128,6 +130,14 @@ class StudyViewModel @Inject constructor(
             StudyEvent.NextCard -> nextCard()
             StudyEvent.Restart -> restart()
             StudyEvent.FinishSession -> finishSession()
+            is StudyEvent.UpdateCardStudyProgress -> {
+                viewModelScope.launch {
+                    cardRepository.updateCardStudyProgress(event.cardId, event.correct)
+                }
+            }
+            is StudyEvent.FinishCustomSession -> {
+                finishCustomSession(event.cardsStudied, event.correctCount, event.incorrectCount)
+            }
         }
     }
 
@@ -195,6 +205,22 @@ class StudyViewModel @Inject constructor(
                     cardsStudied = _state.value.currentIndex + 1,
                     correctCount = _state.value.correctCount,
                     incorrectCount = _state.value.incorrectCount,
+                    duration = duration
+                )
+            }
+        }
+    }
+
+    private fun finishCustomSession(cardsStudied: Int, correctCount: Int, incorrectCount: Int) {
+        viewModelScope.launch {
+            val sessionId = _state.value.sessionId
+            if (sessionId != null) {
+                val duration = ((System.currentTimeMillis() - _state.value.startTime) / 1000).toInt()
+                studyRepository.updateStudySession(
+                    id = sessionId,
+                    cardsStudied = cardsStudied,
+                    correctCount = correctCount,
+                    incorrectCount = incorrectCount,
                     duration = duration
                 )
             }

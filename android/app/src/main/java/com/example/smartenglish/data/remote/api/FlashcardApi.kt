@@ -55,6 +55,12 @@ interface CardApi {
     @POST("flashcards/set/{setId}")
     suspend fun createCard(@Path("setId") setId: String, @Body request: CreateCardRequest): Response<ApiResponse<FlashcardDto>>
 
+    @POST("flashcards/set/{setId}/bulk")
+    suspend fun bulkCreateCards(
+        @Path("setId") setId: String,
+        @Body request: BulkCreateCardsRequest
+    ): Response<ApiListResponse<FlashcardDto>>
+
     @PUT("flashcards/{id}")
     suspend fun updateCard(
         @Path("id") id: String,

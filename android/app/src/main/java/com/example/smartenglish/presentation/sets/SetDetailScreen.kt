@@ -1,5 +1,8 @@
 package com.example.smartenglish.presentation.sets
 
+import com.example.smartenglish.domain.model.Flashcard
+import kotlinx.coroutines.launch
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -34,8 +37,27 @@ fun SetDetailScreen(
     val state by viewModel.state.collectAsState()
     var showEditDialog by remember { mutableStateOf(false) }
     var showShareSheet by remember { mutableStateOf(false) }
+    var showExportSheet by remember { mutableStateOf(false) }
+    var showImportModal by remember { mutableStateOf(false) }
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
+    val setId = state.set?.id
+    var cards by remember(setId) { mutableStateOf<List<Flashcard>>(emptyList()) }
+
+    LaunchedEffect(setId) {
+        if (setId != null) {
+            cards = viewModel.getCardsForSet(setId)
+        }
+    }
+
+    suspend fun showSnack(message: String) {
+        snackbarHostState.showSnackbar(message = message, withDismissAction = true)
+    }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text(state.set?.title ?: "Set Details", fontWeight = FontWeight.Bold) },
@@ -45,6 +67,12 @@ fun SetDetailScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = { showImportModal = true }) {
+                        Icon(Icons.Default.CloudUpload, contentDescription = "Import")
+                    }
+                    IconButton(onClick = { showExportSheet = true }) {
+                        Icon(Icons.Default.Download, contentDescription = "Export")
+                    }
                     IconButton(onClick = { showEditDialog = true }) {
                         Icon(Icons.Default.Edit, contentDescription = "Edit")
                     }
@@ -270,6 +298,30 @@ fun SetDetailScreen(
                 }
             }
         }
+    }
+
+    if (showExportSheet && state.set != null) {
+        ExportBottomSheet(
+            set = state.set!!,
+            cards = cards,
+            onDismiss = { showExportSheet = false }
+        )
+    }
+
+    if (showImportModal && state.set != null) {
+        com.example.smartenglish.presentation.components.ImportModal(
+            setId = state.set!!.id,
+            onDismiss = { showImportModal = false },
+            onImportSuccess = { importedCount ->
+                scope.launch {
+                    showSnack("Imported $importedCount cards")
+                }
+                // reload cards for export
+                scope.launch {
+                    cards = viewModel.getCardsForSet(state.set!!.id)
+                }
+            }
+        )
     }
 
     if (showEditDialog && state.set != null) {

@@ -4,6 +4,7 @@ import com.example.smartenglish.data.local.dao.FlashcardDao
 import com.example.smartenglish.data.local.dao.FlashcardSetDao
 import com.example.smartenglish.data.local.entity.FlashcardEntity
 import com.example.smartenglish.data.remote.api.CardApi
+import com.example.smartenglish.data.remote.dto.BulkCreateCardsRequest
 import com.example.smartenglish.data.remote.dto.CreateCardRequest
 import com.example.smartenglish.data.remote.dto.UpdateCardRequest
 import com.example.smartenglish.domain.model.Flashcard
@@ -132,6 +133,31 @@ class CardRepositoryImpl @Inject constructor(
                 }
             } else {
                 val errorMessage = response.body()?.error?.message ?: "Failed to create card"
+                ApiResult.Error(errorMessage)
+            }
+        } catch (e: Exception) {
+            ApiResult.Error(e.message ?: "Network error")
+        }
+    }
+
+    override suspend fun bulkCreateCards(
+        setId: String,
+        cards: List<CreateCardRequest>
+    ): ApiResult<List<Flashcard>> {
+        return try {
+            val response = cardApi.bulkCreateCards(setId, BulkCreateCardsRequest(cards))
+            if (response.isSuccessful && response.body()?.success == true) {
+                val data = response.body()?.data ?: emptyList()
+                val created = data.map { it.toDomain() }
+
+                // Cache to local DB
+                val entities = created.map { FlashcardEntity.fromDomain(it) }
+                cardDao.insertCards(entities)
+                repeat(created.size) { setDao.incrementCardCount(setId) }
+
+                ApiResult.Success(created)
+            } else {
+                val errorMessage = response.body()?.error?.message ?: "Failed to import cards"
                 ApiResult.Error(errorMessage)
             }
         } catch (e: Exception) {

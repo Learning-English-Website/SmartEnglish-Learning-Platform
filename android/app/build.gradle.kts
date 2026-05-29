@@ -92,10 +92,8 @@ dependencies {
     // ZXing for QR code generation
     implementation(libs.zxing.core)
 
-    // WorkManager for background sync
-    implementation("androidx.work:work-runtime-ktx:2.9.0")
-    implementation("androidx.hilt:hilt-work:1.2.0")
-    ksp("androidx.hilt:hilt-compiler:1.2.0")
+    // Apache POI (XLSX parsing)
+    implementation("org.apache.poi:poi-ooxml:5.2.5")
 
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))

@@ -42,13 +42,29 @@ val QuizletYellow = Color(0xFFFFD93D)
 
 ## :calendar: TASK 1 — Export CSV
 
-### Muc tieu
-Export cards ra file CSV, chia se qua Android share sheet.
+### Mục tiêu
+- Export toàn bộ cards của một set ra file CSV.
+- File có thể **share** qua Android share sheet (Zalo, Gmail, Drive...).
+- CSV mở được tốt trên Excel/Google Sheets (UTF-8 + BOM).
 
-#### Export Utils
+### Định dạng CSV (contract)
+- Separator: dấu phẩy `,`
+- Quote: `"` (escape bằng `""`)
+- Newline: `\n`
+- Có header ở dòng 1.
+
+**Header mặc định** (theo thứ tự):
+`front, back, pronunciation, example, note, collocation, relatedWords`
+
+> Lưu ý: `collocation`, `relatedWords` chỉ có ý nghĩa khi backend + Android model đã hỗ trợ. Nếu backend chưa có 2 field này thì **vẫn export được**, chỉ để trống.
+
+---
+
+#### 1) Export Utils
 
 ```kotlin
 // util/CsvExporter.kt
+// Input type có thể là domain model hoặc entity tuỳ project. Ở đây giả định Flashcard có các field bên dưới.
 object CsvExporter {
 
     private val CSV_HEADERS = listOf(
@@ -57,14 +73,25 @@ object CsvExporter {
 
     fun generateCsv(cards: List<Flashcard>): String {
         val sb = StringBuilder()
-        sb.append('\uFEFF') // BOM for Excel UTF-8
+
+        // BOM giúp Excel hiểu UTF-8 đúng với tiếng Việt
+        sb.append('\uFEFF')
+
+        // Header
         sb.appendLine(CSV_HEADERS.joinToString(",") { escapeCsvField(it) })
 
+        // Rows
         cards.forEach { card ->
             val row = listOf(
-                card.front, card.back,
-                card.pronunciation ?: "", card.example ?: "",
-                card.note ?: "", card.collocation ?: "", card.relatedWords ?: ""
+                card.front,
+                card.back,
+                card.pronunciation.orEmpty(),
+                card.example.orEmpty(),
+                card.note.orEmpty(),
+
+                // Week 3: tạm bỏ qua 2 field này
+                "",
+                ""
             )
             sb.appendLine(row.joinToString(",") { escapeCsvField(it) })
         }
@@ -72,14 +99,57 @@ object CsvExporter {
     }
 
     private fun escapeCsvField(field: String): String {
-        return if (field.contains(",") || field.contains("\"") || field.contains("\n")) {
-            "\"${field.replace("\"", "\"\"")}\""
-        } else field
+        val normalized = field.replace("\r\n", "\n").replace("\r", "\n")
+        return if (normalized.contains(",") || normalized.contains('"') || normalized.contains("\n")) {
+            "\"${normalized.replace("\"", "\"\"")}\""
+        } else normalized
     }
 }
 ```
 
-#### Export Bottom Sheet
+---
+
+#### 2) Lưu file ra Downloads và share
+
+**Khuyến nghị cách lưu (ổn định trên Android 10+):** dùng `MediaStore.Downloads` + set `DISPLAY_NAME`, `MIME_TYPE`.
+
+```kotlin
+// util/ExportFileHelper.kt
+fun saveCsvToDownloads(
+    context: Context,
+    fileName: String,
+    csvContent: String
+): Uri {
+    val values = ContentValues().apply {
+        put(MediaStore.Downloads.DISPLAY_NAME, fileName)
+        put(MediaStore.Downloads.MIME_TYPE, "text/csv")
+        put(MediaStore.Downloads.IS_PENDING, 1)
+    }
+
+    val resolver = context.contentResolver
+    val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+        ?: error("Cannot create download entry")
+
+    resolver.openOutputStream(uri)?.use { os ->
+        os.write(csvContent.toByteArray(StandardCharsets.UTF_8))
+    } ?: error("Cannot open output stream")
+
+    values.clear()
+    values.put(MediaStore.Downloads.IS_PENDING, 0)
+    resolver.update(uri, values, null, null)
+
+    return uri
+}
+```
+
+---
+
+#### 3) Export Bottom Sheet UI
+
+**Yêu cầu UI/UX:**
+- Có trạng thái loading.
+- Export xong hiện success + nút Share.
+- Nếu set không có card → disable export.
 
 ```kotlin
 // presentation/sets/ExportBottomSheet.kt
@@ -91,21 +161,39 @@ fun ExportBottomSheet(
 ) {
     var isExporting by remember { mutableStateOf(false) }
     var exportedUri by remember { mutableStateOf<Uri?>(null) }
+    var error by remember { mutableStateOf<String?>(null) }
+
     val context = LocalContext.current
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(24.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text("Export Cards", style = MaterialTheme.typography.titleLarge)
             Spacer(modifier = Modifier.height(8.dp))
-            Text("${cards.size} cards", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                "${cards.size} cards",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(20.dp))
+
+            error?.let {
+                Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                Spacer(modifier = Modifier.height(12.dp))
+            }
 
             if (exportedUri != null) {
-                Icon(Icons.Default.CheckCircle, null, modifier = Modifier.size(48.dp), tint = QuizletGreen)
+                Icon(
+                    Icons.Default.CheckCircle,
+                    contentDescription = null,
+                    modifier = Modifier.size(48.dp),
+                    tint = QuizletGreen
+                )
                 Spacer(modifier = Modifier.height(12.dp))
                 Text("Exported successfully!", color = QuizletGreen)
 
@@ -129,18 +217,24 @@ fun ExportBottomSheet(
                 OutlinedButton(
                     onClick = {
                         isExporting = true
-                        val csvContent = CsvExporter.generateCsv(cards)
-                        val fileName = "${set.title.replace(Regex("[^a-zA-Z0-9]"), "_")}_cards.csv"
+                        error = null
 
-                        val uri = context.contentResolver
-                            .insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, null)
-                            ?: return@OutlinedButton
+                        try {
+                            val safeName = set.title
+                                .trim()
+                                .takeIf { it.isNotEmpty() }
+                                ?: "flashcards"
+                            val fileName = "${safeName.replace(Regex("[^a-zA-Z0-9]"), "_")}_cards.csv"
 
-                        context.contentResolver.openOutputStream(uri)?.use { os ->
-                            os.write(csvContent.toByteArray(StandardCharsets.UTF_8))
+                            val csvContent = CsvExporter.generateCsv(cards)
+                            val uri = saveCsvToDownloads(context, fileName, csvContent)
+
+                            exportedUri = uri
+                        } catch (e: Exception) {
+                            error = e.message ?: "Export failed"
+                        } finally {
+                            isExporting = false
                         }
-                        exportedUri = uri
-                        isExporting = false
                     },
                     modifier = Modifier.fillMaxWidth(),
                     enabled = cards.isNotEmpty() && !isExporting
@@ -154,13 +248,16 @@ fun ExportBottomSheet(
                     }
                 }
             }
-            Spacer(modifier = Modifier.height(32.dp))
+
+            Spacer(modifier = Modifier.height(28.dp))
         }
     }
 }
 ```
 
-#### Add Export button vao SetDetailScreen TopAppBar
+---
+
+#### 4) Add Export button vào `SetDetailScreen` TopAppBar
 
 ```kotlin
 // SetDetailScreen.kt
@@ -168,53 +265,98 @@ TopAppBar(
     title = { Text(set.title) },
     actions = {
         IconButton(onClick = { showExportSheet = true }) {
-            Icon(Icons.Default.Download, "Export")
+            Icon(Icons.Default.Download, contentDescription = "Export")
         }
         // ... other actions
     }
 )
 ```
 
-### Deliverable
-Export CSV - download hoac share qua email, message, etc.
+### Deliverable (Definition of Done)
+- Ấn Export → tạo file CSV trong Downloads.
+- Ấn Share → share được qua các app khác.
+- CSV mở trong Excel/Google Sheets không lỗi font tiếng Việt.
+- Handle empty set + handle error khi không ghi được file.
 
 ---
 
 ## :calendar: TASK 2 — CSV Import
 
-### Muc tieu
-Import modal giong Quizlet - chon file, column mapping, preview, goi bulk API.
+### Mục tiêu
+- Import cards từ file CSV theo trải nghiệm gần giống Quizlet:
+  1) Chọn file
+  2) Auto-detect mapping cột
+  3) Cho user chỉnh mapping
+  4) Preview dữ liệu
+  5) Import (bulk) lên backend
 
-#### CSV Parser
+### Backend contract
+- Endpoint (đã ghi chú ở đầu file): `POST /flashcards/set/:setId/bulk`
+- Body:
+
+```json
+{ "cards": [ { "front": "...", "back": "...", "pronunciation": "..." } ] }
+```
+
+- Server nên validate: `front`, `back` required.
+
+---
+
+#### 1) CSV Parser (fix lỗi logic)
+
+Bản hiện tại có bug: `for (i in line.indices)` nhưng lại muốn `i++` bên trong `when` → Kotlin không cho thay đổi `val i`. Cần parse bằng `while`.
 
 ```kotlin
 // util/FileImportHelper.kt
 object FileImportHelper {
 
     fun parseCsv(content: String): CsvParseResult {
-        val lines = content.split("\n", "\r\n").filter { it.isNotBlank() }
+        val lines = content
+            .replace("\r\n", "\n")
+            .replace("\r", "\n")
+            .split("\n")
+            .map { it.trimEnd() }
+            .filter { it.isNotBlank() }
+
         if (lines.isEmpty()) return CsvParseResult(emptyList(), emptyList())
 
-        val headers = parseLine(lines[0])
+        val headers = parseLine(lines.first())
         val rows = lines.drop(1).map { parseLine(it) }
         return CsvParseResult(headers, rows)
     }
 
     private fun parseLine(line: String): List<String> {
         val result = mutableListOf<String>()
-        var current = StringBuilder()
+        val current = StringBuilder()
         var inQuotes = false
 
-        for (i in line.indices) {
+        var i = 0
+        while (i < line.length) {
             val c = line[i]
             val next = line.getOrNull(i + 1)
+
             when {
-                c == '"' && inQuotes && next == '"' -> { current.append('"'); i++ }
-                c == '"' -> { inQuotes = !inQuotes }
-                c == ',' && !inQuotes -> { result.add(current.toString().trim()); current = StringBuilder() }
+                c == '"' && inQuotes && next == '"' -> {
+                    current.append('"')
+                    i += 2
+                    continue
+                }
+
+                c == '"' -> {
+                    inQuotes = !inQuotes
+                }
+
+                c == ',' && !inQuotes -> {
+                    result.add(current.toString().trim())
+                    current.setLength(0)
+                }
+
                 else -> current.append(c)
             }
+
+            i++
         }
+
         result.add(current.toString().trim())
         return result
     }
@@ -223,36 +365,59 @@ object FileImportHelper {
 }
 ```
 
-#### Column Mapper
+---
+
+#### 2) Column Mapper (bổ sung normalize)
+
+- Auto detect theo header thường gặp.
+- Nếu không tìm thấy `front/back` → user bắt buộc tự chọn.
 
 ```kotlin
 // util/ColumnMapper.kt
 object ColumnMapper {
 
     data class Mapping(
-        val front: Int, val back: Int,
-        val pronunciation: Int = -1, val example: Int = -1,
-        val note: Int = -1, val collocation: Int = -1, val relatedWords: Int = -1
+        val front: Int,
+        val back: Int,
+        val pronunciation: Int = -1,
+        val example: Int = -1,
+        val note: Int = -1,
+        val collocation: Int = -1,
+        val relatedWords: Int = -1
     )
 
     fun autoDetect(headers: List<String>): Mapping {
-        val lower = headers.map { it.lowercase() }
+        val normalized = headers.map { normalize(it) }
+
         return Mapping(
-            front = lower.findIndex { it in listOf("front", "term", "word", "question", "vocab") },
-            back = lower.findIndex { it in listOf("back", "definition", "meaning", "answer", "translation", "vietnamese") },
-            pronunciation = lower.findIndex { it in listOf("pronunciation", "pronounce", "ipa") },
-            example = lower.findIndex { it in listOf("example", "sentence", "usage") },
-            note = lower.findIndex { it in listOf("note", "notes", "hint") },
-            collocation = lower.findIndex { it in listOf("collocation", "collocations") },
-            relatedWords = lower.findIndex { it in listOf("relatedwords", "related", "related words") }
+            front = normalized.findIndex { it in listOf("front", "term", "word", "vocab", "question") },
+            back = normalized.findIndex { it in listOf("back", "definition", "meaning", "answer", "translation", "vietnamese") },
+            pronunciation = normalized.findIndex { it in listOf("pronunciation", "pronounce", "ipa") },
+            example = normalized.findIndex { it in listOf("example", "sentence", "usage") },
+            note = normalized.findIndex { it in listOf("note", "notes", "hint") },
+            collocation = normalized.findIndex { it in listOf("collocation", "collocations") },
+            relatedWords = normalized.findIndex { it in listOf("relatedwords", "relatedword", "related", "related_words") }
         )
     }
+
+    private fun normalize(s: String): String = s
+        .trim()
+        .lowercase()
+        .replace("_", " ")
+        .replace(Regex("\\s+"), " ")
 
     private fun <T> List<T>.findIndex(predicate: (T) -> Boolean): Int = indexOfFirst(predicate)
 }
 ```
 
-#### ImportViewModel
+---
+
+#### 3) ImportViewModel (clarify + validate)
+
+Checklist rõ ràng:
+- Không import nếu mapping thiếu front/back.
+- Bỏ qua dòng trống.
+- Có giới hạn an toàn (tuỳ bạn) để tránh import quá lớn.
 
 ```kotlin
 // presentation/components/ImportViewModel.kt
@@ -265,28 +430,40 @@ class ImportViewModel @Inject constructor(
     val uiState: StateFlow<ImportUiState> = _uiState.asStateFlow()
 
     fun setParsedData(result: FileImportHelper.CsvParseResult, mapping: ColumnMapper.Mapping) {
-        _uiState.value = ImportUiState(headers = result.headers, rows = result.rows, mapping = mapping)
+        _uiState.value = ImportUiState(
+            headers = result.headers,
+            rows = result.rows,
+            mapping = mapping
+        )
     }
 
     fun updateMapping(mapping: ColumnMapper.Mapping) {
         _uiState.value = _uiState.value.copy(mapping = mapping)
     }
 
-    fun clearData() { _uiState.value = ImportUiState() }
+    fun clearData() {
+        _uiState.value = ImportUiState()
+    }
 
     fun importCards(setId: String) {
         val state = _uiState.value
-        if (state.mapping.front < 0 || state.mapping.back < 0) return
+        if (state.mapping.front < 0 || state.mapping.back < 0) {
+            _uiState.value = state.copy(error = "Please map required columns: Front and Back")
+            return
+        }
 
         viewModelScope.launch {
-            _uiState.value = state.copy(isImporting = true, error = null)
+            _uiState.value = state.copy(isImporting = true, error = null, importSuccess = false)
             try {
                 val cards = state.rows.mapNotNull { row ->
                     val front = row.getOrNull(state.mapping.front)?.trim()
                     val back = row.getOrNull(state.mapping.back)?.trim()
-                    if (front.isNullOrBlank() || back.isNullOrBlank()) null
-                    else CreateCardRequest(
-                        front = front!!, back = back!!,
+
+                    if (front.isNullOrBlank() || back.isNullOrBlank()) return@mapNotNull null
+
+                    CreateCardRequest(
+                        front = front,
+                        back = back,
                         pronunciation = col(state.mapping.pronunciation, row),
                         example = col(state.mapping.example, row),
                         note = col(state.mapping.note, row),
@@ -294,19 +471,31 @@ class ImportViewModel @Inject constructor(
                         relatedWords = col(state.mapping.relatedWords, row)
                     )
                 }
+
                 if (cards.isEmpty()) {
                     _uiState.value = _uiState.value.copy(isImporting = false, error = "No valid cards found")
                     return@launch
                 }
+
+                // Nếu backend yêu cầu wrapper object {cards:[...]}
                 cardRepository.bulkCreateCards(setId, BulkCreateCardsRequest(cards))
-                _uiState.value = _uiState.value.copy(isImporting = false, importSuccess = true, importedCount = cards.size)
+
+                _uiState.value = _uiState.value.copy(
+                    isImporting = false,
+                    importSuccess = true,
+                    importedCount = cards.size
+                )
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(isImporting = false, error = e.message ?: "Import failed")
+                _uiState.value = _uiState.value.copy(
+                    isImporting = false,
+                    error = e.message ?: "Import failed"
+                )
             }
         }
     }
 
-    private fun col(idx: Int, row: List<String>) = if (idx >= 0) row.getOrNull(idx)?.trim()?.takeIf { it.isNotBlank() } else null
+    private fun col(idx: Int, row: List<String>): String? =
+        if (idx >= 0) row.getOrNull(idx)?.trim()?.takeIf { it.isNotBlank() } else null
 }
 
 data class ImportUiState(
@@ -320,13 +509,22 @@ data class ImportUiState(
 )
 ```
 
-#### Import Modal UI
+---
+
+#### 4) Import Modal UI (CSV)
+
+Điểm cần rõ:
+- Khi user chọn file xong: parse → autoDetect mapping → chuyển sang màn mapping.
+- Có nút “Change file”.
+- Sau import success thì gọi `onImportSuccess(count)` để refresh list cards.
 
 ```kotlin
 // presentation/components/ImportModal.kt
 @Composable
 fun ImportModal(
-    setId: String, onDismiss: () -> Unit, onImportSuccess: (Int) -> Unit,
+    setId: String,
+    onDismiss: () -> Unit,
+    onImportSuccess: (Int) -> Unit,
     viewModel: ImportViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -334,52 +532,100 @@ fun ImportModal(
     var selectedMapping by remember { mutableStateOf(ColumnMapper.Mapping(-1, -1)) }
     val context = LocalContext.current
 
+    // success effect
+    LaunchedEffect(uiState.importSuccess) {
+        if (uiState.importSuccess) {
+            onImportSuccess(uiState.importedCount)
+            viewModel.clearData()
+            onDismiss()
+        }
+    }
+
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri?.let {
+            val content = context.contentResolver.openInputStream(it)
+                ?.bufferedReader()
+                ?.use { r -> r.readText() }
+                ?: ""
+
+            val parsed = FileImportHelper.parseCsv(content)
+            if (parsed.headers.isNotEmpty()) {
+                selectedMapping = ColumnMapper.autoDetect(parsed.headers)
+                viewModel.setParsedData(parsed, selectedMapping)
+                showMapping = true
+            } else {
+                // không có header
+                // (tuỳ bạn: show error state)
+            }
+        }
+    }
+
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(modifier = Modifier.fillMaxWidth().padding(24.dp)) {
             Text("Import Cards", style = MaterialTheme.typography.titleLarge)
             Spacer(modifier = Modifier.height(16.dp))
 
             if (!showMapping) {
-                // File picker
                 Column(
                     modifier = Modifier.fillMaxWidth().height(200.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
                 ) {
-                    Icon(Icons.Default.CloudUpload, null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Icon(
+                        Icons.Default.CloudUpload,
+                        contentDescription = null,
+                        modifier = Modifier.size(48.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                     Spacer(Modifier.height(12.dp))
                     Text("Select CSV file")
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        "Supports CSV (UTF-8)",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                     Spacer(Modifier.height(12.dp))
 
-                    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-                        uri?.let {
-                            val content = context.contentResolver.openInputStream(it)?.bufferedReader()?.use { r -> r.readText() } ?: ""
-                            val parsed = FileImportHelper.parseCsv(content)
-                            if (parsed.headers.isNotEmpty()) {
-                                selectedMapping = ColumnMapper.autoDetect(parsed.headers)
-                                viewModel.setParsedData(parsed, selectedMapping)
-                                showMapping = true
-                            }
-                        }
+                    Button(onClick = { launcher.launch(arrayOf("text/csv", "text/*", "*/*")) }) {
+                        Text("Browse Files")
                     }
-                    Button(onClick = { launcher.launch(arrayOf("text/csv", "*/*")) }) { Text("Browse Files") }
                 }
             } else {
-                // Column mapping
                 ColumnMappingSection(
-                    headers = uiState.headers, mapping = selectedMapping,
+                    headers = uiState.headers,
+                    mapping = selectedMapping,
                     previewRows = uiState.rows.take(5),
                     onMappingChange = { selectedMapping = it; viewModel.updateMapping(it) },
                     totalRows = uiState.rows.size
                 )
+
                 Spacer(Modifier.height(16.dp))
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedButton(onClick = { showMapping = false; viewModel.clearData() }, modifier = Modifier.weight(1f)) { Text("Change File") }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = { showMapping = false; viewModel.clearData() },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Change File")
+                    }
+
                     Button(
-                        onClick = { viewModel.importCards(setId) }, modifier = Modifier.weight(1f),
+                        onClick = { viewModel.importCards(setId) },
+                        modifier = Modifier.weight(1f),
                         enabled = selectedMapping.front >= 0 && selectedMapping.back >= 0 && !uiState.isImporting
                     ) {
-                        if (uiState.isImporting) CircularProgressIndicator(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.onPrimary)
-                        else Text("Import ${uiState.rows.size} Cards")
+                        if (uiState.isImporting) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                color = MaterialTheme.colorScheme.onPrimary
+                            )
+                        } else {
+                            Text("Import")
+                        }
                     }
                 }
             }
@@ -388,84 +634,16 @@ fun ImportModal(
                 Spacer(Modifier.height(12.dp))
                 Text(error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
             }
-            Spacer(Modifier.height(32.dp))
-        }
-    }
-}
 
-@Composable
-fun ColumnMappingSection(
-    headers: List<String>, mapping: ColumnMapper.Mapping,
-    previewRows: List<List<String>>, onMappingChange: (ColumnMapper.Mapping) -> Unit, totalRows: Int
-) {
-    Column {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text("Map Columns", style = MaterialTheme.typography.titleMedium)
-            AssistChip(onClick = {}, label = { Text("$totalRows rows") }, leadingIcon = { Icon(Icons.Default.CheckCircle, null, Modifier.size(16.dp)) })
-        }
-        Spacer(Modifier.height(12.dp))
-
-        val fields = listOf("Front *" to mapping.front, "Back *" to mapping.back, "Pronunciation" to mapping.pronunciation, "Example" to mapping.example, "Note" to mapping.note, "Collocation" to mapping.collocation, "Related Words" to mapping.relatedWords)
-        fields.forEach { (label, selectedIdx) ->
-            Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-                var expanded by remember { mutableStateOf(false) }
-                ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = !expanded }, modifier = Modifier.weight(1.5f)) {
-                    OutlinedTextField(
-                        value = if (selectedIdx >= 0 && selectedIdx < headers.size) headers[selectedIdx] else "-- Select --",
-                        onValueChange = {}, readOnly = true, modifier = Modifier.menuAnchor(),
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
-                        textStyle = MaterialTheme.typography.bodySmall
-                    )
-                    ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                        headers.forEachIndexed { idx, header ->
-                            DropdownMenuItem(text = { Text(header.ifEmpty { "Column ${idx + 1}" }) }, onClick = {
-                                val updated = when {
-                                    label.startsWith("Front") -> mapping.copy(front = idx)
-                                    label.startsWith("Back") -> mapping.copy(back = idx)
-                                    label.startsWith("Pron") -> mapping.copy(pronunciation = idx)
-                                    label.startsWith("Example") -> mapping.copy(example = idx)
-                                    label.startsWith("Note") -> mapping.copy(note = idx)
-                                    label.startsWith("Coll") -> mapping.copy(collocation = idx)
-                                    else -> mapping.copy(relatedWords = idx)
-                                }
-                                onMappingChange(updated); expanded = false
-                            })
-                        }
-                    }
-                }
-            }
-        }
-
-        if (previewRows.isNotEmpty()) {
-            Spacer(Modifier.height(16.dp))
-            Text("Preview (first 5 rows)", style = MaterialTheme.typography.titleSmall)
-            Spacer(Modifier.height(8.dp))
-            Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))) {
-                Column(modifier = Modifier.padding(8.dp)) {
-                    Row(modifier = Modifier.fillMaxWidth()) {
-                        headers.forEachIndexed { idx, header ->
-                            Text(header.ifEmpty { "Col ${idx + 1}" }, modifier = Modifier.weight(1f), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold,
-                                color = when { idx == mapping.front -> QuizletGreen; idx == mapping.back -> QuizletBlue; else -> MaterialTheme.colorScheme.onSurface })
-                        }
-                    }
-                    Divider(Modifier.padding(vertical = 4.dp))
-                    previewRows.forEach { row ->
-                        Row(modifier = Modifier.fillMaxWidth()) {
-                            row.forEachIndexed { idx, cell ->
-                                Text(cell.take(20), modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            }
-                        }
-                        Spacer(Modifier.height(4.dp))
-                    }
-                }
-            }
+            Spacer(Modifier.height(24.dp))
         }
     }
 }
 ```
 
-#### Add Import button vao SetDetailScreen
+---
+
+#### 5) Add Import button vào `SetDetailScreen`
 
 ```kotlin
 // SetDetailScreen.kt - trong Row cua button
@@ -476,17 +654,28 @@ OutlinedButton(onClick = { showImportModal = true }, modifier = Modifier.weight(
 }
 ```
 
-### Deliverable
-Import modal giong Quizlet - chon file CSV, map columns, preview, import.
+### Deliverable (Definition of Done)
+- Chọn CSV → hiện mapping + preview.
+- Import thành công gọi bulk API, show success, refresh list card.
+- Nếu CSV thiếu front/back → bắt buộc map.
+- Bỏ qua dòng trống.
 
 ---
 
 ## :calendar: TASK 3 — XLSX Import
 
-### Muc tieu
-Mở rộng ImportModal đã có để hỗ trợ thêm định dạng XLSX.
+### Mục tiêu
+- Mở rộng ImportModal để hỗ trợ thêm định dạng XLSX.
+- UX giống CSV: chọn file → parse → mapping → preview → import.
 
-#### XlsxImporter
+### Dependencies
+- `org.apache.poi:poi-ooxml:5.2.5`
+
+> Cảnh báo: Apache POI khá nặng. Nếu app bị tăng size quá nhiều, có thể chuyển sang giải pháp nhẹ hơn (sau). Nhưng theo yêu cầu Week 3 thì POI ok.
+
+---
+
+#### 1) XlsxImporter
 
 ```kotlin
 // util/XlsxImporter.kt
@@ -495,6 +684,7 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook
 import java.io.InputStream
 
 object XlsxImporter {
+
     fun parseXlsx(inputStream: InputStream): FileImportHelper.CsvParseResult {
         val workbook = XSSFWorkbook(inputStream)
         val sheet = workbook.getSheetAt(0)
@@ -502,18 +692,27 @@ object XlsxImporter {
 
         for (row in sheet) {
             val cells = mutableListOf<String>()
-            for (cell in row) cells.add(getCellValue(cell))
+            val last = row.lastCellNum.toInt().coerceAtLeast(0)
+
+            for (i in 0 until last) {
+                val cell = row.getCell(i, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL)
+                cells.add(cell?.let { getCellValue(it) }.orEmpty())
+            }
+
             if (cells.any { it.isNotBlank() }) rows.add(cells)
         }
+
         workbook.close()
 
         if (rows.isEmpty()) return FileImportHelper.CsvParseResult(emptyList(), emptyList())
-        return FileImportHelper.CsvParseResult(rows[0], rows.drop(1))
+        return FileImportHelper.CsvParseResult(headers = rows.first(), rows = rows.drop(1))
     }
 
     private fun getCellValue(cell: Cell): String = when (cell.cellType) {
         CellType.STRING -> cell.stringCellValue.trim()
-        CellType.NUMERIC -> if (DateUtil.isCellDateFormatted(cell)) cell.localDateCellValue.toString() else {
+        CellType.NUMERIC -> if (DateUtil.isCellDateFormatted(cell)) {
+            cell.localDateTimeCellValue.toString()
+        } else {
             val num = cell.numericCellValue
             if (num == num.toLong().toDouble()) num.toLong().toString() else num.toString()
         }
@@ -524,47 +723,76 @@ object XlsxImporter {
 }
 ```
 
-#### Cap nhat FileDropZone trong ImportModal
+---
 
-Thay `launcher.launch(arrayOf("text/csv", "*/*"))` thành:
+#### 2) Update ImportModal để nhận CSV + XLSX
+
+**Cách detect type rõ ràng hơn:** dùng `ContentResolver.getType(uri)` + fallback theo extension.
 
 ```kotlin
-val launcher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-    uri?.let {
-        val ext = it.lastPathSegment?.substringAfterLast(".")?.lowercase() ?: ""
-        if (ext in listOf("xlsx", "xls")) {
-            context.contentResolver.openInputStream(it)?.use { inputStream ->
-                val parsed = XlsxImporter.parseXlsx(inputStream)
-                if (parsed.headers.isNotEmpty()) {
-                    selectedMapping = ColumnMapper.autoDetect(parsed.headers)
-                    viewModel.setParsedData(parsed, selectedMapping)
-                    showMapping = true
-                }
-            }
-        } else {
-            val content = context.contentResolver.openInputStream(it)?.bufferedReader()?.use { r -> r.readText() } ?: ""
-            val parsed = FileImportHelper.parseCsv(content)
-            if (parsed.headers.isNotEmpty()) {
-                selectedMapping = ColumnMapper.autoDetect(parsed.headers)
-                viewModel.setParsedData(parsed, selectedMapping)
-                showMapping = true
-            }
+// ImportModal.kt - trong callback launcher
+val mime = context.contentResolver.getType(uri) ?: ""
+val name = uri.lastPathSegment.orEmpty().lowercase()
+val isXlsx = mime.contains("spreadsheet") || name.endsWith(".xlsx") || name.endsWith(".xls")
+
+if (isXlsx) {
+    context.contentResolver.openInputStream(uri)?.use { inputStream ->
+        val parsed = XlsxImporter.parseXlsx(inputStream)
+        if (parsed.headers.isNotEmpty()) {
+            selectedMapping = ColumnMapper.autoDetect(parsed.headers)
+            viewModel.setParsedData(parsed, selectedMapping)
+            showMapping = true
         }
     }
+} else {
+    // CSV branch giữ nguyên
 }
-Button(onClick = { launcher.launch(arrayOf("text/csv", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/vnd.ms-excel", "*/*")) }) { Text("Browse Files") }
 ```
 
-Them text:
+Launcher types:
 
 ```kotlin
-Text("Supports CSV, XLSX", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+launcher.launch(
+    arrayOf(
+        "text/csv",
+        "text/*",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "application/vnd.ms-excel",
+        "*/*"
+    )
+)
 ```
 
-### Deliverable
-ImportModal ho tro ca CSV va XLSX.
+UI hint:
+
+```kotlin
+Text(
+    "Supports CSV, XLSX",
+    style = MaterialTheme.typography.bodySmall,
+    color = MaterialTheme.colorScheme.onSurfaceVariant
+)
+```
+
+### Deliverable (Definition of Done)
+- ImportModal đọc được cả CSV và XLSX.
+- XLSX sheet đầu tiên: dòng 1 header, từ dòng 2 là data.
+- Vẫn dùng chung flow mapping + preview + bulk import.
 
 ---
+
+## Câu hỏi cần bạn xác nhận (để implement đúng 100%)
+1) Endpoint bulk create chính xác ở backend của bạn là cái nào?
+   - `POST /api/flashcards/set/:setId/bulk` hay `POST /flashcards/set/:setId/bulk`?
+   (Trong file ghi cả 2 kiểu. Mình cần 1 cái chính xác để code Android gọi đúng.)
+
+2) `CreateCardRequest` hiện tại trong Android repo của bạn có các field nào?
+   - Có `collocation` / `relatedWords` chưa, hay Week 3 mới thêm?
+
+3) Bạn muốn lưu file export vào:
+   - A) Downloads (MediaStore) như bên trên
+   - B) Cache + share (xong là mất)
+
+Nếu bạn trả lời 3 ý trên, mình sẽ chuyển từ “plan hoàn chỉnh” sang triển khai code thật trong `android/` luôn (CsvExporter, ImportModal, XlsxImporter, UI integration).
 
 ## :calendar: TASK 4 — Collocation + RelatedWords (Backend)
 

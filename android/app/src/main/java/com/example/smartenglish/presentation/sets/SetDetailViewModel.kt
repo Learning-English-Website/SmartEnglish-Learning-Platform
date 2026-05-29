@@ -4,8 +4,10 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.smartenglish.domain.model.FlashcardSet
+import com.example.smartenglish.domain.model.Flashcard
 import com.example.smartenglish.domain.repository.SetRepository
 import com.example.smartenglish.domain.repository.ShareRepository
+import com.example.smartenglish.domain.repository.CardRepository
 import com.example.smartenglish.util.ApiResult
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
@@ -25,6 +27,7 @@ data class SetDetailState(
 class SetDetailViewModel @Inject constructor(
     private val setRepository: SetRepository,
     private val shareRepository: ShareRepository,
+    private val cardRepository: CardRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -106,5 +109,9 @@ class SetDetailViewModel @Inject constructor(
                 else -> {}
             }
         }
+    }
+
+    suspend fun getCardsForSet(setId: String): List<Flashcard> {
+        return cardRepository.getCardsBySetList(setId)
     }
 }

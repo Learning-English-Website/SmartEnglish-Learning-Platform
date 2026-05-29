@@ -1,6 +1,8 @@
 package com.example.smartenglish.presentation.study
 
+import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -32,9 +34,16 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.unit.sp
 import com.example.smartenglish.domain.model.Flashcard
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlin.random.Random
-
+ 
 private val QuizletBlue = Color(0xFF4255FF)
 private val QuizletCoral = Color(0xFFFF6B6B)
 private val QuizletGreen = Color(0xFF00C853)
@@ -78,9 +87,13 @@ fun FlashcardStudyScreen(
     var matchTerms by remember { mutableStateOf<List<Pair<Int, String>>>(emptyList()) }
     var matchDefs by remember { mutableStateOf<List<Pair<Int, String>>>(emptyList()) }
     var matchSelected by remember { mutableStateOf<List<Int>>(emptyList()) }
+    var matchMismatched by remember { mutableStateOf<List<Int>>(emptyList()) }
     var matchMatched by remember { mutableStateOf<Set<Int>>(emptySet()) }
     var matchTimer by remember { mutableIntStateOf(0) }
     var matchDone by remember { mutableStateOf(false) }
+
+    val scope = rememberCoroutineScope()
+    val haptic = LocalHapticFeedback.current
 
     LaunchedEffect(setId) {
         viewModel.setSetId(setId)
@@ -89,6 +102,40 @@ fun FlashcardStudyScreen(
     LaunchedEffect(state.isFinished) {
         if (state.isFinished) {
             viewModel.onEvent(StudyEvent.FinishSession)
+        }
+    }
+
+    LaunchedEffect(currentMode) {
+        if (currentMode == StudyModeType.MATCH) {
+            matchTerms = emptyList()
+            matchDefs = emptyList()
+            matchPairs = emptyList()
+            matchSelected = emptyList()
+            matchMismatched = emptyList()
+            matchMatched = emptySet()
+            matchDone = false
+            matchTimer = 0
+        }
+    }
+
+    LaunchedEffect(currentMode, state.cards) {
+        if (currentMode == StudyModeType.MATCH && state.cards.isNotEmpty() && matchTerms.isEmpty()) {
+            val pairs = state.cards.take(6)
+            val termList = pairs.mapIndexed { idx, card -> idx to card.front }
+            val defList = pairs.shuffled().mapIndexed { idx, card -> idx + 100 to card.back }
+            matchTerms = termList
+            matchDefs = defList
+            matchPairs = pairs.map { it.id to it.front }
+        }
+    }
+
+    LaunchedEffect(currentMode, matchDone) {
+        if (currentMode == StudyModeType.MATCH && !matchDone) {
+            matchTimer = 0
+            while (!matchDone) {
+                delay(100)
+                matchTimer++
+            }
         }
     }
 
@@ -204,10 +251,11 @@ fun FlashcardStudyScreen(
                     )
                     StudyModeType.LEARN -> LearnModeView(
                         cards = state.cards,
-                        learnStyle = learnStyle,
-                        onLearnStyleChange = { learnStyle = it },
-                        onAnswer = { correct ->
-                            viewModel.onEvent(StudyEvent.AnswerCard(if (correct) StudyAnswer.GOOD else StudyAnswer.AGAIN))
+                        onUpdateCardProgress = { cardId, correct ->
+                            viewModel.onEvent(StudyEvent.UpdateCardStudyProgress(cardId, correct))
+                        },
+                        onFinishSession = { cardsStudied, correct, incorrect ->
+                            viewModel.onEvent(StudyEvent.FinishCustomSession(cardsStudied, correct, incorrect))
                         },
                         modifier = Modifier.padding(paddingValues)
                     )
@@ -265,28 +313,17 @@ fun FlashcardStudyScreen(
                         }
                     }
                     StudyModeType.MATCH -> {
-                        if (!matchDone && matchPairs.isEmpty()) {
-                            LaunchedEffect(state.cards) {
-                                if (state.cards.isNotEmpty()) {
-                                    val pairs = state.cards.take(6)
-                                    val termList = pairs.mapIndexed { idx, card -> idx to card.front }
-                                    val defList = pairs.shuffled().mapIndexed { idx, card -> idx + 100 to card.back }
-                                    matchTerms = termList
-                                    matchDefs = defList
-                                    matchPairs = pairs.map { it.id to it.front }
-                                }
-                            }
-                        }
                         MatchModeView(
                             terms = matchTerms,
                             defs = matchDefs,
                             selected = matchSelected,
+                            mismatched = matchMismatched,
                             matched = matchMatched,
                             timer = matchTimer,
                             done = matchDone,
                             onTileClick = { tileId ->
                                 if (matchMatched.contains(tileId)) return@MatchModeView
-                                if (matchSelected.size == 2) return@MatchModeView
+                                if (matchSelected.size >= 2) return@MatchModeView
                                 if (matchSelected.contains(tileId)) return@MatchModeView
 
                                 val newSelected = matchSelected + tileId
@@ -306,19 +343,32 @@ fun FlashcardStudyScreen(
                                             val termCard = state.cards.find { it.front == termPair.second }
                                             val defCard = state.cards.find { it.back == defPair.second }
                                             if (termCard != null && defCard != null && termCard.id == defCard.id) {
+                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                                 matchMatched = matchMatched + a + b
                                                 matchSelected = emptyList()
                                                 if (matchMatched.size == matchTerms.size + matchDefs.size) {
                                                     matchDone = true
                                                 }
                                             } else {
-                                                matchSelected = emptyList()
+                                                matchMismatched = newSelected
+                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                scope.launch {
+                                                    delay(400)
+                                                    matchSelected = emptyList()
+                                                    matchMismatched = emptyList()
+                                                }
                                             }
                                         } else {
                                             matchSelected = emptyList()
                                         }
                                     } else {
-                                        matchSelected = emptyList()
+                                        matchMismatched = newSelected
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        scope.launch {
+                                            delay(400)
+                                            matchSelected = emptyList()
+                                            matchMismatched = emptyList()
+                                        }
                                     }
                                 }
                             },
@@ -329,6 +379,7 @@ fun FlashcardStudyScreen(
                                 matchTerms = termList
                                 matchDefs = defList
                                 matchSelected = emptyList()
+                                matchMismatched = emptyList()
                                 matchMatched = emptySet()
                                 matchDone = false
                                 matchTimer = 0
@@ -392,6 +443,7 @@ private fun FlashcardsModeView(
     onNext: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val haptic = LocalHapticFeedback.current
     val rotation by animateFloatAsState(
         targetValue = if (isFlipped) 180f else 0f,
         animationSpec = tween(400, easing = FastOutSlowInEasing),
@@ -406,93 +458,214 @@ private fun FlashcardsModeView(
     ) {
         LinearProgressIndicator(
             progress = { if (cards.isNotEmpty()) (currentIndex + 1).toFloat() / cards.size else 0f },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(6.dp)
+                .clip(RoundedCornerShape(3.dp)),
             color = QuizletBlue,
+            trackColor = MaterialTheme.colorScheme.surfaceVariant
         )
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(8.dp))
         Text(
             "${currentIndex + 1} / ${cards.size}",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.outline
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+            color = QuizletBlue
         )
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
         Card(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
-                .graphicsLayer { rotationY = rotation; cameraDistance = 12f * density }
-                .clickable { onFlip() },
-            shape = RoundedCornerShape(20.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                .graphicsLayer { 
+                    rotationY = rotation
+                    cameraDistance = 15f * density 
+                }
+                .clickable { 
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onFlip() 
+                },
+            shape = RoundedCornerShape(24.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
             colors = CardDefaults.cardColors(
-                containerColor = if (isFlipped) MaterialTheme.colorScheme.secondaryContainer
-                else MaterialTheme.colorScheme.primaryContainer
+                containerColor = MaterialTheme.colorScheme.surface
+            ),
+            border = BorderStroke(
+                width = 1.5.dp, 
+                color = if (isFlipped) QuizletGreen.copy(alpha = 0.5f) else QuizletBlue.copy(alpha = 0.5f)
             )
         ) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .graphicsLayer { rotationY = if (rotation > 90f) 180f else 0f },
-                contentAlignment = Alignment.Center
+                    .graphicsLayer { rotationY = if (rotation > 90f) 180f else 0f }
             ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(8.dp)
+                        .background(
+                            brush = Brush.horizontalGradient(
+                                colors = if (isFlipped) {
+                                    listOf(QuizletGreen, QuizletGreen.copy(alpha = 0.6f))
+                                } else {
+                                    listOf(QuizletBlue, QuizletBlue.copy(alpha = 0.6f))
+                                }
+                            )
+                        )
+                )
+
                 if (rotation <= 90f) {
                     Column(
-                        modifier = Modifier.fillMaxSize().padding(24.dp),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(24.dp)
+                            .padding(top = 8.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
+                        verticalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Surface(
-                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f),
-                            shape = RoundedCornerShape(20.dp)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                "Thuật ngữ",
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.outline
+                            Surface(
+                                color = QuizletBlue.copy(alpha = 0.1f),
+                                shape = RoundedCornerShape(20.dp)
+                            ) {
+                                Text(
+                                    "THUẬT NGỮ",
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = QuizletBlue
+                                )
+                            }
+                            IconButton(onClick = { /* Star bookmark placeholder */ }) {
+                                Icon(
+                                    imageVector = Icons.Default.StarOutline,
+                                    contentDescription = "Bookmark",
+                                    tint = MaterialTheme.colorScheme.outline
+                                )
+                            }
+                        }
+
+                        val frontText = cards[currentIndex].front
+                        val frontFontSize = if (frontText.length > 40) 22.sp else if (frontText.length > 15) 28.sp else 34.sp
+                        Text(
+                            text = frontText,
+                            fontSize = frontFontSize,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.padding(horizontal = 8.dp)
+                        )
+
+                        IconButton(
+                            onClick = { /* Audio Pronounce placeholder */ },
+                            modifier = Modifier
+                                .align(Alignment.End)
+                                .background(QuizletBlue.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.VolumeUp,
+                                contentDescription = "Listen",
+                                tint = QuizletBlue
                             )
                         }
-                        Spacer(modifier = Modifier.height(24.dp))
-                        Text(
-                            cards[currentIndex].front,
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Bold,
-                            textAlign = TextAlign.Center
-                        )
                     }
                 } else {
                     Column(
-                        modifier = Modifier.fillMaxSize().padding(24.dp),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(24.dp)
+                            .padding(top = 8.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
+                        verticalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Surface(
-                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f),
-                            shape = RoundedCornerShape(20.dp)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
+                            Surface(
+                                color = QuizletGreen.copy(alpha = 0.1f),
+                                shape = RoundedCornerShape(20.dp)
+                            ) {
+                                Text(
+                                    "ĐỊNH NGHĨA",
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = QuizletGreen
+                                )
+                            }
+                            IconButton(onClick = { /* Star bookmark placeholder */ }) {
+                                Icon(
+                                    imageVector = Icons.Default.StarOutline,
+                                    contentDescription = "Bookmark",
+                                    tint = MaterialTheme.colorScheme.outline
+                                )
+                            }
+                        }
+
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .verticalScroll(rememberScrollState())
+                                .padding(vertical = 12.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            val backText = cards[currentIndex].back
+                            val backFontSize = if (backText.length > 50) 18.sp else if (backText.length > 20) 22.sp else 26.sp
                             Text(
-                                "Định nghĩa",
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.outline
+                                text = backText,
+                                fontSize = backFontSize,
+                                fontWeight = FontWeight.SemiBold,
+                                textAlign = TextAlign.Center,
+                                color = MaterialTheme.colorScheme.onSurface
                             )
+                            cards[currentIndex].pronunciation?.let {
+                                Spacer(modifier = Modifier.height(10.dp))
+                                Text(
+                                    text = it,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Medium,
+                                    color = QuizletCoral,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                            cards[currentIndex].example?.let {
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Card(
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Text(
+                                        text = it,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        textAlign = TextAlign.Center,
+                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                    )
+                                }
+                            }
                         }
-                        Spacer(modifier = Modifier.height(24.dp))
-                        Text(
-                            cards[currentIndex].back,
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Medium,
-                            textAlign = TextAlign.Center
-                        )
-                        cards[currentIndex].pronunciation?.let {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(it, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.outline, textAlign = TextAlign.Center)
-                        }
-                        cards[currentIndex].example?.let {
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+
+                        IconButton(
+                            onClick = { /* Audio Pronounce placeholder */ },
+                            modifier = Modifier
+                                .align(Alignment.End)
+                                .background(QuizletGreen.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.VolumeUp,
+                                contentDescription = "Listen",
+                                tint = QuizletGreen
+                            )
                         }
                     }
                 }
@@ -501,234 +674,935 @@ private fun FlashcardsModeView(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        Text("Tap card to flip", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+        Text(
+            text = "Chạm vào thẻ để lật",
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.outline
+        )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            FilledTonalButton(onClick = onPrev, enabled = currentIndex > 0) {
+            FilledTonalButton(
+                onClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onPrev()
+                },
+                enabled = currentIndex > 0,
+                modifier = Modifier
+                    .weight(1f)
+                    .height(56.dp),
+                shape = RoundedCornerShape(16.dp)
+            ) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, null)
-                Spacer(Modifier.width(4.dp))
-                Text("Prev")
+                Spacer(Modifier.width(8.dp))
+                Text("Quay lại", fontWeight = FontWeight.Bold)
             }
             Button(
-                onClick = onNext,
-                colors = ButtonDefaults.buttonColors(containerColor = QuizletBlue)
+                onClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onNext()
+                },
+                modifier = Modifier
+                    .weight(1f)
+                    .height(56.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = QuizletBlue),
+                shape = RoundedCornerShape(16.dp)
             ) {
-                Text(if (currentIndex >= cards.size - 1) "Done" else "Next")
-                Spacer(Modifier.width(4.dp))
+                Text(
+                    text = if (currentIndex >= cards.size - 1) "Hoàn thành" else "Tiếp theo",
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(Modifier.width(8.dp))
                 Icon(Icons.AutoMirrored.Filled.ArrowForward, null)
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             itemsIndexed(cards) { idx, _ ->
+                val isSelected = idx == currentIndex
+                val isStudied = idx < currentIndex
+                val width = if (isSelected) 24.dp else 8.dp
+                val color = when {
+                    isSelected -> QuizletBlue
+                    isStudied -> QuizletGreen
+                    else -> MaterialTheme.colorScheme.outline.copy(alpha = 0.25f)
+                }
                 Box(
                     modifier = Modifier
-                        .size(if (idx == currentIndex) 24.dp else 8.dp, 8.dp)
+                        .size(width, 8.dp)
                         .clip(RoundedCornerShape(4.dp))
-                        .background(
-                            when {
-                                idx < currentIndex -> QuizletGreen
-                                idx == currentIndex -> QuizletBlue
-                                else -> MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
-                            }
-                        )
-                        .clickable { }
+                        .background(color)
                 )
             }
         }
     }
 }
 
+private data class LearnItem(
+    val card: Flashcard,
+    val mode: LearnModeStyle,
+    val itemId: String
+)
+
+@OptIn(ExperimentalAnimationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 private fun LearnModeView(
     cards: List<Flashcard>,
-    learnStyle: LearnModeStyle,
-    onLearnStyleChange: (LearnModeStyle) -> Unit,
-    onAnswer: (Boolean) -> Unit,
+    onUpdateCardProgress: (String, Boolean) -> Unit,
+    onFinishSession: (Int, Int, Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var currentIndex by remember { mutableIntStateOf(0) }
+    val haptic = LocalHapticFeedback.current
+    val scope = rememberCoroutineScope()
+
+    // Configuration / Settings
+    var includeMC by remember { mutableStateOf(true) }
+    var includeTA by remember { mutableStateOf(true) }
+    var settingsOpen by remember { mutableStateOf(false) }
+
+    // Session States
+    var sessionItems by remember { mutableStateOf<List<LearnItem>>(emptyList()) }
+    var currentBatchIdx by remember { mutableIntStateOf(0) }
+    var batchQueue by remember { mutableStateOf<List<LearnItem>>(emptyList()) }
+    var queueIdx by remember { mutableIntStateOf(0) }
+    var itemResults by remember { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
+    var firstTryResults by remember { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
+    var batchProgressCorrect by remember { mutableStateOf<Map<Int, Int>>(emptyMap()) }
+
     var answered by remember { mutableStateOf(false) }
     var selectedOption by remember { mutableStateOf<String?>(null) }
     var typedAnswer by remember { mutableStateOf("") }
-    var correctCount by remember { mutableIntStateOf(0) }
-    var wrongCount by remember { mutableIntStateOf(0) }
+    var isCorrectState by remember { mutableStateOf(false) }
+    var showHint by remember { mutableStateOf(false) }
+    var screen by remember { mutableStateOf("loading") }
+    var isShuffled by remember { mutableStateOf(false) }
 
-    val currentCard = cards.getOrNull(currentIndex) ?: return
+    val BATCH_SIZE = 7
 
-    val options = remember(currentCard, cards) {
-        cards.filter { it.id != currentCard.id }.shuffled().take(3).map { it.back } + currentCard.back
-    }.shuffled()
+    // Build session items list
+    fun initSession(shuffled: Boolean = false) {
+        if (cards.isEmpty() || (!includeMC && !includeTA)) return
+        val list = if (shuffled) cards.shuffled() else cards
+        val items = mutableListOf<LearnItem>()
+        list.forEach { card ->
+            if (includeMC) items.add(LearnItem(card, LearnModeStyle.MULTIPLE_CHOICE, "${card.id}:mc"))
+            if (includeTA) items.add(LearnItem(card, LearnModeStyle.TYPE_ANSWER, "${card.id}:ta"))
+        }
+        sessionItems = items
+        
+        val totalItems = items.size
+        val totalBatches = kotlin.math.max(1, kotlin.math.ceil(totalItems.toFloat() / BATCH_SIZE).toInt())
+        val effectiveSize = kotlin.math.ceil(totalItems.toFloat() / totalBatches).toInt()
+        val actualBatchSize = kotlin.math.min(effectiveSize, kotlin.math.max(0, totalItems))
+        
+        batchQueue = items.take(actualBatchSize)
+        batchProgressCorrect = mapOf(0 to 0)
+        itemResults = emptyMap()
+        firstTryResults = emptyMap()
+        currentBatchIdx = 0
+        queueIdx = 0
+        screen = "learning"
+        
+        // Reset state
+        answered = false
+        selectedOption = null
+        typedAnswer = ""
+        isCorrectState = false
+        showHint = false
+    }
 
+    LaunchedEffect(cards, includeMC, includeTA, isShuffled) {
+        initSession(shuffled = isShuffled)
+    }
+
+    val currentItem = batchQueue.getOrNull(queueIdx)
+    val totalItems = sessionItems.size
+    val totalBatches = kotlin.math.max(1, kotlin.math.ceil(totalItems.toFloat() / BATCH_SIZE).toInt())
+
+    fun getBatchSize(batchIdx: Int): Int {
+        if (totalItems == 0) return 0
+        val effectiveSize = kotlin.math.ceil(totalItems.toFloat() / totalBatches).toInt()
+        val start = batchIdx * effectiveSize
+        return kotlin.math.min(effectiveSize, kotlin.math.max(0, totalItems - start))
+    }
+
+    fun getBatchesOffset(batchIdx: Int): Int {
+        var sum = 0
+        for (i in 0 until batchIdx) {
+            sum += getBatchSize(i)
+        }
+        return sum
+    }
+
+    val actualBatchSize = getBatchSize(currentBatchIdx)
+    val prevBatchesCorrect = getBatchesOffset(currentBatchIdx)
+    val globalItemNum = prevBatchesCorrect + queueIdx + 1
+
+    // Generate Multiple Choice distractor options
+    val options = remember(currentItem, cards) {
+        if (currentItem != null && currentItem.mode == LearnModeStyle.MULTIPLE_CHOICE) {
+            val currentCard = currentItem.card
+            val others = cards.filter { it.id != currentCard.id }.shuffled().take(3).map { it.front }
+            (others + currentCard.front).shuffled()
+        } else {
+            emptyList()
+        }
+    }
+
+    val handleAnswerMC = { option: String ->
+        if (!answered && currentItem != null) {
+            selectedOption = option
+            answered = true
+            val correct = option == currentItem.card.front
+            isCorrectState = correct
+            itemResults = itemResults + (currentItem.itemId to correct)
+            if (!firstTryResults.containsKey(currentItem.itemId)) {
+                firstTryResults = firstTryResults + (currentItem.itemId to correct)
+            }
+            
+            if (correct) {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                val currentCorrect = batchProgressCorrect[currentBatchIdx] ?: 0
+                batchProgressCorrect = batchProgressCorrect + (currentBatchIdx to (currentCorrect + 1))
+            } else {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            }
+            
+            onUpdateCardProgress(currentItem.card.id, correct)
+        }
+    }
+
+    val handleAnswerTA = {
+        if (!answered && typedAnswer.isNotBlank() && currentItem != null) {
+            answered = true
+            val correct = typedAnswer.trim().equals(currentItem.card.front.trim(), ignoreCase = true)
+            isCorrectState = correct
+            itemResults = itemResults + (currentItem.itemId to correct)
+            if (!firstTryResults.containsKey(currentItem.itemId)) {
+                firstTryResults = firstTryResults + (currentItem.itemId to correct)
+            }
+            
+            if (correct) {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                val currentCorrect = batchProgressCorrect[currentBatchIdx] ?: 0
+                batchProgressCorrect = batchProgressCorrect + (currentBatchIdx to (currentCorrect + 1))
+            } else {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            }
+            
+            onUpdateCardProgress(currentItem.card.id, correct)
+        }
+    }
+
+    val handleDontKnow = {
+        if (!answered && currentItem != null) {
+            answered = true
+            isCorrectState = false
+            itemResults = itemResults + (currentItem.itemId to false)
+            if (!firstTryResults.containsKey(currentItem.itemId)) {
+                firstTryResults = firstTryResults + (currentItem.itemId to false)
+            }
+            onUpdateCardProgress(currentItem.card.id, false)
+        }
+    }
+
+    val handleNext = {
+        if (currentItem != null) {
+            val wasCorrect = itemResults[currentItem.itemId] == true
+            if (!wasCorrect) {
+                // Move item to the end of the batch queue
+                val updatedQueue = batchQueue.toMutableList()
+                val removed = updatedQueue.removeAt(queueIdx)
+                updatedQueue.add(removed)
+                batchQueue = updatedQueue
+                
+                answered = false
+                selectedOption = null
+                typedAnswer = ""
+                isCorrectState = false
+                showHint = false
+            } else {
+                if (queueIdx < batchQueue.size - 1) {
+                    queueIdx++
+                    answered = false
+                    selectedOption = null
+                    typedAnswer = ""
+                    isCorrectState = false
+                    showHint = false
+                } else {
+                    val bpCorrect = batchProgressCorrect[currentBatchIdx] ?: 0
+                    if (bpCorrect >= actualBatchSize) {
+                        if (currentBatchIdx + 1 >= totalBatches) {
+                            screen = "session-complete"
+                            // Report completed session stats to ViewModel
+                            val totalStudied = firstTryResults.size
+                            val totalCorrectCount = firstTryResults.values.count { it }
+                            val totalIncorrectCount = totalStudied - totalCorrectCount
+                            onFinishSession(totalStudied, totalCorrectCount, totalIncorrectCount)
+                        } else {
+                            screen = "batch-complete"
+                        }
+                    } else {
+                        // Recreate queue with wrong ones at the end
+                        val batchStart = getBatchesOffset(currentBatchIdx)
+                        val batchItems = sessionItems.subList(batchStart, batchStart + actualBatchSize)
+                        val wrongItems = batchItems.filter { itemResults[it.itemId] != true }
+                        val correctItems = batchItems.filter { itemResults[it.itemId] == true }
+                        batchQueue = correctItems + wrongItems
+                        queueIdx = 0
+                        answered = false
+                        selectedOption = null
+                        typedAnswer = ""
+                        isCorrectState = false
+                        showHint = false
+                    }
+                }
+            }
+        }
+    }
+
+    // Auto-advance correct answers
+    LaunchedEffect(answered, isCorrectState) {
+        if (answered && isCorrectState) {
+            delay(1000)
+            handleNext()
+        }
+    }
+
+    val handleBatchContinue = {
+        val nextBatchIdx = currentBatchIdx + 1
+        val startIdx = getBatchesOffset(nextBatchIdx)
+        val size = getBatchSize(nextBatchIdx)
+        
+        if (startIdx >= sessionItems.size) {
+            screen = "session-complete"
+            val totalStudied = firstTryResults.size
+            val totalCorrectCount = firstTryResults.values.count { it }
+            val totalIncorrectCount = totalStudied - totalCorrectCount
+            onFinishSession(totalStudied, totalCorrectCount, totalIncorrectCount)
+        } else {
+            batchQueue = sessionItems.subList(startIdx, startIdx + size)
+            currentBatchIdx = nextBatchIdx
+            queueIdx = 0
+            batchProgressCorrect = batchProgressCorrect + (nextBatchIdx to 0)
+            itemResults = emptyMap()
+            screen = "learning"
+            
+            answered = false
+            selectedOption = null
+            typedAnswer = ""
+            isCorrectState = false
+            showHint = false
+        }
+    }
+
+    val handleRestart = {
+        initSession(shuffled = isShuffled)
+    }
+
+    when (screen) {
+        "loading" -> {
+            Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = QuizletBlue)
+            }
+        }
+        "batch-complete" -> {
+            val completedCount = getBatchesOffset(currentBatchIdx + 1)
+            val overallPct = if (totalItems > 0) (completedCount * 100) / totalItems else 0
+            
+            // Get unique cards in the completed batch
+            val startIdx = getBatchesOffset(currentBatchIdx)
+            val completedBatchItems = sessionItems.subList(startIdx, startIdx + actualBatchSize)
+            val completedCards = completedBatchItems.map { it.card }.distinct()
+
+            Column(
+                modifier = modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(24.dp)
+            ) {
+                Surface(
+                    color = QuizletGreen.copy(alpha = 0.1f),
+                    shape = RoundedCornerShape(24.dp),
+                    modifier = Modifier.size(80.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.Check, null, tint = QuizletGreen, modifier = Modifier.size(48.dp))
+                    }
+                }
+
+                Text("Tuyệt vời!", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                Text("Bạn đã hoàn thành vòng học này", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
+
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                ) {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Tiến trình tổng thể", fontWeight = FontWeight.SemiBold)
+                            Text("$overallPct%", fontWeight = FontWeight.Bold, color = QuizletGreen)
+                        }
+                        LinearProgressIndicator(
+                            progress = { overallPct / 100f },
+                            modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)),
+                            color = QuizletGreen,
+                            trackColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    }
+                }
+
+                Text("Thuật ngữ vừa học:", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Start))
+
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    completedCards.forEach { card ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                        ) {
+                            Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                                Column(Modifier.weight(1f)) {
+                                    Text(card.front, fontWeight = FontWeight.Bold, color = QuizletBlue)
+                                    Spacer(Modifier.height(4.dp))
+                                    Text(card.back, style = MaterialTheme.typography.bodyMedium)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Button(
+                    onClick = handleBatchContinue,
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = QuizletBlue)
+                ) {
+                    Text("Tiếp tục", fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+        "session-complete" -> {
+            val totalStudied = firstTryResults.size
+            val totalCorrect = firstTryResults.values.count { it }
+            val accuracy = if (totalStudied > 0) (totalCorrect * 100) / totalStudied else 0
+
+            Column(
+                modifier = modifier
+                    .fillMaxSize()
+                    .padding(24.dp)
+                    .verticalScroll(rememberScrollState()),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Icon(Icons.Default.EmojiEvents, null, modifier = Modifier.size(80.dp), tint = QuizletAmber)
+                Spacer(Modifier.height(16.dp))
+                Text(
+                    text = when {
+                        accuracy >= 80 -> "Xuất sắc!"
+                        accuracy >= 50 -> "Khá tốt!"
+                        else -> "Cần cố gắng thêm!"
+                    },
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Text("Bạn đã hoàn thành phiên học", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
+
+                Spacer(Modifier.height(32.dp))
+
+                Box(contentAlignment = Alignment.Center, modifier = Modifier.size(160.dp)) {
+                    CircularProgressIndicator(
+                        progress = { accuracy / 100f },
+                        modifier = Modifier.size(150.dp),
+                        color = QuizletGreen,
+                        strokeWidth = 10.dp,
+                        trackColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("$accuracy%", fontSize = 32.sp, fontWeight = FontWeight.Bold)
+                        Text("Chính xác", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
+                    }
+                }
+
+                Spacer(Modifier.height(32.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Card(
+                        modifier = Modifier.weight(1f),
+                        colors = CardDefaults.cardColors(containerColor = QuizletGreen.copy(alpha = 0.08f)),
+                        border = BorderStroke(1.dp, QuizletGreen.copy(alpha = 0.2f))
+                    ) {
+                        Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("Đúng", color = QuizletGreen, fontWeight = FontWeight.Bold)
+                            Text("$totalCorrect", fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    Card(
+                        modifier = Modifier.weight(1f),
+                        colors = CardDefaults.cardColors(containerColor = QuizletCoral.copy(alpha = 0.08f)),
+                        border = BorderStroke(1.dp, QuizletCoral.copy(alpha = 0.2f))
+                    ) {
+                        Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("Sai", color = QuizletCoral, fontWeight = FontWeight.Bold)
+                            Text("${totalStudied - totalCorrect}", fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(48.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    FilledTonalButton(
+                        onClick = handleRestart,
+                        modifier = Modifier.weight(1f).height(56.dp),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Icon(Icons.Default.Refresh, null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Học lại", fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+        else -> {
+            if (currentItem == null) return
+            
+            Column(
+                modifier = modifier
+                    .fillMaxSize()
+                    .padding(16.dp)
+                    .verticalScroll(rememberScrollState()),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Header settings strip
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = { settingsOpen = !settingsOpen }) {
+                        Icon(
+                            Icons.Default.Settings,
+                            null,
+                            tint = if (settingsOpen) QuizletBlue else MaterialTheme.colorScheme.outline
+                        )
+                    }
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        FilterChip(
+                            selected = isShuffled,
+                            onClick = {
+                                isShuffled = !isShuffled
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            },
+                            label = { Text("Xáo trộn") }
+                        )
+                    }
+                }
+
+                if (settingsOpen) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                    ) {
+                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Text("Cài đặt học", fontWeight = FontWeight.Bold)
+                            Divider()
+                            Row(
+                                modifier = Modifier.fillMaxWidth().clickable {
+                                    if (!(includeMC && !includeTA)) {
+                                        includeMC = !includeMC
+                                    }
+                                },
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Trắc nghiệm")
+                                Checkbox(
+                                    checked = includeMC,
+                                    onCheckedChange = {
+                                        if (!(includeMC && !includeTA)) {
+                                            includeMC = it
+                                        }
+                                    }
+                                )
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth().clickable {
+                                    if (!(includeTA && !includeMC)) {
+                                        includeTA = !includeTA
+                                    }
+                                },
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Tự luận")
+                                Checkbox(
+                                    checked = includeTA,
+                                    onCheckedChange = {
+                                        if (!(includeTA && !includeMC)) {
+                                            includeTA = it
+                                        }
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Quizlet Progress bar
+                QuizletProgressBar(
+                    totalBatches = totalBatches,
+                    currentBatchIdx = currentBatchIdx,
+                    queueIdx = queueIdx,
+                    actualBatchSize = actualBatchSize,
+                    globalItemNum = globalItemNum,
+                    totalItems = totalItems,
+                    batchProgressCorrect = batchProgressCorrect,
+                    sessionItems = sessionItems
+                )
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // Question card (displays Definition)
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(24.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                ) {
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.CenterStart)
+                                .fillMaxHeight()
+                                .width(6.dp)
+                                .background(QuizletBlue)
+                        )
+
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(24.dp)
+                                .padding(start = 8.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Surface(
+                                color = QuizletBlue.copy(alpha = 0.1f),
+                                shape = RoundedCornerShape(20.dp)
+                            ) {
+                                Text(
+                                    text = "ĐỊNH NGHĨA",
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = QuizletBlue
+                                )
+                            }
+                            Spacer(Modifier.height(16.dp))
+                            
+                            val backText = currentItem.card.back
+                            val backFontSize = if (backText.length > 40) 20.sp else 24.sp
+                            Text(
+                                text = backText,
+                                fontSize = backFontSize,
+                                fontWeight = FontWeight.Bold,
+                                textAlign = TextAlign.Center,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                if (currentItem.mode == LearnModeStyle.MULTIPLE_CHOICE) {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        options.forEachIndexed { idx, option ->
+                            val isCorrect = option == currentItem.card.front
+                            val isSelected = selectedOption == option
+                            
+                            val letter = when (idx) {
+                                0 -> "A"
+                                1 -> "B"
+                                2 -> "C"
+                                else -> "D"
+                            }
+
+                            val bgColor = when {
+                                !answered && isSelected -> QuizletBlue.copy(alpha = 0.08f)
+                                answered && isCorrect -> QuizletGreen.copy(alpha = 0.08f)
+                                answered && isSelected && !isCorrect -> QuizletCoral.copy(alpha = 0.08f)
+                                else -> MaterialTheme.colorScheme.surface
+                            }
+                            val borderColor = when {
+                                !answered && isSelected -> QuizletBlue
+                                answered && isCorrect -> QuizletGreen
+                                answered && isSelected && !isCorrect -> QuizletCoral
+                                else -> MaterialTheme.colorScheme.outline.copy(alpha = 0.25f)
+                            }
+                            
+                            val letterColor = when {
+                                !answered && isSelected -> QuizletBlue
+                                answered && isCorrect -> QuizletGreen
+                                answered && isSelected && !isCorrect -> QuizletCoral
+                                else -> MaterialTheme.colorScheme.outline
+                            }
+                            
+                            val letterBg = when {
+                                !answered && isSelected -> QuizletBlue.copy(alpha = 0.12f)
+                                answered && isCorrect -> QuizletGreen.copy(alpha = 0.12f)
+                                answered && isSelected && !isCorrect -> QuizletCoral.copy(alpha = 0.12f)
+                                else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                            }
+
+                            OutlinedCard(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable(enabled = !answered) { 
+                                        handleAnswerMC(option) 
+                                    },
+                                colors = CardDefaults.outlinedCardColors(containerColor = bgColor),
+                                border = BorderStroke(if (isSelected || (answered && isCorrect)) 2.dp else 1.5.dp, borderColor),
+                                shape = RoundedCornerShape(16.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(32.dp)
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(letterBg),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = letter,
+                                            fontWeight = FontWeight.Bold,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = letterColor
+                                        )
+                                    }
+                                    
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    
+                                    Text(
+                                        text = option,
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        fontWeight = FontWeight.Medium,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    
+                                    if (answered && isCorrect) {
+                                        Icon(Icons.Default.CheckCircle, null, tint = QuizletGreen)
+                                    }
+                                    if (answered && isSelected && !isCorrect) {
+                                        Icon(Icons.Default.Cancel, null, tint = QuizletCoral)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    OutlinedTextField(
+                        value = typedAnswer,
+                        onValueChange = { typedAnswer = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Nhập thuật ngữ tương ứng...") },
+                        placeholder = { Text("Nhập thuật ngữ...") },
+                        singleLine = true,
+                        shape = RoundedCornerShape(16.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = QuizletBlue,
+                            focusedLabelColor = QuizletBlue,
+                            disabledBorderColor = when {
+                                answered && isCorrectState -> QuizletGreen
+                                answered && !isCorrectState -> QuizletCoral
+                                else -> MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
+                            },
+                            disabledTextColor = when {
+                                answered && isCorrectState -> QuizletGreen
+                                answered && !isCorrectState -> QuizletCoral
+                                else -> MaterialTheme.colorScheme.onSurface
+                            },
+                            disabledLabelColor = when {
+                                answered && isCorrectState -> QuizletGreen
+                                answered && !isCorrectState -> QuizletCoral
+                                else -> MaterialTheme.colorScheme.outline
+                            },
+                            disabledContainerColor = when {
+                                answered && isCorrectState -> QuizletGreen.copy(alpha = 0.05f)
+                                answered && !isCorrectState -> QuizletCoral.copy(alpha = 0.05f)
+                                else -> Color.Transparent
+                            }
+                        ),
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(onDone = { 
+                            handleAnswerTA() 
+                        }),
+                        enabled = !answered
+                    )
+                    
+                    if (answered && !isCorrectState) {
+                        Spacer(Modifier.height(12.dp))
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = QuizletGreen.copy(alpha = 0.08f)),
+                            border = BorderStroke(1.dp, QuizletGreen.copy(alpha = 0.2f))
+                        ) {
+                            Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.CheckCircle, null, tint = QuizletGreen)
+                                Spacer(Modifier.width(10.dp))
+                                Text("Đáp án đúng: ", style = MaterialTheme.typography.bodyMedium)
+                                Text(currentItem.card.front, fontWeight = FontWeight.Bold, color = QuizletGreen)
+                            }
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(32.dp))
+
+                val buttonEnabled = (currentItem.mode == LearnModeStyle.MULTIPLE_CHOICE && answered) ||
+                                    (currentItem.mode == LearnModeStyle.TYPE_ANSWER && (typedAnswer.isNotBlank() || answered))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    if (!answered) {
+                        OutlinedButton(
+                            onClick = handleDontKnow,
+                            modifier = Modifier.weight(1f).height(56.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
+                        ) {
+                            Text("Chưa biết", color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    Button(
+                        onClick = {
+                            if (!answered) {
+                                if (currentItem.mode == LearnModeStyle.TYPE_ANSWER) {
+                                    handleAnswerTA()
+                                }
+                            } else {
+                                handleNext()
+                            }
+                        },
+                        enabled = buttonEnabled,
+                        modifier = Modifier.weight(if (answered) 1f else 1.5f).height(56.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = QuizletBlue),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        val buttonText = when {
+                            !answered -> "Kiểm tra"
+                            else -> "Tiếp tục"
+                        }
+                        Text(
+                            text = buttonText,
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun QuizletProgressBar(
+    totalBatches: Int,
+    currentBatchIdx: Int,
+    queueIdx: Int,
+    actualBatchSize: Int,
+    globalItemNum: Int,
+    totalItems: Int,
+    batchProgressCorrect: Map<Int, Int>,
+    sessionItems: List<LearnItem>
+) {
     Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(16.dp)
-            .verticalScroll(rememberScrollState()),
-        horizontalAlignment = Alignment.CenterHorizontally
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            FilterChip(
-                selected = learnStyle == LearnModeStyle.MULTIPLE_CHOICE,
-                onClick = { onLearnStyleChange(LearnModeStyle.MULTIPLE_CHOICE) },
-                label = { Text("Trắc nghiệm") },
-                leadingIcon = { if (learnStyle == LearnModeStyle.MULTIPLE_CHOICE) Icon(Icons.Default.Check, null, Modifier.size(16.dp)) }
+            Text(
+                text = "Vòng học ${currentBatchIdx + 1} / $totalBatches",
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+                color = QuizletBlue
             )
-            FilterChip(
-                selected = learnStyle == LearnModeStyle.TYPE_ANSWER,
-                onClick = { onLearnStyleChange(LearnModeStyle.TYPE_ANSWER) },
-                label = { Text("Tự luận") },
-                leadingIcon = { if (learnStyle == LearnModeStyle.TYPE_ANSWER) Icon(Icons.Default.Check, null, Modifier.size(16.dp)) }
+            Text(
+                text = "Câu $globalItemNum / $totalItems",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.outline
             )
         }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Surface(color = QuizletGreen.copy(alpha = 0.1f), shape = RoundedCornerShape(20.dp)) {
-                Row(Modifier.padding(horizontal = 12.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Check, null, Modifier.size(14.dp), tint = QuizletGreen)
-                    Spacer(Modifier.width(4.dp))
-                    Text("$correctCount", fontWeight = FontWeight.Bold, color = QuizletGreen)
-                }
-            }
-            Surface(color = QuizletCoral.copy(alpha = 0.1f), shape = RoundedCornerShape(20.dp)) {
-                Row(Modifier.padding(horizontal = 12.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Close, null, Modifier.size(14.dp), tint = QuizletCoral)
-                    Spacer(Modifier.width(4.dp))
-                    Text("$wrongCount", fontWeight = FontWeight.Bold, color = QuizletCoral)
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        LinearProgressIndicator(
-            progress = { (currentIndex + 1).toFloat() / cards.size },
-            modifier = Modifier.fillMaxWidth(),
-            color = QuizletBlue,
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp)
+        
+        Spacer(modifier = Modifier.height(10.dp))
+        
+        Row(
+            modifier = Modifier.fillMaxWidth().height(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(
-                modifier = Modifier.padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Surface(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f), shape = RoundedCornerShape(20.dp)) {
-                    Text("Thuật ngữ", modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
-                }
-                Spacer(Modifier.height(16.dp))
-                Text(currentCard.front, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-            }
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        if (learnStyle == LearnModeStyle.MULTIPLE_CHOICE) {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                options.forEach { option ->
-                    val isCorrect = option == currentCard.back
-                    val isSelected = selectedOption == option
-                    val bgColor = when {
-                        !answered && isSelected -> QuizletBlue.copy(alpha = 0.1f)
-                        answered && isCorrect -> QuizletGreen.copy(alpha = 0.1f)
-                        answered && isSelected && !isCorrect -> QuizletCoral.copy(alpha = 0.1f)
-                        else -> MaterialTheme.colorScheme.surface
-                    }
-                    val borderColor = when {
-                        !answered && isSelected -> QuizletBlue
-                        answered && isCorrect -> QuizletGreen
-                        answered && isSelected && !isCorrect -> QuizletCoral
-                        else -> MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
-                    }
-
-                    OutlinedCard(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable(enabled = !answered) { selectedOption = option },
-                        colors = CardDefaults.outlinedCardColors(containerColor = bgColor),
-                        border = CardDefaults.outlinedCardBorder().copy(brush = androidx.compose.ui.graphics.SolidColor(borderColor))
-                    ) {
-                        Row(
-                            Modifier.padding(14.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(option, Modifier.weight(1f))
-                            if (answered && isCorrect) Icon(Icons.Default.Check, null, tint = QuizletGreen)
-                            if (answered && isSelected && !isCorrect) Icon(Icons.Default.Close, null, tint = QuizletCoral)
-                        }
+            for (batchIdx in 0 until totalBatches) {
+                val isCompleted = batchIdx < currentBatchIdx
+                val isCurrent = batchIdx == currentBatchIdx
+                val progress = if (isCurrent) queueIdx.toFloat() / actualBatchSize else if (isCompleted) 1f else 0f
+                
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                ) {
+                    if (progress > 0f) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(progress)
+                                .fillMaxHeight()
+                                .background(if (isCompleted || isCurrent) QuizletGreen else MaterialTheme.colorScheme.outline)
+                        )
                     }
                 }
-            }
-        } else {
-            OutlinedTextField(
-                value = typedAnswer,
-                onValueChange = { typedAnswer = it },
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("Nhập đáp án...") },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(onDone = { if (!answered && typedAnswer.isNotBlank()) { val correct = typedAnswer.trim().equals(currentCard.back.trim(), ignoreCase = true); onAnswer(correct); if (correct) correctCount++ else wrongCount++; answered = true } }),
-                enabled = !answered
-            )
-        }
-
-        Spacer(Modifier.height(24.dp))
-
-        if (learnStyle == LearnModeStyle.MULTIPLE_CHOICE) {
-            Button(
-                onClick = {
-                    if (!answered && selectedOption != null) {
-                        val correct = selectedOption == currentCard.back
-                        onAnswer(correct)
-                        if (correct) correctCount++ else wrongCount++
-                        answered = true
-                    } else if (answered) {
-                        if (currentIndex < cards.size - 1) {
-                            currentIndex++; answered = false; selectedOption = null; typedAnswer = ""
-                        }
-                    }
-                },
-                enabled = !answered && selectedOption != null || answered,
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = QuizletBlue)
-            ) {
-                Text(if (!answered) "Kiểm tra" else if (currentIndex < cards.size - 1) "Tiếp" else "Xong")
-            }
-        } else {
-            Button(
-                onClick = {
-                    if (!answered && typedAnswer.isNotBlank()) {
-                        val correct = typedAnswer.trim().equals(currentCard.back.trim(), ignoreCase = true)
-                        onAnswer(correct)
-                        if (correct) correctCount++ else wrongCount++
-                        answered = true
-                    } else if (answered) {
-                        if (currentIndex < cards.size - 1) {
-                            currentIndex++; answered = false; selectedOption = null; typedAnswer = ""
-                        }
-                    }
-                },
-                enabled = !answered && typedAnswer.isNotBlank() || answered,
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = QuizletBlue)
-            ) {
-                Text(if (!answered) "Kiểm tra" else if (currentIndex < cards.size - 1) "Tiếp" else "Xong")
             }
         }
     }
@@ -988,6 +1862,7 @@ private fun MatchModeView(
     terms: List<Pair<Int, String>>,
     defs: List<Pair<Int, String>>,
     selected: List<Int>,
+    mismatched: List<Int>,
     matched: Set<Int>,
     timer: Int,
     done: Boolean,
@@ -995,15 +1870,9 @@ private fun MatchModeView(
     onRestart: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    LaunchedEffect(terms, defs) {
-        if (terms.isEmpty()) return@LaunchedEffect
-        while (true) {
-            kotlinx.coroutines.delay(1000)
-            if (!done) {
-                // timer++
-            }
-        }
-    }
+    val secs = timer / 10
+    val tenths = timer % 10
+    val timeFormatted = "$secs.${tenths}s"
 
     Column(
         modifier = modifier
@@ -1011,33 +1880,156 @@ private fun MatchModeView(
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text("Ghép thẻ", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Ghép thẻ",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            
+            Surface(
+                color = QuizletBlue.copy(alpha = 0.08f),
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, QuizletBlue.copy(alpha = 0.2f))
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Timer,
+                        contentDescription = "Time",
+                        modifier = Modifier.size(16.dp),
+                        tint = QuizletBlue
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        text = timeFormatted,
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = QuizletBlue
+                    )
+                }
+            }
+        }
 
         Spacer(Modifier.height(24.dp))
 
         if (done) {
-            Icon(Icons.Default.EmojiEvents, null, modifier = Modifier.size(64.dp), tint = QuizletAmber)
-            Spacer(Modifier.height(16.dp))
-            Text("Hoàn thành!", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(24.dp))
-            Button(onClick = onRestart, colors = ButtonDefaults.buttonColors(containerColor = QuizletBlue)) {
-                Icon(Icons.Default.Refresh, null)
-                Spacer(Modifier.width(8.dp))
-                Text("Chơi lại")
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Surface(
+                    color = QuizletAmber.copy(alpha = 0.1f),
+                    shape = RoundedCornerShape(32.dp),
+                    modifier = Modifier.padding(bottom = 16.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.EmojiEvents,
+                        contentDescription = null,
+                        modifier = Modifier
+                            .size(96.dp)
+                            .padding(20.dp),
+                        tint = QuizletAmber
+                    )
+                }
+                
+                Text(
+                    text = "Hoàn thành xuất sắc!",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                
+                Spacer(Modifier.height(8.dp))
+                
+                Text(
+                    text = "Thời gian hoàn thành của bạn:",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.outline
+                )
+                
+                Text(
+                    text = timeFormatted,
+                    style = MaterialTheme.typography.displayMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = QuizletBlue
+                )
+                
+                Spacer(Modifier.height(32.dp))
+                
+                Button(
+                    onClick = onRestart,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = QuizletBlue),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Icon(Icons.Default.Refresh, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = "Chơi lại",
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                }
             }
         } else {
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.weight(1f)) {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
                     terms.forEach { (id, text) ->
-                        MatchTile(id = id, text = text, isSelected = selected.contains(id), isMatched = matched.contains(id), isDef = false, onClick = { onTileClick(id) })
+                        val isSelected = selected.contains(id)
+                        val isMismatched = mismatched.contains(id)
+                        val isMatched = matched.contains(id)
+                        
+                        MatchTile(
+                            id = id,
+                            text = text,
+                            isSelected = isSelected,
+                            isMismatched = isMismatched,
+                            isMatched = isMatched,
+                            isDef = false,
+                            onClick = { onTileClick(id) }
+                        )
                     }
                 }
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.weight(1f)) {
+                
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
                     defs.forEach { (id, text) ->
-                        MatchTile(id = id, text = text, isSelected = selected.contains(id), isMatched = matched.contains(id), isDef = true, onClick = { onTileClick(id) })
+                        val isSelected = selected.contains(id)
+                        val isMismatched = mismatched.contains(id)
+                        val isMatched = matched.contains(id)
+                        
+                        MatchTile(
+                            id = id,
+                            text = text,
+                            isSelected = isSelected,
+                            isMismatched = isMismatched,
+                            isMatched = isMatched,
+                            isDef = true,
+                            onClick = { onTileClick(id) }
+                        )
                     }
                 }
             }
@@ -1050,35 +2042,70 @@ private fun MatchTile(
     id: Int,
     text: String,
     isSelected: Boolean,
+    isMismatched: Boolean,
     isMatched: Boolean,
     isDef: Boolean,
     onClick: () -> Unit
 ) {
+    val alphaAnim by animateFloatAsState(
+        targetValue = if (isMatched) 0.3f else 1.0f,
+        animationSpec = tween(300),
+        label = "alpha"
+    )
+
     val bgColor = when {
-        isMatched -> QuizletGreen.copy(alpha = 0.2f)
-        isSelected -> QuizletBlue.copy(alpha = 0.2f)
-        else -> MaterialTheme.colorScheme.surfaceVariant
+        isMatched -> QuizletGreen.copy(alpha = 0.08f)
+        isMismatched -> QuizletCoral.copy(alpha = 0.08f)
+        isSelected -> QuizletBlue.copy(alpha = 0.08f)
+        else -> MaterialTheme.colorScheme.surface
     }
     val borderColor = when {
         isMatched -> QuizletGreen
+        isMismatched -> QuizletCoral
         isSelected -> QuizletBlue
-        else -> MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+        else -> MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
     }
 
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .shadow(if (isSelected || isMatched) 4.dp else 1.dp, RoundedCornerShape(12.dp))
-            .clickable(enabled = !isMatched) { onClick() },
-        shape = RoundedCornerShape(12.dp),
+            .graphicsLayer { alpha = alphaAnim }
+            .shadow(
+                elevation = if (isSelected || isMismatched) 4.dp else 1.dp,
+                shape = RoundedCornerShape(16.dp)
+            )
+            .clickable(enabled = !isMatched && !isMismatched) { onClick() },
+        shape = RoundedCornerShape(16.dp),
         color = bgColor,
-        border = androidx.compose.foundation.BorderStroke(2.dp, borderColor)
+        border = BorderStroke(if (isSelected || isMismatched || isMatched) 2.dp else 1.5.dp, borderColor)
     ) {
-        Box(Modifier.padding(12.dp), contentAlignment = Alignment.Center) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 16.dp, horizontal = 12.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = text,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                textAlign = TextAlign.Center,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            
             if (isMatched) {
-                Icon(Icons.Default.Check, null, modifier = Modifier.size(14.dp).align(Alignment.TopEnd), tint = QuizletGreen)
+                Icon(
+                    imageVector = Icons.Default.CheckCircle,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(16.dp)
+                        .align(Alignment.TopEnd)
+                        .offset(x = 4.dp, y = (-8).dp),
+                    tint = QuizletGreen
+                )
             }
-            Text(text, style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
     }
 }

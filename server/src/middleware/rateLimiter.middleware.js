@@ -7,7 +7,7 @@ const { ApiResponse } = require('../shared/utils/apiResponse');
  */
 const loginRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 20,
+  max: 100, // relaxed for development (was 20)
   standardHeaders: true,
   legacyHeaders: false,
   handler: (req, res) => {

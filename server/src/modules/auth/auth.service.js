@@ -72,6 +72,10 @@ class AuthService {
     const user = await User.findByEmail(normalizeEmail(email));
     if (!user) throw new AppError('Invalid email or password', 401);
 
+    if (!user.password) {
+      throw new AppError('Invalid email or password', 401);
+    }
+
     const isMatch = await user.comparePassword(password);
     if (!isMatch) throw new AppError('Invalid email or password', 401);
     if (!user.isVerified) {

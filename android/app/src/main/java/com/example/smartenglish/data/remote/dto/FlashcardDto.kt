@@ -87,6 +87,11 @@ data class CreateCardRequest(
 )
 
 @JsonClass(generateAdapter = true)
+data class BulkCreateCardsRequest(
+    @Json(name = "cards") val cards: List<CreateCardRequest>
+)
+
+@JsonClass(generateAdapter = true)
 data class UpdateCardRequest(
     @Json(name = "front") val front: String?,
     @Json(name = "back") val back: String?,
