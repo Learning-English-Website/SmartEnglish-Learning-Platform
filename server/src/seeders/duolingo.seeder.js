@@ -1053,6 +1053,12 @@ const courseData = [
 
 
 const seedDuolingo = async () => {
+  const courseCount = await Course.countDocuments();
+  if (courseCount > 0 && process.env.FORCE_SEED !== 'true') {
+    console.log('ℹ️ Duolingo courses already exist. Skipping seeding to prevent overwriting existing data. (Use FORCE_SEED=true to override)');
+    return;
+  }
+
   console.log('🌱 Seeding Duolingo data...');
 
   await ChallengeOption.deleteMany({});

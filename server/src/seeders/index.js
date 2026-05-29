@@ -150,15 +150,20 @@ async function seedFlashcards() {
   console.log(`✅ Seeded 1 flashcard set with ${cardsWithSet.length} cards`);
 }
 
+async function seedAll() {
+  console.log('🌱 Starting automatic database seeding...');
+  await seedUsers();
+  await seedLearningContent();
+  await seedAchievements();
+  await seedFlashcards();
+  await seedDuolingo();
+  console.log('✅ Automatic database seeding completed!');
+}
+
 async function run() {
   try {
     await connectDB();
-    await seedUsers();
-    await seedLearningContent();
-    await seedAchievements();
-    await seedFlashcards();
-    await seedDuolingo();
-    console.log('✅ All seeders completed');
+    await seedAll();
   } catch (error) {
     console.error('❌ Seed failed:', error.message);
     process.exitCode = 1;
@@ -167,4 +172,15 @@ async function run() {
   }
 }
 
-run();
+if (require.main === module) {
+  run();
+}
+
+module.exports = {
+  seedAll,
+  seedUsers,
+  seedLearningContent,
+  seedAchievements,
+  seedFlashcards,
+  seedDuolingo
+};
