@@ -32,7 +32,7 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object AppModule {
 
-    private const val BASE_URL = "http://127.0.0.1:5000/api/"
+    private const val BASE_URL = "http://10.0.2.2:5000/api/"
 
     @Provides
     @Singleton
@@ -153,6 +153,12 @@ object AppModule {
         return retrofit.create(TagApi::class.java)
     }
 
+    @Provides
+    @Singleton
+    fun provideProgressApi(retrofit: Retrofit): ProgressApi {
+        return retrofit.create(ProgressApi::class.java)
+    }
+
     // Repositories
     @Provides
     @Singleton
@@ -201,5 +207,23 @@ object AppModule {
         tagApi: TagApi
     ): ShareRepository {
         return ShareRepositoryImpl(shareApi, tagApi)
+    }
+
+    @Provides
+    @Singleton
+    fun provideProgressRepository(progressApi: ProgressApi): ProgressRepository {
+        return ProgressRepositoryImpl(progressApi)
+    }
+
+    @Provides
+    @Singleton
+    fun provideGamificationApi(retrofit: Retrofit): GamificationApi {
+        return retrofit.create(GamificationApi::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideGamificationRepository(gamificationApi: GamificationApi): GamificationRepository {
+        return GamificationRepositoryImpl(gamificationApi)
     }
 }

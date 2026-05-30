@@ -364,6 +364,10 @@ const getOverallStats = async (userId) => {
   const learningCards = allProgress.filter(p => p.repetitions > 0 && p.masteryLevel < 4).length;
   const newCards = allProgress.filter(p => p.repetitions === 0).length;
 
+  // Due today — thẻ có nextReview <= now
+  const now = new Date();
+  const dueToday = allProgress.filter(p => new Date(p.nextReview) <= now).length;
+
   // Calculate average accuracy
   const cardsWithReviews = allProgress.filter(p => p.totalReviews > 0);
   const averageAccuracy = cardsWithReviews.length > 0
@@ -409,6 +413,7 @@ const getOverallStats = async (userId) => {
     masteredCards,
     learningCards,
     newCards,
+    dueToday,       // Thêm mới: số thẻ cần ôn hôm nay
     level,
     xp,
     xpToNextLevel,

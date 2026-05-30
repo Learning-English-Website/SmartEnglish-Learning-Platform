@@ -72,6 +72,7 @@ fun FlashcardStudyScreen(
     viewModel: StudyViewModel = hiltViewModel(key = "study_$setId")
 ) {
     val state by viewModel.state.collectAsState()
+    val gamificationResult by viewModel.gamificationResult.collectAsState()
     var currentMode by remember { mutableStateOf(StudyModeType.FLASHCARDS) }
     var learnStyle by remember { mutableStateOf(LearnModeStyle.MULTIPLE_CHOICE) }
 
@@ -92,6 +93,9 @@ fun FlashcardStudyScreen(
     var matchTimer by remember { mutableIntStateOf(0) }
     var matchDone by remember { mutableStateOf(false) }
 
+    // Gamification overlay
+    var showGamification by remember { mutableStateOf(false) }
+
     val scope = rememberCoroutineScope()
     val haptic = LocalHapticFeedback.current
 
@@ -99,9 +103,18 @@ fun FlashcardStudyScreen(
         viewModel.setSetId(setId)
     }
 
+    // Khi có gamification result mới → show overlay
+    LaunchedEffect(gamificationResult) {
+        if (gamificationResult != null) {
+            showGamification = true
+        }
+    }
+
+    // Navigate back khi session xong (nếu không có rewards thì navigate luôn sau delay nhỏ)
     LaunchedEffect(state.isFinished) {
-        if (state.isFinished) {
-            viewModel.onEvent(StudyEvent.FinishSession)
+        if (state.isFinished && gamificationResult == null) {
+            kotlinx.coroutines.delay(600)
+            if (gamificationResult == null) onNavigateBack()
         }
     }
 
@@ -194,7 +207,8 @@ fun FlashcardStudyScreen(
             )
         }
     ) { paddingValues ->
-        when {
+        Box(modifier = Modifier.fillMaxSize()) {
+            when {
             state.isLoading -> {
                 Box(
                     modifier = Modifier
@@ -390,7 +404,20 @@ fun FlashcardStudyScreen(
                 }
             }
         }
-    }
+
+        // ── Gamification Overlay ───────────────────────────────────────
+        if (showGamification) {
+            com.example.smartenglish.presentation.components.GamificationOverlay(
+                result = gamificationResult,
+                onDismiss = {
+                    viewModel.clearGamificationResult()
+                    showGamification = false
+                    onNavigateBack()
+                }
+            )
+        }
+    } // end Box
+} // end Scaffold/Screen
 }
 
 @Composable

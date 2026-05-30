@@ -106,6 +106,8 @@ class CardRepositoryImpl @Inject constructor(
         pronunciation: String?,
         example: String?,
         note: String?,
+        collocation: String?,
+        relatedWords: String?,
         imageUrl: String?
     ): ApiResult<Flashcard> {
         return try {
@@ -117,6 +119,8 @@ class CardRepositoryImpl @Inject constructor(
                     pronunciation = pronunciation,
                     example = example,
                     note = note,
+                    collocation = collocation,
+                    relatedWords = relatedWords,
                     imageUrl = imageUrl
                 )
             )
@@ -172,6 +176,8 @@ class CardRepositoryImpl @Inject constructor(
         pronunciation: String?,
         example: String?,
         note: String?,
+        collocation: String?,
+        relatedWords: String?,
         imageUrl: String?
     ): ApiResult<Flashcard> {
         if (!isValidObjectId(id)) {
@@ -187,6 +193,8 @@ class CardRepositoryImpl @Inject constructor(
                     pronunciation = pronunciation,
                     example = example,
                     note = note,
+                    collocation = collocation,
+                    relatedWords = relatedWords,
                     imageUrl = imageUrl
                 )
             )

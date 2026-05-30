@@ -71,6 +71,8 @@ data class FlashcardDto(
     @Json(name = "pronunciation") val pronunciation: String?,
     @Json(name = "example") val example: String?,
     @Json(name = "note") val note: String?,
+    @Json(name = "collocation") val collocation: String? = null,
+    @Json(name = "relatedWords") val relatedWords: String? = null,
     @Json(name = "imageUrl") val imageUrl: String?,
     @Json(name = "createdAt") val createdAt: String?,
     @Json(name = "updatedAt") val updatedAt: String?
@@ -83,6 +85,8 @@ data class CreateCardRequest(
     @Json(name = "pronunciation") val pronunciation: String? = null,
     @Json(name = "example") val example: String? = null,
     @Json(name = "note") val note: String? = null,
+    @Json(name = "collocation") val collocation: String? = null,
+    @Json(name = "relatedWords") val relatedWords: String? = null,
     @Json(name = "imageUrl") val imageUrl: String? = null
 )
 
@@ -98,6 +102,8 @@ data class UpdateCardRequest(
     @Json(name = "pronunciation") val pronunciation: String?,
     @Json(name = "example") val example: String?,
     @Json(name = "note") val note: String?,
+    @Json(name = "collocation") val collocation: String? = null,
+    @Json(name = "relatedWords") val relatedWords: String? = null,
     @Json(name = "imageUrl") val imageUrl: String?
 )
 

@@ -14,6 +14,7 @@ import com.example.smartenglish.presentation.auth.OtpResetPasswordScreen
 import com.example.smartenglish.presentation.auth.RegisterScreen
 import com.example.smartenglish.presentation.auth.ResetPasswordScreen
 import com.example.smartenglish.presentation.home.HomeScreen
+import com.example.smartenglish.presentation.profile.AchievementsScreen
 import com.example.smartenglish.presentation.profile.EditProfileScreen
 import com.example.smartenglish.presentation.profile.ProfileScreen
 import com.example.smartenglish.presentation.study.StudyScreen
@@ -28,11 +29,14 @@ import com.example.smartenglish.presentation.browse.BrowseScreen
 @Composable
 fun AppNavGraph(
     navController: NavHostController,
+    startDestination: String = Screen.Login.route,
+    onLoginSuccess: () -> Unit,
+    onLogout: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     NavHost(
         navController = navController,
-        startDestination = Screen.Login.route,
+        startDestination = startDestination,
         modifier = modifier
     ) {
         // ==================== AUTH SCREENS ====================
@@ -45,9 +49,7 @@ fun AppNavGraph(
                     navController.navigate(Screen.ForgotPassword.route)
                 },
                 onLoginSuccess = {
-                    navController.navigate(Screen.Home.route) {
-                        popUpTo(Screen.Login.route) { inclusive = true }
-                    }
+                    onLoginSuccess()
                 }
             )
         }
@@ -58,9 +60,7 @@ fun AppNavGraph(
                     navController.popBackStack()
                 },
                 onRegisterSuccess = {
-                    navController.navigate(Screen.Home.route) {
-                        popUpTo(Screen.Login.route) { inclusive = true }
-                    }
+                    onLoginSuccess()
                 },
                 onNavigateToOtp = { email ->
                     navController.navigate(Screen.Otp.createRoute(email))
@@ -203,10 +203,11 @@ fun AppNavGraph(
                 onNavigateToEditProfile = {
                     navController.navigate(Screen.EditProfile.route)
                 },
+                onNavigateToAchievements = {
+                    navController.navigate(Screen.Achievements.route)
+                },
                 onLogout = {
-                    navController.navigate(Screen.Login.route) {
-                        popUpTo(0) { inclusive = true }
-                    }
+                    onLogout()
                 }
             )
         }
@@ -331,6 +332,15 @@ fun AppNavGraph(
                     navController.navigate(Screen.SetDetail.createRoute(setId))
                 },
                 onDismiss = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        // Achievements Screen
+        composable(Screen.Achievements.route) {
+            AchievementsScreen(
+                onNavigateBack = {
                     navController.popBackStack()
                 }
             )

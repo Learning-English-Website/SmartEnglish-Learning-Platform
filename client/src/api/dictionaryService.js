@@ -113,3 +113,78 @@ export async function searchWords(query, max = 10) {
     tags:  item.tags ?? [],
   }));
 }
+
+/**
+ * Fetch synonyms / related words for a given word using Datamuse.
+ * Uses rel_syn (synonyms) + rel_ant (antonyms excluded), ml (means like).
+ *
+ * @param {string} word
+ * @param {number} max
+ * @returns {Promise<string>}  comma-separated list, e.g. "quick, fast, rapid"
+ */
+export async function fetchRelatedWords(word, max = 8) {
+  if (!word?.trim()) return '';
+  const q = encodeURIComponent(word.trim().toLowerCase());
+
+  try {
+    const [synResp, mlResp] = await Promise.all([
+      fetch(`${DATAMUSE_URL}?rel_syn=${q}&max=${max}`),
+      fetch(`${DATAMUSE_URL}?ml=${q}&max=${max}`),
+    ]);
+
+    const syns = synResp.ok ? await synResp.json() : [];
+    const mls  = mlResp.ok  ? await mlResp.json()  : [];
+
+    const seen = new Set();
+    const words = [];
+    for (const item of [...syns, ...mls]) {
+      if (!seen.has(item.word)) {
+        seen.add(item.word);
+        words.push(item.word);
+      }
+      if (words.length >= max) break;
+    }
+    return words.join(', ');
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Fetch common collocations for a word using Datamuse.
+ * Uses rel_jja (adjective for noun) + rel_jjb (noun for adjective) + trg (triggers).
+ *
+ * @param {string} word
+ * @param {number} max
+ * @returns {Promise<string>}  comma-separated collocations
+ */
+export async function fetchCollocations(word, max = 6) {
+  if (!word?.trim()) return '';
+  const q = encodeURIComponent(word.trim().toLowerCase());
+
+  try {
+    const [jjaResp, jjbResp, trgResp] = await Promise.all([
+      fetch(`${DATAMUSE_URL}?rel_jja=${q}&max=${max}`),
+      fetch(`${DATAMUSE_URL}?rel_jjb=${q}&max=${max}`),
+      fetch(`${DATAMUSE_URL}?trg=${q}&max=${max}`),
+    ]);
+
+    const jja = jjaResp.ok ? await jjaResp.json() : [];
+    const jjb = jjbResp.ok ? await jjbResp.json() : [];
+    const trg = trgResp.ok ? await trgResp.json() : [];
+
+    const seen = new Set();
+    const words = [];
+    for (const item of [...trg, ...jja, ...jjb]) {
+      if (!seen.has(item.word)) {
+        seen.add(item.word);
+        words.push(item.word);
+      }
+      if (words.length >= max) break;
+    }
+    return words.join(', ');
+  } catch {
+    return '';
+  }
+}
+

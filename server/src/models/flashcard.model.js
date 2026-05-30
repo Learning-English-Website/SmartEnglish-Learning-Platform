@@ -10,6 +10,8 @@ const flashcardSchema = new Schema(
     pronunciation: { type: String, default: null },
     example: { type: String, default: null },
     note: { type: String, default: null },
+    collocation: { type: String, default: null },   // Cụm từ kết hợp thường dùng
+    relatedWords: { type: String, default: null },  // Từ đồng nghĩa/liên quan
     imageUrl: { type: String, default: null },
     difficulty: { type: Number, min: 0, max: 5, default: 0 },
     nextReviewAt: { type: Date, default: null },

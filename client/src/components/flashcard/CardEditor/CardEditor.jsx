@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { FiSave, FiX, FiVolume2, FiZap, FiSearch, FiImage, FiUpload } from 'react-icons/fi';
-import { lookupWord, searchWords } from '../../../api/dictionaryService';
+import { lookupWord, searchWords, fetchRelatedWords, fetchCollocations } from '../../../api/dictionaryService';
 import ImagePicker from '../ImagePicker/ImagePicker';
 import ImageUploader from '../../media/ImageUploader';
 import './CardEditor.css';
@@ -18,11 +18,14 @@ export default function CardEditor({ card, onSave, onCancel, loading = false, in
     pronunciation: card?.pronunciation ?? '',
     example:       card?.example       ?? '',
     note:          card?.note          ?? '',
+    collocation:   card?.collocation   ?? '',
+    relatedWords:  card?.relatedWords  ?? '',
     imageUrl:      card?.imageUrl      ?? '',
   });
   const [errors, setErrors] = useState({});
   const [showImagePicker, setShowImagePicker] = useState(false);
   const [imageTab, setImageTab] = useState('search'); // 'search' | 'upload'
+  const [autoFilling, setAutoFilling] = useState(false); // loading state for auto-fill all
 
   /* ── Suggest state ───────────────────────────────────────────────── */
   // Phase 1 — word list from Datamuse
@@ -60,6 +63,8 @@ export default function CardEditor({ card, onSave, onCancel, loading = false, in
           pronunciation: form.pronunciation.trim() || null,
           example:       form.example.trim() || null,
           note:          form.note.trim() || null,
+          collocation:   form.collocation.trim() || null,
+          relatedWords:  form.relatedWords.trim() || null,
           imageUrl:      form.imageUrl || null,
         });
       }, 500);
@@ -69,6 +74,35 @@ export default function CardEditor({ card, onSave, onCancel, loading = false, in
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     };
   }, [form, inlineMode, onSave]);
+
+  /* ── Auto-fill ALL fields (⚡ icon button) ───────────────────────── */
+  const autoFillAll = useCallback(async () => {
+    const term = form.front.trim();
+    if (!term || autoFilling) return;
+    setAutoFilling(true);
+    try {
+      const [dictData, related, collocations] = await Promise.all([
+        lookupWord(term).catch(() => null),
+        fetchRelatedWords(term).catch(() => ''),
+        fetchCollocations(term).catch(() => ''),
+      ]);
+      setForm((prev) => ({
+        ...prev,
+        pronunciation: prev.pronunciation || dictData?.phonetic || prev.pronunciation,
+        back:          prev.back          || dictData?.meanings?.[0]?.definitions?.[0]?.definition || prev.back,
+        example:       prev.example       || dictData?.meanings?.[0]?.definitions?.[0]?.example   || prev.example,
+        relatedWords:  prev.relatedWords  || related       || prev.relatedWords,
+        collocation:   prev.collocation   || collocations  || prev.collocation,
+      }));
+      // store audio for playback
+      if (dictData?.audio && !dictData_ref.current) dictData_ref.current = dictData;
+    } finally {
+      setAutoFilling(false);
+    }
+  }, [form.front, autoFilling]);
+
+  // ref to store last dict data for audio playback after autoFill
+  const dictData_ref = useRef(null);
 
   /* ── Close on outside click ──────────────────────────────────────── */
   useEffect(() => {
@@ -186,11 +220,14 @@ export default function CardEditor({ card, onSave, onCancel, loading = false, in
       pronunciation: form.pronunciation.trim() || null,
       example:       form.example.trim() || null,
       note:          form.note.trim() || null,
+      collocation:   form.collocation.trim() || null,
+      relatedWords:  form.relatedWords.trim() || null,
       imageUrl:      form.imageUrl || null,
     });
   };
 
   const canSuggest = form.front.trim().length >= 2 && !loading;
+  const canAutoFill = form.front.trim().length >= 2 && !loading && !autoFilling;
 
   /* ── Highlight matched substring in word ─────────────────────────── */
   const highlightMatch = (word, query) => {
@@ -217,15 +254,29 @@ export default function CardEditor({ card, onSave, onCancel, loading = false, in
         <div className="ce-field-block" ref={wrapRef} style={{ position: 'relative' }}>
           <div className="ce-field-header">
             <label className="ce-label">TERM *</label>
-            <button
-              type="button"
-              className={`ce-suggest-btn ${phase === 'detail' && dropdownOpen ? 'active' : ''}`}
-              onClick={handleSuggestBtn}
-              disabled={!canSuggest || dictLoading}
-              title="Look up pronunciation & definition"
-            >
-              {dictLoading ? <span className="ce-spinner" /> : <><FiZap size={12} /> Suggest</>}
-            </button>
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+              {/* ⚡ Auto-fill all fields */}
+              <button
+                type="button"
+                className={`ce-suggest-btn ${autoFilling ? 'active' : ''}`}
+                onClick={autoFillAll}
+                disabled={!canAutoFill}
+                title="Auto-fill pronunciation, definition, example, collocations & related words"
+                style={{ minWidth: 32 }}
+              >
+                {autoFilling ? <span className="ce-spinner" /> : <FiZap size={12} />}
+              </button>
+              {/* 📖 Manual suggest (existing) */}
+              <button
+                type="button"
+                className={`ce-suggest-btn ${phase === 'detail' && dropdownOpen ? 'active' : ''}`}
+                onClick={handleSuggestBtn}
+                disabled={!canSuggest || dictLoading}
+                title="Look up pronunciation & definition"
+              >
+                {dictLoading ? <span className="ce-spinner" /> : <>Suggest</>}
+              </button>
+            </div>
           </div>
 
           <div className="ce-input-wrap">
@@ -400,6 +451,26 @@ export default function CardEditor({ card, onSave, onCancel, loading = false, in
             className="ce-input"
             placeholder="e.g. Hello, how are you?"
             value={form.example}
+            onChange={handleChange}
+          />
+        </div>
+        <div className="ce-field-block">
+          <label className="ce-label">COLLOCATION</label>
+          <input
+            name="collocation"
+            className="ce-input"
+            placeholder="e.g. make a decision, take a photo"
+            value={form.collocation}
+            onChange={handleChange}
+          />
+        </div>
+        <div className="ce-field-block">
+          <label className="ce-label">RELATED WORDS</label>
+          <input
+            name="relatedWords"
+            className="ce-input"
+            placeholder="e.g. quick, fast, rapid"
+            value={form.relatedWords}
             onChange={handleChange}
           />
         </div>

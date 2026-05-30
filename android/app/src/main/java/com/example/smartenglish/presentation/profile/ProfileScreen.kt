@@ -50,6 +50,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 @Composable
 fun ProfileScreen(
     onNavigateToEditProfile: () -> Unit,
+    onNavigateToAchievements: () -> Unit = {},
     onLogout: () -> Unit,
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
@@ -167,6 +168,20 @@ fun ProfileScreen(
                         Icon(Icons.Default.Edit, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("Edit Profile")
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Achievements button
+                    OutlinedButton(
+                        onClick = onNavigateToAchievements,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp)
+                    ) {
+                        Text("🏆")
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Huy hiệu của tôi")
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))

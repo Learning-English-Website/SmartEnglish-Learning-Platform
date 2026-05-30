@@ -49,6 +49,7 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector)
     }
     data object Browse : Screen("browse", "Browse", Icons.Default.Search)
     data object Search : Screen("search", "Search", Icons.Default.Search)
+    data object Achievements : Screen("achievements", "Huy hiệu", Icons.Default.Person)
 
     companion object {
         val bottomNavItems = listOf(Home, Library, Study, Profile)

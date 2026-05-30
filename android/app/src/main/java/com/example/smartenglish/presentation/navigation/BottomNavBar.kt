@@ -12,6 +12,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 
+import androidx.navigation.NavGraph.Companion.findStartDestination
+
 private val QuizletBlue = Color(0xFF4255FF)
 
 @Composable
@@ -31,7 +33,7 @@ fun BottomNavBar(
                 onClick = {
                     if (currentRoute != screen.route) {
                         navController.navigate(screen.route) {
-                            popUpTo(Screen.Home.route) {
+                            popUpTo(navController.graph.findStartDestination().id) {
                                 saveState = true
                             }
                             launchSingleTop = true

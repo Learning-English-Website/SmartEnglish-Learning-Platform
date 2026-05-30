@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.smartenglish.domain.model.Flashcard
 import com.example.smartenglish.domain.repository.CardRepository
 import com.example.smartenglish.util.ApiResult
+import com.example.smartenglish.util.DictionaryHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -15,6 +16,7 @@ data class CardEditorState(
     val card: Flashcard? = null,
     val isLoading: Boolean = false,
     val isSaving: Boolean = false,
+    val isAutoFilling: Boolean = false,
     val error: String? = null,
     val isNewCard: Boolean = true,
     val saveSuccess: Boolean = false
@@ -26,6 +28,9 @@ sealed class CardEditorEvent {
     data class UpdatePronunciation(val pronunciation: String?) : CardEditorEvent()
     data class UpdateExample(val example: String?) : CardEditorEvent()
     data class UpdateNote(val note: String?) : CardEditorEvent()
+    data class UpdateCollocation(val collocation: String?) : CardEditorEvent()
+    data class UpdateRelatedWords(val relatedWords: String?) : CardEditorEvent()
+    data object AutoFill : CardEditorEvent()
     data object Save : CardEditorEvent()
     data object ClearError : CardEditorEvent()
 }
@@ -82,6 +87,13 @@ class CardEditorViewModel @Inject constructor(
             is CardEditorEvent.UpdateNote -> {
                 _state.update { it.copy(card = it.card?.copy(note = event.note)) }
             }
+            is CardEditorEvent.UpdateCollocation -> {
+                _state.update { it.copy(card = it.card?.copy(collocation = event.collocation)) }
+            }
+            is CardEditorEvent.UpdateRelatedWords -> {
+                _state.update { it.copy(card = it.card?.copy(relatedWords = event.relatedWords)) }
+            }
+            CardEditorEvent.AutoFill -> autoFill()
             CardEditorEvent.Save -> saveCard()
             CardEditorEvent.ClearError -> _state.update { it.copy(error = null) }
         }
@@ -96,6 +108,8 @@ class CardEditorViewModel @Inject constructor(
             pronunciation = null,
             example = null,
             note = null,
+            collocation = null,
+            relatedWords = null,
             imageUrl = null,
             createdAt = null,
             updatedAt = null
@@ -121,6 +135,8 @@ class CardEditorViewModel @Inject constructor(
                     pronunciation = card.pronunciation,
                     example = card.example,
                     note = card.note,
+                    collocation = card.collocation,
+                    relatedWords = card.relatedWords,
                     imageUrl = card.imageUrl
                 )
             } else {
@@ -131,6 +147,8 @@ class CardEditorViewModel @Inject constructor(
                     pronunciation = card.pronunciation,
                     example = card.example,
                     note = card.note,
+                    collocation = card.collocation,
+                    relatedWords = card.relatedWords,
                     imageUrl = card.imageUrl
                 )
             }
@@ -149,5 +167,37 @@ class CardEditorViewModel @Inject constructor(
 
     fun setCardData(card: Flashcard) {
         _state.update { it.copy(card = card) }
+    }
+
+    private fun autoFill() {
+        val term = _state.value.card?.front?.trim() ?: return
+        if (term.isBlank()) return
+
+        viewModelScope.launch {
+            _state.update { it.copy(isAutoFilling = true, error = null) }
+            try {
+                val result = DictionaryHelper.lookupAll(term)
+                _state.update { state ->
+                    val card = state.card ?: return@update state
+                    state.copy(
+                        isAutoFilling = false,
+                        card = card.copy(
+                            pronunciation = card.pronunciation.takeUnless { it.isNullOrBlank() }
+                                ?: result.phonetic,
+                            back = card.back.takeUnless { it.isBlank() }
+                                ?: result.definition ?: card.back,
+                            example = card.example.takeUnless { it.isNullOrBlank() }
+                                ?: result.example,
+                            collocation = card.collocation.takeUnless { it.isNullOrBlank() }
+                                ?: result.collocation,
+                            relatedWords = card.relatedWords.takeUnless { it.isNullOrBlank() }
+                                ?: result.relatedWords
+                        )
+                    )
+                }
+            } catch (e: Exception) {
+                _state.update { it.copy(isAutoFilling = false, error = "Auto-fill failed: ${e.message}") }
+            }
+        }
     }
 }

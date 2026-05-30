@@ -58,8 +58,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
     // Navigation
-    implementation("androidx.navigation:navigation-compose:2.7.7")
-    implementation(libs.core.ktx)
+    implementation(libs.navigation.compose)
 
     // Hilt
     implementation(libs.hilt.android)
@@ -70,11 +69,11 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
 
     // Networking
-    implementation("com.squareup.retrofit2:retrofit:2.9.0")
-    implementation("com.squareup.retrofit2:converter-moshi:2.9.0")
-    implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
-    implementation("com.squareup.moshi:moshi-kotlin:1.15.1")
+    implementation(libs.retrofit)
+    implementation(libs.retrofit.converter.moshi)
+    implementation(libs.okhttp)
+    implementation(libs.okhttp.logging)
+    implementation(libs.moshi)
     ksp(libs.moshi.codegen)
 
     // Room
@@ -83,7 +82,7 @@ dependencies {
     ksp(libs.room.compiler)
 
     // Security
-    implementation("androidx.security:security-crypto:1.1.0-alpha06")
+    implementation(libs.security.crypto)
     implementation(libs.datastore.preferences)
 
     // Coil

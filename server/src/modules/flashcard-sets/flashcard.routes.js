@@ -5,6 +5,7 @@ const {
   getCardsBySet,
   createCard,
   bulkCreateCards,
+  importCsvCards,
   updateCard,
   deleteCard,
   reorderCards,
@@ -18,8 +19,11 @@ router.get('/set/:setId', getCardsBySet);
 // POST /api/flashcards/set/:setId          → Create single card
 router.post('/set/:setId', createCard);
 
-// POST /api/flashcards/set/:setId/bulk     → Bulk create cards
+// POST /api/flashcards/set/:setId/bulk         → Bulk create cards
 router.post('/set/:setId/bulk', bulkCreateCards);
+
+// POST /api/flashcards/set/:setId/import-csv   → Import cards from CSV string
+router.post('/set/:setId/import-csv', importCsvCards);
 
 // PUT  /api/flashcards/set/:setId/reorder  → Reorder cards
 router.put('/set/:setId/reorder', reorderCards);

@@ -5,7 +5,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.smartenglish.domain.model.Flashcard
 import com.example.smartenglish.domain.model.FlashcardSet
+import com.example.smartenglish.domain.model.SessionCompleteResult
 import com.example.smartenglish.domain.repository.CardRepository
+import com.example.smartenglish.domain.repository.GamificationRepository
 import com.example.smartenglish.domain.repository.SetRepository
 import com.example.smartenglish.domain.repository.StudyRepository
 import com.example.smartenglish.util.ApiResult
@@ -59,6 +61,7 @@ class StudyViewModel @Inject constructor(
     private val setRepository: SetRepository,
     private val cardRepository: CardRepository,
     private val studyRepository: StudyRepository,
+    private val gamificationRepository: GamificationRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -66,6 +69,10 @@ class StudyViewModel @Inject constructor(
 
     private val _state = MutableStateFlow(StudyState())
     val state: StateFlow<StudyState> = _state.asStateFlow()
+
+    // Kết quả gamification sau khi hoàn thành session (XP, level up, achievements)
+    private val _gamificationResult = MutableStateFlow<SessionCompleteResult?>(null)
+    val gamificationResult: StateFlow<SessionCompleteResult?> = _gamificationResult.asStateFlow()
 
     private var initialized = false
 
@@ -198,16 +205,30 @@ class StudyViewModel @Inject constructor(
     private fun finishSession() {
         viewModelScope.launch {
             val sessionId = _state.value.sessionId
+            val totalCards = _state.value.totalCards
+            val correctCount = _state.value.correctCount
+
             if (sessionId != null) {
                 val duration = ((System.currentTimeMillis() - _state.value.startTime) / 1000).toInt()
                 studyRepository.updateStudySession(
                     id = sessionId,
                     cardsStudied = _state.value.currentIndex + 1,
-                    correctCount = _state.value.correctCount,
+                    correctCount = correctCount,
                     incorrectCount = _state.value.incorrectCount,
                     duration = duration
                 )
             }
+
+            // Trigger gamification (XP + streak + achievements)
+            val accuracy = if (totalCards > 0) (correctCount * 100) / totalCards else 0
+            val cardsStudied = _state.value.currentIndex + 1
+            val gamResult = gamificationRepository.triggerLearnComplete(accuracy, cardsStudied)
+            if (gamResult is ApiResult.Success) {
+                _gamificationResult.value = gamResult.data
+            }
+
+            // Đánh dấu session hoàn thành để Screen navigate back
+            _state.update { it.copy(isFinished = true) }
         }
     }
 
@@ -224,6 +245,17 @@ class StudyViewModel @Inject constructor(
                     duration = duration
                 )
             }
+            // Trigger gamification
+            val accuracy = if (cardsStudied > 0) (correctCount * 100) / cardsStudied else 0
+            val gamResult = gamificationRepository.triggerLearnComplete(accuracy, cardsStudied)
+            if (gamResult is ApiResult.Success) {
+                _gamificationResult.value = gamResult.data
+            }
         }
+    }
+
+    /** Gọi sau khi đã show gamification UI để reset state */
+    fun clearGamificationResult() {
+        _gamificationResult.value = null
     }
 }
