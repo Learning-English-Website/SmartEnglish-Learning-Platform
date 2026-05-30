@@ -11,6 +11,7 @@ interface AuthRepository {
     suspend fun verifyOtp(email: String, otp: String): ApiResult<Unit>
     suspend fun verifyResetOtp(email: String, otp: String): ApiResult<Unit>
     suspend fun resetPassword(email: String, otp: String, newPassword: String): ApiResult<Unit>
+    suspend fun googleAuth(idToken: String): ApiResult<User>
     suspend fun logout()
     fun isLoggedIn(): Boolean
 }

@@ -5,6 +5,7 @@ import com.example.smartenglish.data.remote.api.AuthApi
 import com.example.smartenglish.data.remote.dto.LoginRequest
 import com.example.smartenglish.data.remote.dto.RegisterRequest
 import com.example.smartenglish.data.remote.dto.ForgotPasswordRequest
+import com.example.smartenglish.data.remote.dto.GoogleAuthRequest
 import com.example.smartenglish.data.remote.dto.VerifyOtpRequest
 import com.example.smartenglish.data.remote.dto.ResetPasswordRequest
 import com.example.smartenglish.domain.model.User
@@ -165,6 +166,30 @@ class AuthRepositoryImpl @Inject constructor(
                 val errorMessage = response.body()?.error?.message
                     ?: response.errorBody()?.string()
                     ?: "Failed to reset password"
+                ApiResult.Error(errorMessage)
+            }
+        } catch (e: Exception) {
+            ApiResult.Error(e.message ?: "Network error")
+        }
+    }
+
+    override suspend fun googleAuth(idToken: String): ApiResult<User> {
+        return try {
+            val response = authApi.googleAuth(GoogleAuthRequest(idToken))
+            if (response.isSuccessful && response.body()?.success == true) {
+                val data = response.body()?.data
+                if (data?.accessToken != null && data.refreshToken != null) {
+                    tokenManager.saveTokens(data.accessToken, data.refreshToken)
+                }
+                if (data?.user != null) {
+                    ApiResult.Success(data.user.toDomain())
+                } else {
+                    ApiResult.Error("Google auth failed: No user data received")
+                }
+            } else {
+                val errorMessage = response.body()?.error?.message
+                    ?: response.errorBody()?.string()
+                    ?: "Google auth failed"
                 ApiResult.Error(errorMessage)
             }
         } catch (e: Exception) {

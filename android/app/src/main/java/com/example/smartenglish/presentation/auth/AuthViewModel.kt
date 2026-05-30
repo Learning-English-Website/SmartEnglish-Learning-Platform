@@ -12,6 +12,8 @@ import com.example.smartenglish.domain.usecase.auth.VerifyOtpUseCase
 import com.example.smartenglish.domain.usecase.auth.VerifyResetOtpUseCase
 import com.example.smartenglish.domain.usecase.auth.ResetPasswordUseCase
 import com.example.smartenglish.util.ApiResult
+import com.google.android.gms.auth.api.signin.GoogleSignInAccount
+import com.google.android.gms.common.api.ApiException
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -174,4 +176,25 @@ class AuthViewModel @Inject constructor(
     }
 
     fun isLoggedIn(): Boolean = authRepository.isLoggedIn()
+
+    fun handleGoogleSignInResult(task: com.google.android.gms.tasks.Task<com.google.android.gms.auth.api.signin.GoogleSignInAccount>) {
+        viewModelScope.launch {
+            try {
+                val account = task.getResult(ApiException::class.java)
+                val idToken = account.idToken
+                if (idToken != null) {
+                    _uiState.value = AuthUiState.Loading
+                    when (val result = authRepository.googleAuth(idToken)) {
+                        is ApiResult.Success -> _uiState.value = AuthUiState.Success(result.data)
+                        is ApiResult.Error -> _uiState.value = AuthUiState.Error(result.message)
+                        else -> {}
+                    }
+                } else {
+                    _uiState.value = AuthUiState.Error("Google token missing")
+                }
+            } catch (e: ApiException) {
+                _uiState.value = AuthUiState.Error("Google sign-in failed: ${e.statusCode}")
+            }
+        }
+    }
 }

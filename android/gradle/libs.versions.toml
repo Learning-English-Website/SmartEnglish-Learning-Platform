@@ -39,6 +39,9 @@ coreKtxVersion = "1.18.0"
 # ZXing (QR code generation)
 zxing = "3.5.3"
 
+# Google Play Services
+playServicesAuth = "20.7.0"
+
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
@@ -92,6 +95,9 @@ core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtxV
 
 # ZXing
 zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing" }
+
+# Google Play Services
+play-services-auth = { group = "com.google.android.gms", name = "play-services-auth", version.ref = "playServicesAuth" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

@@ -40,6 +40,11 @@ data class ResetPasswordRequest(
 )
 
 @JsonClass(generateAdapter = true)
+data class GoogleAuthRequest(
+    @Json(name = "idToken") val idToken: String
+)
+
+@JsonClass(generateAdapter = true)
 data class AuthResponse(
     @Json(name = "user") val user: UserDto? = null,
     @Json(name = "accessToken") val accessToken: String? = null,

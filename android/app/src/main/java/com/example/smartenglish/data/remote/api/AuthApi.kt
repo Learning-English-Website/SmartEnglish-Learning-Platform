@@ -33,6 +33,9 @@ interface AuthApi {
     @POST("auth/logout")
     suspend fun logout(): Response<ApiResponse<Unit>>
 
+    @POST("auth/google")
+    suspend fun googleAuth(@Body body: GoogleAuthRequest): Response<ApiResponse<AuthResponse>>
+
     @GET("auth/me")
     suspend fun getMe(): Response<ApiResponse<UserDto>>
 }

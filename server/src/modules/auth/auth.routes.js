@@ -11,6 +11,7 @@ const {
   verifyResetOtp,
   verifyEmailOtp,
   resetPasswordWithOtp,
+  googleAuth,
 } = require('./auth.controller');
 const { validate } = require('../../middleware/validation.middleware');
 const { authenticate } = require('../../middleware/auth.middleware');
@@ -27,6 +28,7 @@ const {
   resendVerificationOtpSchema,
   verifyEmailOtpSchema,
   resetPasswordOtpSchema,
+  googleAuthSchema,
 } = require('./auth.validation');
 
 // POST /api/auth/register
@@ -55,6 +57,9 @@ router.get('/google/callback', (req, res, next) => {
     res.redirect(`${process.env.CLIENT_URL}/oauth/callback?redirect=${encodeURIComponent(redirectPath)}`);
   })(req, res, next);
 });
+// POST /api/auth/google  (Google ID Token auth for mobile apps)
+router.post('/google', validate(googleAuthSchema), googleAuth);
+
 // POST /api/auth/login (rate limited)
 router.post('/login', loginRateLimiter, validate(loginSchema), login);
 

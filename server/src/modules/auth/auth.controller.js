@@ -82,6 +82,13 @@ const resetPasswordWithOtp = async (req, res) => {
   res.status(200).json(ApiResponse.success(null, result.message));
 };
 
+const googleAuth = async (req, res) => {
+  const { idToken } = req.body;
+  const result = await authService.googleAuth(idToken);
+  setAuthCookies(res, result);
+  res.status(200).json(ApiResponse.success({ user: result.user }, 'Google sign-in successful'));
+};
+
 module.exports = {
   register,
   resendVerificationOtp,
@@ -92,4 +99,5 @@ module.exports = {
   verifyResetOtp,
   verifyEmailOtp,
   resetPasswordWithOtp,
+  googleAuth,
 };

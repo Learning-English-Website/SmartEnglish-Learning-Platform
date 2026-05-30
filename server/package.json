@@ -24,6 +24,7 @@
     "express": "^5.2.1",
     "express-mongo-sanitize": "^2.2.0",
     "express-rate-limit": "^8.5.1",
+    "google-auth-library": "^10.6.2",
     "helmet": "^8.1.0",
     "ioredis": "^5.10.1",
     "joi": "^18.2.1",
@@ -45,8 +46,13 @@
   "jest": {
     "testEnvironment": "node",
     "rootDir": ".",
-    "testMatch": ["**/tests/**/*.test.js", "**/tests/*.test.js"],
-    "testPathIgnorePatterns": ["node_modules"],
+    "testMatch": [
+      "**/tests/**/*.test.js",
+      "**/tests/*.test.js"
+    ],
+    "testPathIgnorePatterns": [
+      "node_modules"
+    ],
     "collectCoverageFrom": [
       "src/**/*.js",
       "!src/server.js",
@@ -55,8 +61,12 @@
     ],
     "coverageDirectory": "coverage",
     "verbose": true,
-    "setupFilesAfterEnv": ["<rootDir>/jest.setup.js"],
+    "setupFilesAfterEnv": [
+      "<rootDir>/jest.setup.js"
+    ],
     "testTimeout": 30000,
-    "roots": ["<rootDir>"]
+    "roots": [
+      "<rootDir>"
+    ]
   }
 }

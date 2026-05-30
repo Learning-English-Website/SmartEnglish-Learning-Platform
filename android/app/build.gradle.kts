@@ -92,6 +92,9 @@ dependencies {
     // ZXing for QR code generation
     implementation(libs.zxing.core)
 
+    // Google Play Services - Auth
+    implementation(libs.play.services.auth)
+
     // Apache POI (XLSX parsing)
     implementation("org.apache.poi:poi-ooxml:5.2.5")
 

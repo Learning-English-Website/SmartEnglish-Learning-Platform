@@ -1,9 +1,25 @@
 const crypto = require('crypto');
+const { OAuth2Client } = require('google-auth-library');
 const User = require('../user/user.model');
 const redis = require('../../config/redis');
-const { generateAccessToken, generateRefreshToken, verifyRefreshToken } = require('../../shared/utils/jwt');
+const { generateAccessToken, generateRefreshToken } = require('../../shared/utils/jwt');
 const { AppError } = require('../../shared/errors/AppError');
 const eventBus = require('../../shared/events/eventBus');
+
+// Google token verifier — accepts both web and android client IDs in one call
+const GOOGLE_CLIENT_IDS = [
+  process.env.GOOGLE_CLIENT_ID,
+  process.env.GOOGLE_ANDROID_CLIENT_ID,
+].filter(Boolean);
+
+const verifyGoogleToken = async (idToken) => {
+  const client = new OAuth2Client();
+  const ticket = await client.verifyIdToken({
+    idToken,
+    audience: GOOGLE_CLIENT_IDS,
+  });
+  return ticket.getPayload();
+};
 
 // Redis key helpers
 const REFRESH_KEY = (userId) => `refresh:${userId}`;
@@ -89,6 +105,59 @@ class AuthService {
     await redis.set(REFRESH_KEY(user._id), refreshToken, 'EX', 7 * 24 * 60 * 60);
 
     // Update lastLoginAt
+    user.lastLoginAt = new Date();
+    await user.save({ validateBeforeSave: false });
+
+    return { user: user.toPublicProfile(), accessToken, refreshToken };
+  }
+
+  /**
+   * Google ID Token auth (for mobile apps). Verify idToken with Google, find or create user.
+   */
+  async googleAuth(idToken) {
+    let payload;
+    try {
+      payload = await verifyGoogleToken(idToken);
+    } catch (err) {
+      throw new AppError('Invalid Google ID token', 401);
+    }
+
+    const email = payload.email;
+    if (!email) throw new AppError('Google account has no email', 400);
+
+    let user = await User.findOne({ email });
+    if (user) {
+      if (!user.oauth) user.oauth = {};
+      if (!user.oauth.googleId) {
+        user.oauth.googleId = payload.sub;
+        await user.save({ validateBeforeSave: false });
+      }
+    } else {
+      let baseUsername = (payload.name || 'User').replace(/\s+/g, '').replace(/[^a-zA-Z0-9]/g, '');
+      if (baseUsername.length < 3) baseUsername = (baseUsername + '123').slice(0, 5);
+      if (baseUsername.length > 25) baseUsername = baseUsername.slice(0, 25);
+
+      let username = baseUsername;
+      let count = 1;
+      while (await User.findOne({ username })) {
+        username = `${baseUsername}${count}`;
+        count++;
+      }
+
+      user = await User.create({
+        email,
+        username,
+        password: undefined,
+        oauth: { googleId: payload.sub },
+        avatar: payload.picture || undefined,
+        isVerified: true,
+      });
+    }
+
+    const accessToken = generateAccessToken(user);
+    const refreshToken = generateRefreshToken(user);
+    await redis.set(REFRESH_KEY(user._id), refreshToken, 'EX', 7 * 24 * 60 * 60);
+
     user.lastLoginAt = new Date();
     await user.save({ validateBeforeSave: false });
 
