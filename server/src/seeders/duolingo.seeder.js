@@ -34,55 +34,295 @@ const courseData = [
             title: 'Greetings',
             order: 0,
             challenges: [
+              // 1: SELECT - Dạng chọn đầu tiên, làm quen
               { type: 'SELECT', question: 'Which word means "Hello"?', correctAnswer: null, options: [{ text: 'Hello', correct: true }, { text: 'Goodbye', correct: false }, { text: 'Thank you', correct: false }, { text: 'Please', correct: false }] },
+              
+              // 2: LISTEN - Nghe và viết câu đầu tiên
+              { type: 'LISTEN', question: 'Listen and write:', correctAnswer: 'Good morning', wordBank: ['morning', 'Good', 'afternoon', 'evening', 'night', 'today', 'tomorrow'] },
+              
+              // 3: ASSIST - Chọn nghĩa tiếng Việt
               { type: 'ASSIST', question: 'What does "Xin chào" mean?', correctAnswer: 'Hello', options: [{ text: 'Hello', correct: true }, { text: 'Goodbye', correct: false }, { text: 'Sorry', correct: false }, { text: 'Yes', correct: false }] },
+              
+              // 4: LISTEN - Nghe và viết câu thứ 2
+              { type: 'LISTEN', question: 'Listen and write:', correctAnswer: 'How are you', wordBank: ['are', 'How', 'you', 'am', 'is', 'fine', 'good', 'doing'] },
+              
+              // 5: TYPE - Nhập từ
               { type: 'TYPE', question: 'Type the word for a greeting: _ _ _ _ _', correctAnswer: 'Hello', options: [] },
+              
+              // 6: LISTEN - Nghe và viết câu thứ 3
+              { type: 'LISTEN', question: 'Listen and write:', correctAnswer: 'Nice to meet you', wordBank: ['to', 'you', 'Nice', 'meet', 'see', 'Hello', 'again', 'too'] },
+              
+              // 7: ORDER - Sắp xếp từ thành câu
+              { type: 'ORDER', question: 'Arrange: are / How / you', correctAnswer: null, wordBank: ['are', 'How', 'you'], correctOrder: [1, 0, 2], options: [] },
+              
+              // 8: SELECT - Chọn câu tiếp theo
               { type: 'SELECT', question: 'Which is a greeting?', correctAnswer: null, options: [{ text: 'Hi', correct: true }, { text: 'No', correct: false }, { text: 'Stop', correct: false }, { text: 'Eat', correct: false }] },
+              
+              // 9: LISTEN - Nghe và viết câu thứ 4
+              { type: 'LISTEN', question: 'Listen and write:', correctAnswer: 'See you tomorrow', wordBank: ['See', 'tomorrow', 'you', 'today', 'Goodbye', 'later', 'morning', 'again'] },
+              
+              // 10: ASSIST - Chọn nghĩa tiếng Việt thứ 2
               { type: 'ASSIST', question: '"Tạm biệt" in English?', correctAnswer: 'Goodbye', options: [{ text: 'Goodbye', correct: true }, { text: 'Hello', correct: false }, { text: 'Welcome', correct: false }, { text: 'Sorry', correct: false }] },
+              
+              // 11: LISTEN - Nghe và viết câu thứ 5
+              { type: 'LISTEN', question: 'Listen and write:', correctAnswer: 'Thank you very much', wordBank: ['Thank', 'you', 'very', 'much', 'Thanks', 'alot', 'please', 'sorry'] },
+              
+              // 12: COMPLETE - Hoàn thành câu
+              { type: 'COMPLETE', question: 'Complete: Nice to ___ you', correctAnswer: 'meet', sentence: 'Nice to ___ you', options: [] },
+              
+              // 13: ORDER - Sắp xếp từ thứ 2
+              { type: 'ORDER', question: 'Arrange: morning / Good / !', correctAnswer: null, wordBank: ['morning', 'Good', '!'], correctOrder: [1, 0, 2], options: [] },
+              
+              // 14: TYPE - Nhập từ thứ 2
+              { type: 'TYPE', question: 'Type the word for saying bye: _ _ _ _ _ _ _', correctAnswer: 'Goodbye', options: [] },
+              
+              // 15: MATCH - Nối cặp
+              { type: 'MATCH', question: 'Match the Vietnamese with English', correctAnswer: null, pairs: [{ left: 'Xin chào', right: 'Hello' }, { left: 'Tạm biệt', right: 'Goodbye' }, { left: 'Cảm ơn', right: 'Thank you' }, { left: 'Xin lỗi', right: 'Sorry' }], options: [] },
+              
+              // 16: TRANSLATE - Dịch câu
+              { type: 'TRANSLATE', question: 'Type the English: "Xin chào, tôi là Anna"', correctAnswer: 'Hello, I am Anna', options: [] },
+              
+              // 17: TRANSLATE - Dịch câu thứ 2
+              { type: 'TRANSLATE', question: 'Type the English: "Hẹn gặp lại sau"', correctAnswer: 'See you later', options: [] },
+              
+              // 18: FILL - Chọn từ điền vào chỗ trống
+              { type: 'FILL', question: 'Fill in the blank: Good ___!', correctAnswer: null, options: [{ text: 'morning', correct: true }, { text: 'night', correct: false }, { text: 'bye', correct: false }, { text: 'day', correct: false }] },
             ],
           },
           {
             title: 'Numbers 1-10',
             order: 1,
             challenges: [
+              // 1: SELECT - Chọn số đầu tiên
               { type: 'SELECT', question: 'What number is "1"?', correctAnswer: null, options: [{ text: 'One', correct: true }, { text: 'Two', correct: false }, { text: 'Three', correct: false }, { text: 'Four', correct: false }] },
+              
+              // 2: LISTEN - Nghe và viết câu đầu
+              { type: 'LISTEN', question: 'Listen and write:', correctAnswer: 'I have three apples', wordBank: ['have', 'I', 'three', 'apples', 'two', 'five', 'four', 'one'] },
+              
+              // 3: ASSIST - Chọn nghĩa tiếng Việt
               { type: 'ASSIST', question: 'What is "2" in English?', correctAnswer: 'Two', options: [{ text: 'Two', correct: true }, { text: 'One', correct: false }, { text: 'Three', correct: false }, { text: 'Four', correct: false }] },
+              
+              // 4: LISTEN - Nghe câu thứ 2
+              { type: 'LISTEN', question: 'Listen and write:', correctAnswer: 'There are five people', wordBank: ['are', 'There', 'five', 'people', 'four', 'six', 'three', 'seven'] },
+              
+              // 5: TYPE - Nhập số
               { type: 'TYPE', question: 'Type the number 5 in English: _ _ _ _', correctAnswer: 'Five', options: [] },
+              
+              // 6: LISTEN - Nghe câu thứ 3
+              { type: 'LISTEN', question: 'Listen and write:', correctAnswer: 'One two three four', wordBank: ['One', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight'] },
+              
+              // 7: SELECT - Chọn số tiếp theo
               { type: 'SELECT', question: 'Which word means "10"?', correctAnswer: null, options: [{ text: 'Ten', correct: true }, { text: 'Nine', correct: false }, { text: 'Eight', correct: false }, { text: 'Seven', correct: false }] },
+              
+              // 8: LISTEN - Nghe câu thứ 4
+              { type: 'LISTEN', question: 'Listen and write:', correctAnswer: 'She has seven books', wordBank: ['has', 'She', 'seven', 'books', 'six', 'eight', 'nine', 'ten'] },
+              
+              // 9: MATCH - Nối cặp số
+              { type: 'MATCH', question: 'Match the numbers', correctAnswer: null, pairs: [{ left: '1', right: 'One' }, { left: '2', right: 'Two' }, { left: '3', right: 'Three' }, { left: '4', right: 'Four' }], options: [] },
+              
+              // 10: LISTEN - Nghe câu thứ 5
+              { type: 'LISTEN', question: 'Listen and write:', correctAnswer: 'We count to ten', wordBank: ['We', 'count', 'to', 'ten', 'five', 'eight', 'nine', 'seven'] },
+              
+              // 11: ORDER - Sắp xếp từ
+              { type: 'ORDER', question: 'Arrange: have / I / two / books', correctAnswer: null, wordBank: ['have', 'I', 'two', 'books'], correctOrder: [1, 0, 2, 3], options: [] },
+              
+              // 12: ASSIST - Chọn nghĩa tiếng Việt thứ 2
               { type: 'ASSIST', question: '"Bảy" in English?', correctAnswer: 'Seven', options: [{ text: 'Seven', correct: true }, { text: 'Six', correct: false }, { text: 'Eight', correct: false }, { text: 'Five', correct: false }] },
+              
+              // 13: ORDER - Sắp xếp từ thứ 2
+              { type: 'ORDER', question: 'Arrange: are / There / four / cats', correctAnswer: null, wordBank: ['are', 'There', 'four', 'cats'], correctOrder: [1, 0, 2, 3], options: [] },
+              
+              // 14: TYPE - Nhập số thứ 2
+              { type: 'TYPE', question: 'Type the word for "8": _ _ _ _', correctAnswer: 'Eight', options: [] },
+              
+              // 15: COMPLETE - Hoàn thành câu
+              { type: 'COMPLETE', question: 'Complete: I have ___ dogs.', correctAnswer: 'three', sentence: 'I have ___ dogs.', options: [] },
+              
+              // 16: COMPLETE - Hoàn thành câu thứ 2
+              { type: 'COMPLETE', question: 'Complete: There are ___ cats.', correctAnswer: 'four', sentence: 'There are ___ cats.', options: [] },
+              
+              // 17: FILL - Chọn số điền vào chỗ trống
+              { type: 'FILL', question: 'Fill in the blank: One, Two, Three, ___', correctAnswer: null, options: [{ text: 'Four', correct: true }, { text: 'Five', correct: false }, { text: 'Six', correct: false }, { text: 'Two', correct: false }] },
+              
+              // 18: FILL - Chọn số thứ 2
+              { type: 'FILL', question: 'Fill in the blank: Five, Six, Seven, ___', correctAnswer: null, options: [{ text: 'Eight', correct: true }, { text: 'Nine', correct: false }, { text: 'Ten', correct: false }, { text: 'Six', correct: false }] },
             ],
           },
           {
             title: 'Colors',
             order: 2,
             challenges: [
+              // 1: SELECT - Chọn màu đầu tiên
               { type: 'SELECT', question: 'What color is the sky?', correctAnswer: null, options: [{ text: 'Blue', correct: true }, { text: 'Red', correct: false }, { text: 'Green', correct: false }, { text: 'Yellow', correct: false }] },
+              
+              // 2: LISTEN - Nghe câu đầu
+              { type: 'LISTEN', question: 'Listen and write:', correctAnswer: 'The sky is blue', wordBank: ['The', 'sky', 'is', 'blue', 'red', 'green', 'yellow', 'white'] },
+              
+              // 3: ASSIST - Chọn nghĩa tiếng Việt
               { type: 'ASSIST', question: 'What does "Đỏ" mean?', correctAnswer: 'Red', options: [{ text: 'Red', correct: true }, { text: 'Blue', correct: false }, { text: 'Green', correct: false }, { text: 'Black', correct: false }] },
+              
+              // 4: LISTEN - Nghe câu thứ 2
+              { type: 'LISTEN', question: 'Listen and write:', correctAnswer: 'The apple is red', wordBank: ['apple', 'The', 'is', 'red', 'blue', 'green', 'yellow', 'orange'] },
+              
+              // 5: TYPE - Nhập từ màu
               { type: 'TYPE', question: 'Type the color of grass: _ _ _ _ _', correctAnswer: 'Green', options: [] },
-              { type: 'SELECT', question: 'Which is a color?', correctAnswer: null, options: [{ text: 'Yellow', correct: true }, { text: 'Happy', correct: false }, { text: 'Run', correct: false }, { text: 'Eat', correct: false }] },
+              
+              // 6: LISTEN - Nghe câu thứ 3
+              { type: 'LISTEN', question: 'Listen and write:', correctAnswer: 'The sun is yellow', wordBank: ['sun', 'is', 'yellow', 'The', 'red', 'blue', 'green', 'orange'] },
+              
+              // 7: SELECT - Chọn màu tiếp theo
+              { type: 'SELECT', question: 'What color is grass?', correctAnswer: null, options: [{ text: 'Green', correct: true }, { text: 'Blue', correct: false }, { text: 'Red', correct: false }, { text: 'Black', correct: false }] },
+              
+              // 8: LISTEN - Nghe câu thứ 4
+              { type: 'LISTEN', question: 'Listen and write:', correctAnswer: 'I like the color green', wordBank: ['like', 'I', 'the', 'green', 'color', 'red', 'blue', 'yellow'] },
+              
+              // 9: ORDER - Sắp xếp từ
+              { type: 'ORDER', question: 'Arrange: is / The / sky / blue', correctAnswer: null, wordBank: ['is', 'The', 'sky', 'blue'], correctOrder: [1, 0, 2, 3], options: [] },
+              
+              // 10: LISTEN - Nghe câu thứ 5
+              { type: 'LISTEN', question: 'Listen and write:', correctAnswer: 'My car is white', wordBank: ['My', 'car', 'is', 'white', 'red', 'blue', 'black', 'yellow'] },
+              
+              // 11: ASSIST - Chọn nghĩa tiếng Việt thứ 2
               { type: 'ASSIST', question: '"Trắng" in English?', correctAnswer: 'White', options: [{ text: 'White', correct: true }, { text: 'Black', correct: false }, { text: 'Gray', correct: false }, { text: 'Brown', correct: false }] },
+              
+              // 12: TYPE - Nhập từ màu thứ 2
+              { type: 'TYPE', question: 'Type the color of the sun: _ _ _ _ _ _', correctAnswer: 'Yellow', options: [] },
+              
+              // 13: ORDER - Sắp xếp từ thứ 2
+              { type: 'ORDER', question: 'Arrange: car / is / My / red', correctAnswer: null, wordBank: ['car', 'is', 'My', 'red'], correctOrder: [2, 1, 0, 3], options: [] },
+              
+              // 14: MATCH - Nối màu
+              { type: 'MATCH', question: 'Match the colors', correctAnswer: null, pairs: [{ left: 'Đỏ', right: 'Red' }, { left: 'Xanh da trời', right: 'Blue' }, { left: 'Xanh lá', right: 'Green' }, { left: 'Vàng', right: 'Yellow' }], options: [] },
+              
+              // 15: COMPLETE - Hoàn thành câu
+              { type: 'COMPLETE', question: 'Complete: The apple is ___.', correctAnswer: 'red', sentence: 'The apple is ___.', options: [] },
+              
+              // 16: COMPLETE - Hoàn thành câu thứ 2
+              { type: 'COMPLETE', question: 'Complete: My car is ___.', correctAnswer: 'blue', sentence: 'My car is ___.', options: [] },
+              
+              // 17: FILL - Chọn màu điền vào chỗ trống
+              { type: 'FILL', question: 'Fill: The banana is ___', correctAnswer: null, options: [{ text: 'Yellow', correct: true }, { text: 'Red', correct: false }, { text: 'Blue', correct: false }, { text: 'Green', correct: false }] },
+              
+              // 18: FILL - Chọn màu thứ 2
+              { type: 'FILL', question: 'Fill: The night is ___', correctAnswer: null, options: [{ text: 'Black', correct: true }, { text: 'White', correct: false }, { text: 'Yellow', correct: false }, { text: 'Blue', correct: false }] },
             ],
           },
           {
             title: 'Family',
             order: 3,
             challenges: [
+              // 1: SELECT - Chọn từ đầu tiên
               { type: 'SELECT', question: 'Who is your mother\'s daughter?', correctAnswer: null, options: [{ text: 'Sister', correct: true }, { text: 'Brother', correct: false }, { text: 'Father', correct: false }, { text: 'Uncle', correct: false }] },
+              
+              // 2: LISTEN - Nghe câu đầu
+              { type: 'LISTEN', question: 'Listen and write:', correctAnswer: 'This is my family', wordBank: ['This', 'is', 'my', 'family', 'the', 'a', 'house', 'home'] },
+              
+              // 3: ASSIST - Chọn nghĩa tiếng Việt
               { type: 'ASSIST', question: 'What does "Anh trai" mean?', correctAnswer: 'Brother', options: [{ text: 'Brother', correct: true }, { text: 'Sister', correct: false }, { text: 'Mother', correct: false }, { text: 'Father', correct: false }] },
+              
+              // 4: LISTEN - Nghe câu thứ 2
+              { type: 'LISTEN', question: 'Listen and write:', correctAnswer: 'My mother is kind', wordBank: ['mother', 'My', 'is', 'kind', 'father', 'nice', 'good', 'tall'] },
+              
+              // 5: TYPE - Nhập từ
               { type: 'TYPE', question: 'Type the word for your male parent: _ _ _ _ _ _', correctAnswer: 'Father', options: [] },
-              { type: 'SELECT', question: 'Which is a family member?', correctAnswer: null, options: [{ text: 'Mother', correct: true }, { text: 'Table', correct: false }, { text: 'Book', correct: false }, { text: 'Car', correct: false }] },
+              
+              // 6: LISTEN - Nghe câu thứ 3
+              { type: 'LISTEN', question: 'Listen and write:', correctAnswer: 'I have two sisters', wordBank: ['have', 'I', 'two', 'sisters', 'brothers', 'three', 'four', 'one'] },
+              
+              // 7: SELECT - Chọn từ tiếp theo
+              { type: 'SELECT', question: 'Who is your father\'s son?', correctAnswer: null, options: [{ text: 'Brother', correct: true }, { text: 'Sister', correct: false }, { text: 'Mother', correct: false }, { text: 'Aunt', correct: false }] },
+              
+              // 8: LISTEN - Nghe câu thứ 4
+              { type: 'LISTEN', question: 'Listen and write:', correctAnswer: 'My brother is tall', wordBank: ['brother', 'My', 'is', 'tall', 'short', 'sister', 'old', 'young'] },
+              
+              // 9: ORDER - Sắp xếp từ
+              { type: 'ORDER', question: 'Arrange: is / This / my / mother', correctAnswer: null, wordBank: ['is', 'This', 'my', 'mother'], correctOrder: [1, 0, 2, 3], options: [] },
+              
+              // 10: LISTEN - Nghe câu thứ 5
+              { type: 'LISTEN', question: 'Listen and write:', correctAnswer: 'I love my family', wordBank: ['love', 'I', 'my', 'family', 'like', 'the', 'you', 'very'] },
+              
+              // 11: ASSIST - Chọn nghĩa tiếng Việt thứ 2
               { type: 'ASSIST', question: '"Chị gái" in English?', correctAnswer: 'Sister', options: [{ text: 'Sister', correct: true }, { text: 'Brother', correct: false }, { text: 'Aunt', correct: false }, { text: 'Mother', correct: false }] },
+              
+              // 12: TYPE - Nhập từ thứ 2
+              { type: 'TYPE', question: 'Type the word for your female parent: _ _ _ _ _ _', correctAnswer: 'Mother', options: [] },
+              
+              // 13: ORDER - Sắp xếp từ thứ 2
+              { type: 'ORDER', question: 'Arrange: have / I / two / sisters', correctAnswer: null, wordBank: ['have', 'I', 'two', 'sisters'], correctOrder: [1, 0, 2, 3], options: [] },
+              
+              // 14: MATCH - Nối cặp
+              { type: 'MATCH', question: 'Match family terms', correctAnswer: null, pairs: [{ left: 'Mẹ', right: 'Mother' }, { left: 'Cha', right: 'Father' }, { left: 'Anh', right: 'Brother' }, { left: 'Em gái', right: 'Sister' }], options: [] },
+              
+              // 15: COMPLETE - Hoàn thành câu
+              { type: 'COMPLETE', question: 'Complete: My ___ is a teacher.', correctAnswer: 'mother', sentence: 'My ___ is a teacher.', options: [] },
+              
+              // 16: COMPLETE - Hoàn thành câu thứ 2
+              { type: 'COMPLETE', question: 'Complete: I have one ___', correctAnswer: 'brother', sentence: 'I have one ___', options: [] },
+              
+              // 17: FILL - Chọn từ
+              { type: 'FILL', question: 'Fill: My ___ is married.', correctAnswer: null, options: [{ text: 'sister', correct: true }, { text: 'brother', correct: false }, { text: 'mother', correct: false }, { text: 'father', correct: false }] },
+              
+              // 18: FILL - Chọn từ thứ 2
+              { type: 'FILL', question: 'Fill: This is my ___ daughter.', correctAnswer: null, options: [{ text: 'her', correct: true }, { text: 'my', correct: false }, { text: 'his', correct: false }, { text: 'their', correct: false }] },
             ],
           },
           {
             title: 'Common Objects',
             order: 4,
             challenges: [
+              // 1: SELECT - Chọn đồ vật đầu tiên
               { type: 'SELECT', question: 'What do you read?', correctAnswer: null, options: [{ text: 'Book', correct: true }, { text: 'Apple', correct: false }, { text: 'Water', correct: false }, { text: 'Car', correct: false }] },
+              
+              // 2: LISTEN - Nghe câu đầu
+              { type: 'LISTEN', question: 'Listen and write:', correctAnswer: 'This is my book', wordBank: ['This', 'is', 'my', 'book', 'the', 'a', 'pen', 'notebook'] },
+              
+              // 3: ASSIST - Chọn đáp án đúng
               { type: 'ASSIST', question: 'What does "Quả táo" mean?', correctAnswer: 'Apple', options: [{ text: 'Apple', correct: true }, { text: 'Orange', correct: false }, { text: 'Banana', correct: false }, { text: 'Grape', correct: false }] },
+              
+              // 4: LISTEN - Nghe câu thứ 2
+              { type: 'LISTEN', question: 'Listen and write:', correctAnswer: 'The cat is on the table', wordBank: ['cat', 'The', 'is', 'on', 'table', 'chair', 'bed', 'floor'] },
+              
+              // 5: TYPE - Nhập từ
               { type: 'TYPE', question: 'Type the drink you need: _ _ _ _ _', correctAnswer: 'Water', options: [] },
+              
+              // 6: LISTEN - Nghe câu thứ 3
+              { type: 'LISTEN', question: 'Listen and write:', correctAnswer: 'I have a new phone', wordBank: ['have', 'I', 'a', 'new', 'phone', 'car', 'book', 'bag'] },
+              
+              // 7: SELECT - Chọn đồ vật tiếp theo
               { type: 'SELECT', question: 'Which is a vehicle?', correctAnswer: null, options: [{ text: 'Car', correct: true }, { text: 'House', correct: false }, { text: 'Tree', correct: false }, { text: 'Dog', correct: false }] },
+              
+              // 8: LISTEN - Nghe câu thứ 4
+              { type: 'LISTEN', question: 'Listen and write:', correctAnswer: 'Where is my pen', wordBank: ['Where', 'is', 'my', 'pen', 'book', 'bag', 'the', 'your'] },
+              
+              // 9: ORDER - Sắp xếp từ
+              { type: 'ORDER', question: 'Arrange: is / The / on / table / it', correctAnswer: null, wordBank: ['is', 'The', 'on', 'table', 'it'], correctOrder: [1, 0, 2, 3, 4], options: [] },
+              
+              // 10: LISTEN - Nghe câu thứ 5
+              { type: 'LISTEN', question: 'Listen and write:', correctAnswer: 'The house is big', wordBank: ['house', 'The', 'is', 'big', 'small', 'new', 'old', 'red'] },
+              
+              // 11: ASSIST - Chọn đáp án đúng thứ 2
               { type: 'ASSIST', question: '"Con mèo" in English?', correctAnswer: 'Cat', options: [{ text: 'Cat', correct: true }, { text: 'Dog', correct: false }, { text: 'Bird', correct: false }, { text: 'Fish', correct: false }] },
+              
+              // 12: TYPE - Nhập từ thứ 2
+              { type: 'TYPE', question: 'Type what you sit on: _ _ _ _', correctAnswer: 'Chair', options: [] },
+              
+              // 13: ORDER - Sắp xếp từ thứ 2
+              { type: 'ORDER', question: 'Arrange: have / I / a / new / car', correctAnswer: null, wordBank: ['have', 'I', 'a', 'new', 'car'], correctOrder: [1, 0, 2, 3, 4], options: [] },
+              
+              // 14: MATCH - Nối cặp
+              { type: 'MATCH', question: 'Match the objects', correctAnswer: null, pairs: [{ left: 'Sách', right: 'Book' }, { left: 'Bút', right: 'Pen' }, { left: 'Bàn', right: 'Table' }, { left: 'Ghế', right: 'Chair' }], options: [] },
+              
+              // 15: COMPLETE - Hoàn thành câu
+              { type: 'COMPLETE', question: 'Complete: The ___ is on the table.', correctAnswer: 'book', sentence: 'The ___ is on the table.', options: [] },
+              
+              // 16: COMPLETE - Hoàn thành câu thứ 2
+              { type: 'COMPLETE', question: 'Complete: I need a ___', correctAnswer: 'pen', sentence: 'I need a ___', options: [] },
+              
+              // 17: FILL - Chọn từ
+              { type: 'FILL', question: 'Fill: The ___ is red.', correctAnswer: null, options: [{ text: 'apple', correct: true }, { text: 'water', correct: false }, { text: 'book', correct: false }, { text: 'car', correct: false }] },
+              
+              // 18: FILL - Chọn từ thứ 2
+              { type: 'FILL', question: 'Fill: I have a new ___', correctAnswer: null, options: [{ text: 'phone', correct: true }, { text: 'water', correct: false }, { text: 'book', correct: false }, { text: 'table', correct: false }] },
             ],
           },
         ],
@@ -96,33 +336,139 @@ const courseData = [
             title: 'Essential Phrases',
             order: 0,
             challenges: [
+              // 1: SELECT - Chọn cụm từ đầu tiên
               { type: 'SELECT', question: 'How do you say "Cảm ơn" in English?', correctAnswer: null, options: [{ text: 'Thank you', correct: true }, { text: 'Please', correct: false }, { text: 'Sorry', correct: false }, { text: 'Hello', correct: false }] },
+              
+              // 2: LISTEN - Nghe câu đầu
+              { type: 'LISTEN', question: 'Listen and write:', correctAnswer: 'Thank you very much', wordBank: ['Thank', 'you', 'very', 'much', 'Thanks', 'alot', 'please', 'sorry'] },
+              
+              // 3: ASSIST - Chọn nghĩa tiếng Việt
               { type: 'ASSIST', question: 'What does "You\'re welcome" mean?', correctAnswer: 'Không có gì', options: [{ text: 'Không có gì', correct: true }, { text: 'Xin chào', correct: false }, { text: 'Tạm biệt', correct: false }, { text: 'Xin lỗi', correct: false }] },
+              
+              // 4: LISTEN - Nghe câu thứ 2
+              { type: 'LISTEN', question: 'Listen and write:', correctAnswer: 'You are welcome', wordBank: ['You', 'are', 'welcome', 'Thanks', 'thank', 'sorry', 'welcome', 'hello'] },
+              
+              // 5: TYPE - Nhập cụm từ
               { type: 'TYPE', question: 'Type the polite word: _ _ _ _ _ _', correctAnswer: 'Please', options: [] },
-              { type: 'SELECT', question: 'Which phrase is polite?', correctAnswer: null, options: [{ text: 'Excuse me', correct: true }, { text: 'Shut up', correct: false }, { text: 'Go away', correct: false }, { text: 'Stupid', correct: false }] },
+              
+              // 6: LISTEN - Nghe câu thứ 3
+              { type: 'LISTEN', question: 'Listen and write:', correctAnswer: 'Excuse me please', wordBank: ['Excuse', 'me', 'please', 'you', 'sorry', 'thank', 'welcome', 'are'] },
+              
+              // 7: SELECT - Chọn cụm từ tiếp theo
+              { type: 'SELECT', question: 'How do you accept thanks?', correctAnswer: null, options: [{ text: 'You\'re welcome', correct: true }, { text: 'Sorry', correct: false }, { text: 'No', correct: false }, { text: 'Go away', correct: false }] },
+              
+              // 8: LISTEN - Nghe câu thứ 4
+              { type: 'LISTEN', question: 'Listen and write:', correctAnswer: 'I am sorry', wordBank: ['am', 'I', 'sorry', 'are', 'thank', 'you', 'welcome', 'please'] },
+              
+              // 9: ORDER - Sắp xếp từ
+              { type: 'ORDER', question: 'Arrange: you / Thank / very / much', correctAnswer: null, wordBank: ['you', 'Thank', 'very', 'much'], correctOrder: [1, 0, 2, 3], options: [] },
+              
+              // 10: LISTEN - Nghe câu thứ 5
+              { type: 'LISTEN', question: 'Listen and write:', correctAnswer: 'No problem at all', wordBank: ['No', 'problem', 'at', 'all', 'all', 'thanks', 'please', 'sure'] },
+              
+              // 11: ASSIST - Chọn nghĩa tiếng Việt thứ 2
               { type: 'ASSIST', question: '"Xin lỗi" in English?', correctAnswer: 'Sorry', options: [{ text: 'Sorry', correct: true }, { text: 'Please', correct: false }, { text: 'Hello', correct: false }, { text: 'Goodbye', correct: false }] },
+              
+              // 12: TYPE - Nhập cụm từ thứ 2
+              { type: 'TYPE', question: 'Type the phrase for thanks: _ _ _ _ _ _', correctAnswer: 'Thank you', options: [] },
+              
+              // 13: ORDER - Sắp xếp từ thứ 2
+              { type: 'ORDER', question: 'Arrange: welcome / You / are / !', correctAnswer: null, wordBank: ['welcome', 'You', 'are', '!'], correctOrder: [1, 2, 0, 3], options: [] },
+              
+              // 14: MATCH - Nối cặp
+              { type: 'MATCH', question: 'Match the phrases', correctAnswer: null, pairs: [{ left: 'Cảm ơn', right: 'Thank you' }, { left: 'Xin vui lòng', right: 'Please' }, { left: 'Xin lỗi', right: 'Sorry' }, { left: 'Không có gì', right: 'You\'re welcome' }], options: [] },
+              
+              // 15: COMPLETE - Hoàn thành câu
+              { type: 'COMPLETE', question: 'Complete: ___ you very much.', correctAnswer: 'Thank', sentence: '___ you very much.', options: [] },
+              
+              // 16: COMPLETE - Hoàn thành câu thứ 2
+              { type: 'COMPLETE', question: 'Complete: You ___ welcome.', correctAnswer: 'are', sentence: 'You ___ welcome.', options: [] },
+              
+              // 17: FILL - Chọn từ
+              { type: 'FILL', question: 'Fill: ___ me, where is the bathroom?', correctAnswer: null, options: [{ text: 'Excuse', correct: true }, { text: 'Thank', correct: false }, { text: 'Sorry', correct: false }, { text: 'Welcome', correct: false }] },
+              
+              // 18: FILL - Chọn từ thứ 2
+              { type: 'FILL', question: 'Fill: I am ___ for being late.', correctAnswer: null, options: [{ text: 'sorry', correct: true }, { text: 'welcome', correct: false }, { text: 'thankful', correct: false }, { text: 'please', correct: false }] },
             ],
           },
           {
             title: 'Questions',
             order: 1,
             challenges: [
+              // SELECT - Chọn câu hỏi đúng (3 câu)
               { type: 'SELECT', question: `How do you ask someone's name?`, correctAnswer: null, options: [{ text: 'What is your name?', correct: true }, { text: 'How are you?', correct: false }, { text: 'Where are you?', correct: false }, { text: 'Who are you?', correct: false }] },
-              { type: 'ASSIST', question: 'What does "Bạn khỏe không?" mean?', correctAnswer: 'How are you?', options: [{ text: 'How are you?', correct: true }, { text: 'What is your name?', correct: false }, { text: 'Where are you?', correct: false }, { text: 'How old are you?', correct: false }] },
-              { type: 'TYPE', question: 'Ask "Bao nhiêu?": _ _ _', correctAnswer: 'How many', options: [] },
               { type: 'SELECT', question: 'Which is a question word?', correctAnswer: null, options: [{ text: 'Where', correct: true }, { text: 'The', correct: false }, { text: 'And', correct: false }, { text: 'But', correct: false }] },
+              { type: 'SELECT', question: 'How do you ask about location?', correctAnswer: null, options: [{ text: 'Where is it?', correct: true }, { text: 'What is it?', correct: false }, { text: 'Who is it?', correct: false }, { text: 'When is it?', correct: false }] },
+              
+              // ASSIST - Chọn đáp án đúng (3 câu)
+              { type: 'ASSIST', question: 'What does "Bạn khỏe không?" mean?', correctAnswer: 'How are you?', options: [{ text: 'How are you?', correct: true }, { text: 'What is your name?', correct: false }, { text: 'Where are you?', correct: false }, { text: 'How old are you?', correct: false }] },
               { type: 'ASSIST', question: '"Khi nào" in English?', correctAnswer: 'When', options: [{ text: 'When', correct: true }, { text: 'Where', correct: false }, { text: 'What', correct: false }, { text: 'Why', correct: false }] },
+              { type: 'ASSIST', question: 'What does "How much" mean?', correctAnswer: 'Bao nhiêu', options: [{ text: 'Bao nhiêu', correct: true }, { text: 'Như thế nào', correct: false }, { text: 'Ở đâu', correct: false }, { text: 'Khi nào', correct: false }] },
+              
+              // TYPE - Nhập câu hỏi (3 câu)
+              { type: 'TYPE', question: 'Ask "Bao nhiêu?": _ _ _', correctAnswer: 'How many', options: [] },
+              { type: 'TYPE', question: 'Ask "Ở đâu?": _ _ _', correctAnswer: 'Where', options: [] },
+              { type: 'TYPE', question: 'Ask "Như thế nào?": _ _ _', correctAnswer: 'How', options: [] },
+              
+              // TRANSLATE - Dịch câu hỏi (2 câu)
+              { type: 'TRANSLATE', question: 'Type: "Bạn tên gì?"', correctAnswer: 'What is your name', options: [] },
+              { type: 'TRANSLATE', question: 'Type: "Bạn đến từ đâu?"', correctAnswer: 'Where are you from', options: [] },
+              
+              // ORDER - Sắp xếp từ thành câu hỏi (2 câu)
+              { type: 'ORDER', question: 'Arrange: your / What / name / is', correctAnswer: null, wordBank: ['your', 'What', 'name', 'is'], correctOrder: [1, 2, 3, 0], options: [] },
+              { type: 'ORDER', question: 'Arrange: are / you / Where / from', correctAnswer: null, wordBank: ['are', 'you', 'Where', 'from'], correctOrder: [2, 1, 0, 3], options: [] },
+              
+              // MATCH - Nối cặp câu hỏi (2 câu)
+              { type: 'MATCH', question: 'Match the question words', correctAnswer: null, pairs: [{ left: 'Ở đâu', right: 'Where' }, { left: 'Khi nào', right: 'When' }, { left: 'Bao nhiêu', right: 'How many' }, { left: 'Như thế nào', right: 'How' }], options: [] },
+              { type: 'MATCH', question: 'Match questions', correctAnswer: null, pairs: [{ left: 'Tên gì?', right: 'What is your name?' }, { left: 'Đến từ đâu?', right: 'Where are you from?' }, { left: 'Khỏe không?', right: 'How are you?' }, { left: 'Bao nhiêu tuổi?', right: 'How old are you?' }], options: [] },
+              
+              // COMPLETE - Hoàn thành câu hỏi (2 câu)
+              { type: 'COMPLETE', question: 'Complete: ___ is your name?', correctAnswer: 'What', sentence: '___ is your name?', options: [] },
+              { type: 'COMPLETE', question: 'Complete: ___ are you from?', correctAnswer: 'Where', sentence: '___ are you from?', options: [] },
+              
+              // FILL - Chọn từ điền vào chỗ trống (2 câu)
+              { type: 'FILL', question: 'Fill: ___ is your phone number?', correctAnswer: null, options: [{ text: 'What', correct: true }, { text: 'Where', correct: false }, { text: 'When', correct: false }, { text: 'Who', correct: false }] },
+              { type: 'FILL', question: 'Fill: ___ are you doing?', correctAnswer: null, options: [{ text: 'How', correct: true }, { text: 'What', correct: false }, { text: 'Where', correct: false }, { text: 'When', correct: false }] },
             ],
           },
           {
             title: 'Possessives',
             order: 2,
             challenges: [
+              // SELECT - Chọn từ sở hữu đúng (3 câu)
               { type: 'SELECT', question: 'How do you say "của tôi"?', correctAnswer: null, options: [{ text: 'My', correct: true }, { text: 'Your', correct: false }, { text: 'His', correct: false }, { text: 'Her', correct: false }] },
-              { type: 'ASSIST', question: 'What does "yours" mean?', correctAnswer: 'của bạn', options: [{ text: 'của bạn', correct: true }, { text: 'của tôi', correct: false }, { text: 'của anh ấy', correct: false }, { text: 'của cô ấy', correct: false }] },
-              { type: 'TYPE', question: 'Complete: This is _ book.', correctAnswer: 'my', options: [] },
               { type: 'SELECT', question: 'Which is a possessive?', correctAnswer: null, options: [{ text: 'Our', correct: true }, { text: 'Are', correct: false }, { text: 'Have', correct: false }, { text: 'Going', correct: false }] },
+              { type: 'SELECT', question: 'What means "belongs to him"?', correctAnswer: null, options: [{ text: 'His', correct: true }, { text: 'Her', correct: false }, { text: 'My', correct: false }, { text: 'Our', correct: false }] },
+              
+              // ASSIST - Chọn đáp án đúng (3 câu)
+              { type: 'ASSIST', question: 'What does "yours" mean?', correctAnswer: 'của bạn', options: [{ text: 'của bạn', correct: true }, { text: 'của tôi', correct: false }, { text: 'của anh ấy', correct: false }, { text: 'của cô ấy', correct: false }] },
               { type: 'ASSIST', question: '"của họ" in English?', correctAnswer: 'Their', options: [{ text: 'Their', correct: true }, { text: 'Our', correct: false }, { text: 'Your', correct: false }, { text: 'My', correct: false }] },
+              { type: 'ASSIST', question: 'What does "Her" mean?', correctAnswer: 'của cô ấy', options: [{ text: 'của cô ấy', correct: true }, { text: 'của anh ấy', correct: false }, { text: 'của bạn', correct: false }, { text: 'của tôi', correct: false }] },
+              
+              // TYPE - Nhập từ sở hữu (3 câu)
+              { type: 'TYPE', question: 'Complete: This is _ book.', correctAnswer: 'my', options: [] },
+              { type: 'TYPE', question: 'Complete: That is _ house.', correctAnswer: 'his', options: [] },
+              { type: 'TYPE', question: 'Complete: These are _ pens.', correctAnswer: 'her', options: [] },
+              
+              // TRANSLATE - Dịch câu (2 câu)
+              { type: 'TRANSLATE', question: 'Type: "Đây là sách của tôi"', correctAnswer: 'This is my book', options: [] },
+              { type: 'TRANSLATE', question: 'Type: "Đó là nhà của cô ấy"', correctAnswer: 'That is her house', options: [] },
+              
+              // ORDER - Sắp xếp từ (2 câu)
+              { type: 'ORDER', question: 'Arrange: is / This / my / bag', correctAnswer: null, wordBank: ['is', 'This', 'my', 'bag'], correctOrder: [1, 0, 2, 3], options: [] },
+              { type: 'ORDER', question: 'Arrange: are / Those / our / books', correctAnswer: null, wordBank: ['are', 'Those', 'our', 'books'], correctOrder: [1, 0, 2, 3], options: [] },
+              
+              // MATCH - Nối cặp (2 câu)
+              { type: 'MATCH', question: 'Match the possessives', correctAnswer: null, pairs: [{ left: 'của tôi', right: 'My' }, { left: 'của bạn', right: 'Your' }, { left: 'của anh ấy', right: 'His' }, { left: 'của cô ấy', right: 'Her' }], options: [] },
+              { type: 'MATCH', question: 'Match English to Vietnamese', correctAnswer: null, pairs: [{ left: 'Our', right: 'của chúng tôi' }, { left: 'Their', right: 'của họ' }, { left: 'Mine', right: 'của tôi' }, { left: 'Yours', right: 'của bạn' }], options: [] },
+              
+              // COMPLETE - Hoàn thành câu (2 câu)
+              { type: 'COMPLETE', question: 'Complete: _ name is John.', correctAnswer: 'My', sentence: '_ name is John.', options: [] },
+              { type: 'COMPLETE', question: 'Complete: Is this _ bag?', correctAnswer: 'your', sentence: 'Is this _ bag?', options: [] },
+              
+              // FILL - Chọn từ (2 câu)
+              { type: 'FILL', question: 'Fill: ___ house is big.', correctAnswer: null, options: [{ text: 'Their', correct: true }, { text: 'My', correct: false }, { text: 'I', correct: false }, { text: 'Me', correct: false }] },
+              { type: 'FILL', question: 'Fill: ___ family is happy.', correctAnswer: null, options: [{ text: 'Our', correct: true }, { text: 'We', correct: false }, { text: 'Us', correct: false }, { text: 'Ours', correct: false }] },
             ],
           },
           {
@@ -1068,7 +1414,7 @@ const seedDuolingo = async () => {
   await Course.deleteMany({});
   console.log('🧹 Cleaned up existing data.');
 
-  let totalCourses = 0, totalUnits = 0, totalLessons = 0, totalChallenges = 0, totalOptions = 0;
+  let totalCourses = 0, totalUnits = 0, totalLessons = 0, totalChallenges = 0;
 
   for (const course of courseData) {
     const createdCourse = await Course.create(course.course);
@@ -1083,21 +1429,15 @@ const seedDuolingo = async () => {
         totalLessons++;
 
         for (const challenge of lesson.challenges || []) {
-          const { options, ...challengeData } = challenge;
-          const createdChallenge = await Challenge.create({ ...challengeData, lesson: createdLesson._id });
+          // Embed options directly into Challenge document (no separate ChallengeOption collection)
+          await Challenge.create({ ...challenge, lesson: createdLesson._id });
           totalChallenges++;
-
-          if (options && options.length > 0) {
-            const optionDocs = options.map(opt => ({ ...opt, challenge: createdChallenge._id }));
-            await ChallengeOption.insertMany(optionDocs);
-            totalOptions += options.length;
-          }
         }
       }
     }
   }
 
-  console.log(`✅ Seeded ${totalCourses} courses, ${totalUnits} units, ${totalLessons} lessons, ${totalChallenges} challenges, ${totalOptions} options.`);
+  console.log(`✅ Seeded ${totalCourses} courses, ${totalUnits} units, ${totalLessons} lessons, ${totalChallenges} challenges.`);
   console.log('✅ Duolingo seeding completed successfully!');
 };
 

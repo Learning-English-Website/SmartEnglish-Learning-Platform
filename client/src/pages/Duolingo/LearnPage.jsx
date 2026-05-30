@@ -93,6 +93,16 @@ export default function LearnPage() {
     return { totalLessons, completedLessons, progress };
   }, [units]);
 
+  const activeLessonId = useMemo(() => {
+    for (const unit of units) {
+      const firstIncomplete = unit.lessons?.find((l) => !l.completed && !l.isCompleted);
+      if (firstIncomplete) {
+        return firstIncomplete._id;
+      }
+    }
+    return null;
+  }, [units]);
+  
   const handleLessonClick = (lesson) => {
     const isCompleted = lesson.completed || lesson.isCompleted;
     if (isCompleted) {
@@ -255,7 +265,7 @@ export default function LearnPage() {
                     {unit.lessons?.map((lesson, lessonIndex) => {
                       const isCompleted = lesson.completed || lesson.isCompleted;
                       const isLocked = lesson.locked && !isCompleted;
-                      const isActive = !isCompleted && !isLocked;
+                      const isActive = lesson._id === activeLessonId;
                       
                       // Winding zig-zag offsets: [center, right, center, left]
                       const windingPosition = lessonIndex % 4;
@@ -270,6 +280,14 @@ export default function LearnPage() {
                           onMouseLeave={() => setHoveredLesson(null)}
                         >
                           <div className="node-anchor-point">
+                            {/* Minimalist Active Pill Badge (Vercel style) */}
+                            {isActive && (
+                              <div className="minimal-active-badge">
+                                <span className="pulse-dot"></span>
+                                <span>ĐANG HỌC</span>
+                              </div>
+                            )}
+
                             {/* Quest Circle holographic node button */}
                             <motion.button
                               whileHover={!isLocked ? { scale: 1.12 } : {}}

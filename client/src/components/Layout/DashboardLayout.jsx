@@ -76,6 +76,18 @@ export default function DashboardLayout({ children }) {
   const toggleMobileSidebar = () => setMobileSidebarOpen((v) => !v);
   const closeMobileSidebar = () => setMobileSidebarOpen(false);
 
+  const isLessonPage = location.pathname.startsWith('/duolingo/lesson/');
+
+  if (isLessonPage) {
+    return (
+      <div className="q-root-fullscreen">
+        <main className="q-content-fullscreen">
+          {children}
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="q-root">
       {/* ── Topbar ──────────────────────────────────────────────── */}

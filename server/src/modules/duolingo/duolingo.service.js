@@ -9,7 +9,7 @@ const ChallengeProgress = require('../../models/challengeProgress.model');
 
 const POINTS_PER_CORRECT = 10;
 const MAX_HEARTS = 5;
-const POINTS_TO_REFILL = 10;
+const POINTS_TO_REFILL = 300;
 
 class DuolingoService {
   // === COURSES ===
@@ -72,14 +72,23 @@ class DuolingoService {
     const challenges = await Challenge.find({ lesson: lessonId }).sort({ order: 1 });
     
     const challengesWithOptions = await Promise.all(challenges.map(async (challenge) => {
-      const options = await ChallengeOption.find({ challenge: challenge._id });
-      const progress = await ChallengeProgress.findOne({ 
-        user: userId, 
-        challenge: challenge._id 
+      const progress = await ChallengeProgress.findOne({
+        user: userId,
+        challenge: challenge._id
       });
+      // Prefer embedded challenge.options (from seeder) over ChallengeOption collection
+      // Embedded: { text, correct } → frontend sends option.text, backend matches o.text
+      // ChallengeOption: { _id, text, correct } → frontend sends option._id, backend matches o._id
+      let options;
+      if (challenge.options && challenge.options.length > 0) {
+        options = challenge.options;
+      } else {
+        const challengeOptions = await ChallengeOption.find({ challenge: challenge._id });
+        options = challengeOptions.map(opt => opt.toObject());
+      }
       return {
         ...challenge.toObject(),
-        options: options.map(opt => opt.toObject()),
+        options,
         completed: progress?.completed || false,
       };
     }));
@@ -118,21 +127,67 @@ class DuolingoService {
     const challenge = await Challenge.findById(challengeId);
     if (!challenge) throw new Error('Challenge not found');
 
-    // Check if already completed
-    const existing = await ChallengeProgress.findOne({ user: userId, challenge: challengeId });
-    if (existing?.completed) {
-      return { isCorrect: true, alreadyCompleted: true };
-    }
-
     let isCorrect = false;
-    
-    if (challenge.type === 'TYPE') {
-      // Compare typed answer
-      isCorrect = userAnswer?.trim().toLowerCase() === challenge.correctAnswer?.trim().toLowerCase();
+    const type = challenge.type;
+
+    if (type === 'TYPE' || type === 'TRANSLATE') {
+      // Compare typed answer (case-insensitive)
+      // Accept either selectedOptionId (from click-select UI) or typed userAnswer
+      const normalized = (selectedOptionId || userAnswer || '').trim().toLowerCase();
+      const normalizedCorrect = (challenge.correctAnswer || '').trim().toLowerCase();
+      isCorrect = normalized === normalizedCorrect;
+    } else if (type === 'ORDER') {
+      // ORDER: userAnswer is a JSON string of the ordered indices
+      try {
+        const userOrder = JSON.parse(userAnswer || '[]');
+        const correctOrder = challenge.correctOrder || [];
+        isCorrect = JSON.stringify(userOrder) === JSON.stringify(correctOrder);
+      } catch {
+        isCorrect = false;
+      }
+    } else if (type === 'MATCH') {
+      // MATCH: userAnswer is a JSON string of {leftIndex, rightIndex} pairs
+      try {
+        const userPairs = JSON.parse(userAnswer || '[]');
+        const pairs = challenge.pairs || [];
+        // Compare each user pair against the actual pairs by content
+        // userPairs format: [{ leftIndex, rightIndex }]
+        // Each leftIndex and rightIndex refers to a position in the shuffled pairs array.
+        // Find the actual pair where left and right match the selected items.
+        const allMatch = userPairs.length === pairs.length && userPairs.every((up) => {
+          const leftItem = pairs[up.leftIndex]?.left;
+          const rightItem = pairs[up.rightIndex]?.right;
+          return leftItem && rightItem && pairs.some(
+            (p) => p.left === leftItem && p.right === rightItem
+          );
+        });
+        isCorrect = allMatch;
+      } catch {
+        isCorrect = false;
+      }
+    } else if (type === 'COMPLETE' || type === 'FILL' || type === 'LISTEN') {
+      // COMPLETE / FILL / LISTEN: userAnswer is the filled word or selectedOptionId is the chosen option
+      const normalized = (selectedOptionId || userAnswer || '').trim().toLowerCase();
+      const normalizedCorrect = (challenge.correctAnswer || '').trim().toLowerCase();
+      isCorrect = normalized === normalizedCorrect;
     } else {
-      // Multiple choice
-      const option = await ChallengeOption.findById(selectedOptionId);
-      isCorrect = option?.correct || false;
+      // SELECT / ASSIST: multiple choice
+      // Options may be embedded in challenge.options or stored in ChallengeOption collection
+      let isOptionCorrect = false;
+      if (challenge.options && challenge.options.length > 0) {
+        // Embedded options (seeder format) - match by _id or by text
+        const selected = challenge.options.find(
+          (o) =>
+            (o._id && String(o._id) === String(selectedOptionId)) ||
+            o.text === selectedOptionId
+        );
+        isOptionCorrect = selected?.correct || false;
+      } else {
+        // Separate ChallengeOption collection
+        const option = await ChallengeOption.findById(selectedOptionId);
+        isOptionCorrect = option?.correct || false;
+      }
+      isCorrect = isOptionCorrect;
     }
 
     if (isCorrect) {
@@ -162,6 +217,16 @@ class DuolingoService {
     lesson.completedAt = new Date();
     await lesson.save();
 
+    // Unlock next lesson in the same unit
+    const nextLesson = await Lesson.findOne({
+      unit: lesson.unit,
+      order: lesson.order + 1,
+    }).sort({ order: 1 });
+    if (nextLesson) {
+      nextLesson.isLocked = false;
+      await nextLesson.save();
+    }
+
     // Check if practice lesson - restore 1 heart
     if (lesson.type === 'practice') {
       await UserProgress.findOneAndUpdate(
@@ -175,26 +240,63 @@ class DuolingoService {
     const unitLessons = await Lesson.find({ unit: unit._id });
     
     // Check if all lessons in the unit are completed
-    // Since unitLessons might have been created dynamically, let's check
     const allCompleted = unitLessons.length > 0 && unitLessons.every(l => l.isCompleted);
     if (allCompleted) {
       unit.isCompleted = true;
       await unit.save();
     }
 
+    // Update Streak and Award 20 XP Lesson Completion Bonus
+    const progress = await UserProgress.findOne({ user: userId });
+    if (progress) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      if (!progress.lastStudyDate) {
+        progress.streak = 1;
+        progress.lastStudyDate = new Date();
+      } else {
+        const lastStudy = new Date(progress.lastStudyDate);
+        lastStudy.setHours(0, 0, 0, 0);
+
+        const diffTime = Math.abs(today - lastStudy);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        if (diffDays === 1) {
+          // Maintaining streak (next day study)
+          progress.streak += 1;
+          progress.lastStudyDate = new Date();
+        } else if (diffDays > 1) {
+          // Missed a day: reset streak to 1
+          progress.streak = 1;
+          progress.lastStudyDate = new Date();
+        }
+        // If diffDays === 0: already studied today, keep current streak
+      }
+
+      // Increment XP / Points
+      progress.points += 20; // 20 XP completion bonus
+      progress.totalXP += 20;
+      await progress.save();
+    }
+
     return { lesson, unitCompleted: unit.isCompleted };
   }
 
-  // === HEARTS ===
+  // === HEARTS & USER PROGRESS ===
   async getUserHearts(userId) {
-    let progress = await UserProgress.findOne({ user: userId });
+    let progress = await UserProgress.findOne({ user: userId }).populate('activeCourse');
     if (!progress) {
       progress = await UserProgress.create({ user: userId });
+      progress = await progress.populate('activeCourse');
     }
     return {
       hearts: progress.hearts,
       maxHearts: progress.isPro ? Infinity : MAX_HEARTS,
       isPro: progress.isPro || false,
+      points: progress.points ?? 0,
+      streak: progress.streak ?? 0,
+      activeCourse: progress.activeCourse || null,
     };
   }
 
