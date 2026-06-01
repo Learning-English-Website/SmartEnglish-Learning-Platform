@@ -7,7 +7,7 @@ const notificationSchema = new Schema(
     user: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     type: {
       type: String,
-      enum: ['system', 'streak', 'achievement', 'friend', 'reminder'],
+      enum: ['system', 'streak', 'achievement', 'friend', 'reminder', 'quest', 'leaderboard'],
       default: 'system',
     },
     title: { type: String, required: true, trim: true, maxlength: 200 },
