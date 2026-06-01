@@ -31,13 +31,15 @@ class MailerService {
       return;
     }
 
-    await this.transporter.sendMail({
+    const info = await this.transporter.sendMail({
       from: process.env.SMTP_FROM || process.env.SMTP_USER,
       to,
       subject,
       text,
       html,
     });
+
+    console.log(`[Mailer] Email sent to ${to} | messageId=${info.messageId}`);
   }
 }
 

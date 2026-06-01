@@ -12,7 +12,7 @@ class UserService {
   }
 
   async updateProfile(userId, data) {
-    const allowedFields = ['username', 'avatar'];
+    const allowedFields = ['username', 'avatar', 'emailReminderEnabled'];
     const updateData = {};
     allowedFields.forEach((field) => {
       if (data[field] !== undefined) updateData[field] = data[field];

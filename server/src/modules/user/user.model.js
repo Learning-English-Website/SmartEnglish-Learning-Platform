@@ -70,6 +70,17 @@ const UserSchema = new Schema(
       type: Number,
       default: 0
     },
+
+    // ── Notification preferences / scheduling ───────────────────────────────────
+    emailReminderEnabled: {
+      type: Boolean,
+      default: true,
+    },
+    lastStreakReminderSentAt: {
+      type: Date,
+      default: null,
+    },
+
     gamification: {
       xp:    { type: Number, default: 0 },
       level: { type: Number, default: 1 },
@@ -117,6 +128,8 @@ UserSchema.methods.toPublicProfile = function () {
     streak: this.streak,
     streakFreezes: this.streakFreezes,
     gamification: this.gamification,
+    emailReminderEnabled: this.emailReminderEnabled,
+    lastStreakReminderSentAt: this.lastStreakReminderSentAt,
     createdAt: this.createdAt,
     updatedAt: this.updatedAt,
   };
