@@ -67,7 +67,8 @@ const forgotPassword = async (req, res) => {
 const verifyResetOtp = async (req, res) => {
   const { email, otp } = req.body;
   const result = await authService.verifyResetOtp(email, otp);
-  res.status(200).json(ApiResponse.success(null, result.message));
+  // Return resetToken so frontend can use it in the password reset step
+  res.status(200).json(ApiResponse.success({ resetToken: result.resetToken }, result.message));
 };
 
 const verifyEmailOtp = async (req, res) => {

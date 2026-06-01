@@ -1,5 +1,6 @@
 const eventBus = require('./eventBus');
 const mailerService = require('../services/mailer.service');
+const notificationEmailService = require('../services/notificationEmail.service');
 
 /**
  * Register all domain event handlers here.
@@ -52,5 +53,8 @@ eventBus.on('user:passwordResetOtp', async ({ email, username, otp }) => {
     console.error('[EventBus] user:passwordResetOtp handler error:', err.message);
   }
 });
+
+// Register email notification handlers
+notificationEmailService.registerHandlers();
 
 module.exports = eventBus;

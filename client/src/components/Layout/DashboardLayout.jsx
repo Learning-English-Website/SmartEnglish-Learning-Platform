@@ -9,6 +9,7 @@ import {
 import { useAuth } from '../../hooks/useAuth';
 import { folderService } from '../../api/folderService';
 import { useDarkMode } from '../../context/DarkModeContext';
+import NotificationBell from '../notifications/NotificationBell';
 import './DashboardLayout.css';
 
 export default function DashboardLayout({ children }) {
@@ -125,9 +126,9 @@ export default function DashboardLayout({ children }) {
             <span>Tạo</span>
           </button>
 
-          <button className="q-topbar-iconbtn" title="Thông báo">
-            <Bell size={18} />
-          </button>
+          <div className="q-topbar-iconbtn" title="Thông báo">
+            <NotificationBell />
+          </div>
 
           <button
             className="q-topbar-iconbtn"

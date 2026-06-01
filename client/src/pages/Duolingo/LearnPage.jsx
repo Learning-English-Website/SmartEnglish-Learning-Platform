@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Container, Row, Col } from 'react-bootstrap';
+import { Container } from 'react-bootstrap';
 import { motion, AnimatePresence } from 'framer-motion';
 import { duolingoService } from '../../services/duolingoService';
 import { PageSkeleton } from '../../components/common/LoadingSkeleton';
-import { ChevronLeft, Flame, Heart, Zap, BookOpen, Trophy, ArrowRight, Play, Lock, CheckCircle2 } from 'lucide-react';
+import { ChevronLeft, Flame, Heart, Zap, ArrowRight, Play, Lock } from 'lucide-react';
 import './LearnPage.css';
 
 // Helper to map lesson titles to beautiful contextual emojis
@@ -64,16 +64,20 @@ export default function LearnPage() {
         duolingoService.getHearts(),
       ]);
 
-      setUnits(unitsRes.data || []);
-      if (statsRes.data) {
-        setHearts(statsRes.data.hearts ?? 5);
+      const safeUnits = Array.isArray(unitsRes)
+        ? unitsRes
+        : (unitsRes?.data && Array.isArray(unitsRes.data) ? unitsRes.data : []);
+      setUnits(safeUnits);
+      const safeStats = statsRes?.data ?? statsRes;
+      if (safeStats) {
+        setHearts(safeStats.hearts ?? 5);
         setUserStats({
-          hearts: statsRes.data.hearts ?? 5,
-          points: statsRes.data.points ?? 0,
-          streak: statsRes.data.streak ?? 0,
-          isPro: statsRes.data.isPro || false,
+          hearts: safeStats.hearts ?? 5,
+          points: safeStats.points ?? 0,
+          streak: safeStats.streak ?? 0,
+          isPro: safeStats.isPro || false,
         });
-        setActiveCourse(statsRes.data.activeCourse || null);
+        setActiveCourse(safeStats.activeCourse || null);
       }
     } catch (err) {
       console.error('Failed to load units:', err);

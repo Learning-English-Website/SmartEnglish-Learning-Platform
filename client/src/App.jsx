@@ -4,8 +4,10 @@ import { Toaster } from 'react-hot-toast';
 import { store } from './store/store';
 import { DarkModeProvider, useDarkMode } from './context/DarkModeContext';
 import { GamificationProvider } from './context/GamificationContext';
+import { SocketProvider } from './context/SocketContext';
 import ErrorBoundary from './components/ErrorBoundary/ErrorBoundary';
 import AppInitializer from './components/AppInitializer/AppInitializer';
+import NotificationBell from './components/notifications/NotificationBell';
 import router from './routes';
 
 function ToasterWithTheme() {
@@ -37,10 +39,13 @@ export default function App() {
       <Provider store={store}>
         <DarkModeProvider>
           <GamificationProvider>
-            <AppInitializer>
-              <RouterProvider router={router} />
-              <ToasterWithTheme />
-            </AppInitializer>
+            <SocketProvider>
+              <AppInitializer>
+                <RouterProvider router={router} />
+                <NotificationBell />
+                <ToasterWithTheme />
+              </AppInitializer>
+            </SocketProvider>
           </GamificationProvider>
         </DarkModeProvider>
       </Provider>

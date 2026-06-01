@@ -39,6 +39,16 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser()); // ✅ Parse HttpOnly cookies từ request
 
+// ── Disable caching for Daily Challenge leaderboard ──────────────────────────
+// The leaderboard must be fresh; ETag/304 can prevent UI from updating.
+app.use('/api/quests/daily-challenge/leaderboard', (req, res, next) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+  res.set('Surrogate-Control', 'no-store');
+  next();
+});
+
 // ── Static Files (Uploads) ───────────────────────────────────────────────────
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
@@ -74,6 +84,8 @@ app.use('/api/gamification', require('./modules/gamification/gamification.routes
 app.use('/api/media', require('./modules/media/media.routes'));
 app.use('/api/duolingo', require('./modules/duolingo/duolingo.routes'));
 app.use('/api/payment', require('./modules/payment/payment.routes'));
+app.use('/api/quests', require('./modules/quest/quest.routes'));
+app.use('/api/notifications', require('./modules/notification/notification.routes'));
 
 // ── 404 Handler ───────────────────────────────────────────────────────────────
 app.use('/{*path}', (req, res) => {

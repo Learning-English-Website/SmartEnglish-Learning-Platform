@@ -14,11 +14,12 @@ const lessonSchema = new Schema(
     vocabFocus: [{ type: String }],
     
     // Duolingo support
-    type: { 
-      type: String, 
-      enum: ['challenge', 'practice'], 
-      default: 'challenge' 
+    type: {
+      type: String,
+      enum: ['challenge', 'practice'],
+      default: 'challenge'
     },
+    isLocked: { type: Boolean, default: true },
     isCompleted: { type: Boolean, default: false },
     completedAt: { type: Date, default: null },
   },

@@ -18,6 +18,14 @@ const studySessionSchema = new Schema(
     durationMs: { type: Number, default: null },
     startedAt: { type: Date, default: Date.now },
     completedAt: { type: Date, default: null },
+    answeredCards: {
+      type: [{
+        cardId: { type: Schema.Types.ObjectId, required: true },
+        mode: { type: String, required: false },
+        answeredAt: { type: Date, default: Date.now },
+      }],
+      default: [],
+    },
   },
   { timestamps: true }
 );

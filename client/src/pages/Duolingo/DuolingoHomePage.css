@@ -87,6 +87,84 @@
   padding: 8rem 0 5rem 0;
 }
 
+/* ── Home widgets (Daily Challenge + Quests) ─────────────────────────────── */
+.memoris-home-widgets-row {
+  margin-top: 2.25rem;
+}
+
+.memoris-home-widget-stretch {
+  height: 100%;
+}
+
+/* Equal-height widgets + internal scroll */
+@media (min-width: 992px) {
+  .memoris-home-widgets-row > [class*='col-'] {
+    display: flex;
+  }
+
+  .memoris-home-widget-stretch {
+    flex: 1;
+    max-height: 420px;
+  }
+
+  .memoris-home-widget-stretch > * {
+    height: 100%;
+  }
+}
+
+.memoris-home-quests-card {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 24px;
+  overflow: hidden;
+  box-shadow: var(--card-shadow);
+}
+
+/* Scrollable body inside the quests card */
+.memoris-home-quests-scroll {
+  height: 100%;
+  overflow: auto;
+}
+
+.memoris-home-quests-scroll::-webkit-scrollbar {
+  width: 10px;
+}
+
+.memoris-home-quests-scroll::-webkit-scrollbar-thumb {
+  background: rgba(99, 91, 255, 0.25);
+  border-radius: 99px;
+  border: 3px solid rgba(255, 255, 255, 0.7);
+}
+
+.memoris-home-quests-scroll::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+[data-theme='dark'] .memoris-home-quests-card {
+  background: rgba(15, 23, 42, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+[data-theme='dark'] .memoris-home-quests-scroll::-webkit-scrollbar-thumb {
+  background: rgba(129, 140, 248, 0.35);
+  border: 3px solid rgba(15, 23, 42, 0.55);
+}
+
+[data-theme='dark'] .memoris-home-quests-scroll::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+@media (max-width: 991.98px) {
+  .memoris-home-widgets-row {
+    margin-top: 1.5rem;
+  }
+
+  .memoris-home-quests-scroll {
+    max-height: none;
+  }
+}
+
 .hero-left-content {
   position: relative;
 }

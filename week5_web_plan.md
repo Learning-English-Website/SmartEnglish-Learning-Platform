@@ -1,7 +1,7 @@
 # WEEK 5: WEB APP — Advanced Gamification + Admin Panel + Payments
 
 > **Tech Stack:** React + Vite + Express + MongoDB + MoMo + PayOS + React Admin
-> **Reference:** `duolingo-clone` (Next.js + Stripe + React Admin)
+> **Reference:** `D:\Memoris\SmartEnglish-Learning-Platform\next14-duolingo-clone` (Next.js + Stripe + React Admin)
 > **Mục tiêu:** Momo/PayOS Payments (Pro Tier), Admin Dashboard (React Admin), Quests System, Daily Challenges, Push Notifications, Polish & Optimization
 
 ---

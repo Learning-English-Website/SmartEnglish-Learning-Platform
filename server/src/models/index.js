@@ -17,6 +17,8 @@ require('./lesson.model');
 require('./exercise.model');
 require('./userProgress.model');
 require('./dailyQuest.model');
+require('./dailyChallenge.model');
+require('./dailyChallengeScore.model');
 require('./leaderboardEntry.model');
 require('./learningPreferences.model');
 require('./learningHistory.model');

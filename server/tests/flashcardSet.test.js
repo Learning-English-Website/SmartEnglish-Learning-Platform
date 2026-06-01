@@ -181,11 +181,19 @@ describe('FlashcardSet API', () => {
   // GET /api/flashcard-sets/public (Get Public Sets)
   // ─────────────────────────────────────────────────────────────────
   describe('GET /api/flashcard-sets/public', () => {
+    // Note: public sets are created by OTHER users, not the authenticated testUser.
+    // getPublicSets excludes filter.user = { $ne: req.user._id }.
     beforeEach(async () => {
+      const otherUser = await User.create({
+        email: 'other@example.com',
+        username: 'otheruser',
+        password: await bcrypt.hash('TestPass123!', 10),
+        isVerified: true,
+      });
       await FlashcardSet.create([
-        { title: 'Public Set 1', user: testUser._id, isPublic: true },
-        { title: 'Public Set 2', user: testUser._id, isPublic: true },
-        { title: 'Private Set', user: testUser._id, isPublic: false },
+        { title: 'Public Set 1', user: otherUser._id, isPublic: true },
+        { title: 'Public Set 2', user: otherUser._id, isPublic: true },
+        { title: 'Private Set', user: otherUser._id, isPublic: false },
       ]);
     });
 

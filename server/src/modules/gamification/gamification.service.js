@@ -3,6 +3,7 @@ const Achievement = require('../../models/achievement.model');
 const UserAchievement = require('../../models/userAchievement.model');
 const LeaderboardEntry = require('../../models/leaderboardEntry.model');
 const { AppError } = require('../../shared/errors/AppError');
+const eventBus = require('../../shared/events/eventBus');
 
 // ── XP Constants ───────────────────────────────────────────────────────────────
 const XP_PER_CARD = 10;
@@ -309,6 +310,22 @@ const submitMatchScore = async (userId, setId, timeMs) => {
       };
       newAchievements = await module.exports.checkAndUnlockAchievements(userId, context);
     }
+
+    // Emit events
+    if (xpResult) {
+      const user = await User.findById(userId).select('username');
+      eventBus.emit('gamification:xp_gained', {
+        userId,
+        username: user?.username || 'Anonymous',
+        xpGained: xpResult.xpGained,
+        totalXP: xpResult.totalXP,
+        level: xpResult.newLevel,
+        levelUp: xpResult.levelUp,
+      });
+    }
+    if (streakResult?.current > 1) {
+      eventBus.emit('streak:kept', { userId, currentStreak: streakResult.current });
+    }
   } catch (err) {
     console.error('[Gamification] Error in submitMatchScore progression:', err.message);
   }
@@ -467,6 +484,18 @@ const checkAndUnlockAchievements = async (userId, context) => {
         emoji: def.emoji,
         xpReward: def.xpReward,
       });
+
+      // Emit achievement unlocked event
+      eventBus.emit('achievement:unlocked', {
+        userId,
+        achievement: {
+          key: def.key,
+          title: def.title,
+          description: def.description,
+          emoji: def.emoji,
+          xpReward: def.xpReward,
+        },
+      });
     }
   }
 
@@ -533,6 +562,34 @@ const triggerSessionComplete = async (userId, { accuracy = 0, cardsStudied = 1, 
     };
 
     newAchievements = await module.exports.checkAndUnlockAchievements(userId, context);
+
+    // Emit XP gained event (for leaderboard update + notifications)
+    if (xpResult) {
+      const user = await User.findById(userId).select('username');
+      eventBus.emit('gamification:xp_gained', {
+        userId,
+        username: user?.username || 'Anonymous',
+        xpGained: xpResult.xpGained,
+        totalXP: xpResult.totalXP,
+        level: xpResult.newLevel,
+        levelUp: xpResult.levelUp,
+      });
+    }
+
+    // Emit streak events
+    if (streakResult) {
+      if (streakResult.streakBroken) {
+        eventBus.emit('streak:broken', {
+          userId,
+          previousStreak: streakResult.longest,
+        });
+      } else if (streakResult.current > 1) {
+        eventBus.emit('streak:kept', {
+          userId,
+          currentStreak: streakResult.current,
+        });
+      }
+    }
   } catch (err) {
     console.error(`[Gamification] triggerSessionComplete error (${mode}):`, err.message);
   }
