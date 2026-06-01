@@ -715,14 +715,26 @@ export default function LessonPage() {
     try {
       await duolingoService.completeLesson(lessonId);
       localStorage.removeItem(`duolingo_lesson_progress_${lessonId}`);
+
+      // Immediately refresh Daily Challenge leaderboard so XP shows in real-time
+      window.dispatchEvent(new CustomEvent('dailyChallenge:leaderboard:refresh'));
+
+      // Also refresh quests panel
+      window.dispatchEvent(new CustomEvent('quest:update'));
+
       setStatus('complete');
       setShowConfetti(true);
       setTimeout(() => {
-        navigate('/duolingo/learn');
+        navigate('/duolingo');
       }, 3000);
     } catch (err) {
       console.error('Complete lesson failed:', err);
-      navigate('/duolingo/learn');
+      const message = err?.response?.data?.error?.message
+        || err?.response?.data?.message
+        || err?.message
+        || 'Complete lesson failed';
+      alert(message);
+      navigate('/duolingo');
     }
   };
 
@@ -755,7 +767,7 @@ export default function LessonPage() {
 
       if (status === 'complete') {
         if (e.key === 'Enter' || e.key === ' ') {
-          navigate('/duolingo/learn');
+          navigate('/duolingo');
         }
         return;
       }
@@ -797,8 +809,8 @@ export default function LessonPage() {
             <button className="btn btn-primary" onClick={() => loadLesson()}>
               Try Again
             </button>
-            <button className="btn btn-outline-secondary" onClick={() => navigate('/duolingo/learn')}>
-              Back to Learn
+            <button className="btn btn-outline-secondary" onClick={() => navigate('/duolingo')}>
+              Back to Home
             </button>
           </div>
         </div>
@@ -1650,7 +1662,7 @@ export default function LessonPage() {
         isOpen={showExitModal}
         onClose={() => {
           setShowExitModal(false);
-          navigate('/duolingo/learn');
+          navigate('/duolingo');
         }}
         onContinue={() => setShowExitModal(false)}
       />
@@ -1700,7 +1712,7 @@ export default function LessonPage() {
         onRefill={handleRefillHearts}
         onPractice={() => {
           setShowHeartsModal(false);
-          navigate('/duolingo/learn');
+          navigate('/duolingo');
         }}
         error={refillError}
         isLoading={isRefilling}

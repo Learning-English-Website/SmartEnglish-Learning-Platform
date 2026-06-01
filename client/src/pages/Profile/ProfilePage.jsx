@@ -1,30 +1,49 @@
 import { Link } from 'react-router-dom';
-import { Container } from 'react-bootstrap';
+import { Container, Form } from 'react-bootstrap';
 import {
   FiEdit2, FiMail, FiUser, FiShield, FiStar,
-  FiCalendar, FiZap, FiAward,
+  FiCalendar, FiZap, FiAward, FiBell,
 } from 'react-icons/fi';
+import { useState, useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import toast from 'react-hot-toast';
 import { useAuth } from '../../hooks/useAuth';
+import { gamificationService } from '../../api/gamificationService';
+import { updateProfile } from '../../store/slices/authSlice';
+import { selectAuthLoading } from '../../store/slices/authSlice';
 import XPProgressBar from '../../components/gamification/XPProgressBar/XPProgressBar';
 import AchievementBadge from '../../components/gamification/AchievementBadge/AchievementBadge';
 import './ProfilePage.css';
 
 export default function ProfilePage() {
   const { user } = useAuth();
+  const dispatch = useDispatch();
+  const loading = useSelector(selectAuthLoading);
+  const [gamStats, setGamStats] = useState(null);
+
+  useEffect(() => {
+    gamificationService.getStats().then(res => {
+      setGamStats(res?.data || res);
+    }).catch(() => {});
+  }, []);
 
   if (!user) return null;
+
+  const streakData = gamStats?.streak;
+  const gamData = gamStats?.gamification;
+
+  const currentStreak = streakData?.current ?? user.streak?.current ?? 0;
+  const longestStreak  = streakData?.longest  ?? user.streak?.longest  ?? 0;
+  const studiedToday   = streakData?.studiedToday ?? false;
+  const totalXP        = gamData?.xp       ?? user.gamification?.xp    ?? 0;
+  const level          = gamData?.level    ?? user.gamification?.level ?? 1;
+  const streakFreezes  = streakData?.streakFreezes ?? user.streakFreezes ?? 0;
 
   const memberSince = new Date(user.createdAt).toLocaleDateString('vi-VN', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
   });
-
-  const currentStreak = user.streak?.current ?? 0;
-  const longestStreak = user.streak?.longest ?? 0;
-  const studiedToday  = user.streak?.lastStudyDate
-    ? new Date(user.streak.lastStudyDate).toDateString() === new Date().toDateString()
-    : false;
 
   return (
     <div className="profile-page">
@@ -96,7 +115,7 @@ export default function ProfilePage() {
           <div className="profile-stat-card">
             <div className="profile-stat-icon profile-stat-icon--level">⭐</div>
             <div className="profile-stat-body">
-              <span className="profile-stat-value">Level {user.gamification?.level ?? 1}</span>
+              <span className="profile-stat-value">Level {level}</span>
               <span className="profile-stat-label">Cấp độ</span>
             </div>
           </div>
@@ -106,7 +125,7 @@ export default function ProfilePage() {
             </div>
             <div className="profile-stat-body">
               <span className="profile-stat-value">
-                {(user.gamification?.xp ?? 0).toLocaleString()}
+                {totalXP.toLocaleString()}
               </span>
               <span className="profile-stat-label">Tổng XP</span>
             </div>
@@ -115,7 +134,7 @@ export default function ProfilePage() {
             <div className="profile-stat-card">
               <div className="profile-stat-icon profile-stat-icon--freeze">❄️</div>
               <div className="profile-stat-body">
-                <span className="profile-stat-value">{user.streakFreezes ?? 3} / 3</span>
+                <span className="profile-stat-value">{streakFreezes} / 3</span>
                 <span className="profile-stat-label">Bảo hiểm</span>
               </div>
             </div>
@@ -157,6 +176,39 @@ export default function ProfilePage() {
               <div>
                 <span className="detail-label">Thành viên từ</span>
                 <span className="detail-value">{memberSince}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Notification Preferences ──────────────────────────────────── */}
+        <div className="profile-section-card">
+          <div className="profile-section-header">
+            <FiBell size={16} className="profile-section-icon" style={{ color: '#f97316' }} />
+            <h2 className="profile-section-title">Thông báo</h2>
+          </div>
+          <div className="profile-details">
+            <div className="detail-row" style={{ alignItems: 'center' }}>
+              <FiMail className="detail-icon" style={{ marginTop: 0 }} />
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                <div>
+                  <span className="detail-label">Nhắc streak qua email</span>
+                  <div className="detail-sub">Bật để nhận email nhắc học mỗi ngày khi bạn chưa học.</div>
+                </div>
+                <Form.Check
+                  type="switch"
+                  id="toggle-email-reminder"
+                  checked={!!user.emailReminderEnabled}
+                  onChange={async (e) => {
+                    const result = await dispatch(updateProfile({ emailReminderEnabled: e.target.checked }));
+                    if (updateProfile.fulfilled.match(result)) {
+                      toast.success(e.target.checked ? 'Đã bật nhắc streak qua email' : 'Đã tắt nhắc streak qua email');
+                    } else {
+                      toast.error('Cập nhật thất bại');
+                    }
+                  }}
+                  disabled={loading}
+                />
               </div>
             </div>
           </div>

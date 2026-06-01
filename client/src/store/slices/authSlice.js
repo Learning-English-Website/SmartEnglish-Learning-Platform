@@ -100,9 +100,13 @@ export const resetPasswordOtp = createAsyncThunk(
 
 export const updateProfile = createAsyncThunk(
   'auth/updateProfile',
-  async ({ username, avatar }, { rejectWithValue }) => {
+  async ({ username, avatar, emailReminderEnabled }, { rejectWithValue }) => {
     try {
-      const res = await authAPI.updateProfile({ username, ...(avatar ? { avatar } : {}) });
+      const res = await authAPI.updateProfile({
+        username,
+        ...(avatar ? { avatar } : {}),
+        ...(emailReminderEnabled !== undefined ? { emailReminderEnabled } : {}),
+      });
       return res.data || res;
     } catch (err) {
       return rejectWithValue(err.response?.data?.error?.message || 'Failed to update profile');

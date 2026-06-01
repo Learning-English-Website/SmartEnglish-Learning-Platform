@@ -6,6 +6,12 @@ const Lesson = require('../../models/lesson.model');
 const Challenge = require('../../models/challenge.model');
 const ChallengeOption = require('../../models/challengeOption.model');
 const ChallengeProgress = require('../../models/challengeProgress.model');
+const DailyChallengeScore = require('../../models/dailyChallengeScore.model');
+const questService = require('../quest/quest.service');
+const dailyChallengeService = require('../quest/dailyChallenge.service');
+const eventBus = require('../../shared/events/eventBus');
+const { getDateKey } = require('../../shared/utils/dateKey');
+const { AppError } = require('../../shared/errors/AppError');
 
 const POINTS_PER_CORRECT = 10;
 const MAX_HEARTS = 5;
@@ -110,6 +116,8 @@ class DuolingoService {
     for (const unit of units) {
       const lessons = await Lesson.find({ unit: unit._id }).sort({ order: 1 });
       for (const lesson of lessons) {
+        // Skip locked lessons
+        if (lesson.isLocked) continue;
         const challenges = await Challenge.find({ lesson: lesson._id });
         for (const challenge of challenges) {
           const cp = await ChallengeProgress.findOne({ user: userId, challenge: challenge._id });
@@ -190,19 +198,69 @@ class DuolingoService {
       isCorrect = isOptionCorrect;
     }
 
+    // Duplicate protection: only award XP/quest if not already completed
     if (isCorrect) {
-      // Save progress
-      await ChallengeProgress.findOneAndUpdate(
+      // Atomically upsert progress only if NOT already completed (prevents double XP)
+      const upsertResult = await ChallengeProgress.findOneAndUpdate(
         { user: userId, challenge: challengeId },
-        { user: userId, challenge: challengeId, completed: true, completedAt: new Date() },
-        { upsert: true }
+        { $setOnInsert: { user: userId, challenge: challengeId }, $set: { completed: true, completedAt: new Date() } },
+        { upsert: true, new: true }
       );
 
-      // Award points (XP)
-      await UserProgress.findOneAndUpdate(
-        { user: userId },
-        { $inc: { points: POINTS_PER_CORRECT, totalXP: POINTS_PER_CORRECT } }
-      );
+      // If this was the first time completing, award XP
+      const isFirstAnswer = upsertResult && upsertResult.createdAt &&
+        upsertResult.createdAt.getTime() === upsertResult.updatedAt.getTime();
+
+      if (isFirstAnswer) {
+        // Award points (XP) to user progress
+        await UserProgress.findOneAndUpdate(
+          { user: userId },
+          { $inc: { points: POINTS_PER_CORRECT, totalXP: POINTS_PER_CORRECT } }
+        );
+
+        // Update quest progress (XP quest)
+        questService.updateProgress(userId, { type: 'xp', xpEarned: POINTS_PER_CORRECT }).catch(err =>
+          console.error('[Quest] Failed to update XP progress:', err.message)
+        );
+
+        // ── Daily Challenge: update score and emit realtime event ────────────────
+        try {
+          const todayKey = getDateKey(new Date());
+          const challenge_ = await dailyChallengeService.getTodayChallenge();
+          const dcLessonId = challenge_?.lesson?._id != null
+            ? String(challenge_.lesson._id)
+            : String(challenge_?.lesson || '');
+          const lessonId = challenge.lesson ? String(challenge.lesson) : null;
+
+          if (dcLessonId && lessonId && dcLessonId === lessonId) {
+            const updatedScore = await DailyChallengeScore.findOneAndUpdate(
+              { date: todayKey, user: userId },
+              { $setOnInsert: { challenge: challenge_._id }, $inc: { xp: POINTS_PER_CORRECT } },
+              { upsert: true, new: true }
+            );
+
+            console.log('[DailyChallenge] per-question XP update:', {
+              userId: String(userId),
+              date: todayKey,
+              lessonId,
+              xpDelta: POINTS_PER_CORRECT,
+              totalXp: updatedScore?.xp,
+            });
+
+            // Emit realtime event for User B to see live leaderboard update
+            const user = await User.findById(userId).select('username');
+            eventBus.emit('dailyChallenge:xp_progress', {
+              date: todayKey,
+              userId: String(userId),
+              username: user?.username || 'Anonymous',
+              xpDelta: POINTS_PER_CORRECT,
+              totalXp: updatedScore?.xp || POINTS_PER_CORRECT,
+            });
+          }
+        } catch (err) {
+          console.error('[DailyChallenge] Failed to update per-question XP:', err.message);
+        }
+      }
     }
 
     return { isCorrect, pointsEarned: isCorrect ? POINTS_PER_CORRECT : 0 };
@@ -212,12 +270,45 @@ class DuolingoService {
     const lesson = await Lesson.findById(lessonId);
     if (!lesson) throw new Error('Lesson not found');
 
-    // Mark lesson as completed
+    // Determine if this is the first-time completion or a re-do.
+    // NOTE: lesson.isCompleted is a global flag (not per-user). For awarding completion XP,
+    // rely on user progress (ChallengeProgress) instead.
+    const isFirstCompletion = !lesson.isCompleted;
+
+    // ── Lock check ──────────────────────────────────────────────────────────
+    // NOTE: Lesson lock is currently a global flag on the Lesson document (not per-user).
+    // Users can still access lessons via direct URL; in that case we allow completion
+    // so that quests/streak/progress are recorded. We do NOT rely on this lock for security.
+    if (lesson.isLocked) {
+      const todayKey = getDateKey(new Date());
+      const dc = await dailyChallengeService.getTodayChallenge();
+      const dcLessonId = dc?.lesson?._id != null
+        ? String(dc.lesson._id)
+        : String(dc?.lesson || '');
+
+      const canBypassForDailyChallenge = dcLessonId && dcLessonId === String(lesson._id);
+      if (canBypassForDailyChallenge) {
+        console.warn('[Duolingo] Bypassing lesson lock for Daily Challenge:', {
+          userId: String(userId),
+          lessonId: String(lesson._id),
+          date: todayKey,
+        });
+        lesson.isLocked = false;
+      } else {
+        console.warn('[Duolingo] Completing a locked lesson (direct URL access):', {
+          userId: String(userId),
+          lessonId: String(lesson._id),
+        });
+        // Allow completion without changing lock status globally.
+      }
+    }
+
+    // ── Mark lesson completed (idempotent — always save) ────────────────────
     lesson.isCompleted = true;
     lesson.completedAt = new Date();
     await lesson.save();
 
-    // Unlock next lesson in the same unit
+    // ── Unlock next lesson in unit ──────────────────────────────────────────
     const nextLesson = await Lesson.findOne({
       unit: lesson.unit,
       order: lesson.order + 1,
@@ -227,7 +318,7 @@ class DuolingoService {
       await nextLesson.save();
     }
 
-    // Check if practice lesson - restore 1 heart
+    // ── Restore 1 heart on practice lessons ─────────────────────────────────
     if (lesson.type === 'practice') {
       await UserProgress.findOneAndUpdate(
         { user: userId },
@@ -235,19 +326,9 @@ class DuolingoService {
       );
     }
 
-    // Check unit completion
-    const unit = await Unit.findById(lesson.unit);
-    const unitLessons = await Lesson.find({ unit: unit._id });
-    
-    // Check if all lessons in the unit are completed
-    const allCompleted = unitLessons.length > 0 && unitLessons.every(l => l.isCompleted);
-    if (allCompleted) {
-      unit.isCompleted = true;
-      await unit.save();
-    }
-
-    // Update Streak and Award 20 XP Lesson Completion Bonus
+    // ── Streak & first-completion XP bonus (only once per lesson) ───────────
     const progress = await UserProgress.findOne({ user: userId });
+    let completionXp = 0;
     if (progress) {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -258,29 +339,111 @@ class DuolingoService {
       } else {
         const lastStudy = new Date(progress.lastStudyDate);
         lastStudy.setHours(0, 0, 0, 0);
-
         const diffTime = Math.abs(today - lastStudy);
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
         if (diffDays === 1) {
-          // Maintaining streak (next day study)
           progress.streak += 1;
           progress.lastStudyDate = new Date();
         } else if (diffDays > 1) {
-          // Missed a day: reset streak to 1
           progress.streak = 1;
           progress.lastStudyDate = new Date();
         }
-        // If diffDays === 0: already studied today, keep current streak
       }
 
-      // Increment XP / Points
-      progress.points += 20; // 20 XP completion bonus
-      progress.totalXP += 20;
-      await progress.save();
+      if (isFirstCompletion) {
+        completionXp = 20;
+        progress.points += completionXp;
+        progress.totalXP += completionXp;
+        await progress.save();
+      }
     }
 
-    return { lesson, unitCompleted: unit.isCompleted };
+    // ── Quest progress ────────────────────────────────────────────────────
+    // streak: triggered on EVERY lesson completion (both Duolingo and Quizlet)
+    questService.updateProgress(userId, { type: 'streak', amount: 1 }).catch(err =>
+      console.error('[Quest] Failed to update streak progress:', err.message)
+    );
+
+    // lessons quest: every lesson completion counts
+    questService.updateProgress(userId, { type: 'lessons', amount: 1 }).catch(err =>
+      console.error('[Quest] Failed to update lessons progress:', err.message)
+    );
+
+    // Từ Vựng Mới (type: reviews) — only on FIRST-TIME lesson completion
+    if (isFirstCompletion) {
+      questService.updateProgress(userId, { type: 'reviews', amount: 1 }).catch(err =>
+        console.error('[Quest] Failed to update reviews progress:', err.message)
+      );
+    }
+
+    // Luyện Tập (type: flashcards) — only on RE-DO / practice lesson (lesson already completed before)
+    if (!isFirstCompletion) {
+      questService.updateProgress(userId, { type: 'flashcards', amount: 1 }).catch(err =>
+        console.error('[Quest] Failed to update flashcards progress:', err.message)
+      );
+    }
+
+    // Săn Điểm (type: xp) — completion bonus (20 XP for first-time)
+    if (completionXp > 0) {
+      questService.updateProgress(userId, { type: 'xp', xpEarned: completionXp }).catch(err =>
+        console.error('[Quest] Failed to update xp progress:', err.message)
+      );
+    }
+
+    // ── Daily Challenge scoring (always runs — re-dos earn DC XP too) ────────
+    try {
+      const todayKey = getDateKey(new Date());
+      const challenge = await dailyChallengeService.getTodayChallenge();
+      const dcLessonId = challenge?.lesson?._id != null
+        ? String(challenge.lesson._id)
+        : String(challenge?.lesson || '');
+      const currentLessonId = String(lesson._id);
+      console.log('[DailyChallenge] scoring check:', {
+        userId: String(userId),
+        todayKey,
+        dcLessonId,
+        currentLessonId,
+        match: dcLessonId === currentLessonId,
+        challengeId: challenge?._id,
+        challengeDate: challenge?.date,
+        isFirstCompletion,
+      });
+
+      if (dcLessonId && dcLessonId === currentLessonId) {
+        // completedChallenges counts ALL correct answers ever for this lesson.
+        // On re-do, new correct answers increase this count → more DC XP.
+        const lessonChallengeIds = await Challenge.distinct('_id', { lesson: lesson._id });
+        const completedChallenges = await ChallengeProgress.countDocuments({
+          user: userId,
+          completed: true,
+          challenge: { $in: lessonChallengeIds },
+        });
+        const challengeXp = (completedChallenges * POINTS_PER_CORRECT) + completionXp;
+        const result = await dailyChallengeService.addXpForUserOncePerDay({
+          userId,
+          dateKey: todayKey,
+          challengeId: challenge._id,
+          xp: challengeXp,
+        });
+        console.log('[DailyChallenge] score update (once/day):', {
+          userId: String(userId),
+          date: todayKey,
+          lessonId: String(lesson._id),
+          completedChallenges,
+          completionXp,
+          challengeXp,
+          result,
+        });
+
+        // Note: addXpForUserOncePerDay already emits 'dailyChallenge:score_updated'
+        // via its own eventBus.emit() — no duplicate emit needed here.
+      }
+    } catch (err) {
+      console.error('[DailyChallenge] Failed to update score:', err.message);
+    }
+
+    return { lesson, unitCompleted: false };
   }
 
   // === HEARTS & USER PROGRESS ===
@@ -360,6 +523,16 @@ class DuolingoService {
   async practiceLesson(userId, lessonId) {
     const lesson = await Lesson.findById(lessonId);
     if (!lesson) throw new Error('Lesson not found');
+
+    // Authorization: user must own this lesson (via course enrolled in their progress)
+    const progress = await UserProgress.findOne({ user: userId });
+    if (!progress?.activeCourse) {
+      throw new Error('No active course selected');
+    }
+    const unit = await require('../../models/unit.model').findById(lesson.unit);
+    if (!unit || String(unit.course) !== String(progress.activeCourse)) {
+      throw new Error('Unauthorized: lesson not in active course');
+    }
     
     if (lesson.type !== 'practice') {
       lesson.type = 'practice';

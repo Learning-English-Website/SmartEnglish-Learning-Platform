@@ -50,13 +50,17 @@ export default function CoursesPage() {
         duolingoService.getCourses(),
         duolingoService.getHearts(),
       ]);
-      setCourses(coursesResponse.data || []);
-      if (statsResponse.data) {
+      const safeCourses = Array.isArray(coursesResponse)
+        ? coursesResponse
+        : (coursesResponse?.data && Array.isArray(coursesResponse.data) ? coursesResponse.data : []);
+      setCourses(safeCourses);
+      const safeStats = statsResponse?.data ?? statsResponse;
+      if (safeStats) {
         setUserStats({
-          hearts: statsResponse.data.hearts ?? 5,
-          points: statsResponse.data.points ?? 0,
-          streak: statsResponse.data.streak ?? 0,
-          isPro: statsResponse.data.isPro || false,
+          hearts: safeStats.hearts ?? 5,
+          points: safeStats.points ?? 0,
+          streak: safeStats.streak ?? 0,
+          isPro: safeStats.isPro || false,
         });
       }
     } catch (err) {

@@ -2,7 +2,7 @@ const crypto = require('crypto');
 const { OAuth2Client } = require('google-auth-library');
 const User = require('../user/user.model');
 const redis = require('../../config/redis');
-const { generateAccessToken, generateRefreshToken } = require('../../shared/utils/jwt');
+const { generateAccessToken, generateRefreshToken, verifyRefreshToken } = require('../../shared/utils/jwt');
 const { AppError } = require('../../shared/errors/AppError');
 const eventBus = require('../../shared/events/eventBus');
 
@@ -108,7 +108,91 @@ class AuthService {
     user.lastLoginAt = new Date();
     await user.save({ validateBeforeSave: false });
 
+    // ── Trigger notifications & emails on login ──────────────────────────────────
+    this._triggerLoginNotifications(user).catch(err =>
+      console.error('[Auth] Login notification error:', err.message)
+    );
+
     return { user: user.toPublicProfile(), accessToken, refreshToken };
+  }
+
+  /**
+   * Internal: send streak reminders + weekly report on login
+   */
+  async _triggerLoginNotifications(user) {
+    const notificationService = require('../notification/notification.service');
+    const notificationEmailService = require('../../shared/services/notificationEmail.service');
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayKey = today.toISOString().slice(0, 10);
+
+    const lastStudy = user.streak?.lastStudyDate ? new Date(user.streak.lastStudyDate) : null;
+    const hasStudiedToday = lastStudy && lastStudy >= today;
+    const currentStreak = user.streak?.current || 0;
+
+    const emailReminderEnabled = user.emailReminderEnabled !== false;
+    const lastSent = user.lastStreakReminderSentAt ? new Date(user.lastStreakReminderSentAt) : null;
+    const lastSentKey = lastSent ? lastSent.toISOString().slice(0, 10) : null;
+    const alreadySentToday = lastSentKey === todayKey;
+
+    // ── Streak reminder: user has active streak but hasn't studied today ──
+    // Respect emailReminderEnabled + send once per day
+    if (emailReminderEnabled && currentStreak > 0 && !hasStudiedToday && !alreadySentToday) {
+      await notificationService.createNotification({
+        userId: user._id,
+        type: 'reminder',
+        title: 'Đừng bỏ lỡ chuỗi!',
+        body: `Bạn có chuỗi ${currentStreak} ngày. Hoàn thành bài học ngay để không mất streak!`,
+        actionUrl: '/duolingo/learn',
+      });
+
+      // Also emit event for email handler
+      eventBus.emit('streak:reminder', {
+        userId: user._id.toString(),
+        streak: currentStreak,
+      });
+
+      await User.updateOne(
+        { _id: user._id },
+        { $set: { lastStreakReminderSentAt: new Date() } }
+      );
+    }
+
+    // ── Weekly report: every Sunday (day 0) ──
+    if (today.getDay() === 0) {
+      const weekStart = new Date(today);
+      weekStart.setDate(weekStart.getDate() - 6);
+
+      // Aggregate LearningHistory for this week
+      const LearningHistory = require('../../models/learningHistory.model');
+      const stats = await LearningHistory.aggregate([
+        {
+          $match: {
+            user: user._id,
+            date: { $gte: weekStart, $lte: today },
+          },
+        },
+        {
+          $group: {
+            _id: '$user',
+            totalXP: { $sum: '$xpEarned' },
+            lessonsCompleted: { $sum: '$lessonsCompleted' },
+            cardsReviewed: { $sum: '$cardsReviewed' },
+          },
+        },
+      ]);
+
+      if (stats.length > 0) {
+        const weeklyData = {
+          totalXP: stats[0].totalXP || 0,
+          lessonsCompleted: stats[0].lessonsCompleted || 0,
+          streakDays: currentStreak,
+          accuracy: 0,
+        };
+        await notificationEmailService.sendWeeklyReport(user._id.toString(), weeklyData);
+      }
+    }
   }
 
   /**
@@ -161,6 +245,11 @@ class AuthService {
     user.lastLoginAt = new Date();
     await user.save({ validateBeforeSave: false });
 
+    // ── Trigger notifications & emails on login ──────────────────────────────────
+    this._triggerLoginNotifications(user).catch(err =>
+      console.error('[Auth] Google login notification error:', err.message)
+    );
+
     return { user: user.toPublicProfile(), accessToken, refreshToken };
   }
 
@@ -187,6 +276,10 @@ class AuthService {
     const newAccessToken = generateAccessToken(user);
     const newRefreshToken = generateRefreshToken(user);
 
+    // Atomically rotate: delete old token and store new token.
+    // jwt.sign is deterministic with same inputs; if called within same second,
+    // tokens may be identical — but rotation still invalidates the old token.
+    await redis.del(REFRESH_KEY(userId));
     await redis.set(REFRESH_KEY(userId), newRefreshToken, 'EX', 7 * 24 * 60 * 60);
 
     return { accessToken: newAccessToken, refreshToken: newRefreshToken };
@@ -208,7 +301,8 @@ class AuthService {
     }
 
     if (user.isVerified) {
-      throw new AppError('Email is already verified. Please sign in.', 409);
+      // Return same message as "not found" to prevent email enumeration
+      return { message: 'If that email exists and is pending verification, a new OTP has been sent.' };
     }
 
     const otp = generateOtpCode();
@@ -283,7 +377,9 @@ class AuthService {
       otp,
     });
 
-    console.log(`🔑 [Dev] Reset OTP for ${email}: ${otp}`);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`🔑 [Dev] Reset OTP for ${email}: ${otp}`);
+    }
 
     return { message: 'If that email exists, a reset OTP has been sent.' };
   }
@@ -295,31 +391,58 @@ class AuthService {
     if (!data) throw new AppError('Invalid or expired OTP', 400);
 
     const parsed = JSON.parse(data);
-    if (parsed.otpHash !== hashOtp(otp)) {
+    const hashedOtp = hashOtp(otp);
+    if (parsed.otpHash !== hashedOtp) {
       throw new AppError('Invalid or expired OTP', 400);
     }
 
-    // Don't delete the key yet - let the user set the password
-    return { message: 'OTP verified successfully' };
+    // Invalidate OTP immediately to prevent reuse
+    await redis.del(key);
+
+    // Store a one-time verification token (valid for 2 minutes) to allow password reset
+    const verifyToken = crypto.randomBytes(32).toString('hex');
+    await redis.set(
+      `reset:verified:${verifyToken}`,
+      JSON.stringify({ userId: parsed.userId.toString() }),
+      'EX',
+      2 * 60
+    );
+
+    return { message: 'OTP verified successfully', resetToken: verifyToken };
   }
 
-  async resetPasswordWithOtp({ email, otp, newPassword }) {
+  async resetPasswordWithOtp({ email, otp, newPassword, resetToken }) {
+    // Check verifyResetOtp path first
     const normalizedEmail = normalizeEmail(email);
     const key = RESET_OTP_KEY(normalizedEmail);
     const data = await redis.get(key);
-    if (!data) throw new AppError('Invalid or expired OTP', 400);
 
-    const parsed = JSON.parse(data);
-    if (parsed.otpHash !== hashOtp(otp)) {
-      throw new AppError('Invalid or expired OTP', 400);
+    let userId;
+    // Legacy path: if key still exists, verify OTP again (for clients calling reset directly)
+    if (data) {
+      const parsed = JSON.parse(data);
+      const hashedOtp = hashOtp(otp);
+      if (parsed.otpHash !== hashedOtp) {
+        throw new AppError('Invalid or expired OTP', 400);
+      }
+      userId = parsed.userId;
+      await redis.del(key);
+    } else {
+      // New path: use resetToken from verifyResetOtp
+      if (!resetToken) throw new AppError('Reset token required', 400);
+      const tokenKey = `reset:verified:${resetToken}`;
+      const tokenData = await redis.get(tokenKey);
+      if (!tokenData) throw new AppError('Reset token expired or invalid', 400);
+      const parsedToken = JSON.parse(tokenData);
+      userId = parsedToken.userId;
+      await redis.del(tokenKey);
     }
 
-    const user = await User.findById(parsed.userId).select('+password');
+    const user = await User.findById(userId).select('+password');
     if (!user) throw new AppError('User not found', 404);
 
     user.password = newPassword;
     await user.save();
-    await redis.del(key);
 
     return { message: 'Password reset successful' };
   }

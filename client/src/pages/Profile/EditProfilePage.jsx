@@ -18,6 +18,7 @@ export default function EditProfilePage() {
   const [formData, setFormData] = useState({
     username: user?.username || '',
     avatar: user?.avatar || '',
+    emailReminderEnabled: user?.emailReminderEnabled ?? true,
   });
   const [errors, setErrors] = useState({});
 
@@ -38,6 +39,7 @@ export default function EditProfilePage() {
     const result = await dispatch(updateProfile({
       username: formData.username,
       ...(formData.avatar ? { avatar: formData.avatar } : {}),
+      emailReminderEnabled: formData.emailReminderEnabled,
     }));
 
     if (updateProfile.fulfilled.match(result)) {
@@ -114,6 +116,37 @@ export default function EditProfilePage() {
                   <img src={formData.avatar} alt="Preview" onError={(e) => e.target.style.display = 'none'} />
                 </div>
               )}
+            </Form.Group>
+
+            {/* Email reminders */}
+            <Form.Group className="mb-4">
+              <Form.Label className="form-label-custom">Email streak reminder</Form.Label>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 12,
+                background: 'rgba(99,91,255,0.06)',
+                border: '1px solid rgba(0,0,0,0.06)',
+                borderRadius: 14,
+                padding: '12px 14px',
+              }}>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ fontWeight: 700, color: '#1e1b4b' }}>
+                    Nhắc streak qua email
+                  </div>
+                  <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                    Bật để nhận email nhắc học mỗi ngày khi bạn chưa học.
+                  </div>
+                </div>
+                <Form.Check
+                  type="switch"
+                  id="toggle-email-reminder"
+                  checked={!!formData.emailReminderEnabled}
+                  onChange={(e) => setFormData(p => ({ ...p, emailReminderEnabled: e.target.checked }))}
+                  label={formData.emailReminderEnabled ? 'ON' : 'OFF'}
+                />
+              </div>
             </Form.Group>
 
             <div className="edit-actions">

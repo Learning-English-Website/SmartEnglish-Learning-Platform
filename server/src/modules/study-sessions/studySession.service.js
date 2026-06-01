@@ -171,25 +171,24 @@ const startSession = async (userId, setId) => {
  */
 const submitAnswer = async (userId, sessionId, cardId, isCorrect, mode, responseTime) => {
   const session = await StudySession.findOne({ _id: sessionId, user: userId });
-  if (!session) {
-    throw new AppError('Study session not found', 404);
+  if (!session) throw new AppError('Study session not found', 404);
+  if (session.completedAt) throw new AppError('Session already completed', 400);
+
+  // Prevent double-counting: check if this exact card+mode was already answered.
+  if (mode !== undefined) {
+    const alreadyAnswered = (session.answeredCards || []).some(
+      a => String(a.cardId) === String(cardId) && a.mode === mode
+    );
+    if (alreadyAnswered) {
+      throw new AppError('Card already answered in this session', 400);
+    }
   }
 
-  if (session.completedAt) {
-    throw new AppError('Session already completed', 400);
-  }
-
-  // Quality rating: 0-3
-  // For multiple choice: isCorrect ? 2 : 0 (Good or Again)
-  // For type answer: isCorrect ? 2 : 0
-  // "Hard" (1) and "Easy" (3) can be added via UI buttons
   const quality = isCorrect ? 2 : 0;
 
-  // Get current progress
   let progress = await CardProgress.findOne({ user: userId, card: cardId });
 
   if (!progress) {
-    // Create new progress if doesn't exist
     progress = await CardProgress.create({
       user: userId,
       card: cardId,
@@ -202,7 +201,6 @@ const submitAnswer = async (userId, sessionId, cardId, isCorrect, mode, response
     });
   }
 
-  // Calculate new SM-2 schedule
   const newSchedule = calculateSM2(
     {
       easeFactor: progress.easeFactor,
@@ -213,7 +211,6 @@ const submitAnswer = async (userId, sessionId, cardId, isCorrect, mode, response
     quality
   );
 
-  // Update progress
   progress.easeFactor = newSchedule.easeFactor;
   progress.interval = newSchedule.interval;
   progress.repetitions = newSchedule.repetitions;
@@ -221,53 +218,51 @@ const submitAnswer = async (userId, sessionId, cardId, isCorrect, mode, response
   progress.lastReview = newSchedule.lastReview;
   progress.lapses = newSchedule.lapses;
   progress.totalReviews += 1;
-  if (isCorrect) {
-    progress.correctReviews += 1;
-  }
-
+  if (isCorrect) progress.correctReviews += 1;
   await progress.save();
 
   // Update session stats
   session.cardsReviewed += 1;
+  if (!session.answeredCards) session.answeredCards = [];
+  session.answeredCards.push({ cardId: cardId.toString(), mode, answeredAt: new Date() });
 
   if (isCorrect) {
     const currentCorrect = (session.accuracy || 0) * (session.cardsReviewed - 1);
-    session.accuracy = Math.round(((currentCorrect + 1) / session.cardsReviewed) * 100);
+    session.accuracy = Math.min(100, Math.round(((currentCorrect + 1) / session.cardsReviewed) * 100));
   } else {
     const currentCorrect = (session.accuracy || 0) * (session.cardsReviewed - 1);
-    session.accuracy = Math.round((currentCorrect / session.cardsReviewed) * 100);
+    session.accuracy = Math.min(100, Math.round((currentCorrect / session.cardsReviewed) * 100));
   }
 
   await session.save();
 
-  return {
-    progress,
-    session,
-    newSchedule,
-  };
+  return { progress, session, newSchedule };
 };
 
 /**
  * Complete a study session
  */
 const completeSession = async (userId, sessionId, durationMs) => {
-  const session = await StudySession.findOne({ _id: sessionId, user: userId });
+  // Atomic update: set completedAt + duration only if not already completed
+  const session = await StudySession.findOneAndUpdate(
+    { _id: sessionId, user: userId, completedAt: null },
+    {
+      completedAt: new Date(),
+      ...(durationMs ? { durationMs } : {}),
+      $set: { retentionScore: undefined }, // placeholder — set below after fetch
+    },
+    { new: true }
+  );
   if (!session) {
+    const existing = await StudySession.findOne({ _id: sessionId, user: userId });
+    if (existing?.completedAt) {
+      throw new AppError('Session already completed', 400);
+    }
     throw new AppError('Study session not found', 404);
-  }
-
-  if (session.completedAt) {
-    throw new AppError('Session already completed', 400);
-  }
-
-  session.completedAt = new Date();
-  if (durationMs) {
-    session.durationMs = durationMs;
   }
 
   // Calculate retention score based on accuracy
   session.retentionScore = (session.accuracy || 0) / 100;
-
   await session.save();
 
   // ── Trigger Gamification (fire-and-forget style, không block response) ──────
@@ -302,6 +297,30 @@ const completeSession = async (userId, sessionId, durationMs) => {
   } catch (gamErr) {
     // Không làm lỗi session — chỉ log
     console.error('[Gamification] Error after completeSession:', gamErr.message);
+  }
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  // ── Update Quest Progress (fire-and-forget) ───────────────────────────────────
+  try {
+    const questService = require('../quest/quest.service');
+    const cardsReviewed = session.cardsReviewed || 0;
+
+    if (session.mode === 'review') {
+      questService.updateProgress(userId, { type: 'reviews', amount: cardsReviewed }).catch(err =>
+        console.error('[Quest] Failed to update reviews progress:', err.message)
+      );
+    } else if (session.mode === 'learn') {
+      questService.updateProgress(userId, { type: 'flashcards', amount: cardsReviewed }).catch(err =>
+        console.error('[Quest] Failed to update flashcards progress:', err.message)
+      );
+    }
+
+    // Streak quest — every session completion counts
+    questService.updateProgress(userId, { type: 'streak', amount: 1 }).catch(err =>
+      console.error('[Quest] Failed to update streak progress:', err.message)
+    );
+  } catch (questErr) {
+    console.error('[Quest] Error updating progress:', questErr.message);
   }
   // ─────────────────────────────────────────────────────────────────────────────
 

@@ -16,6 +16,8 @@ const dailyQuestSchema = new Schema(
     isCompleted: { type: Boolean, default: false },
     xpReward: { type: Number, default: 15 },
     completedAt: { type: Date, default: null },
+    rewardClaimed: { type: Boolean, default: false },
+    claimedAt: { type: Date, default: null },
   },
   { timestamps: true }
 );

@@ -303,6 +303,13 @@
   font-weight: 500;
 }
 
+.detail-sub {
+  font-size: 0.8125rem;
+  color: #6b7280;
+  font-weight: 400;
+  margin-top: 2px;
+}
+
 /* ── Edit Profile page reuse ─────────────────────────────────────── */
 .profile-edit-title {
   font-size: clamp(1.35rem, 3vw, 1.85rem);

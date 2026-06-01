@@ -70,6 +70,7 @@ const resetPasswordOtpSchema = Joi.object({
       'string.pattern.base': 'Password must contain at least one uppercase letter, one lowercase letter, and one number',
       'any.required': 'New password is required',
     }),
+  resetToken: Joi.string().optional(),
 });
 
 const googleAuthSchema = Joi.object({

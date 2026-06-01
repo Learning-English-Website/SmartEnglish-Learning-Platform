@@ -4,7 +4,7 @@ const { Schema } = mongoose;
 
 const courseSchema = new Schema(
   {
-    slug: { type: String, required: true, unique: true, trim: true, lowercase: true },
+    slug: { type: String, required: false, unique: true, trim: true, lowercase: true },
     title: { type: String, required: true, trim: true, maxlength: 200 },
     description: { type: String, default: '' },
     languageFrom: { type: String, default: 'en' },
@@ -26,5 +26,14 @@ const courseSchema = new Schema(
   },
   { timestamps: true }
 );
+
+courseSchema.pre('validate', async function () {
+  if (!this.slug && this.title) {
+    this.slug = this.title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '');
+  }
+});
 
 module.exports = mongoose.model('Course', courseSchema);

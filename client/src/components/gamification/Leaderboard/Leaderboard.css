@@ -261,3 +261,14 @@
   0%   { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
+
+/* Real-time flash on leaderboard update */
+.lb-container--flash {
+  animation: lb-flash 0.8s ease-out;
+}
+
+@keyframes lb-flash {
+  0%   { box-shadow: 0 4px 20px rgba(99, 91, 255, 0.06), 0 0 0 0 rgba(99, 91, 255, 0.3); }
+  30%  { box-shadow: 0 4px 20px rgba(99, 91, 255, 0.06), 0 0 0 4px rgba(99, 91, 255, 0.15); }
+  100% { box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06), 0 0 0 0 rgba(99, 91, 255, 0); }
+}

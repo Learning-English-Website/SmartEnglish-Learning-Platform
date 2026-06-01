@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { gamificationService } from '../../../api/gamificationService';
 import './Leaderboard.css';
 
@@ -9,20 +9,38 @@ import './Leaderboard.css';
 export default function Leaderboard({ setId }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [flash, setFlash] = useState(false);
+  const prevDataRef = useRef(null);
 
-  useEffect(() => {
+  const fetchData = () => {
     if (!setId) return;
-    let cancelled = false;
-    setLoading(true);
     gamificationService.getLeaderboard(setId)
       .then((res) => {
-        if (cancelled) return;
         const d = res?.data ?? res;
         setData(d);
+        prevDataRef.current = d;
       })
       .catch(() => {})
-      .finally(() => { if (!cancelled) setLoading(false); });
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    fetchData();
     return () => { cancelled = true; };
+  }, [setId]);
+
+  // Listen for real-time leaderboard updates via Socket.IO
+  useEffect(() => {
+    const handleUpdate = (e) => {
+      if (!setId) return;
+      setFlash(true);
+      setTimeout(() => setFlash(false), 800);
+      fetchData();
+    };
+    window.addEventListener('leaderboard:refresh', handleUpdate);
+    return () => window.removeEventListener('leaderboard:refresh', handleUpdate);
   }, [setId]);
 
   if (loading) {
@@ -52,7 +70,7 @@ export default function Leaderboard({ setId }) {
   };
 
   return (
-    <div className="lb-container">
+    <div className={`lb-container ${flash ? 'lb-container--flash' : ''}`}>
       <div className="lb-header">
         <h3 className="lb-title">🏆 Bảng xếp hạng Match</h3>
         <span className="lb-total">{data.totalPlayers} người tham gia</span>

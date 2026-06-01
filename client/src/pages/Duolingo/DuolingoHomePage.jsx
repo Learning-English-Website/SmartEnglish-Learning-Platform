@@ -1,7 +1,9 @@
 import { useNavigate } from 'react-router-dom';
 import { Container, Row, Col } from 'react-bootstrap';
 import { motion } from 'framer-motion';
-import { Zap, Trophy, Heart, Sparkles, ArrowRight, Play, Languages, ShieldAlert } from 'lucide-react';
+import { Zap, Trophy, Heart, Sparkles, ArrowRight, Play, Languages } from 'lucide-react';
+import DailyChallengeCard from '../../components/gamification/DailyChallenge/DailyChallengeCard';
+import QuestsPanel from '../../components/gamification/Quests/QuestsPanel';
 import './DuolingoHomePage.css';
 
 export default function DuolingoHomePage() {
@@ -100,6 +102,22 @@ export default function DuolingoHomePage() {
                   <div className="pulse-ring pulse-ring-2"></div>
                 </div>
               </motion.div>
+            </Col>
+          </Row>
+
+          {/* Challenge + Quests (Top section) */}
+          <Row className="memoris-home-widgets-row g-4">
+            <Col lg={6}>
+              <div className="memoris-home-widget-stretch" style={{ height: '100%', overflow: 'auto' }}>
+                <DailyChallengeCard />
+              </div>
+            </Col>
+            <Col lg={6}>
+              <div className="memoris-home-widget-stretch memoris-home-quests-card">
+                <div className="memoris-home-quests-scroll">
+                  <QuestsPanel />
+                </div>
+              </div>
             </Col>
           </Row>
         </Container>

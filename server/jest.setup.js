@@ -69,6 +69,14 @@ beforeAll(async () => {
   require('./src/models/studySession.model');
   require('./src/models/share.model');
   require('./src/models/bookmark.model');
+  require('./src/models/dailyQuest.model');
+  require('./src/models/learningHistory.model');
+  require('./src/models/course.model');
+  require('./src/models/unit.model');
+  require('./src/models/lesson.model');
+  require('./src/models/challenge.model');
+  require('./src/models/challengeProgress.model');
+  require('./src/models/userProgress.model');
 
   mongoServer = await MongoMemoryServer.create();
   const mongoUri = mongoServer.getUri();
