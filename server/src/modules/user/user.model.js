@@ -66,6 +66,10 @@ const UserSchema = new Schema(
       longest:       { type: Number, default: 0 },
       lastStudyDate: { type: Date,   default: null },
     },
+    streakFreezes: {
+      type: Number,
+      default: 0
+    },
     gamification: {
       xp:    { type: Number, default: 0 },
       level: { type: Number, default: 1 },
@@ -111,6 +115,7 @@ UserSchema.methods.toPublicProfile = function () {
     premium: this.premium,
     isVerified: this.isVerified,
     streak: this.streak,
+    streakFreezes: this.streakFreezes,
     gamification: this.gamification,
     createdAt: this.createdAt,
     updatedAt: this.updatedAt,

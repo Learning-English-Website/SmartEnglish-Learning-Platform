@@ -1,0 +1,301 @@
+/* ═══════════════════════════════════════════════════════════════════
+   SmartEnglish PremiumLimitModal — Ultra-Minimalist & High-End Tech
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Clean, Soft Backdrop Blur */
+.premium-limit-modal-wrap {
+  backdrop-filter: blur(8px) saturate(120%);
+  background-color: rgba(15, 23, 42, 0.3) !important; /* Soft slate backdrop */
+}
+
+/* Modal Content - Elegant Minimalist Design */
+.premium-limit-modal-content {
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 20px !important;
+  background: #ffffff !important;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08) !important;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Dark Theme Support - Clean Slate */
+[data-theme="dark"] .premium-limit-modal-content {
+  background: #0f172a !important; /* Slate 900 background */
+  border-color: rgba(255, 255, 255, 0.06) !important;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Clean, Simple Close Button */
+.premium-limit-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  z-index: 10;
+}
+
+[data-theme="dark"] .premium-limit-close {
+  border-color: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.02);
+  color: #94a3b8;
+}
+
+.premium-limit-close:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+[data-theme="dark"] .premium-limit-close:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+
+/* Modal Body Spacing */
+.premium-limit-body {
+  padding: 40px 32px 32px !important;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  font-family: 'Outfit', 'Inter', -apple-system, sans-serif;
+  position: relative;
+}
+
+/* Clean Crown Icon Container */
+.premium-limit-icon-container {
+  width: 64px;
+  height: 64px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.premium-limit-icon-box {
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  background: #fffbeb; /* Very soft amber-100 */
+  border: 1px solid #fef3c7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+[data-theme="dark"] .premium-limit-icon-box {
+  background: rgba(217, 119, 6, 0.08);
+  border-color: rgba(217, 119, 6, 0.15);
+}
+
+.sleek-crown-svg {
+  filter: none;
+}
+
+/* Title Typography - Strong & Clean */
+.premium-limit-title {
+  font-size: 1.45rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 6px;
+  letter-spacing: -0.02em;
+}
+
+[data-theme="dark"] .premium-limit-title {
+  color: #ffffff;
+}
+
+.premium-limit-reason {
+  font-size: 0.86rem;
+  color: #64748b;
+  max-width: 320px;
+  line-height: 1.45;
+  margin-bottom: 24px;
+}
+
+[data-theme="dark"] .premium-limit-reason {
+  color: #94a3b8;
+}
+
+/* Premium Features List - Flat, Clean card */
+.premium-limit-features-list {
+  width: 100%;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+[data-theme="dark"] .premium-limit-features-list {
+  background: rgba(255, 255, 255, 0.02);
+  border-color: rgba(255, 255, 255, 0.04);
+}
+
+.premium-limit-feature-item {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  text-align: left;
+  padding: 4px;
+}
+
+/* Feature Check Icon */
+.feature-check-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px; /* Elegant squircle */
+  background: #fffbeb; /* Soft Amber-50 */
+  border: 1px solid #fef3c7;
+  color: #d97706; /* Solid Amber */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+[data-theme="dark"] .feature-check-icon {
+  background: rgba(217, 119, 6, 0.08);
+  border-color: rgba(217, 119, 6, 0.15);
+  color: #fbbf24;
+}
+
+.feature-check-icon svg {
+  stroke-width: 4px;
+}
+
+.feature-details {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.feature-details strong {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+[data-theme="dark"] .feature-details strong {
+  color: #ffffff;
+}
+
+.feature-details span {
+  font-size: 0.76rem;
+  color: #64748b;
+  line-height: 1.3;
+}
+
+[data-theme="dark"] .feature-details span {
+  color: #94a3b8;
+}
+
+/* Pricing Indicator Box */
+.premium-limit-pricing-box {
+  margin-bottom: 24px;
+}
+
+.premium-limit-pricing {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 4px;
+}
+
+.premium-limit-pricing .price {
+  font-size: 1.85rem;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+}
+
+[data-theme="dark"] .premium-limit-pricing .price {
+  color: #ffffff;
+}
+
+.premium-limit-pricing .period {
+  font-size: 0.84rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+[data-theme="dark"] .premium-limit-pricing .period {
+  color: #94a3b8;
+}
+
+/* Action Buttons Styling */
+.premium-limit-actions {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Solid Flat Premium Action Button */
+.btn-premium-limit-upgrade {
+  width: 100%;
+  height: 44px;
+  background: #d97706; /* Flat Solid Amber */
+  border: none;
+  border-radius: 12px;
+  color: #ffffff;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(217, 119, 6, 0.1);
+}
+
+.btn-premium-limit-upgrade:hover {
+  background: #b45309; /* Darker amber */
+  transform: none;
+  box-shadow: 0 4px 8px rgba(217, 119, 6, 0.15);
+}
+
+.btn-premium-limit-upgrade:active {
+  transform: scale(0.98);
+}
+
+/* Secondary Dismiss Button */
+.btn-premium-limit-dismiss {
+  width: 100%;
+  height: 40px;
+  background: transparent;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  color: #64748b;
+  font-size: 0.84rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+[data-theme="dark"] .btn-premium-limit-dismiss {
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #94a3b8;
+}
+
+.btn-premium-limit-dismiss:hover {
+  background: #f8fafc;
+  color: #0f172a;
+  border-color: #94a3b8;
+}
+
+[data-theme="dark"] .btn-premium-limit-dismiss:hover {
+  background: rgba(255, 255, 255, 0.02);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.15);
+}

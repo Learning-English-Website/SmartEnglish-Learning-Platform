@@ -86,6 +86,48 @@
   gap: 0.25rem;
 }
 
+.hearts-display.pro {
+  align-items: center;
+}
+
+.premium-infinite-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 75, 75, 0.08);
+  border: 1.5px solid rgba(255, 75, 75, 0.25);
+  border-radius: 99px;
+  padding: 4px 12px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #ff4b4b;
+  box-shadow: 0 1px 3px rgba(255, 75, 75, 0.04);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+}
+
+.premium-infinite-badge:hover {
+  background: rgba(255, 75, 75, 0.12);
+  border-color: rgba(255, 75, 75, 0.4);
+  transform: translateY(-1px);
+}
+
+.premium-infinite-heart {
+  font-size: 1.05rem;
+  animation: pulse-heart 2s infinite ease-in-out;
+}
+
+@keyframes pulse-heart {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+}
+
+.premium-infinite-symbol {
+  font-size: 1.2rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
 .heart-icon {
   font-size: 1.25rem;
   transition: all 0.3s ease;

@@ -111,6 +111,15 @@ export default function ProfilePage() {
               <span className="profile-stat-label">Tổng XP</span>
             </div>
           </div>
+          {user.premium === 'premium' && (
+            <div className="profile-stat-card">
+              <div className="profile-stat-icon profile-stat-icon--freeze">❄️</div>
+              <div className="profile-stat-body">
+                <span className="profile-stat-value">{user.streakFreezes ?? 3} / 3</span>
+                <span className="profile-stat-label">Bảo hiểm</span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* ── XP Progress ───────────────────────────────────────────── */}

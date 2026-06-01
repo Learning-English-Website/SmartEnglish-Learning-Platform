@@ -1,10 +1,10 @@
-import { NavLink, useLocation, Link } from 'react-router-dom';
+import { NavLink, useLocation, Link, useNavigate } from 'react-router-dom';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Search, Bell, Plus, ChevronLeft, ChevronRight,
   Home, LibraryBig, FolderPlus, Folder, CreditCard,
   Menu, X, Check, LogOut, User, Settings,
-  Compass, BookText, Languages, Sun, Moon
+  Compass, BookText, Languages, Sun, Moon, Star
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { folderService } from '../../api/folderService';
@@ -24,6 +24,7 @@ export default function DashboardLayout({ children }) {
   const [creatingFolder, setCreatingFolder] = useState(false);
 
   const location = useLocation();
+  const navigate = useNavigate();
   const { user, logout } = useAuth();
   const userMenuRef = useRef(null);
 
@@ -136,7 +137,14 @@ export default function DashboardLayout({ children }) {
             {darkMode ? <Sun size={18} /> : <Moon size={18} />}
           </button>
 
-          <button className="q-plus-btn">Nâng cấp lên Plus</button>
+          {user?.premium === 'premium' ? (
+            <span className="q-pro-badge">
+              <Star size={10} fill="currentColor" stroke="none" />
+              <span>PREMIUM</span>
+            </span>
+          ) : (
+            <button className="q-plus-btn" onClick={() => navigate('/premium')}>Nâng cấp Premium</button>
+          )}
 
           {/* User avatar */}
           <div className="q-user-menu-wrap" ref={userMenuRef}>

@@ -66,6 +66,7 @@ export default function LessonPage() {
   const [showResumeModal, setShowResumeModal] = useState(false);
   const [pendingResumeData, setPendingResumeData] = useState(null);
   const [hearts, setHearts] = useState(5);
+  const [isPro, setIsPro] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const [showExitModal, setShowExitModal] = useState(false);
   const [showHeartsModal, setShowHeartsModal] = useState(false);
@@ -559,7 +560,9 @@ export default function LessonPage() {
   const loadHearts = useCallback(async () => {
     try {
       const response = await duolingoService.getHearts();
-      setHearts(response.data?.hearts ?? 5);
+      const data = response.data || response;
+      setHearts(data?.hearts ?? 5);
+      setIsPro(data?.isPro || false);
     } catch (err) {
       console.error('Failed to load hearts:', err);
     }
@@ -636,13 +639,15 @@ export default function LessonPage() {
   }, [currentChallenge, status, typedAnswer]);
 
   const handleWrongAnswer = async () => {
+    if (isPro) return; // Pro users never lose hearts or show refill modals
     try {
       const heartsResult = await duolingoService.reduceHearts();
-      if (heartsResult.data?.error === 'no_hearts') {
+      const hData = heartsResult.data || heartsResult;
+      if (hData?.error === 'no_hearts') {
         setShowHeartsModal(true);
       } else {
-        setHearts(heartsResult.data?.hearts ?? hearts - 1);
-        if (heartsResult.data?.hearts === 0) {
+        setHearts(hData?.hearts ?? hearts - 1);
+        if (hData?.hearts === 0) {
           setShowHeartsModal(true);
         }
       }
@@ -849,17 +854,30 @@ export default function LessonPage() {
           </span>
         </div>
 
-        <div
-          className="hearts-display"
-          role="img"
-          aria-label={`Hearts: ${hearts} of 5 remaining`}
-        >
-          {Array.from({ length: 5 }).map((_, i) => (
-            <span key={i} className={`heart-icon ${i < hearts ? 'active' : 'empty'}`} aria-hidden="true">
-              {i < hearts ? '❤️' : '🖤'}
+        {isPro ? (
+          <div
+            className="hearts-display pro"
+            role="img"
+            aria-label="Vô hạn tim"
+          >
+            <span className="heart-icon active premium-infinite-badge">
+              <span className="premium-infinite-heart">❤️</span>
+              <span className="premium-infinite-symbol">∞</span>
             </span>
-          ))}
-        </div>
+          </div>
+        ) : (
+          <div
+            className="hearts-display"
+            role="img"
+            aria-label={`Hearts: ${hearts} of 5 remaining`}
+          >
+            {Array.from({ length: 5 }).map((_, i) => (
+              <span key={i} className={`heart-icon ${i < hearts ? 'active' : 'empty'}`} aria-hidden="true">
+                {i < hearts ? '❤️' : '🖤'}
+              </span>
+            ))}
+          </div>
+        )}
       </header>
 
       {/* Main Content */}
@@ -1603,7 +1621,7 @@ export default function LessonPage() {
                 Đáp án đúng: <strong>{getCorrectAnswerText(currentChallenge)}</strong>
               </span>
               <span className="feedback-hearts">
-                {hearts <= 1 ? 'Tim cuối cùng!' : `${hearts} tim còn lại`}
+                {isPro ? '✨ Premium Vô Hạn Tim' : (hearts <= 1 ? 'Tim cuối cùng!' : `${hearts} tim còn lại`)}
               </span>
             </div>
           </motion.div>

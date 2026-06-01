@@ -13,6 +13,7 @@ import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import CardEditor from '../../components/flashcard/CardEditor/CardEditor';
 import TagPicker from '../../components/common/TagPicker/TagPicker';
 import ImportModal from '../../components/flashcard/ImportModal/ImportModal';
+import PremiumLimitModal from '../../components/common/PremiumLimitModal/PremiumLimitModal';
 import './CreateSet.css';
 
 const DRAFT_KEY = 'create-set-draft';
@@ -47,6 +48,8 @@ export default function CreateSet() {
   const [savedAt, setSavedAt] = useState(null);
   const [showImport, setShowImport] = useState(false);
   const [folders, setFolders] = useState([]);
+  const [showPremiumModal, setShowPremiumModal] = useState(false);
+  const [premiumReason, setPremiumReason] = useState('');
 
   const lastCardRef = useRef(null);
 
@@ -219,8 +222,13 @@ export default function CreateSet() {
       clearDraft();
       navigate(newId ? `/flashcards/sets/${newId}` : '/flashcards');
     } catch (err) {
-      const msg = err?.response?.data?.message || 'Tạo set thất bại. Vui lòng thử lại.';
-      toast.error(msg);
+      const msg = err?.response?.data?.error?.message || err?.response?.data?.message || 'Tạo bộ thẻ thất bại. Vui lòng thử lại.';
+      if (msg.includes('Premium') || msg.includes('miễn phí')) {
+        setPremiumReason(msg);
+        setShowPremiumModal(true);
+      } else {
+        toast.error(msg);
+      }
     } finally {
       setSubmitting(false);
     }
@@ -413,6 +421,13 @@ export default function CreateSet() {
         show={showImport}
         onHide={() => setShowImport(false)}
         onImport={handleImport}
+      />
+
+      {/* Premium Limit Modal */}
+      <PremiumLimitModal
+        show={showPremiumModal}
+        onHide={() => setShowPremiumModal(false)}
+        reason={premiumReason}
       />
     </>
   );

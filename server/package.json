@@ -17,6 +17,8 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@andev2005/momo-sdk": "^1.1.1",
+    "babel-polyfill": "^6.26.0",
     "bcryptjs": "^3.0.3",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",

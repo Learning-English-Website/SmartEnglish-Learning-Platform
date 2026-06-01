@@ -44,6 +44,7 @@ import { LoadingSpinner } from '../../components/common';
 import { ConfirmModal } from '../../components/common/Modal/Modal';
 import ShareModal from '../../components/common/ShareModal/ShareModal';
 import Leaderboard from '../../components/gamification/Leaderboard/Leaderboard';
+import PremiumLimitModal from '../../components/common/PremiumLimitModal/PremiumLimitModal';
 import './SetDetail.css';
 
 const LAYOUT = { LIST: 'list', GRID: 'grid' };
@@ -89,6 +90,8 @@ export default function SetDetail() {
 
   // Share modal
   const [showShare, setShowShare] = useState(false);
+  const [showPremiumModal, setShowPremiumModal] = useState(false);
+  const [premiumReason, setPremiumReason] = useState('');
 
   // Notes tab
   const [selectedCardId, setSelectedCardId] = useState(null);
@@ -196,8 +199,14 @@ export default function SetDetail() {
       setSet((prev) => prev ? { ...prev, cardCount: (prev.cardCount ?? 0) + 1 } : prev);
       toast.success('Card added!');
       setShowAddCard(false);
-    } catch {
-      toast.error('Failed to add card.');
+    } catch (err) {
+      const msg = err?.response?.data?.error?.message || err?.response?.data?.message || 'Failed to add card.';
+      if (msg.includes('Premium') || msg.includes('miễn phí')) {
+        setPremiumReason(msg);
+        setShowPremiumModal(true);
+      } else {
+        toast.error(msg);
+      }
     } finally {
       setAddingCard(false);
     }
@@ -246,8 +255,14 @@ export default function SetDetail() {
       setSet((prev) => prev ? { ...prev, cardCount: (prev.cardCount ?? 0) + createdArr.length } : prev);
       toast.success(`${createdArr.length} cards added!`);
       setShowBulk(false);
-    } catch {
-      toast.error('Bulk create failed.');
+    } catch (err) {
+      const msg = err?.response?.data?.error?.message || err?.response?.data?.message || 'Bulk create failed.';
+      if (msg.includes('Premium') || msg.includes('miễn phí')) {
+        setPremiumReason(msg);
+        setShowPremiumModal(true);
+      } else {
+        toast.error(msg);
+      }
     } finally {
       setBulkLoading(false);
     }
@@ -262,8 +277,14 @@ export default function SetDetail() {
       setCards((prev) => [...prev, ...createdArr]);
       setSet((prev) => prev ? { ...prev, cardCount: (prev.cardCount ?? 0) + createdArr.length } : prev);
       toast.success(`${createdArr.length} cards imported!`);
-    } catch {
-      toast.error('Import failed. Please try again.');
+    } catch (err) {
+      const msg = err?.response?.data?.error?.message || err?.response?.data?.message || 'Import failed. Please try again.';
+      if (msg.includes('Premium') || msg.includes('miễn phí')) {
+        setPremiumReason(msg);
+        setShowPremiumModal(true);
+      } else {
+        toast.error(msg);
+      }
     }
   };
 
@@ -692,6 +713,13 @@ export default function SetDetail() {
         isPublic={set?.isPublic}
         onHide={() => setShowShare(false)}
         onPublicChanged={() => {}}
+      />
+
+      {/* Premium Limit Modal */}
+      <PremiumLimitModal
+        show={showPremiumModal}
+        onHide={() => setShowPremiumModal(false)}
+        reason={premiumReason}
       />
     </div>
   );

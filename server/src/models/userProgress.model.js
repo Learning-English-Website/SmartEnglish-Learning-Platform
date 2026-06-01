@@ -19,7 +19,14 @@ const userProgressSchema = new Schema(
     points: { type: Number, default: 0 },            // XP
     streak: { type: Number, default: 0 },
     lastStudyDate: { type: Date, default: null },
-    isPro: { type: Boolean, default: false },        // Pro subscription
+    
+    // Pro subscription (MoMo + PayOS)
+    isPro: { type: Boolean, default: false },
+    proActivatedAt: { type: Date, default: null },
+    proExpiresAt: { type: Date, default: null },
+    proMethod: { type: String, enum: ['momo', 'payos', null], default: null },
+    
+    // Legacy Stripe (for migration)
     stripeCustomerId: { type: String, default: null },
     stripeSubscriptionId: { type: String, default: null },
   },

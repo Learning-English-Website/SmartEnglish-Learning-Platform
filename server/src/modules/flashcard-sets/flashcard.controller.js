@@ -56,6 +56,14 @@ const createCard = async (req, res) => {
   const { front, back, pronunciation, example, note, collocation, relatedWords, imageUrl } = req.body;
   if (!front || !back) throw new AppError('front and back are required', 400);
 
+  // Chặn tài khoản thường vượt quá 30 từ
+  if (req.user.premium !== 'premium') {
+    const existingCount = await Flashcard.countDocuments({ set: setId });
+    if (existingCount >= 30) {
+      throw new AppError('Bộ thẻ học của tài khoản thường giới hạn tối đa 30 từ. Vui lòng nâng cấp Premium để thêm không giới hạn!', 400);
+    }
+  }
+
   const card = await Flashcard.create({
     set: setId,
     front: front.trim(),
@@ -99,6 +107,14 @@ const bulkCreateCards = async (req, res) => {
     }));
 
   if (validCards.length === 0) throw new AppError('No valid cards provided', 400);
+
+  // Chặn tài khoản thường vượt quá 30 từ khi thêm hàng loạt
+  if (req.user.premium !== 'premium') {
+    const existingCount = await Flashcard.countDocuments({ set: setId });
+    if (existingCount + validCards.length > 30) {
+      throw new AppError('Bộ thẻ học của tài khoản thường giới hạn tối đa 30 từ. Việc thêm số từ này sẽ vượt quá giới hạn. Vui lòng nâng cấp Premium!', 400);
+    }
+  }
 
   const created = await Flashcard.insertMany(validCards);
   await FlashcardSet.findByIdAndUpdate(setId, { $inc: { cardCount: created.length } });
@@ -151,6 +167,14 @@ const importCsvCards = async (req, res) => {
     .filter(Boolean);
 
   if (validCards.length === 0) throw new AppError('No valid cards found in CSV', 400);
+
+  // Chặn tài khoản thường vượt quá 30 từ khi nhập CSV
+  if (req.user.premium !== 'premium') {
+    const existingCount = await Flashcard.countDocuments({ set: setId });
+    if (existingCount + validCards.length > 30) {
+      throw new AppError('Bộ thẻ học của tài khoản thường giới hạn tối đa 30 từ. Nhập file CSV này sẽ vượt quá giới hạn. Vui lòng nâng cấp Premium!', 400);
+    }
+  }
 
   const created = await Flashcard.insertMany(validCards);
   await FlashcardSet.findByIdAndUpdate(setId, { $inc: { cardCount: created.length } });

@@ -285,11 +285,20 @@ class DuolingoService {
 
   // === HEARTS & USER PROGRESS ===
   async getUserHearts(userId) {
+    const user = await User.findById(userId);
     let progress = await UserProgress.findOne({ user: userId }).populate('activeCourse');
     if (!progress) {
       progress = await UserProgress.create({ user: userId });
       progress = await progress.populate('activeCourse');
     }
+
+    // Dynamic synchronization of Premium status
+    const isPremium = !!(user && user.premium === 'premium');
+    if (isPremium !== progress.isPro) {
+      progress.isPro = isPremium;
+      await progress.save();
+    }
+
     return {
       hearts: progress.hearts,
       maxHearts: progress.isPro ? Infinity : MAX_HEARTS,
@@ -301,8 +310,16 @@ class DuolingoService {
   }
 
   async reduceHearts(userId) {
+    const user = await User.findById(userId);
     const progress = await UserProgress.findOne({ user: userId });
     if (!progress) return { hearts: 0 };
+
+    // Dynamic synchronization of Premium status
+    const isPremium = !!(user && user.premium === 'premium');
+    if (isPremium !== progress.isPro) {
+      progress.isPro = isPremium;
+      await progress.save();
+    }
 
     // Pro users don't lose hearts
     if (progress.isPro) {

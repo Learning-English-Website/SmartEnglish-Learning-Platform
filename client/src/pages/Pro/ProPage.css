@@ -1,0 +1,483 @@
+/* ═══════════════════════════════════════════════════════════════
+   SmartEnglish ProPage — Basic But Modern Subscription Layout
+   Sleek Two-Column Design · High-Performance Flat Aesthetics
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Container Layout ───────────────────────────────────────── */
+.pro-page-container {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 48px 24px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* ── Hero Section ───────────────────────────────────────────── */
+.pro-hero-section {
+  text-align: center;
+  margin-bottom: 48px;
+}
+
+.premium-label {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #d97706; /* Amber 600 */
+  background: #fffbeb; /* Amber 50 */
+  padding: 6px 12px;
+  border-radius: 20px;
+  border: 1px solid #fde68a;
+  margin-bottom: 16px;
+}
+
+[data-theme="dark"] .premium-label {
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.08);
+  border-color: rgba(245, 158, 11, 0.15);
+}
+
+.pro-hero-title {
+  font-size: 2.25rem;
+  font-weight: 800;
+  color: #0f172a; /* Slate 900 */
+  letter-spacing: -0.03em;
+  margin-bottom: 12px;
+  line-height: 1.2;
+}
+
+[data-theme="dark"] .pro-hero-title {
+  color: #ffffff;
+}
+
+.pro-hero-subtitle {
+  font-size: 1.05rem;
+  color: #475569; /* Slate 600 */
+  max-width: 600px;
+  margin: 0 auto;
+  line-height: 1.5;
+}
+
+[data-theme="dark"] .pro-hero-subtitle {
+  color: #94a3b8;
+}
+
+/* ── Split Grid Layout ──────────────────────────────────────── */
+.pro-main-content {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 40px;
+  align-items: start;
+}
+
+/* ── Left Column: Features ───────────────────────────────────── */
+.pro-features-column {
+  padding-right: 12px;
+}
+
+.section-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1e293b; /* Slate 800 */
+  margin-bottom: 24px;
+  letter-spacing: -0.02em;
+}
+
+[data-theme="dark"] .section-title {
+  color: #f1f5f9;
+}
+
+.features-list-clean {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.feature-item-clean {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  padding: 16px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+[data-theme="dark"] .feature-item-clean {
+  background: rgba(255, 255, 255, 0.02);
+  border-color: rgba(255, 255, 255, 0.05);
+}
+
+.feature-item-clean:hover {
+  transform: translateY(-1px);
+  border-color: #cbd5e1;
+}
+
+[data-theme="dark"] .feature-item-clean:hover {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.feature-icon-clean {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  background: #f8fafc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  flex-shrink: 0;
+  border: 1px solid #e2e8f0;
+}
+
+[data-theme="dark"] .feature-icon-clean {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.05);
+}
+
+.feature-text-clean h3 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 4px;
+}
+
+[data-theme="dark"] .feature-text-clean h3 {
+  color: #f1f5f9;
+}
+
+.feature-text-clean p {
+  font-size: 0.875rem;
+  color: #475569;
+  line-height: 1.45;
+  margin: 0;
+}
+
+[data-theme="dark"] .feature-text-clean p {
+  color: #94a3b8;
+}
+
+/* ── Right Column: Pricing & Checkout Card ────────────────── */
+.pro-checkout-column {
+  position: sticky;
+  top: 86px;
+}
+
+.checkout-card-clean {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 16px;
+  padding: 32px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+  position: relative;
+}
+
+[data-theme="dark"] .checkout-card-clean {
+  background: rgba(255, 255, 255, 0.02);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.card-badge-gold {
+  position: absolute;
+  top: -12px;
+  left: 28px;
+  background: #d97706; /* Amber 600 */
+  color: #ffffff;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 2px 6px rgba(217, 119, 6, 0.2);
+}
+
+.plan-name {
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b; /* Slate 500 */
+  margin-bottom: 8px;
+  margin-top: 4px;
+}
+
+[data-theme="dark"] .plan-name {
+  color: #94a3b8;
+}
+
+.price-tag-clean {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.price-tag-clean .amount {
+  font-size: 2.25rem;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+}
+
+[data-theme="dark"] .price-tag-clean .amount {
+  color: #ffffff;
+}
+
+.price-tag-clean .period {
+  font-size: 0.95rem;
+  color: #475569;
+  font-weight: 500;
+}
+
+[data-theme="dark"] .price-tag-clean .period {
+  color: #94a3b8;
+}
+
+.plan-description {
+  font-size: 0.875rem;
+  color: #64748b;
+  margin-bottom: 24px;
+  line-height: 1.4;
+}
+
+[data-theme="dark"] .plan-description {
+  color: #64748b;
+}
+
+/* ── Payment Option Selectors ─────────────────────────────── */
+.payment-selectors-clean {
+  margin-bottom: 24px;
+}
+
+.selector-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b;
+  margin-bottom: 12px;
+}
+
+[data-theme="dark"] .selector-title {
+  color: #64748b;
+}
+
+.payment-card-option {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  cursor: pointer;
+  margin-bottom: 12px;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+[data-theme="dark"] .payment-card-option {
+  background: rgba(255, 255, 255, 0.01);
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+.payment-card-option:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+}
+
+[data-theme="dark"] .payment-card-option:hover {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.payment-card-option.active {
+  background: #f0fdf4; /* Very light green tint */
+  border-color: #22c55e; /* Green 500 */
+}
+
+[data-theme="dark"] .payment-card-option.active {
+  background: rgba(34, 197, 94, 0.06);
+  border-color: #22c55e;
+}
+
+/* Custom radio visual */
+.option-radio {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid #cbd5e1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+[data-theme="dark"] .option-radio {
+  border-color: rgba(255, 255, 255, 0.2);
+  background: transparent;
+}
+
+.payment-card-option.active .option-radio {
+  border-color: #22c55e;
+  background: #22c55e;
+}
+
+.radio-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ffffff;
+  transform: scale(0);
+  transition: transform 0.15s ease;
+}
+
+.payment-card-option.active .radio-dot {
+  transform: scale(1);
+}
+
+.pay-icon {
+  width: 58px;
+  height: 58px;
+  object-fit: contain;
+  background: #ffffff;
+  border-radius: 10px;
+  padding: 6px;
+  border: 1px solid #e2e8f0;
+  flex-shrink: 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="dark"] .pay-icon {
+  background: #ffffff;
+  border-color: transparent;
+}
+
+.pay-details {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  gap: 4px;
+}
+
+.pay-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+[data-theme="dark"] .pay-title {
+  color: #f1f5f9;
+}
+
+.pay-sub {
+  font-size: 0.78rem;
+  color: #64748b;
+  line-height: 1.35;
+}
+
+[data-theme="dark"] .pay-sub {
+  color: #64748b;
+}
+
+.payment-card-option.active .pay-title {
+  color: #15803d; /* Slate green */
+}
+
+[data-theme="dark"] .payment-card-option.active .pay-title {
+  color: #4ade80; /* Light green */
+}
+
+/* ── Pay Upgrade Button ─────────────────────────────────────── */
+.btn-pro-pay-clean {
+  width: 100%;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #2563eb; /* Slate blue */
+  border: none;
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  user-select: none;
+}
+
+.btn-pro-pay-clean:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.btn-pro-pay-clean:disabled {
+  opacity: 0.75;
+  cursor: not-allowed;
+}
+
+.pay-spinner-glow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mini-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: spin 0.75s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.checkout-footer-note {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  line-height: 1.4;
+  margin-top: 14px;
+  margin-bottom: 0;
+  text-align: center;
+}
+
+/* ── Responsive media queries ───────────────────────────────── */
+@media (max-width: 900px) {
+  .pro-main-content {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+
+  .pro-features-column {
+    padding-right: 0;
+  }
+
+  .pro-checkout-column {
+    position: static;
+  }
+
+  .pro-hero-section {
+    margin-bottom: 32px;
+  }
+
+  .pro-hero-title {
+    font-size: 1.85rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .pro-page-container {
+    padding: 32px 16px;
+  }
+
+  .checkout-card-clean {
+    padding: 24px 20px;
+  }
+}
