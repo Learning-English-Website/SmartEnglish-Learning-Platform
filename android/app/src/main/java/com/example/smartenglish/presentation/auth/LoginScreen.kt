@@ -2,7 +2,9 @@ package com.example.smartenglish.presentation.auth
 
 import android.app.Activity
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,10 +14,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -23,9 +27,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.filled.Style
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -65,12 +70,25 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.layout.ContentScale
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+
+// Premium Dark Theme Colors
+private val DeepDarkNavy = Color(0xFF07091E)
+private val DarkBackground = Color(0xFF0F112A)
+private val QuizletBlue = Color(0xFF4255FF)
+private val QuizletCoral = Color(0xFFFF6B6B)
+private val TextWhite = Color(0xFFF8FAFC)
+private val TextGray = Color(0xFF94A3B8)
+private val CardBg = Color(0xFF161A3F)
+private val IconBg = Color(0xFF1E214A)
+private val IconCyan = Color(0xFF38BDF8)
 
 @Composable
 fun LoginScreen(
@@ -111,21 +129,22 @@ fun LoginScreen(
     }
 
     Scaffold(
+        containerColor = Color.Transparent,
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { paddingValues ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .background(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(
-                            Color(0xFFEEF2FF), // Soft Indigo
-                            Color(0xFFF5F3FF)  // Soft Purple
-                        )
-                    )
-                )
         ) {
+            // Premium Starry Night Background Image
+            Image(
+                painter = painterResource(id = com.example.smartenglish.R.drawable.bg_starry_night),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -134,71 +153,62 @@ fun LoginScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                Spacer(modifier = Modifier.height(32.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
-                // Logo App Icon (Beautiful Gradient Box with Icon)
-                Box(
+                // Logo App Icon (Clean & Perfectly Sized)
+                Image(
+                    painter = painterResource(id = com.example.smartenglish.R.drawable.logo_app),
+                    contentDescription = "Logo",
+                    contentScale = ContentScale.Fit,
                     modifier = Modifier
-                        .size(72.dp)
-                        .background(
-                            brush = Brush.linearGradient(
-                                colors = listOf(Color(0xFF4255FF), Color(0xFF8B5CF6))
-                            ),
-                            shape = RoundedCornerShape(20.dp)
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.School,
-                        contentDescription = "Logo",
-                        tint = Color.White,
-                        modifier = Modifier.size(38.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Logo Name with Gradient
-                Text(
-                    text = "SmartEnglish",
-                    style = TextStyle(
-                        brush = Brush.linearGradient(
-                            colors = listOf(Color(0xFF4255FF), Color(0xFF8B5CF6))
-                        ),
-                        fontWeight = FontWeight.ExtraBold,
-                        fontSize = 32.sp
-                    )
+                        .size(80.dp)
+                        .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(20.dp))
+                        .background(Color.Transparent, shape = RoundedCornerShape(20.dp))
                 )
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
+                // Brand Title "Memoris"
                 Text(
-                    text = "Sign in to continue learning",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                    text = "Memoris",
+                    color = Color.White,
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 38.sp,
+                    letterSpacing = 0.2.sp
                 )
 
-                Spacer(modifier = Modifier.height(28.dp))
+                Spacer(modifier = Modifier.height(6.dp))
 
-                // Login Form Card
+                // Slogan
+                Text(
+                    text = "Học tập thông minh hơn mỗi ngày",
+                    fontSize = 14.sp,
+                    color = TextGray,
+                    fontWeight = FontWeight.Normal
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Premium borderless translucent glass card
                 Card(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(24.dp)),
                     shape = RoundedCornerShape(24.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF0D102C).copy(alpha = 0.65f))
                 ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(20.dp),
+                            .padding(24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        // Google Sign-In button
+                        // Google Sign-In Button
                         OutlinedButton(
                             onClick = {
                                 val activity = context as? Activity ?: return@OutlinedButton
                                 val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-                                    .requestIdToken("297795853428-b16fd8hm36v2d6eeo7lk1r2t0m4lfuu9.apps.googleusercontent.com")
+                                    .requestIdToken("297795853428-vumtqd1otn7dvjqg260rr63mb3p7dbup.apps.googleusercontent.com")
                                     .requestEmail()
                                     .build()
                                 val client = GoogleSignIn.getClient(activity, gso)
@@ -210,21 +220,22 @@ fun LoginScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(50.dp),
-                            shape = RoundedCornerShape(14.dp),
-                            border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
-                            colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.White)
+                            shape = RoundedCornerShape(16.dp),
+                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)),
+                            colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.White.copy(alpha = 0.04f))
                         ) {
                             if (uiState is AuthUiState.Loading) {
                                 CircularProgressIndicator(
-                                    modifier = Modifier.size(24.dp),
-                                    color = Color(0xFF4255FF)
+                                    modifier = Modifier.size(20.dp),
+                                    color = QuizletBlue,
+                                    strokeWidth = 2.dp
                                 )
                             } else {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.Center
                                 ) {
-                                    // Styled Google "G" text
+                                    // Multicolor Google G Icon
                                     Text(
                                         text = "G",
                                         style = TextStyle(
@@ -237,50 +248,51 @@ fun LoginScreen(
                                                 )
                                             ),
                                             fontWeight = FontWeight.Black,
-                                            fontSize = 20.sp
+                                            fontSize = 18.sp
                                         )
                                     )
                                     Spacer(Modifier.width(10.dp))
                                     Text(
-                                        text = "Sign in with Google",
-                                        fontWeight = FontWeight.Medium,
-                                        color = Color(0xFF374151),
-                                        style = MaterialTheme.typography.bodyMedium
+                                        text = "Đăng nhập với Google",
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White,
+                                        fontSize = 14.sp
                                     )
                                 }
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(20.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
 
-                        // Divider
+                        // Styled Horizontal Divider
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            HorizontalDivider(modifier = Modifier.weight(1f), color = Color(0xFFF3F4F6))
+                            HorizontalDivider(modifier = Modifier.weight(1f), color = Color.White.copy(alpha = 0.06f))
                             Text(
-                                text = "or",
+                                text = "hoặc",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = Color(0xFF9CA3AF)
+                                color = TextGray.copy(alpha = 0.5f),
+                                fontSize = 12.sp
                             )
-                            HorizontalDivider(modifier = Modifier.weight(1f), color = Color(0xFFF3F4F6))
+                            HorizontalDivider(modifier = Modifier.weight(1f), color = Color.White.copy(alpha = 0.06f))
                         }
 
-                        Spacer(modifier = Modifier.height(20.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
 
-                        // Email field
+                        // Email Field
                         OutlinedTextField(
                             value = email,
                             onValueChange = {
                                 email = it
                                 emailError = null
                             },
-                            label = { Text("Email address") },
-                            leadingIcon = { Icon(Icons.Default.Email, contentDescription = null, tint = Color(0xFF9CA3AF)) },
+                            label = { Text("Địa chỉ Email", fontSize = 13.sp) },
+                            leadingIcon = { Icon(Icons.Default.Email, contentDescription = null, tint = TextGray, modifier = Modifier.size(20.dp)) },
                             isError = emailError != null,
-                            supportingText = emailError?.let { { Text(it) } },
+                            supportingText = emailError?.let { { Text(it, color = QuizletCoral, fontSize = 11.sp) } },
                             keyboardOptions = KeyboardOptions(
                                 keyboardType = KeyboardType.Email,
                                 imeAction = ImeAction.Next
@@ -289,41 +301,45 @@ fun LoginScreen(
                                 onNext = { focusManager.moveFocus(FocusDirection.Down) }
                             ),
                             singleLine = true,
-                            shape = RoundedCornerShape(14.dp),
+                            enabled = uiState !is AuthUiState.Loading,
+                            shape = RoundedCornerShape(16.dp),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = Color(0xFF4255FF),
-                                unfocusedBorderColor = Color(0xFFE5E7EB),
-                                focusedContainerColor = Color(0xFFF9FAFB),
-                                unfocusedContainerColor = Color(0xFFF9FAFB),
-                                focusedLabelColor = Color(0xFF4255FF),
-                                unfocusedLabelColor = Color(0xFF9CA3AF)
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White,
+                                focusedBorderColor = QuizletBlue,
+                                unfocusedBorderColor = Color.White.copy(alpha = 0.08f),
+                                focusedLabelColor = QuizletBlue,
+                                unfocusedLabelColor = TextGray,
+                                focusedContainerColor = Color(0xFF0F112A).copy(alpha = 0.6f),
+                                unfocusedContainerColor = Color(0xFF0F112A).copy(alpha = 0.6f)
                             ),
                             modifier = Modifier.fillMaxWidth()
                         )
 
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
 
-                        // Password field
+                        // Password Field
                         OutlinedTextField(
                             value = password,
                             onValueChange = {
                                 password = it
                                 passwordError = null
                             },
-                            label = { Text("Password") },
-                            leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = Color(0xFF9CA3AF)) },
+                            label = { Text("Mật khẩu", fontSize = 13.sp) },
+                            leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = TextGray, modifier = Modifier.size(20.dp)) },
                             trailingIcon = {
                                 IconButton(onClick = { passwordVisible = !passwordVisible }) {
                                     Icon(
                                         imageVector = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                        contentDescription = if (passwordVisible) "Hide password" else "Show password",
-                                        tint = Color(0xFF9CA3AF)
+                                        contentDescription = if (passwordVisible) "Ẩn mật khẩu" else "Hiện mật khẩu",
+                                        tint = TextGray,
+                                        modifier = Modifier.size(20.dp)
                                     )
                                 }
                             },
                             visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                             isError = passwordError != null,
-                            supportingText = passwordError?.let { { Text(it) } },
+                            supportingText = passwordError?.let { { Text(it, color = QuizletCoral, fontSize = 11.sp) } },
                             keyboardOptions = KeyboardOptions(
                                 keyboardType = KeyboardType.Password,
                                 imeAction = ImeAction.Done
@@ -337,31 +353,36 @@ fun LoginScreen(
                                 }
                             ),
                             singleLine = true,
-                            shape = RoundedCornerShape(14.dp),
+                            enabled = uiState !is AuthUiState.Loading,
+                            shape = RoundedCornerShape(16.dp),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = Color(0xFF4255FF),
-                                unfocusedBorderColor = Color(0xFFE5E7EB),
-                                focusedContainerColor = Color(0xFFF9FAFB),
-                                unfocusedContainerColor = Color(0xFFF9FAFB),
-                                focusedLabelColor = Color(0xFF4255FF),
-                                unfocusedLabelColor = Color(0xFF9CA3AF)
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White,
+                                focusedBorderColor = QuizletBlue,
+                                unfocusedBorderColor = Color.White.copy(alpha = 0.08f),
+                                focusedLabelColor = QuizletBlue,
+                                unfocusedLabelColor = TextGray,
+                                focusedContainerColor = Color(0xFF0F112A).copy(alpha = 0.6f),
+                                unfocusedContainerColor = Color(0xFF0F112A).copy(alpha = 0.6f)
                             ),
                             modifier = Modifier.fillMaxWidth()
                         )
 
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(4.dp))
 
-                        // Forgot password
+                        // Forgot Password Link
                         TextButton(
                             onClick = onNavigateToForgotPassword,
-                            modifier = Modifier.align(Alignment.End)
+                            modifier = Modifier.align(Alignment.End),
+                            enabled = uiState !is AuthUiState.Loading,
+                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
                         ) {
-                            Text("Forgot Password?", color = Color(0xFF4255FF), fontWeight = FontWeight.SemiBold)
+                            Text("Quên mật khẩu?", color = Color(0xFF60A5FA), fontWeight = FontWeight.Bold, fontSize = 13.sp)
                         }
 
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(14.dp))
 
-                        // Login button (Gradient)
+                        // Premium Sign In Button with Gradient & Centered text & Right aligned Arrow icon
                         Button(
                             onClick = {
                                 focusManager.clearFocus()
@@ -372,48 +393,71 @@ fun LoginScreen(
                             enabled = uiState !is AuthUiState.Loading,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(52.dp)
+                                .height(50.dp)
                                 .background(
                                     brush = Brush.horizontalGradient(
-                                        colors = listOf(Color(0xFF4255FF), Color(0xFF8B5CF6))
+                                        colors = listOf(Color(0xFF2563EB), Color(0xFF7C3AED))
                                     ),
-                                    shape = RoundedCornerShape(14.dp)
+                                    shape = RoundedCornerShape(16.dp)
                                 ),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = Color.Transparent,
                                 disabledContainerColor = Color.Transparent
                             ),
-                            contentPadding = PaddingValues()
+                            contentPadding = PaddingValues(),
+                            shape = RoundedCornerShape(16.dp)
                         ) {
                             if (uiState is AuthUiState.Loading) {
                                 CircularProgressIndicator(
-                                    modifier = Modifier.size(24.dp),
-                                    color = Color.White
+                                    modifier = Modifier.size(20.dp),
+                                    color = Color.White,
+                                    strokeWidth = 2.dp
                                 )
                             } else {
-                                Text("Sign In", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold), color = Color.White)
+                                Box(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "Đăng Nhập",
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 15.sp
+                                    )
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier
+                                            .align(Alignment.CenterEnd)
+                                            .padding(end = 16.dp)
+                                            .size(20.dp)
+                                    )
+                                }
                             }
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(28.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
-                // Register link
+                // Styled Register Prompt Link
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center
                 ) {
                     Text(
-                        text = "Don't have an account? ",
+                        text = "Chưa có tài khoản? ",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = Color(0xFF4B5563)
+                        color = TextGray,
+                        fontSize = 14.sp
                     )
                     TextButton(
                         onClick = onNavigateToRegister,
-                        contentPadding = PaddingValues(0.dp)
+                        contentPadding = PaddingValues(0.dp),
+                        enabled = uiState !is AuthUiState.Loading
                     ) {
-                        Text("Create one free", color = Color(0xFF4255FF), fontWeight = FontWeight.Bold)
+                        Text("Tạo tài khoản miễn phí", color = Color(0xFF60A5FA), fontWeight = FontWeight.Bold, fontSize = 14.sp)
                     }
                 }
 
@@ -432,15 +476,15 @@ private fun validateLogin(
     var isValid = true
 
     if (email.isBlank()) {
-        setEmailError("Enter email")
+        setEmailError("Vui lòng nhập Email")
         isValid = false
     } else if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-        setEmailError("Invalid email format")
+        setEmailError("Email sai định dạng")
         isValid = false
     }
 
     if (password.isBlank()) {
-        setPasswordError("Enter password")
+        setPasswordError("Vui lòng nhập mật khẩu")
         isValid = false
     }
 

@@ -86,7 +86,7 @@ const googleAuth = async (req, res) => {
   const { idToken } = req.body;
   const result = await authService.googleAuth(idToken);
   setAuthCookies(res, result);
-  res.status(200).json(ApiResponse.success({ user: result.user }, 'Google sign-in successful'));
+  res.status(200).json(ApiResponse.success(result, 'Google sign-in successful'));
 };
 
 module.exports = {

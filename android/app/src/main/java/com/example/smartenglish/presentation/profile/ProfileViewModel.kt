@@ -32,13 +32,23 @@ class ProfileViewModel @Inject constructor(
         loadProfile()
     }
 
-    fun loadProfile() {
+    fun loadProfile(isSilent: Boolean = false) {
         viewModelScope.launch {
-            _uiState.value = ProfileUiState.Loading
+            if (!isSilent) {
+                _uiState.value = ProfileUiState.Loading
+            }
             when (val result = userRepository.getMe()) {
                 is ApiResult.Success -> _uiState.value = ProfileUiState.Success(result.data)
-                is ApiResult.Error -> _uiState.value = ProfileUiState.Error(result.message)
-                is ApiResult.Loading -> _uiState.value = ProfileUiState.Loading
+                is ApiResult.Error -> {
+                    if (!isSilent) {
+                        _uiState.value = ProfileUiState.Error(result.message)
+                    }
+                }
+                is ApiResult.Loading -> {
+                    if (!isSilent) {
+                        _uiState.value = ProfileUiState.Loading
+                    }
+                }
                 else -> {}
             }
         }

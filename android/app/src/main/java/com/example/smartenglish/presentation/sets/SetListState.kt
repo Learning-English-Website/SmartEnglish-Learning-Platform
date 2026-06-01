@@ -15,7 +15,8 @@ data class SetListState(
     val error: String? = null,
     val searchQuery: String = "",
     val selectedTab: LibraryTab = LibraryTab.MY_SETS,
-    val selectedFilter: SetFilter = SetFilter.ALL
+    val selectedFilter: SetFilter = SetFilter.ALL,
+    val isCreateSetSuccess: Boolean = false
 )
 
 sealed class SetListEvent {
@@ -26,4 +27,5 @@ sealed class SetListEvent {
     data object ClearError : SetListEvent()
     data class SelectTab(val tab: LibraryTab) : SetListEvent()
     data class SelectFilter(val filter: SetFilter) : SetListEvent()
+    data object ClearCreateSetSuccess : SetListEvent()
 }

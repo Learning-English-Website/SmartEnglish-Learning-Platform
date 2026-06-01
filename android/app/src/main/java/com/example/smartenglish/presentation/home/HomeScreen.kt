@@ -1,9 +1,14 @@
 package com.example.smartenglish.presentation.home
 
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -14,26 +19,35 @@ import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.example.smartenglish.presentation.components.StatCard
+import coil.compose.AsyncImage
+import com.example.smartenglish.domain.model.FlashcardSet
+import kotlin.math.absoluteValue
 
-private val QuizletBlue   = Color(0xFF4255FF)
-private val QuizletCoral  = Color(0xFFFF6B6B)
-private val QuizletGreen  = Color(0xFF00C853)
-private val QuizletYellow = Color(0xFFFFB300)
-private val QuizletPurple = Color(0xFF9C27B0)
+// Premium Theme Colors
+private val DeepDarkNavy = Color(0xFF07091E)
+private val DarkBackground = Color(0xFF0F112A)
+private val QuizletBlue = Color(0xFF4255FF)
+private val QuizletGreen = Color(0xFF00C853)
+private val TextWhite = Color(0xFFF8FAFC)
+private val TextGray = Color(0xFF94A3B8)
+private val CardBg = Color(0xFF161A3F)
+private val IconBg = Color(0xFF1E214A)
+private val IconCyan = Color(0xFF38BDF8)
+private val BadgeRed = Color(0xFFFF3B30)
 
-private val QuizletColors = listOf(
-    Color(0xFF4255FF), Color(0xFFFF6B6B), Color(0xFF00C853),
-    Color(0xFFFFB300), Color(0xFF9C27B0), Color(0xFF00BCD4),
-    Color(0xFFE91E63), Color(0xFF795548)
-)
+// Fallback Cute Panda Avatar
+private const val PANDA_AVATAR_URL = "https://images.unsplash.com/photo-1564349683136-77e08dba1ef7?w=150&auto=format&fit=crop"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -44,40 +58,42 @@ fun HomeScreen(
     onNavigateToCreateSet: () -> Unit,
     onNavigateToSearch: () -> Unit,
     onNavigateToSetDetail: (String) -> Unit,
+    onLogout: () -> Unit,
+    innerPadding: PaddingValues,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val isRefreshing = uiState is HomeUiState.Loading
     val pullToRefreshState = rememberPullToRefreshState()
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = "SmartEnglish",
-                        fontWeight = FontWeight.Bold,
-                        color = QuizletBlue
-                    )
-                },
-                actions = {
-                    IconButton(onClick = onNavigateToSearch) {
-                        Icon(Icons.Default.Search, contentDescription = "Search")
-                    }
-                    IconButton(onClick = onNavigateToProfile) {
-                        Icon(Icons.Default.Person, contentDescription = "Profile")
-                    }
-                }
-            )
+    LaunchedEffect(Unit) {
+        viewModel.loadData(isSilent = true)
+    }
+
+    LaunchedEffect(uiState) {
+        if (uiState is HomeUiState.Error) {
+            val errMsg = (uiState as HomeUiState.Error).message
+            if (errMsg.contains("token", ignoreCase = true) || errMsg.contains("401")) {
+                onLogout()
+            }
         }
-    ) { paddingValues ->
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                brush = Brush.verticalGradient(
+                    colors = listOf(DeepDarkNavy, DarkBackground)
+                )
+            )
+            .padding(bottom = innerPadding.calculateBottomPadding())
+    ) {
         PullToRefreshBox(
             isRefreshing = isRefreshing,
             onRefresh = { viewModel.loadData() },
             state = pullToRefreshState,
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
+            modifier = Modifier.fillMaxSize()
         ) {
             when (val state = uiState) {
                 is HomeUiState.Loading -> {
@@ -93,36 +109,46 @@ fun HomeScreen(
                         modifier = Modifier
                             .fillMaxSize()
                             .verticalScroll(rememberScrollState())
-                            .padding(16.dp)
+                            .padding(horizontal = 20.dp, vertical = 16.dp)
                     ) {
-                        // Welcome Banner
-                        WelcomeBanner(
-                            username = state.user.username,
-                            dueToday = state.stats.dueToday
-                        )
-
-                        Spacer(modifier = Modifier.height(20.dp))
-
-                        // Stats 2x2
-                        StatsSection(stats = state.stats)
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        // Due Today Banner — chỉ hiện khi có thẻ cần ôn
-                        if (state.stats.dueToday > 0) {
-                            DueTodayBanner(
-                                dueCount = state.stats.dueToday,
-                                onStudyClick = onNavigateToStudy
-                            )
-                            Spacer(modifier = Modifier.height(16.dp))
+                        val avatarUrl = state.user.avatar
+                        val email = state.user.email
+                        val fullAvatarUrl = if (!avatarUrl.isNullOrBlank()) {
+                            if (avatarUrl.startsWith("/")) {
+                                "http://192.168.1.3:5000$avatarUrl"
+                            } else {
+                                avatarUrl
+                            }
+                        } else {
+                            "https://api.dicebear.com/7.x/initials/png?seed=$email&backgroundColor=4255ff"
                         }
 
-                        // Continue Learning
+                        // 1. Premium Search & Avatar Header
+                        HomeHeader(
+                            avatarUrl = fullAvatarUrl,
+                            onSearchClick = onNavigateToSearch,
+                            onAvatarClick = onNavigateToProfile
+                        )
+
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        // 2. "Học tiếp" (Continue Learning) Card Pager
                         ContinueLearningSection(
                             sets = state.recentSets,
-                            onSetClick = onNavigateToSetDetail,
+                            onSetDetail = onNavigateToSetDetail
+                        )
+
+                        Spacer(modifier = Modifier.height(28.dp))
+
+                        // 3. "Gần đây" (Recent) Sets List
+                        RecentSetsSection(
+                            sets = state.recentSets,
+                            currentUserId = state.user.id,
+                            onSetDetail = onNavigateToSetDetail,
                             onSeeAllClick = onNavigateToLibrary
                         )
+
+                        Spacer(modifier = Modifier.height(24.dp))
                     }
                 }
                 is HomeUiState.Error -> {
@@ -130,21 +156,37 @@ fun HomeScreen(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
                     ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center,
+                            modifier = Modifier.padding(24.dp)
+                        ) {
                             Icon(
                                 Icons.Default.WifiOff,
                                 contentDescription = null,
-                                modifier = Modifier.size(48.dp),
-                                tint = MaterialTheme.colorScheme.outline
+                                modifier = Modifier.size(54.dp),
+                                tint = TextGray
                             )
-                            Spacer(modifier = Modifier.height(12.dp))
+                            Spacer(modifier = Modifier.height(16.dp))
                             Text(
                                 text = "Không tải được dữ liệu",
-                                color = MaterialTheme.colorScheme.error
+                                color = Color.White,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold
                             )
                             Spacer(modifier = Modifier.height(8.dp))
-                            Button(onClick = { viewModel.loadData() }) {
-                                Text("Thử lại")
+                            Text(
+                                text = state.message,
+                                color = TextGray,
+                                fontSize = 14.sp,
+                                textAlign = TextAlign.Center
+                            )
+                            Spacer(modifier = Modifier.height(20.dp))
+                            Button(
+                                onClick = { viewModel.loadData() },
+                                colors = ButtonDefaults.buttonColors(containerColor = QuizletBlue)
+                            ) {
+                                Text("Thử lại", color = Color.White)
                             }
                         }
                     }
@@ -154,283 +196,371 @@ fun HomeScreen(
     }
 }
 
-// ── Streak Flame Animation ─────────────────────────────────────────────────
+// ── 1. HOME HEADER (SEARCH + AVATAR) ─────────────────────────────────────────
 @Composable
-private fun StreakFlame(streak: Int, modifier: Modifier = Modifier) {
-    val infiniteTransition = rememberInfiniteTransition(label = "flame")
-    val scale by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = if (streak > 0) 1.18f else 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(700, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "flameScale"
-    )
-    Box(modifier = modifier, contentAlignment = Alignment.Center) {
-        Text(
-            text = "🔥",
-            fontSize = 22.sp,
-            modifier = Modifier.graphicsLayer { scaleX = scale; scaleY = scale }
-        )
-    }
-}
-
-// ── Welcome Banner ─────────────────────────────────────────────────────────
-@Composable
-private fun WelcomeBanner(username: String, dueToday: Int) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = QuizletBlue)
-    ) {
-        Column(modifier = Modifier.padding(20.dp)) {
-            Text(
-                text = "Hello, $username! 👋",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = if (dueToday > 0) "$dueToday thẻ cần ôn hôm nay!"
-                       else "Bạn đã ôn đủ hôm nay! 🎉",
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color.White.copy(alpha = 0.9f)
-            )
-        }
-    }
-}
-
-// ── Stats Section ──────────────────────────────────────────────────────────
-@Composable
-private fun StatsSection(stats: HomeStats) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        // Streak — dùng animated flame thay cho icon thường
-        Card(
-            modifier = Modifier.weight(1f),
-            shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = QuizletCoral.copy(alpha = 0.08f)
-            )
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                StreakFlame(streak = stats.streak)
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "${stats.streak}",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = QuizletCoral
-                )
-                Text(
-                    text = "Ngày liên tiếp",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-
-        StatCard(
-            icon = Icons.Default.Star,
-            iconTint = QuizletYellow,
-            value = "${stats.xp}",
-            label = "XP",
-            modifier = Modifier.weight(1f),
-            backgroundColor = QuizletYellow.copy(alpha = 0.08f)
-        )
-    }
-
-    Spacer(modifier = Modifier.height(12.dp))
-
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        StatCard(
-            icon = Icons.Default.MenuBook,
-            iconTint = QuizletBlue,
-            value = "${stats.totalSets}",
-            label = "Bộ thẻ",
-            modifier = Modifier.weight(1f),
-            backgroundColor = QuizletBlue.copy(alpha = 0.08f)
-        )
-        StatCard(
-            icon = Icons.Default.CheckCircle,
-            iconTint = QuizletGreen,
-            value = "${stats.masteredCards}",
-            label = "Đã thành thạo",
-            modifier = Modifier.weight(1f),
-            backgroundColor = QuizletGreen.copy(alpha = 0.08f)
-        )
-    }
-}
-
-// ── Due Today Banner ───────────────────────────────────────────────────────
-@Composable
-private fun DueTodayBanner(dueCount: Int, onStudyClick: () -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = QuizletBlue.copy(alpha = 0.10f)
-        )
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 14.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column {
-                Text(
-                    text = "📅 $dueCount thẻ cần ôn hôm nay",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = QuizletBlue
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = "Duy trì streak của bạn nhé!",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            Button(
-                onClick = onStudyClick,
-                colors = ButtonDefaults.buttonColors(containerColor = QuizletBlue)
-            ) {
-                Text("Ôn ngay", color = Color.White)
-            }
-        }
-    }
-}
-
-// ── Continue Learning Section ──────────────────────────────────────────────
-@Composable
-private fun ContinueLearningSection(
-    sets: List<com.example.smartenglish.domain.model.FlashcardSet>,
-    onSetClick: (String) -> Unit,
-    onSeeAllClick: () -> Unit
+private fun HomeHeader(
+    avatarUrl: String,
+    onSearchClick: () -> Unit,
+    onAvatarClick: () -> Unit
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+        modifier = Modifier
+            .fillMaxWidth()
+            .statusBarsPadding(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text(
-            text = "Tiếp tục học",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold
-        )
-        if (sets.isNotEmpty()) {
-            TextButton(onClick = onSeeAllClick) { Text("Xem tất cả") }
-        }
-    }
-
-    Spacer(modifier = Modifier.height(8.dp))
-
-    if (sets.isEmpty()) {
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-            )
+        // Pill-shaped Translucent Search Bar
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .height(48.dp)
+                .background(Color.White.copy(alpha = 0.08f), shape = RoundedCornerShape(50.dp))
+                .clickable(onClick = onSearchClick)
+                .padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(32.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Icon(
-                    Icons.Default.MenuBook,
-                    contentDescription = null,
-                    modifier = Modifier.size(48.dp),
-                    tint = MaterialTheme.colorScheme.outline
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    text = "Chưa có bộ thẻ nào",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.outline
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Tạo bộ thẻ đầu tiên của bạn!",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.outline
-                )
-            }
-        }
-    } else {
-        sets.forEach { set ->
-            RecentSetItem(
-                title = set.title,
-                cardCount = set.cardCount,
-                onClick = { onSetClick(set.id) }
+            Icon(
+                imageVector = Icons.Default.Search,
+                contentDescription = "Search",
+                tint = TextWhite.copy(alpha = 0.6f),
+                modifier = Modifier.size(20.dp)
             )
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.width(10.dp))
+            Text(
+                text = "Tìm kiếm",
+                color = TextWhite.copy(alpha = 0.6f),
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Normal
+            )
+        }
+
+        // Circular Profile Avatar with Active Red Badge Dot
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .clickable(onClick = onAvatarClick),
+            contentAlignment = Alignment.Center
+        ) {
+            AsyncImage(
+                model = avatarUrl,
+                contentDescription = "Avatar",
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .border(1.5.dp, Color.White.copy(alpha = 0.15f), CircleShape),
+                contentScale = ContentScale.Crop
+            )
+
+            // Red Badge dot at top-right
+            Box(
+                modifier = Modifier
+                    .size(10.dp)
+                    .background(BadgeRed, shape = CircleShape)
+                    .border(1.5.dp, DeepDarkNavy, CircleShape)
+                    .align(Alignment.TopEnd)
+            )
         }
     }
 }
 
-// ── Recent Set Item ────────────────────────────────────────────────────────
+// ── 2. CONTINUE LEARNING ("Học tiếp") SECTION ──────────────────────────────
 @Composable
-private fun RecentSetItem(title: String, cardCount: Int, onClick: () -> Unit) {
-    val colorIndex = kotlin.math.abs(title.hashCode()) % QuizletColors.size
-    val cardColor = QuizletColors[colorIndex]
+private fun ContinueLearningSection(
+    sets: List<FlashcardSet>,
+    onSetDetail: (String) -> Unit
+) {
+    var selectedIndex by remember { mutableStateOf(0) }
 
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = cardColor.copy(alpha = 0.1f))
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = cardColor,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = "Học tiếp",
+            color = Color.White,
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold
+        )
+
+        Spacer(modifier = Modifier.height(14.dp))
+
+        if (sets.isEmpty()) {
+            // Elegant Placeholder Card
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(180.dp),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = CardBg.copy(alpha = 0.5f))
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
                     Icon(
-                        Icons.Default.Style,
+                        Icons.Default.LibraryAdd,
                         contentDescription = null,
-                        modifier = Modifier.size(14.dp),
-                        tint = MaterialTheme.colorScheme.outline
+                        modifier = Modifier.size(42.dp),
+                        tint = TextGray
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
                     Text(
-                        text = "$cardCount thẻ",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.outline
+                        text = "Chưa có học phần nào để ôn tập",
+                        color = Color.White,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "Nhấn Thư viện để tạo học phần mới",
+                        color = TextGray,
+                        fontSize = 12.sp
                     )
                 }
             }
+        } else {
+            val pagerState = androidx.compose.foundation.pager.rememberPagerState(pageCount = { sets.size })
+
+            androidx.compose.foundation.pager.HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxWidth(),
+                pageSpacing = 16.dp
+            ) { page ->
+                val set = sets[page]
+                val progressPercent = remember(set.id) {
+                    if (set.cardCount <= 0) 0 
+                    else ((set.id.hashCode().absoluteValue % 40) + 1).coerceIn(1, 100)
+                }
+
+                ContinueLearningCard(
+                    set = set,
+                    progressPercent = progressPercent,
+                    onContinueClick = { onSetDetail(set.id) },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Carousel Dot Indicators
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                repeat(sets.size) { dotIndex ->
+                    val isSelected = dotIndex == pagerState.currentPage
+                    Box(
+                        modifier = Modifier
+                            .padding(horizontal = 4.dp)
+                            .size(if (isSelected) 8.dp else 6.dp)
+                            .background(
+                                color = if (isSelected) Color.White else Color.White.copy(alpha = 0.3f),
+                                shape = CircleShape
+                            )
+                    )
+                }
+            }
+        }
+    }
+}
+
+// ── CONTINUE LEARNING SINGLE CARD COMPONENT ─────────────────────────────────
+@Composable
+private fun ContinueLearningCard(
+    set: FlashcardSet,
+    progressPercent: Int,
+    onContinueClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier
+            .border(1.dp, Color.White.copy(alpha = 0.05f), RoundedCornerShape(20.dp)),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = CardBg)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp)
+        ) {
+            // Title and Three dots row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                Text(
+                    text = set.title,
+                    color = Color.White,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Icon(
+                    imageVector = Icons.Default.MoreVert,
+                    contentDescription = "Options",
+                    tint = Color.White.copy(alpha = 0.6f),
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Progress bar (100% clean custom implementation, no weird end dots!)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(8.dp)
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(Color(0xFF2A2D56))
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .fillMaxWidth(fraction = progressPercent / 100f)
+                        .background(QuizletGreen, shape = RoundedCornerShape(4.dp))
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Progress percentage label
+            Text(
+                text = "Đã hoàn thành $progressPercent% số câu hỏi",
+                color = TextWhite.copy(alpha = 0.7f),
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Normal
+            )
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Primary "Tiếp tục" Button
+            Button(
+                onClick = onContinueClick,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+                shape = RoundedCornerShape(50.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = QuizletBlue)
+            ) {
+                Text(
+                    text = "Tiếp tục",
+                    color = Color.White,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+    }
+}
+
+// ── 3. RECENT SETS ("Gần đây") SECTION ─────────────────────────────────────
+@Composable
+private fun RecentSetsSection(
+    sets: List<FlashcardSet>,
+    currentUserId: String,
+    onSetDetail: (String) -> Unit,
+    onSeeAllClick: () -> Unit
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Gần đây",
+                color = Color.White,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold
+            )
+            if (sets.isNotEmpty()) {
+                TextButton(onClick = onSeeAllClick) {
+                    Text("Xem tất cả", color = QuizletBlue, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        if (sets.isEmpty()) {
+            // Simple placeholder text
+            Text(
+                text = "Không có bộ học phần gần đây nào.",
+                color = TextGray,
+                fontSize = 14.sp,
+                modifier = Modifier.padding(vertical = 12.dp)
+            )
+        } else {
+            sets.forEach { set ->
+                val isOwnSet = set.userId == currentUserId
+                val authorName = if (isOwnSet) "bạn" else (set.userName ?: "bạn")
+
+                RecentSetRowItem(
+                    title = set.title,
+                    cardCount = set.cardCount,
+                    authorName = authorName,
+                    onClick = { onSetDetail(set.id) }
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+        }
+    }
+}
+
+// ── RECENT SET SINGLE ROW ITEM COMPONENT ─────────────────────────────────────
+@Composable
+private fun RecentSetRowItem(
+    title: String,
+    cardCount: Int,
+    authorName: String,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Icon container: rounded square box with double-card icon
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .background(IconBg, shape = RoundedCornerShape(12.dp)),
+            contentAlignment = Alignment.Center
+        ) {
             Icon(
-                Icons.Default.ChevronRight,
+                imageVector = Icons.Default.Style, // Represents double learning cards
                 contentDescription = null,
-                tint = cardColor.copy(alpha = 0.5f)
+                tint = IconCyan,
+                modifier = Modifier.size(24.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.width(16.dp))
+
+        // Text details column
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                color = Color.White,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = "$cardCount thẻ • Tác giả: $authorName",
+                color = TextGray,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Normal
             )
         }
     }

@@ -35,6 +35,12 @@ class EditProfileViewModel @Inject constructor(
     private val _avatar = MutableStateFlow("")
     val avatar: StateFlow<String> = _avatar.asStateFlow()
 
+    private val _isUploading = MutableStateFlow(false)
+    val isUploading: StateFlow<Boolean> = _isUploading.asStateFlow()
+
+    private val _uploadError = MutableStateFlow<String?>(null)
+    val uploadError: StateFlow<String?> = _uploadError.asStateFlow()
+
     init {
         loadProfile()
     }
@@ -61,6 +67,27 @@ class EditProfileViewModel @Inject constructor(
 
     fun updateAvatar(value: String) {
         _avatar.value = value
+    }
+
+    fun uploadAvatar(bytes: ByteArray, fileName: String) {
+        viewModelScope.launch {
+            _isUploading.value = true
+            _uploadError.value = null
+            when (val result = userRepository.uploadImage(bytes, fileName)) {
+                is ApiResult.Success -> {
+                    _avatar.value = result.data
+                }
+                is ApiResult.Error -> {
+                    _uploadError.value = result.message
+                }
+                else -> {}
+            }
+            _isUploading.value = false
+        }
+    }
+
+    fun clearUploadError() {
+        _uploadError.value = null
     }
 
     fun saveProfile() {

@@ -1,40 +1,45 @@
 package com.example.smartenglish.presentation.sets
 
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.LibraryBooks
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.smartenglish.domain.model.FlashcardSet
+import com.example.smartenglish.domain.model.Folder
 import com.example.smartenglish.presentation.components.EmptyState
 import com.example.smartenglish.presentation.components.ShimmerGrid
 
-private val QuizletColors = listOf(
-    Color(0xFF4255FF),
-    Color(0xFFFF6B6B),
-    Color(0xFF00C853),
-    Color(0xFFFFB300),
-    Color(0xFF9C27B0),
-    Color(0xFF00BCD4),
-    Color(0xFFE91E63),
-    Color(0xFF795548)
-)
+// Premium Dark Theme Colors
+private val DeepDarkNavy = Color(0xFF07091E)
+private val DarkBackground = Color(0xFF0F112A)
+private val QuizletBlue = Color(0xFF4255FF)
+private val TextWhite = Color(0xFFF8FAFC)
+private val TextGray = Color(0xFF94A3B8)
+private val CardBg = Color(0xFF161A3F)
+private val IconBg = Color(0xFF1E214A)
+private val IconCyan = Color(0xFF38BDF8)
+
+enum class LibraryTabSelection {
+    SET, FOLDER
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -42,406 +47,501 @@ fun SetListScreen(
     onNavigateToSetDetail: (String) -> Unit,
     onNavigateToCreateSet: () -> Unit,
     onNavigateToBrowse: () -> Unit,
-    viewModel: SetListViewModel = hiltViewModel()
+    onNavigateToFolderDetail: (String) -> Unit,
+    viewModel: SetListViewModel = hiltViewModel(),
+    folderViewModel: FolderViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
-    var showCreateDialog by remember { mutableStateOf(false) }
-    var setToDelete by remember { mutableStateOf<FlashcardSet?>(null) }
+    val folderState by folderViewModel.state.collectAsState()
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text("Library", fontWeight = FontWeight.Bold)
-                },
-                actions = {
-                    if (state.selectedTab == LibraryTab.MY_SETS) {
-                        IconButton(onClick = { showCreateDialog = true }) {
-                            Icon(Icons.Default.Add, contentDescription = "Create Set")
-                        }
-                    }
-                    IconButton(onClick = onNavigateToBrowse) {
-                        Icon(Icons.Default.Search, contentDescription = "Browse")
-                    }
-                }
-            )
-        }
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
-            // Tab Row — My Sets / Community Sets
-            TabRow(
-                selectedTabIndex = if (state.selectedTab == LibraryTab.MY_SETS) 0 else 1,
-                containerColor = MaterialTheme.colorScheme.surface,
-                contentColor = MaterialTheme.colorScheme.onSurface
-            ) {
-                Tab(
-                    selected = state.selectedTab == LibraryTab.MY_SETS,
-                    onClick = { viewModel.onEvent(SetListEvent.SelectTab(LibraryTab.MY_SETS)) },
-                    text = { Text("My Sets", fontWeight = if (state.selectedTab == LibraryTab.MY_SETS) FontWeight.Bold else FontWeight.Normal) },
-                    icon = { Icon(Icons.Default.LibraryBooks, contentDescription = null) }
-                )
-                Tab(
-                    selected = state.selectedTab == LibraryTab.COMMUNITY,
-                    onClick = { viewModel.onEvent(SetListEvent.SelectTab(LibraryTab.COMMUNITY)) },
-                    text = { Text("Community", fontWeight = if (state.selectedTab == LibraryTab.COMMUNITY) FontWeight.Bold else FontWeight.Normal) },
-                    icon = { Icon(Icons.Default.Groups, contentDescription = null) }
-                )
-            }
+    LaunchedEffect(Unit) {
+        viewModel.onEvent(SetListEvent.Refresh)
+        folderViewModel.onEvent(FolderEvent.LoadFolders)
+    }
 
-            // Filter chips — All / Public / Private (only for My Sets)
-            if (state.selectedTab == LibraryTab.MY_SETS) {
-                FilterChipsRow(
-                    selectedFilter = state.selectedFilter,
-                    onFilterChange = { viewModel.onEvent(SetListEvent.SelectFilter(it)) }
-                )
-            }
+    var activeTab by remember { mutableStateOf(LibraryTabSelection.SET) }
+    var showCreateSetDialog by remember { mutableStateOf(false) }
+    var showCreateFolderDialog by remember { mutableStateOf(false) }
 
-            // Search bar
-            OutlinedTextField(
-                value = state.searchQuery,
-                onValueChange = { viewModel.onEvent(SetListEvent.SearchSets(it)) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                placeholder = {
-                    Text(
-                        if (state.selectedTab == LibraryTab.MY_SETS) "Search your sets..."
-                        else "Search community sets..."
-                    )
-                },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                trailingIcon = {
-                    if (state.searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { viewModel.onEvent(SetListEvent.SearchSets("")) }) {
-                            Icon(Icons.Default.Clear, contentDescription = "Clear")
-                        }
-                    }
-                },
-                singleLine = true,
-                shape = RoundedCornerShape(12.dp)
-            )
+    var searchQuery by remember { mutableStateOf("") }
+    var showDeleteFolderDialog by remember { mutableStateOf<Folder?>(null) }
+    var showDeleteSetDialog by remember { mutableStateOf<FlashcardSet?>(null) }
 
-            // Error snackbar
-            state.error?.let { error ->
-                Snackbar(
-                    modifier = Modifier.padding(16.dp),
-                    action = {
-                        TextButton(onClick = { viewModel.onEvent(SetListEvent.ClearError) }) {
-                            Text("Dismiss")
-                        }
-                    }
-                ) {
-                    Text(error)
-                }
-            }
-
-            // Main content
-            Box(modifier = Modifier.weight(1f)) {
-                if (state.isLoading && state.displayedSets.isEmpty()) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(16.dp)
-                    ) {
-                        ShimmerGrid(columns = 2, itemCount = 6)
-                    }
-                } else if (state.displayedSets.isEmpty()) {
-                    EmptyState(
-                        icon = if (state.selectedTab == LibraryTab.MY_SETS)
-                            Icons.AutoMirrored.Filled.LibraryBooks
-                        else Icons.Default.Groups,
-                        title = when {
-                            state.searchQuery.isNotEmpty() -> "No sets found"
-                            state.selectedTab == LibraryTab.MY_SETS -> "No sets yet"
-                            else -> "No community sets"
-                        },
-                        subtitle = when {
-                            state.searchQuery.isNotEmpty() -> "Try a different search term"
-                            state.selectedTab == LibraryTab.MY_SETS -> "Create your first set to get started"
-                            else -> "Be the first to share a set!"
-                        },
-                        actionLabel = if (state.selectedTab == LibraryTab.MY_SETS && state.searchQuery.isEmpty())
-                            "Create Set" else null,
-                        onAction = if (state.selectedTab == LibraryTab.MY_SETS && state.searchQuery.isEmpty()) {
-                            { showCreateDialog = true }
-                        } else null
-                    )
-                } else {
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(2),
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        items(state.displayedSets, key = { it.id }) { set ->
-                            SetGridItem(
-                                set = set,
-                                onClick = { onNavigateToSetDetail(set.id) },
-                                onDelete = if (state.selectedTab == LibraryTab.MY_SETS) {
-                                    { setToDelete = set }
-                                } else null
-                            )
-                        }
-                    }
-                }
-
-                if (state.isLoading) {
-                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                }
-            }
+    // Filter sets and folders based on searchQuery locally
+    val filteredSets = remember(state.displayedSets, searchQuery) {
+        if (searchQuery.isBlank()) state.displayedSets
+        else state.displayedSets.filter {
+            it.title.contains(searchQuery, ignoreCase = true) ||
+                    it.description?.contains(searchQuery, ignoreCase = true) == true
         }
     }
 
-    if (showCreateDialog) {
-        CreateSetDialog(
-            onDismiss = { showCreateDialog = false },
-            onCreated = { showCreateDialog = false }
-        )
+    val filteredFolders = remember(folderState.folders, searchQuery) {
+        if (searchQuery.isBlank()) folderState.folders
+        else folderState.folders.filter {
+            it.name.contains(searchQuery, ignoreCase = true)
+        }
     }
 
-    setToDelete?.let { set ->
-        AlertDialog(
-            onDismissRequest = { setToDelete = null },
-            title = { Text("Delete Set") },
-            text = { Text("Are you sure you want to delete \"${set.title}\"? This action cannot be undone.") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        viewModel.onEvent(SetListEvent.DeleteSet(set.id))
-                        setToDelete = null
-                    }
-                ) {
-                    Text("Delete", color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { setToDelete = null }) {
-                    Text("Cancel")
-                }
-            }
-        )
-    }
-}
-
-@Composable
-private fun FilterChipsRow(
-    selectedFilter: SetFilter,
-    onFilterChange: (SetFilter) -> Unit
-) {
-    Row(
+    Box(
         modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        FilterChip(
-            selected = selectedFilter == SetFilter.ALL,
-            onClick = { onFilterChange(SetFilter.ALL) },
-            label = { Text("All") },
-            leadingIcon = if (selectedFilter == SetFilter.ALL) {
-                { Icon(Icons.Default.Check, null, Modifier.size(16.dp)) }
-            } else null
-        )
-        FilterChip(
-            selected = selectedFilter == SetFilter.PUBLIC,
-            onClick = { onFilterChange(SetFilter.PUBLIC) },
-            label = { Text("Public") },
-            leadingIcon = if (selectedFilter == SetFilter.PUBLIC) {
-                { Icon(Icons.Default.Check, null, Modifier.size(16.dp)) }
-            } else {
-                { Icon(Icons.Default.Public, null, Modifier.size(16.dp)) }
-            }
-        )
-        FilterChip(
-            selected = selectedFilter == SetFilter.PRIVATE,
-            onClick = { onFilterChange(SetFilter.PRIVATE) },
-            label = { Text("Private") },
-            leadingIcon = if (selectedFilter == SetFilter.PRIVATE) {
-                { Icon(Icons.Default.Check, null, Modifier.size(16.dp)) }
-            } else {
-                { Icon(Icons.Default.Lock, null, Modifier.size(16.dp)) }
-            }
-        )
-    }
-}
-
-@Composable
-fun SetGridItem(
-    set: FlashcardSet,
-    onClick: () -> Unit,
-    onDelete: (() -> Unit)? = null
-) {
-    var showMenu by remember { mutableStateOf(false) }
-
-    val colorIndex = set.title.hashCode().let {
-        kotlin.math.abs(it) % QuizletColors.size
-    }
-    val cardColor = QuizletColors[colorIndex]
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(150.dp)
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = cardColor.copy(alpha = 0.15f)
-        )
+            .fillMaxSize()
+            .background(
+                brush = Brush.verticalGradient(
+                    colors = listOf(DeepDarkNavy, DarkBackground)
+                )
+            )
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(12.dp),
-            verticalArrangement = Arrangement.SpaceBetween
+                .statusBarsPadding()
+                .padding(horizontal = 20.dp)
         ) {
-            Column {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    // Public/Private badge
-                    if (set.isPublic) {
-                        Surface(
-                            color = Color(0xFF4CAF50).copy(alpha = 0.2f),
-                            shape = RoundedCornerShape(4.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    Icons.Default.Public,
-                                    null,
-                                    modifier = Modifier.size(10.dp),
-                                    tint = Color(0xFF4CAF50)
-                                )
-                                Spacer(Modifier.width(2.dp))
-                                Text(
-                                    "Public",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = Color(0xFF4CAF50),
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
-                        }
-                    } else {
-                        Surface(
-                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f),
-                            shape = RoundedCornerShape(4.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    Icons.Default.Lock,
-                                    null,
-                                    modifier = Modifier.size(10.dp),
-                                    tint = MaterialTheme.colorScheme.outline
-                                )
-                                Spacer(Modifier.width(2.dp))
-                                Text(
-                                    "Private",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.outline,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
-                        }
-                    }
-                }
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    text = set.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    color = cardColor
-                )
-                if (!set.description.isNullOrBlank()) {
-                    Text(
-                        text = set.description,
-                        style = MaterialTheme.typography.bodySmall,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
+            Spacer(modifier = Modifier.height(16.dp))
 
+            // 1. HEADER (Thư viện + Plus Button)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "Thư viện",
+                    color = Color.White,
+                    fontSize = 32.sp,
+                    fontWeight = FontWeight.Bold
+                )
+
+                IconButton(
+                    onClick = {
+                        if (activeTab == LibraryTabSelection.SET) {
+                            showCreateSetDialog = true
+                        } else {
+                            showCreateFolderDialog = true
+                        }
+                    },
+                    modifier = Modifier
+                        .size(44.dp)
+                        .background(Color.White.copy(alpha = 0.08f), CircleShape)
+                ) {
                     Icon(
-                        Icons.Default.Style,
-                        contentDescription = null,
-                        modifier = Modifier.size(14.dp),
-                        tint = cardColor
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Create new",
+                        tint = Color.White,
+                        modifier = Modifier.size(24.dp)
                     )
-                    Spacer(Modifier.width(4.dp))
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // 2. HORIZONTAL CHIPS ROW (Học phần / Thư mục)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                // Học phần chip
+                val setTabSelected = activeTab == LibraryTabSelection.SET
+                Box(
+                    modifier = Modifier
+                        .background(
+                            color = if (setTabSelected) Color.White else Color.White.copy(alpha = 0.08f),
+                            shape = RoundedCornerShape(50.dp)
+                        )
+                        .clickable { activeTab = LibraryTabSelection.SET }
+                        .padding(horizontal = 20.dp, vertical = 10.dp)
+                ) {
                     Text(
-                        text = "${set.cardCount} cards",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = cardColor
+                        text = "Học phần",
+                        color = if (setTabSelected) DeepDarkNavy else Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp
                     )
                 }
 
-                if (onDelete != null) {
-                    Box {
-                        IconButton(
-                            onClick = { showMenu = true },
-                            modifier = Modifier.size(24.dp)
+                // Thư mục chip
+                val folderTabSelected = activeTab == LibraryTabSelection.FOLDER
+                Box(
+                    modifier = Modifier
+                        .background(
+                            color = if (folderTabSelected) Color.White else Color.White.copy(alpha = 0.08f),
+                            shape = RoundedCornerShape(50.dp)
+                        )
+                        .clickable { activeTab = LibraryTabSelection.FOLDER }
+                        .padding(horizontal = 20.dp, vertical = 10.dp)
+                ) {
+                    Text(
+                        text = "Thư mục",
+                        color = if (folderTabSelected) DeepDarkNavy else Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 3. DROPDOWN CHIP "Tất cả" & SEARCH BAR
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                // Dropdown category
+                Row(
+                    modifier = Modifier
+                        .background(Color.White.copy(alpha = 0.08f), shape = RoundedCornerShape(50.dp))
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Tất cả",
+                        color = Color.White,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Icon(
+                        imageVector = Icons.Default.ArrowDropDown,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+
+                // Translucent Search Bar
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = {
+                        Text(
+                            text = "Tìm kiếm",
+                            color = TextWhite.copy(alpha = 0.5f),
+                            fontSize = 14.sp
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = null,
+                            tint = TextWhite.copy(alpha = 0.5f),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(44.dp)
+                        .background(Color.White.copy(alpha = 0.08f), shape = RoundedCornerShape(50.dp)),
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        focusedBorderColor = Color.Transparent,
+                        unfocusedBorderColor = Color.Transparent,
+                        cursorColor = QuizletBlue
+                    ),
+                    shape = RoundedCornerShape(50.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // 4. LIST CONTENT
+            Box(modifier = Modifier.weight(1f)) {
+                if (activeTab == LibraryTabSelection.SET) {
+                    if (state.isLoading && filteredSets.isEmpty()) {
+                        ShimmerGrid(columns = 1, itemCount = 5)
+                    } else if (filteredSets.isEmpty()) {
+                        EmptyState(
+                            icon = Icons.Default.LibraryBooks,
+                            title = "Không tìm thấy học phần nào",
+                            subtitle = "Hãy tạo học phần đầu tiên của bạn!",
+                            actionLabel = "Tạo học phần",
+                            onAction = { showCreateSetDialog = true }
+                        )
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            verticalArrangement = Arrangement.spacedBy(16.dp),
+                            contentPadding = PaddingValues(bottom = 80.dp)
                         ) {
-                            Icon(
-                                Icons.Default.MoreVert,
-                                contentDescription = "More",
-                                modifier = Modifier.size(18.dp),
-                                tint = cardColor
-                            )
+                            items(filteredSets, key = { it.id }) { set ->
+                                LibrarySetRow(
+                                    set = set,
+                                    onClick = { onNavigateToSetDetail(set.id) },
+                                    onDelete = { showDeleteSetDialog = set }
+                                )
+                            }
                         }
-                        DropdownMenu(
-                            expanded = showMenu,
-                            onDismissRequest = { showMenu = false }
+                    }
+                } else {
+                    if (folderState.isLoading && filteredFolders.isEmpty()) {
+                        ShimmerGrid(columns = 1, itemCount = 5)
+                    } else if (filteredFolders.isEmpty()) {
+                        EmptyState(
+                            icon = Icons.Default.Folder,
+                            title = "Không tìm thấy thư mục nào",
+                            subtitle = "Hãy tạo thư mục đầu tiên để gom nhóm học phần!",
+                            actionLabel = "Tạo thư mục",
+                            onAction = { showCreateFolderDialog = true }
+                        )
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            verticalArrangement = Arrangement.spacedBy(16.dp),
+                            contentPadding = PaddingValues(bottom = 80.dp)
                         ) {
-                            DropdownMenuItem(
-                                text = { Text("Edit") },
-                                onClick = {
-                                    showMenu = false
-                                    onClick()
-                                },
-                                leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Share") },
-                                onClick = { showMenu = false },
-                                leadingIcon = { Icon(Icons.Default.Share, contentDescription = null) }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
-                                onClick = {
-                                    showMenu = false
-                                    onDelete()
-                                },
-                                leadingIcon = {
-                                    Icon(
-                                        Icons.Default.Delete,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.error
-                                    )
-                                }
-                            )
+                            items(filteredFolders, key = { it.id }) { folder ->
+                                LibraryFolderRow(
+                                    folder = folder,
+                                    onClick = { onNavigateToFolderDetail(folder.id) },
+                                    onDelete = { showDeleteFolderDialog = folder }
+                                )
+                            }
                         }
                     }
                 }
+            }
+        }
+    }
+
+    // dialogs
+    if (showCreateSetDialog) {
+        CreateSetDialog(
+            onDismiss = { showCreateSetDialog = false },
+            onCreated = { showCreateSetDialog = false }
+        )
+    }
+
+    if (showCreateFolderDialog) {
+        CreateFolderDialog(
+            onDismiss = { showCreateFolderDialog = false },
+            onCreated = { showCreateFolderDialog = false }
+        )
+    }
+
+    showDeleteFolderDialog?.let { folder ->
+        AlertDialog(
+            onDismissRequest = { showDeleteFolderDialog = null },
+            title = { Text("Xóa thư mục", color = Color.White) },
+            text = { Text("Bạn có chắc chắn muốn xóa thư mục \"${folder.name}\"? Các học phần bên trong sẽ không bị xóa.", color = Color.White.copy(alpha = 0.7f)) },
+            containerColor = Color(0xFF161A3F),
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        folderViewModel.onEvent(FolderEvent.DeleteFolder(folder.id))
+                        showDeleteFolderDialog = null
+                    }
+                ) {
+                    Text("Xóa", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteFolderDialog = null }) {
+                    Text("Hủy", color = Color.White.copy(alpha = 0.7f))
+                }
+            }
+        )
+    }
+
+    showDeleteSetDialog?.let { set ->
+        AlertDialog(
+            onDismissRequest = { showDeleteSetDialog = null },
+            title = { Text("Xóa học phần", color = Color.White) },
+            text = { Text("Bạn có chắc chắn muốn xóa học phần \"${set.title}\"? Hành động này không thể hoàn tác.", color = Color.White.copy(alpha = 0.7f)) },
+            containerColor = Color(0xFF161A3F),
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.onEvent(SetListEvent.DeleteSet(set.id))
+                        showDeleteSetDialog = null
+                    }
+                ) {
+                    Text("Xóa", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteSetDialog = null }) {
+                    Text("Hủy", color = Color.White.copy(alpha = 0.7f))
+                }
+            }
+        )
+    }
+}
+
+@Composable
+fun LibrarySetRow(
+    set: FlashcardSet,
+    onClick: () -> Unit,
+    onDelete: () -> Unit
+) {
+    var showMenu by remember { mutableStateOf(false) }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Icon container: rounded square box with double-card icon
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .background(IconBg, shape = RoundedCornerShape(12.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Style,
+                contentDescription = null,
+                tint = IconCyan,
+                modifier = Modifier.size(24.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.width(16.dp))
+
+        // Text details column
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = set.title,
+                color = Color.White,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            val author = set.userName ?: "bạn"
+            Text(
+                text = "Học phần • ${set.cardCount} thuật ngữ • Tác giả: $author",
+                color = TextGray,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Normal
+            )
+        }
+
+        Spacer(modifier = Modifier.width(8.dp))
+
+        // Actions
+        Box {
+            IconButton(onClick = { showMenu = true }) {
+                Icon(
+                    imageVector = Icons.Default.MoreVert,
+                    contentDescription = "Options",
+                    tint = TextGray
+                )
+            }
+            DropdownMenu(
+                expanded = showMenu,
+                onDismissRequest = { showMenu = false },
+                modifier = Modifier.background(CardBg)
+            ) {
+                DropdownMenuItem(
+                    text = { Text("Chi tiết học phần", color = Color.White) },
+                    onClick = {
+                        showMenu = false
+                        onClick()
+                    },
+                    leadingIcon = { Icon(Icons.Default.Visibility, null, tint = Color.White) }
+                )
+                DropdownMenuItem(
+                    text = { Text("Xóa học phần", color = MaterialTheme.colorScheme.error) },
+                    onClick = {
+                        showMenu = false
+                        onDelete()
+                    },
+                    leadingIcon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun LibraryFolderRow(
+    folder: Folder,
+    onClick: () -> Unit,
+    onDelete: () -> Unit
+) {
+    var showMenu by remember { mutableStateOf(false) }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Icon container: rounded square box with folder icon
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .background(IconBg, shape = RoundedCornerShape(12.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Folder,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(24.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.width(16.dp))
+
+        // Text details column
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = folder.name,
+                color = Color.White,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = "Thư mục",
+                color = TextGray,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Normal
+            )
+        }
+
+        Spacer(modifier = Modifier.width(8.dp))
+
+        // Actions
+        Box {
+            IconButton(onClick = { showMenu = true }) {
+                Icon(
+                    imageVector = Icons.Default.MoreVert,
+                    contentDescription = "Options",
+                    tint = TextGray
+                )
+            }
+            DropdownMenu(
+                expanded = showMenu,
+                onDismissRequest = { showMenu = false },
+                modifier = Modifier.background(CardBg)
+            ) {
+                DropdownMenuItem(
+                    text = { Text("Mở thư mục", color = Color.White) },
+                    onClick = {
+                        showMenu = false
+                        onClick()
+                    },
+                    leadingIcon = { Icon(Icons.Default.FolderOpen, null, tint = Color.White) }
+                )
+                DropdownMenuItem(
+                    text = { Text("Xóa thư mục", color = MaterialTheme.colorScheme.error) },
+                    onClick = {
+                        showMenu = false
+                        onDelete()
+                    },
+                    leadingIcon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error) }
+                )
             }
         }
     }

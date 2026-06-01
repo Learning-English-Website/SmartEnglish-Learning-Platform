@@ -50,9 +50,11 @@ class HomeViewModel @Inject constructor(
         loadData()
     }
 
-    fun loadData() {
+    fun loadData(isSilent: Boolean = false) {
         viewModelScope.launch {
-            _uiState.value = HomeUiState.Loading
+            if (!isSilent) {
+                _uiState.value = HomeUiState.Loading
+            }
 
             // Chạy song song 3 requests
             val userDeferred = async {

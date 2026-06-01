@@ -6,4 +6,5 @@ import com.example.smartenglish.util.ApiResult
 interface UserRepository {
     suspend fun getMe(): ApiResult<User>
     suspend fun updateProfile(username: String?, avatar: String?): ApiResult<User>
+    suspend fun uploadImage(bytes: ByteArray, fileName: String): ApiResult<String>
 }

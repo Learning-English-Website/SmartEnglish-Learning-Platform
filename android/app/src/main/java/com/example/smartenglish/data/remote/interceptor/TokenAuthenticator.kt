@@ -24,7 +24,7 @@ class TokenAuthenticator @Inject constructor(
 ) : Authenticator {
 
     companion object {
-        private const val BASE_URL = "http://10.0.2.2:5000/api/"
+        private const val BASE_URL = "http://192.168.1.3:5000/api/"
     }
 
     private val isRefreshing = AtomicBoolean(false)
@@ -51,16 +51,31 @@ class TokenAuthenticator @Inject constructor(
     override fun authenticate(route: Route?, response: Response): Request? {
         if (response.code != 401) return null
 
-        val refreshToken = tokenManager.getRefreshToken() ?: return null
+        val currentHeader = response.request.header("Authorization")
+        val currentToken = tokenManager.getAccessToken()
 
-        if (!isRefreshing.compareAndSet(false, true)) {
-            return null
+        // If the token has already been refreshed by another concurrent thread,
+        // retry this request with the new access token immediately.
+        if (currentToken != null && currentHeader != "Bearer $currentToken") {
+            return response.request.newBuilder()
+                .removeHeader("Authorization")
+                .addHeader("Authorization", "Bearer $currentToken")
+                .build()
         }
 
-        return try {
-            doRefresh(response, refreshToken)
-        } finally {
-            isRefreshing.set(false)
+        val refreshToken = tokenManager.getRefreshToken() ?: return null
+
+        synchronized(this) {
+            val updatedToken = tokenManager.getAccessToken()
+            // Double-check inside synchronized block in case another thread refreshed it while we were waiting
+            if (updatedToken != null && currentHeader != "Bearer $updatedToken") {
+                return response.request.newBuilder()
+                    .removeHeader("Authorization")
+                    .addHeader("Authorization", "Bearer $updatedToken")
+                    .build()
+            }
+
+            return doRefresh(response, refreshToken)
         }
     }
 
@@ -84,10 +99,15 @@ class TokenAuthenticator @Inject constructor(
                     }
                 }
 
-                tokenManager.clearTokens()
+                // ONLY clear user tokens if the backend explicitly rejects the refresh token (e.g. 400, 401, 403)
+                // This means the session is truly invalid or expired.
+                if (refreshResponse.code() in 400..403) {
+                    tokenManager.clearTokens()
+                }
                 null
             } catch (e: Exception) {
-                tokenManager.clearTokens()
+                // DO NOT clear user tokens on network timeouts or transient socket/connection errors.
+                // This prevents logging the user out during temporary network drops!
                 null
             }
         }

@@ -99,6 +99,7 @@ class SetListViewModel @Inject constructor(
                 refreshCommunitySets()
             }
             SetListEvent.ClearError -> _state.update { it.copy(error = null) }
+            SetListEvent.ClearCreateSetSuccess -> _state.update { it.copy(isCreateSetSuccess = false, error = null) }
             is SetListEvent.SelectTab -> selectTab(event.tab)
             is SetListEvent.SelectFilter -> selectFilter(event.filter)
         }
@@ -152,15 +153,17 @@ class SetListViewModel @Inject constructor(
 
     private fun createSet(title: String, description: String?, language: String?, isPublic: Boolean) {
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true, error = null) }
+            _state.update { it.copy(isLoading = true, error = null, isCreateSetSuccess = false) }
             when (val result = setRepository.createSet(title, description, language, isPublic, emptyList())) {
                 is ApiResult.Success -> {
-                    _state.update { it.copy(isLoading = false) }
+                    _state.update { it.copy(isLoading = false, isCreateSetSuccess = true) }
                 }
                 is ApiResult.Error -> {
                     _state.update { it.copy(error = result.message, isLoading = false) }
                 }
-                else -> {}
+                else -> {
+                    _state.update { it.copy(isLoading = false) }
+                }
             }
         }
     }

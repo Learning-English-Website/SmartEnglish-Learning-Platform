@@ -6,6 +6,8 @@ import androidx.compose.material.icons.filled.LibraryBooks
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.ui.graphics.vector.ImageVector
 
 sealed class Screen(val route: String, val title: String, val icon: ImageVector) {
@@ -25,8 +27,9 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector)
     }
 
     // Main screens (bottom nav) - Quizlet style
-    data object Home : Screen("home", "Home", Icons.Default.Home)
-    data object Library : Screen("library", "Library", Icons.Default.LibraryBooks)
+    data object Home : Screen("home", "Trang chủ", Icons.Default.Home)
+    data object Create : Screen("create", "Tạo", Icons.Default.Add)
+    data object Library : Screen("library", "Thư viện", Icons.Default.LibraryBooks)
     data object Study : Screen("study", "Study", Icons.Default.School)
     data object Profile : Screen("profile", "Profile", Icons.Default.Person)
 
@@ -51,7 +54,11 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector)
     data object Search : Screen("search", "Search", Icons.Default.Search)
     data object Achievements : Screen("achievements", "Huy hiệu", Icons.Default.Person)
 
+    data object FolderDetail : Screen("folder/{folderId}", "Thư mục", Icons.Default.Folder) {
+        fun createRoute(folderId: String) = "folder/$folderId"
+    }
+
     companion object {
-        val bottomNavItems = listOf(Home, Library, Study, Profile)
+        val bottomNavItems = listOf(Home, Create, Library)
     }
 }

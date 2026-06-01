@@ -5,7 +5,7 @@ const updateProfileSchema = Joi.object({
     .trim()
     .min(3)
     .max(30)
-    .pattern(/^[a-zA-Z0-9]+$/)
+    .pattern(/^[a-zA-Z0-9\s_\-À-ỹ]+$/)
     .optional(),
   avatar: Joi.string().trim().max(2048).allow('', null).optional(),
 })

@@ -32,7 +32,7 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object AppModule {
 
-    private const val BASE_URL = "http://10.0.2.2:5000/api/"
+    private const val BASE_URL = "http://192.168.1.3:5000/api/"
 
     @Provides
     @Singleton
@@ -122,6 +122,12 @@ object AppModule {
         return retrofit.create(UserApi::class.java)
     }
 
+    @Provides
+    @Singleton
+    fun provideMediaApi(retrofit: Retrofit): MediaApi {
+        return retrofit.create(MediaApi::class.java)
+    }
+
     // Flashcard APIs
     @Provides
     @Singleton
@@ -171,8 +177,11 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideUserRepository(userApi: UserApi): UserRepository {
-        return UserRepositoryImpl(userApi)
+    fun provideUserRepository(
+        userApi: UserApi,
+        mediaApi: MediaApi
+    ): UserRepository {
+        return UserRepositoryImpl(userApi, mediaApi)
     }
 
     @Provides
@@ -213,6 +222,18 @@ object AppModule {
     @Singleton
     fun provideProgressRepository(progressApi: ProgressApi): ProgressRepository {
         return ProgressRepositoryImpl(progressApi)
+    }
+
+    @Provides
+    @Singleton
+    fun provideFolderApi(retrofit: Retrofit): FolderApi {
+        return retrofit.create(FolderApi::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideFolderRepository(folderApi: FolderApi): FolderRepository {
+        return FolderRepositoryImpl(folderApi)
     }
 
     @Provides

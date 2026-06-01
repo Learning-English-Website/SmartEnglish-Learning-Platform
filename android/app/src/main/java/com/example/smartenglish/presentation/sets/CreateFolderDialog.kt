@@ -12,24 +12,21 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.example.smartenglish.presentation.sets.SetListViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CreateSetDialog(
+fun CreateFolderDialog(
     onDismiss: () -> Unit,
     onCreated: () -> Unit,
-    viewModel: SetListViewModel = hiltViewModel()
+    viewModel: FolderViewModel = hiltViewModel()
 ) {
-    var title by remember { mutableStateOf("") }
-    var description by remember { mutableStateOf("") }
-    var isPublic by remember { mutableStateOf(false) }
+    var name by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
     val state by viewModel.state.collectAsState()
 
-    LaunchedEffect(state.isCreateSetSuccess) {
-        if (state.isCreateSetSuccess) {
-            viewModel.onEvent(SetListEvent.ClearCreateSetSuccess)
+    LaunchedEffect(state.isCreateFolderSuccess) {
+        if (state.isCreateFolderSuccess) {
+            viewModel.onEvent(FolderEvent.ClearCreateFolderSuccess)
             onCreated()
         }
     }
@@ -42,7 +39,7 @@ fun CreateSetDialog(
         },
         title = {
             Text(
-                text = "Tạo học phần mới",
+                text = "Tạo thư mục mới",
                 color = Color.White,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold
@@ -54,16 +51,16 @@ fun CreateSetDialog(
         text = {
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 OutlinedTextField(
-                    value = title,
+                    value = name,
                     onValueChange = {
-                        title = it
+                        name = it
                         if (error != null) error = null
                     },
-                    label = { Text("Tên học phần *") },
-                    placeholder = { Text("Nhập tên học phần (tối thiểu 3 ký tự)...") },
+                    label = { Text("Tên thư mục *") },
+                    placeholder = { Text("Nhập tên thư mục...") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     enabled = !state.isLoading,
@@ -81,60 +78,6 @@ fun CreateSetDialog(
                     shape = RoundedCornerShape(12.dp)
                 )
 
-                OutlinedTextField(
-                    value = description,
-                    onValueChange = { description = it },
-                    label = { Text("Mô tả") },
-                    placeholder = { Text("Nhập mô tả học phần (tuỳ chọn)...") },
-                    modifier = Modifier.fillMaxWidth(),
-                    maxLines = 3,
-                    enabled = !state.isLoading,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
-                        focusedBorderColor = Color(0xFF4255FF),
-                        unfocusedBorderColor = Color.White.copy(alpha = 0.15f),
-                        focusedLabelColor = Color(0xFF4255FF),
-                        unfocusedLabelColor = Color.White.copy(alpha = 0.5f),
-                        focusedPlaceholderColor = Color.White.copy(alpha = 0.35f),
-                        unfocusedPlaceholderColor = Color.White.copy(alpha = 0.35f)
-                    ),
-                    shape = RoundedCornerShape(12.dp)
-                )
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Công khai học phần",
-                            color = Color.White,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 15.sp
-                        )
-                        Text(
-                            text = "Mọi người đều có thể tìm thấy học phần này",
-                            color = Color.White.copy(alpha = 0.5f),
-                            fontSize = 12.sp
-                        )
-                    }
-                    Switch(
-                        checked = isPublic,
-                        onCheckedChange = { isPublic = it },
-                        enabled = !state.isLoading,
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = Color.White,
-                            checkedTrackColor = Color(0xFF4255FF),
-                            uncheckedThumbColor = Color.White.copy(alpha = 0.7f),
-                            uncheckedTrackColor = Color.White.copy(alpha = 0.15f)
-                        )
-                    )
-                }
-
                 val errorMessage = error ?: state.error
                 errorMessage?.let {
                     Text(
@@ -149,26 +92,13 @@ fun CreateSetDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    when {
-                        title.isBlank() -> {
-                            error = "Vui lòng nhập tên học phần"
-                            return@Button
-                        }
-                        title.length < 3 -> {
-                            error = "Tên học phần phải dài tối thiểu 3 ký tự"
-                            return@Button
-                        }
+                    if (name.isBlank()) {
+                        error = "Vui lòng nhập tên thư mục"
+                        return@Button
                     }
-                    viewModel.onEvent(
-                        SetListEvent.CreateSet(
-                            title = title,
-                            description = description.ifBlank { null },
-                            language = null,
-                            isPublic = isPublic
-                        )
-                    )
+                    viewModel.onEvent(FolderEvent.CreateFolder(name.trim()))
                 },
-                enabled = !state.isLoading && title.isNotBlank(),
+                enabled = !state.isLoading,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color(0xFF4255FF),
                     disabledContainerColor = Color(0xFF4255FF).copy(alpha = 0.5f)
@@ -186,7 +116,7 @@ fun CreateSetDialog(
                     )
                 } else {
                     Text(
-                        text = "Tạo học phần",
+                        text = "Tạo thư mục",
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp

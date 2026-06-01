@@ -2,6 +2,7 @@ package com.example.smartenglish.presentation.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -25,6 +26,7 @@ import com.example.smartenglish.presentation.cards.CardListScreen
 import com.example.smartenglish.presentation.cards.CardEditorScreen
 import com.example.smartenglish.presentation.search.SearchScreen
 import com.example.smartenglish.presentation.browse.BrowseScreen
+import com.example.smartenglish.presentation.sets.FolderDetailScreen
 
 @Composable
 fun AppNavGraph(
@@ -32,6 +34,7 @@ fun AppNavGraph(
     startDestination: String = Screen.Login.route,
     onLoginSuccess: () -> Unit,
     onLogout: () -> Unit,
+    innerPadding: PaddingValues,
     modifier: Modifier = Modifier
 ) {
     NavHost(
@@ -169,7 +172,9 @@ fun AppNavGraph(
                 },
                 onNavigateToSetDetail = { setId ->
                     navController.navigate(Screen.SetDetail.createRoute(setId))
-                }
+                },
+                onLogout = onLogout,
+                innerPadding = innerPadding
             )
         }
 
@@ -184,6 +189,9 @@ fun AppNavGraph(
                 },
                 onNavigateToBrowse = {
                     navController.navigate(Screen.Browse.route)
+                },
+                onNavigateToFolderDetail = { folderId ->
+                    navController.navigate(Screen.FolderDetail.createRoute(folderId))
                 }
             )
         }
@@ -205,6 +213,9 @@ fun AppNavGraph(
                 },
                 onNavigateToAchievements = {
                     navController.navigate(Screen.Achievements.route)
+                },
+                onNavigateBack = {
+                    navController.popBackStack()
                 },
                 onLogout = {
                     onLogout()
@@ -233,6 +244,9 @@ fun AppNavGraph(
                 },
                 onNavigateToBrowse = {
                     navController.navigate(Screen.Browse.route)
+                },
+                onNavigateToFolderDetail = { folderId ->
+                    navController.navigate(Screen.FolderDetail.createRoute(folderId))
                 }
             )
         }
@@ -342,6 +356,25 @@ fun AppNavGraph(
             AchievementsScreen(
                 onNavigateBack = {
                     navController.popBackStack()
+                }
+            )
+        }
+
+        // Folder Detail Screen
+        composable(
+            route = Screen.FolderDetail.route,
+            arguments = listOf(
+                navArgument("folderId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val folderId = backStackEntry.arguments?.getString("folderId") ?: ""
+            FolderDetailScreen(
+                folderId = folderId,
+                onNavigateBack = {
+                    navController.popBackStack()
+                },
+                onNavigateToSetDetail = { setId ->
+                    navController.navigate(Screen.SetDetail.createRoute(setId))
                 }
             )
         }
