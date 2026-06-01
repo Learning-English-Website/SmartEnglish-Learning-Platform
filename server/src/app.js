@@ -33,7 +33,7 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser()); // ✅ Parse HttpOnly cookies từ request
 
-// ── Static Files (Uploads) ────────────────────────────────────────────────────
+// ── Static Files (Uploads) ───────────────────────────────────────────────────
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // ── Logging ───────────────────────────────────────────────────────────────────
@@ -46,13 +46,13 @@ if (process.env.NODE_ENV !== 'test') {
 // Per-route rate limiting (e.g. login) still works via loginRateLimiter middleware
 // app.use('/api', generalRateLimiter);
 
-// ── Health Check ──────────────────────────────────────────────────────────────
+// ── Health Check ─────────────────────────────────────────────────────────────
 app.get('/api/health', (req, res) =>
   res.json({ status: 'ok', timestamp: new Date(), environment: process.env.NODE_ENV })
 );
 app.get('/', (req, res) => res.json({ message: 'Welcome to SmartEnglish API' }));
 
-// ── Routes ────────────────────────────────────────────────────────────────────
+// ── Routes ───────────────────────────────────────────────────────────────────
 app.use('/api/auth', require('./modules/auth/auth.routes'));
 app.use('/api/users', require('./modules/user/user.routes'));
 app.use('/api/flashcard-sets', require('./modules/flashcard-sets/flashcardSet.routes'));
@@ -67,6 +67,7 @@ app.use('/api/notes', require('./modules/notes/note.routes'));
 app.use('/api/gamification', require('./modules/gamification/gamification.routes'));
 app.use('/api/media', require('./modules/media/media.routes'));
 app.use('/api/duolingo', require('./modules/duolingo/duolingo.routes'));
+app.use('/api/payment', require('./modules/payment/payment.routes'));
 
 // ── 404 Handler ───────────────────────────────────────────────────────────────
 app.use('/{*path}', (req, res) => {

@@ -109,20 +109,48 @@ const isYesterday = (date) => {
   return isSameDay(date, yesterday);
 };
 
+// Helper: Check and refill premium streak freezes monthly
+const checkMonthlyRefill = async (user) => {
+  if (user.premium !== 'premium') {
+    // Reset non-premium freezes to 0 just in case
+    if (user.streakFreezes !== 0) {
+      user.streakFreezes = 0;
+      await user.save();
+    }
+    return user;
+  }
+
+  const today = new Date();
+  const lastUpdate = user.updatedAt || new Date();
+  
+  const todayMonth = `${today.getFullYear()}-${today.getMonth()}`;
+  const lastUpdateMonth = `${lastUpdate.getFullYear()}-${lastUpdate.getMonth()}`;
+  
+  if (todayMonth !== lastUpdateMonth || user.streakFreezes === undefined || user.streakFreezes === null) {
+    user.streakFreezes = 3;
+    await user.save();
+  }
+  return user;
+};
+
 // ── updateStreak ──────────────────────────────────────────────────────────────
 /**
  * Cập nhật streak của user sau khi hoàn thành 1 phiên học.
  * @returns {{ current, longest, streakBroken, isNewRecord }}
  */
 const updateStreak = async (userId) => {
-  const user = await User.findById(userId);
+  let user = await User.findById(userId);
   if (!user) throw new AppError('User not found', 404);
+
+  // Check and replenish freezes if needed
+  user = await checkMonthlyRefill(user);
 
   const today = new Date();
   const lastStudy = user.streak?.lastStudyDate;
   let current = user.streak?.current || 0;
   let longest = user.streak?.longest || 0;
   let streakBroken = false;
+  let freezesConsumed = 0;
 
   if (!lastStudy) {
     // Lần đầu tiên học
@@ -139,9 +167,26 @@ const updateStreak = async (userId) => {
     // Học hôm qua → tiếp tục chuỗi
     current += 1;
   } else {
-    // Đã bỏ lỡ ít nhất 1 ngày → reset
-    streakBroken = current > 1;
-    current = 1;
+    // Bỏ lỡ ít nhất 1 ngày → kiểm tra bảo hiểm Streak Freeze cho Premium
+    const todayMidnight = new Date(today);
+    todayMidnight.setHours(0, 0, 0, 0);
+    const lastStudyMidnight = new Date(lastStudy);
+    lastStudyMidnight.setHours(0, 0, 0, 0);
+    const diffTime = Math.abs(todayMidnight - lastStudyMidnight);
+    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+    const neededFreezes = diffDays - 1;
+
+    if (user.premium === 'premium' && (user.streakFreezes || 0) >= neededFreezes) {
+      // Tiêu thụ lượt bảo hiểm
+      freezesConsumed = neededFreezes;
+      user.streakFreezes -= neededFreezes;
+      current += 1; // Giữ chuỗi hoạt động
+      streakBroken = false;
+    } else {
+      // Tài khoản thường hoặc không đủ lượt bảo hiểm → reset
+      streakBroken = current > 1;
+      current = 1;
+    }
   }
 
   const isNewRecord = current > longest;
@@ -151,6 +196,7 @@ const updateStreak = async (userId) => {
     'streak.current': current,
     'streak.longest': longest,
     'streak.lastStudyDate': today,
+    'streakFreezes': user.streakFreezes,
   });
 
   return { current, longest, streakBroken, isNewRecord };
@@ -323,13 +369,12 @@ const getLeaderboard = async (userId, setId) => {
   };
 };
 
-// ── getStats ──────────────────────────────────────────────────────────────────
-/**
- * Lấy thống kê gamification của user (streak + XP + level).
- */
 const getStats = async (userId) => {
-  const user = await User.findById(userId);
+  let user = await User.findById(userId);
   if (!user) throw new AppError('User not found', 404);
+
+  // Auto-refill freezes if a new month has arrived
+  user = await checkMonthlyRefill(user);
 
   const today = new Date();
   const lastStudy = user.streak?.lastStudyDate;
@@ -344,6 +389,7 @@ const getStats = async (userId) => {
       longest: user.streak?.longest || 0,
       studiedToday,
       lastStudyDate: lastStudy,
+      streakFreezes: user.streakFreezes || 0,
     },
     gamification: {
       xp: totalXP,

@@ -108,6 +108,14 @@ const createSet = async (req, res) => {
     throw new AppError('Title must be at least 3 characters', 400);
   }
 
+  // Chặn nếu tài khoản miễn phí đạt giới hạn 5 bộ thẻ
+  if (req.user.premium !== 'premium') {
+    const setsCount = await FlashcardSet.countDocuments({ user: req.user._id });
+    if (setsCount >= 5) {
+      throw new AppError('Tài khoản miễn phí giới hạn tối đa 5 bộ thẻ học. Vui lòng nâng cấp Premium để không giới hạn!', 400);
+    }
+  }
+
   // Handle tags - convert to ObjectIds
   let tagIds = [];
   if (Array.isArray(tags) && tags.length > 0) {

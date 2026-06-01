@@ -36,6 +36,9 @@ const StudySetDetail = lazy(() => import('./pages/StudySets/StudySetDetail'));
 const StudySetLearn = lazy(() => import('./pages/StudySets/StudySetLearn'));
 const LearnPage = lazy(() => import('./pages/LearnPage/LearnPage'));
 const ExploreSetsPage = lazy(() => import('./pages/Quizlet/ExploreSets'));
+const ProPage = lazy(() => import('./pages/Pro/ProPage'));
+const SuccessPage = lazy(() => import('./pages/Pro/SuccessPage'));
+const CancelPage = lazy(() => import('./pages/Pro/CancelPage'));
 
 const withSuspense = (element) => (
   <Suspense fallback={<LoadingSpinner fullScreen text="Loading..." />}>
@@ -67,6 +70,9 @@ const router = createBrowserRouter([
       { path: '/forgot-password/otp', element: withSuspense(<ForgotPasswordPage />) },
       { path: '/oauth/callback', element: withSuspense(<OAuthCallbackPage />) },
       { path: '/shared/:shareCode', element: withSuspense(<SharedSet />) },
+      // Payment pages (public - success/cancel)
+      { path: '/premium/success', element: withSuspense(<SuccessPage />) },
+      { path: '/premium/cancel', element: withSuspense(<CancelPage />) },
     ],
   },
 
@@ -114,6 +120,8 @@ const router = createBrowserRouter([
       { path: '/community/sets/:id', element: withSuspense(<CommunitySetDetail />) },
       { path: '/study-sets/:id', element: withSuspense(<StudySetDetail />) },
       { path: '/folders/:id/:slug', element: withSuspense(<FolderPage />) },
+      // Premium page (protected)
+      { path: '/premium', element: withSuspense(<ProPage />) },
     ],
   },
 

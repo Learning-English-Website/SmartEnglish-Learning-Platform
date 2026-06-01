@@ -1,8 +1,8 @@
 # WEEK 5: WEB APP — Advanced Gamification + Admin Panel + Payments
 
-> **Tech Stack:** React + Vite + Express + MongoDB + Stripe + React Admin
+> **Tech Stack:** React + Vite + Express + MongoDB + MoMo + PayOS + React Admin
 > **Reference:** `duolingo-clone` (Next.js + Stripe + React Admin)
-> **Mục tiêu:** Stripe Payments (Pro Tier), Admin Dashboard (React Admin), Quests System, Daily Challenges, Push Notifications, Polish & Optimization
+> **Mục tiêu:** Momo/PayOS Payments (Pro Tier), Admin Dashboard (React Admin), Quests System, Daily Challenges, Push Notifications, Polish & Optimization
 
 ---
 
@@ -17,14 +17,14 @@
 | ✅ Leaderboard | Hoàn thành |
 | ✅ Achievements System | Hoàn thành |
 | ✅ Basic Leaderboard UI | Hoàn thành |
-| ✅ Dark Mode | Hoàn thia |
+| ✅ Dark Mode | Hoàn thành |
 
 ### Duolingo-clone có mà SmartEnglish THIẾU:
 | Tính năng | Mô tả |
 |---|---|
 | ❌ **Quests System** | Nhiệm vụ hàng ngày/tuần với XP milestones |
 | ❌ **Daily Challenge** | Thử thách đặc biệt mỗi ngày |
-| ❌ **Stripe Payments** | Thanh toán Pro subscription ($20/tháng) |
+| ❌ **Momo + PayOS Payments** | Thanh toán Pro subscription qua QR (500.000đ/tháng) |
 | ❌ **Unlimited Hearts** | Người dùng Pro không mất hearts |
 | ❌ **Admin Dashboard** | CRUD cho courses, units, lessons, challenges |
 | ❌ **React Admin** | Dashboard quản trị chuyên nghiệp |
@@ -40,7 +40,7 @@
 ```
 TUẦN 5 — Advanced Gamification + Admin + Payments (7 ngày)
 
-📅 Ngày 1: Stripe Payments + Pro Subscription
+📅 Ngày 1: Momo + PayOS Payments + Pro Subscription (xem day1_momo_payos.md)
 📅 Ngày 2: Quests System + Daily Challenges
 📅 Ngày 3: Admin Dashboard (React Admin)
 📅 Ngày 4: Admin - CRUD cho Content (Courses, Units, Lessons, Challenges)
@@ -51,315 +51,14 @@ TUẦN 5 — Advanced Gamification + Admin + Payments (7 ngày)
 
 ---
 
-## 📆 NGÀY 1 — Stripe Payments + Pro Subscription
+## 📆 NGÀY 1 — Xem `day1_momo_payos.md`
 
-### 1. Stripe Setup
+Ngày 1 đã được tách riêng tại `day1_momo_payos.md` để dễ quản lý.
 
-#### Tạo `server/src/config/stripe.js`
-```javascript
-const Stripe = require('stripe');
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: '2023-10-16',
-});
-
-module.exports = stripe;
-```
-
-#### Tạo `server/src/modules/payment/payment.service.js`
-```javascript
-const stripe = require('../../config/stripe');
-const UserProgress = require('../../models/userProgress.model');
-const User = require('../../models/user.model');
-
-const PRO_PRICE_ID = process.env.STRIPE_PRO_PRICE_ID; // $20/month
-const PRO_PRICE_CENTS = 2000;
-
-class PaymentService {
-  // Tạo Stripe Checkout Session cho Pro subscription
-  async createCheckoutSession(userId) {
-    const user = await User.findById(userId);
-    if (!user) throw new Error('User not found');
-
-    // Kiểm tra đã có subscription chưa
-    const existingSub = await this.getUserSubscription(userId);
-    if (existingSub?.status === 'active') {
-      throw new Error('Already subscribed');
-    }
-
-    const session = await stripe.checkout.sessions.create({
-      mode: 'subscription',
-      payment_method_types: ['card'],
-      line_items: [
-        {
-          price: PRO_PRICE_ID,
-          quantity: 1,
-        },
-      ],
-      success_url: `${process.env.CLIENT_URL}/pro/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.CLIENT_URL}/pro/cancel`,
-      customer_email: user.email,
-      metadata: {
-        userId: user._id.toString(),
-      },
-      subscription_data: {
-        metadata: {
-          userId: user._id.toString(),
-        },
-      },
-    });
-
-    return { sessionId: session.id, url: session.url };
-  }
-
-  // Tạo Billing Portal Session
-  async createPortalSession(userId) {
-    const progress = await UserProgress.findOne({ user: userId });
-    if (!progress?.stripeCustomerId) {
-      throw new Error('No subscription found');
-    }
-
-    const session = await stripe.billingPortal.sessions.create({
-      customer: progress.stripeCustomerId,
-      return_url: `${process.env.CLIENT_URL}/profile`,
-    });
-
-    return { url: session.url };
-  }
-
-  // Xử lý Stripe Webhook
-  async handleWebhook(event) {
-    switch (event.type) {
-      case 'checkout.session.completed': {
-        const session = event.data.object;
-        await this.handleCheckoutComplete(session);
-        break;
-      }
-      case 'invoice.payment_succeeded': {
-        const invoice = event.data.object;
-        await this.handlePaymentSuccess(invoice);
-        break;
-      }
-      case 'customer.subscription.deleted': {
-        const subscription = event.data.object;
-        await this.handleSubscriptionCanceled(subscription);
-        break;
-      }
-    }
-  }
-
-  async handleCheckoutComplete(session) {
-    const userId = session.metadata.userId;
-    const customerId = session.customer;
-    const subscriptionId = session.subscription;
-
-    // Get subscription details
-    const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-
-    // Update user progress
-    await UserProgress.findOneAndUpdate(
-      { user: userId },
-      {
-        isPro: true,
-        stripeCustomerId: customerId,
-        stripeSubscriptionId: subscriptionId,
-        stripePriceId: subscription.items.data[0].price.id,
-        stripeCurrentPeriodEnd: new Date(subscription.current_period_end * 1000),
-      },
-      { upsert: true }
-    );
-  }
-
-  async handlePaymentSuccess(invoice) {
-    const subscription = await stripe.subscriptions.retrieve(invoice.subscription);
-    await UserProgress.findOneAndUpdate(
-      { stripeCustomerId: invoice.customer },
-      {
-        stripeCurrentPeriodEnd: new Date(subscription.current_period_end * 1000),
-      }
-    );
-  }
-
-  async handleSubscriptionCanceled(subscription) {
-    await UserProgress.findOneAndUpdate(
-      { stripeSubscriptionId: subscription.id },
-      {
-        isPro: false,
-        stripeSubscriptionId: null,
-      }
-    );
-  }
-
-  async getUserSubscription(userId) {
-    const progress = await UserProgress.findOne({ user: userId });
-    if (!progress?.stripeCustomerId) return null;
-
-    if (progress.stripeSubscriptionId) {
-      try {
-        const subscription = await stripe.subscriptions.retrieve(progress.stripeSubscriptionId);
-        return {
-          status: subscription.status,
-          currentPeriodEnd: new Date(subscription.current_period_end * 1000),
-          isActive: subscription.status === 'active',
-        };
-      } catch (err) {
-        return { status: 'canceled', isActive: false };
-      }
-    }
-    return null;
-  }
-}
-
-module.exports = new PaymentService();
-```
-
-#### Tạo `server/src/modules/payment/payment.controller.js`
-```javascript
-const paymentService = require('./payment.service');
-const { asyncHandler } = require('../../shared/utils/asyncHandler');
-const { ApiResponse } = require('../../shared/utils/apiResponse');
-
-class PaymentController {
-  createCheckout = asyncHandler(async (req, res) => {
-    const { url } = await paymentService.createCheckoutSession(req.userId);
-    res.json(ApiResponse.success({ url }));
-  });
-
-  createPortal = asyncHandler(async (req, res) => {
-    const { url } = await paymentService.createPortalSession(req.userId);
-    res.json(ApiResponse.success({ url }));
-  });
-
-  getSubscription = asyncHandler(async (req, res) => {
-    const subscription = await paymentService.getUserSubscription(req.userId);
-    res.json(ApiResponse.success(subscription));
-  });
-
-  handleWebhook = asyncHandler(async (req, res) => {
-    const sig = req.headers['stripe-signature'];
-    const event = stripe.webhooks.constructEvent(
-      req.body,
-      sig,
-      process.env.STRIPE_WEBHOOK_SECRET
-    );
-    await paymentService.handleWebhook(event);
-    res.json({ received: true });
-  });
-}
-
-module.exports = new PaymentController();
-```
-
-#### Tạo `server/src/modules/payment/payment.routes.js`
-```javascript
-const express = require('express');
-const router = express.Router();
-const paymentController = require('./payment.controller');
-const { authMiddleware } = require('../../middleware/auth.middleware');
-
-// Protected routes
-router.post('/checkout', authMiddleware, paymentController.createCheckout);
-router.post('/portal', authMiddleware, paymentController.createPortal);
-router.get('/subscription', authMiddleware, paymentController.getSubscription);
-
-// Webhook (raw body needed)
-router.post('/webhook', paymentController.handleWebhook);
-
-module.exports = router;
-```
-
-#### Cập nhật `server/src/app.js`
-```javascript
-// Webhook cần raw body
-app.use('/api/payment/webhook', express.raw({ type: 'application/json' }), require('./modules/payment/payment.routes'));
-app.use('/api/payment', require('./modules/payment/payment.routes'));
-```
-
-### 2. Frontend: Pro Upgrade Page
-
-#### Tạo `client/src/pages/Pro/ProPage.jsx`
-```javascript
-import { useState } from 'react';
-import { paymentService } from '../../services/paymentService';
-import './ProPage.css';
-
-export default function ProPage() {
-  const [loading, setLoading] = useState(false);
-
-  const handleUpgrade = async () => {
-    setLoading(true);
-    try {
-      const { data } = await paymentService.createCheckout();
-      window.location.href = data.data.url;
-    } catch (err) {
-      console.error('Checkout failed', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="pro-page">
-      <div className="pro-hero">
-        <h1>Upgrade to Pro</h1>
-        <p>Unlock unlimited learning power</p>
-      </div>
-
-      <div className="pro-features">
-        <div className="feature-card">
-          <span className="icon">❤️</span>
-          <h3>Unlimited Hearts</h3>
-          <p>Never run out of hearts. Learn without limits.</p>
-        </div>
-        <div className="feature-card">
-          <span className="icon">📊</span>
-          <h3>Progress Insights</h3>
-          <p>Detailed analytics and learning statistics.</p>
-        </div>
-        <div className="feature-card">
-          <span className="icon">🎯</span>
-          <h3>Offline Mode</h3>
-          <p>Download lessons for offline study.</p>
-        </div>
-        <div className="feature-card">
-          <span className="icon">🏆</span>
-          <h3>Exclusive Achievements</h3>
-          <p>Unlock special Pro-only achievements.</p>
-        </div>
-      </div>
-
-      <div className="pro-pricing">
-        <div className="price-tag">
-          <span className="amount">$20</span>
-          <span className="period">/ month</span>
-        </div>
-        <button 
-          className="btn-pro-upgrade" 
-          onClick={handleUpgrade}
-          disabled={loading}
-        >
-          {loading ? 'Loading...' : 'Upgrade Now'}
-        </button>
-        <p className="cancel-note">Cancel anytime. No commitment.</p>
-      </div>
-    </div>
-  );
-}
-```
-
-#### Tạo `client/src/services/paymentService.js`
-```javascript
-import api from '../api/axiosClient';
-
-export const paymentService = {
-  createCheckout: () => api.post('/payment/checkout'),
-  createPortal: () => api.post('/payment/portal'),
-  getSubscription: () => api.get('/payment/subscription'),
-};
-```
-
-### ✅ Deliverable
-Stripe integration hoàn chỉnh: Checkout Session, Billing Portal, Webhook Handler, Pro subscription activation.
+### Tóm tắt Ngày 1:
+- Tích hợp **MoMo** và **PayOS** để thanh toán Pro subscription
+- Giá: **500.000đ/tháng**
+- User chọn thanh toán qua MoMo (QR) hoặc PayOS (VietQR)
 
 ---
 
@@ -381,11 +80,8 @@ const questSchema = new mongoose.Schema({
   },
   xpReward: { type: Number, default: 100 },
   icon: { type: String, default: '🎯' },
-  // Target: số lượng cần hoàn thành
   target: { type: Number, default: 1 },
-  // Progress field names to track
-  progressField: { type: String, required: true }, // e.g., 'lessonsCompleted', 'perfectLessons'
-  // Thời gian hết hạn
+  progressField: { type: String, required: true },
   expiresAt: { type: Date, default: null },
   isActive: { type: Boolean, default: true },
   order: { type: Number, default: 0 },
@@ -405,11 +101,9 @@ const userQuestSchema = new mongoose.Schema({
   completed: { type: Boolean, default: false },
   claimed: { type: Boolean, default: false },
   claimedAt: { type: Date, default: null },
-  // Cho daily quests
-  date: { type: String, default: null }, // '2026-05-24'
+  date: { type: String, default: null },
 }, { timestamps: true });
 
-// Index cho fast lookups
 userQuestSchema.index({ user: 1, quest: 1, date: 1 }, { unique: true });
 
 module.exports = mongoose.model('UserQuest', userQuestSchema);
@@ -420,10 +114,10 @@ module.exports = mongoose.model('UserQuest', userQuestSchema);
 const mongoose = require('mongoose');
 
 const dailyChallengeSchema = new mongoose.Schema({
-  date: { type: String, required: true, unique: true }, // '2026-05-24'
+  date: { type: String, required: true, unique: true },
   lesson: { type: mongoose.Schema.Types.ObjectId, ref: 'Lesson', required: true },
   xpReward: { type: Number, default: 50 },
-  bonusMultiplier: { type: Number, default: 2 }, // Double XP
+  bonusMultiplier: { type: Number, default: 2 },
   participants: { type: Number, default: 0 },
 }, { timestamps: true });
 
@@ -449,11 +143,8 @@ const DAILY_QUESTS = [
 ];
 
 class QuestService {
-  // Lấy quests cho user hôm nay
   async getDailyQuests(userId) {
     const today = new Date().toISOString().split('T')[0];
-    
-    // Tạo quests nếu chưa có
     await this.ensureDailyQuests(userId, today);
     
     const userQuests = await UserQuest.find({ 
@@ -475,13 +166,11 @@ class QuestService {
     }));
   }
 
-  // Đảm bảo user có đủ daily quests
   async ensureDailyQuests(userId, date) {
     const existingQuests = await UserQuest.find({ user: userId, date });
     
     if (existingQuests.length >= DAILY_QUESTS.length) return;
 
-    // Lấy hoặc tạo quests từ template
     for (const questTemplate of DAILY_QUESTS) {
       let quest = await Quest.findOne({ title: questTemplate.title, type: 'daily' });
       if (!quest) {
@@ -495,21 +184,9 @@ class QuestService {
     }
   }
 
-  // Cập nhật progress khi user hoàn thành lesson
   async updateQuestProgress(userId, lessonId) {
     const today = new Date().toISOString().split('T')[0];
-    const userProgress = await UserProgress.findOne({ user: userId });
-    
-    // Update lessonsCompleted
     await this.incrementQuestProgress(userId, today, 'lessonsCompleted', 1);
-    
-    // Update perfectLessons (if 100% score)
-    // await this.incrementQuestProgress(userId, today, 'perfectLessons', 1);
-    
-    // Update xpEarned
-    // await this.incrementQuestProgress(userId, today, 'xpEarned', xpEarned);
-    
-    // Update streakDays
     await this.incrementQuestProgress(userId, today, 'streakDays', 1);
   }
 
@@ -533,17 +210,14 @@ class QuestService {
     }
   }
 
-  // Claim XP reward
   async claimQuestReward(userId, userQuestId) {
-    const userQuest = await UserQuest.findById(userQuestId)
-      .populate('quest');
+    const userQuest = await UserQuest.findById(userQuestId).populate('quest');
     
     if (!userQuest) throw new Error('Quest not found');
     if (userQuest.user.toString() !== userId) throw new Error('Unauthorized');
     if (!userQuest.completed) throw new Error('Quest not completed');
     if (userQuest.claimed) throw new Error('Already claimed');
 
-    // Award XP
     await UserProgress.findOneAndUpdate(
       { user: userId },
       { $inc: { points: userQuest.quest.xpReward } }
@@ -556,14 +230,11 @@ class QuestService {
     return { xpAwarded: userQuest.quest.xpReward };
   }
 
-  // Daily Challenge
   async getDailyChallenge() {
     const today = new Date().toISOString().split('T')[0];
-    let challenge = await DailyChallenge.findOne({ date: today })
-      .populate('lesson');
+    let challenge = await DailyChallenge.findOne({ date: today }).populate('lesson');
 
     if (!challenge) {
-      // Random lesson for today
       const randomLesson = await Lesson.aggregate([{ $sample: { size: 1 } }]);
       if (randomLesson.length > 0) {
         challenge = await DailyChallenge.create({
@@ -583,9 +254,7 @@ class QuestService {
       $inc: { participants: 1 }
     });
     
-    // Return lesson details for the challenge
-    const challenge = await DailyChallenge.findById(challengeId)
-      .populate('lesson');
+    const challenge = await DailyChallenge.findById(challengeId).populate('lesson');
     return challenge;
   }
 }
@@ -672,11 +341,10 @@ export default function QuestsPanel() {
 
   const handleClaim = async (userQuestId) => {
     try {
-      const { data } = await questService.claimReward(userQuestId);
+      await questService.claimReward(userQuestId);
       setQuests(quests.map(q => 
         q.id === userQuestId ? { ...q, claimed: true } : q
       ));
-      // Show reward animation
     } catch (err) {
       console.error('Claim failed', err);
     }
@@ -849,7 +517,6 @@ const Challenge = require('../../models/challenge.model');
 const ChallengeOption = require('../../models/challengeOption.model');
 const { asyncHandler } = require('../../shared/utils/asyncHandler');
 
-// Course CRUD
 const getCourses = asyncHandler(async (req, res) => {
   const courses = await Course.find().sort({ order: 1 });
   res.json(courses);
@@ -870,7 +537,6 @@ const deleteCourse = asyncHandler(async (req, res) => {
   res.json({ message: 'Deleted' });
 });
 
-// Unit CRUD
 const getUnits = asyncHandler(async (req, res) => {
   const units = await Unit.find().populate('course');
   res.json(units);
@@ -891,7 +557,6 @@ const deleteUnit = asyncHandler(async (req, res) => {
   res.json({ message: 'Deleted' });
 });
 
-// Lesson CRUD
 const getLessons = asyncHandler(async (req, res) => {
   const lessons = await Lesson.find().populate('unit');
   res.json(lessons);
@@ -912,7 +577,6 @@ const deleteLesson = asyncHandler(async (req, res) => {
   res.json({ message: 'Deleted' });
 });
 
-// Challenge CRUD
 const getChallenges = asyncHandler(async (req, res) => {
   const challenges = await Challenge.find().populate('lesson');
   res.json(challenges);
@@ -933,7 +597,6 @@ const deleteChallenge = asyncHandler(async (req, res) => {
   res.json({ message: 'Deleted' });
 });
 
-// Challenge Options CRUD
 const getChallengeOptions = asyncHandler(async (req, res) => {
   const options = await ChallengeOption.find().populate('challenge');
   res.json(options);
@@ -971,7 +634,6 @@ const adminController = require('./admin.controller');
 const { authMiddleware } = require('../../middleware/auth.middleware');
 const User = require('../../models/user.model');
 
-// Admin check middleware
 const adminOnly = async (req, res, next) => {
   const user = await User.findById(req.userId);
   if (!user || user.role !== 'admin') {
@@ -980,34 +642,28 @@ const adminOnly = async (req, res, next) => {
   next();
 };
 
-// Apply auth + admin to all routes
 router.use(authMiddleware, adminOnly);
 
-// Courses
 router.get('/courses', adminController.getCourses);
 router.post('/courses', adminController.createCourse);
 router.put('/courses/:id', adminController.updateCourse);
 router.delete('/courses/:id', adminController.deleteCourse);
 
-// Units
 router.get('/units', adminController.getUnits);
 router.post('/units', adminController.createUnit);
 router.put('/units/:id', adminController.updateUnit);
 router.delete('/units/:id', adminController.deleteUnit);
 
-// Lessons
 router.get('/lessons', adminController.getLessons);
 router.post('/lessons', adminController.createLesson);
 router.put('/lessons/:id', adminController.updateLesson);
 router.delete('/lessons/:id', adminController.deleteLesson);
 
-// Challenges
 router.get('/challenges', adminController.getChallenges);
 router.post('/challenges', adminController.createChallenge);
 router.put('/challenges/:id', adminController.updateChallenge);
 router.delete('/challenges/:id', adminController.deleteChallenge);
 
-// Challenge Options
 router.get('/challengeOptions', adminController.getChallengeOptions);
 router.post('/challengeOptions', adminController.createChallengeOption);
 router.put('/challengeOptions/:id', adminController.updateChallengeOption);
@@ -1035,13 +691,8 @@ export const CourseList = () => (
   </List>
 );
 
-export const CourseEdit = () => (
-  // Edit form with all fields
-);
-
-export const CourseCreate = () => (
-  // Create form with all fields
-);
+export const CourseEdit = () => ( /* Edit form */ );
+export const CourseCreate = () => ( /* Create form */ );
 ```
 
 ### ✅ Deliverable
@@ -1158,7 +809,7 @@ export default function ShopPage() {
           <h3>Unlimited Hearts</h3>
           <p>Never run out of hearts again</p>
           <button onClick={() => navigate('/pro')}>
-            Upgrade to Pro ($20/month)
+            Upgrade to Pro (500.000đ/tháng)
           </button>
         </div>
       </div>
@@ -1181,17 +832,14 @@ Shop page với Hearts Refill, Boosters (coming soon), và Pro upgrade link.
 const VAPID_PUBLIC_KEY = process.env.VITE_VAPID_PUBLIC_KEY;
 
 export const notificationService = {
-  // Check if notifications are supported
   isSupported: () => 'Notification' in window,
 
-  // Request permission
   async requestPermission() {
     if (!this.isSupported()) return false;
     const permission = await Notification.requestPermission();
     return permission === 'granted';
   },
 
-  // Subscribe to push
   async subscribe(userId) {
     if (!this.isSupported()) return null;
     
@@ -1201,7 +849,6 @@ export const notificationService = {
       applicationServerKey: this.urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
     });
 
-    // Send subscription to server
     await fetch('/api/notifications/subscribe', {
       method: 'POST',
       body: JSON.stringify({ subscription, userId }),
@@ -1211,10 +858,8 @@ export const notificationService = {
     return subscription;
   },
 
-  // Send test notification
   async sendTestNotification(title, body) {
     if (!this.isSupported()) return;
-    
     new Notification(title, {
       body,
       icon: '/icon-192.png',
@@ -1358,9 +1003,9 @@ Push notifications với Web Push API và email notifications với Mailgun.
 │   │                    SHARED FEATURES                        │ │
 │   ├──────────────────────────────────────────────────────────┤ │
 │   │ 🔐 Auth (JWT + Google OAuth)                             │ │
-│   │ ⭐ Pro Subscription (Stripe)                             │ │
+│   │ ⭐ Pro Subscription (MoMo + PayOS)                        │ │
 │   │ 🏆 Gamification (XP, Levels, Achievements, Streaks)     │ │
-│   │ 📊 Admin Dashboard (React Admin)                        │ │
+│   │ 📊 Admin Dashboard (React Admin)                          │ │
 │   │ 🔔 Notifications (Push + Email)                          │ │
 │   │ 🌙 Dark Mode                                             │ │
 │   │ 📱 Mobile Responsive                                     │ │
@@ -1409,11 +1054,15 @@ Push notifications với Web Push API và email notifications với Mailgun.
 
 ### Environment Variables
 ```env
-# Stripe
-STRIPE_SECRET_KEY=sk_test_xxx
-STRIPE_PUBLISHABLE_KEY=pk_test_xxx
-STRIPE_WEBHOOK_SECRET=whsec_xxx
-STRIPE_PRO_PRICE_ID=price_xxx
+# MoMo
+MOMO_PARTNER_CODE=your_partner_code
+MOMO_ACCESS_KEY=your_access_key
+MOMO_SECRET_KEY=your_secret_key
+
+# PayOS
+PAYSOS_CLIENT_ID=your_client_id
+PAYSOS_API_KEY=your_api_key
+PAYSOS_CHECKSUM_KEY=your_checksum_key
 
 # Mailgun
 MAILGUN_API_KEY=key-xxx
@@ -1426,7 +1075,7 @@ VAPID_PRIVATE_KEY=xxx
 
 ### ✅ Deliverable
 Week 5 hoàn chỉnh. SmartEnglish sẵn sàng production với:
-- Stripe Payments (Pro tier)
+- Momo + PayOS Payments (Pro tier)
 - Quests System
 - Admin Dashboard
 - Boosters (planned)
@@ -1438,9 +1087,9 @@ Week 5 hoàn chỉnh. SmartEnglish sẵn sàng production với:
 
 | # | Checkpoint | Status |
 |---|---|---|
-| 1 | Stripe Checkout + Webhook | ⬜ |
-| 2 | Pro subscription activation | ⬜ |
-| 3 | Billing Portal | ⬜ |
+| 1 | MoMo Checkout + Webhook (xem day1_momo_payos.md) | ⬜ |
+| 2 | PayOS Checkout + Webhook (xem day1_momo_payos.md) | ⬜ |
+| 3 | Pro subscription activation | ⬜ |
 | 4 | Quests database models | ⬜ |
 | 5 | Quests backend service | ⬜ |
 | 6 | Quests frontend panel | ⬜ |
@@ -1464,7 +1113,7 @@ Week 5 hoàn chỉnh. SmartEnglish sẵn sàng production với:
 
 | Feature | Source in duolingo-clone |
 |---|---|
-| Stripe Checkout | `actions/user-subscription.ts` |
+| Payment Flow | `actions/user-subscription.ts` |
 | Pro subscription | `app/(main)/shop/page.tsx`, `items.tsx` |
 | Quests panel | `components/quests.tsx` |
 | Leaderboard | `app/(main)/leaderboard/page.tsx` |
@@ -1474,11 +1123,11 @@ Week 5 hoàn chỉnh. SmartEnglish sẵn sàng production với:
 
 ## ✅ Week 5 Deliverables
 
-### Payments
-- Stripe Checkout Session
-- Webhook handler
-- Billing Portal
-- Pro subscription ($20/month)
+### Payments (xem `day1_momo_payos.md`)
+- MoMo QR Payment
+- PayOS QR Payment
+- Webhook handlers
+- Pro subscription (500.000đ/tháng)
 
 ### Gamification
 - Quests System (5 daily quests)
@@ -1504,3 +1153,4 @@ Week 5 hoàn chỉnh. SmartEnglish sẵn sàng production với:
 - Error handling
 - Loading states
 - Performance optimization
+

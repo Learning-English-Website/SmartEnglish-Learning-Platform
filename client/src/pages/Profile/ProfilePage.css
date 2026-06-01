@@ -165,7 +165,7 @@
 /* ── Stats Row ───────────────────────────────────────────────────── */
 .profile-stats-row {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
   gap: 12px;
 }
 
@@ -200,6 +200,7 @@
 .profile-stat-icon--fire  { background: #fff3e0; }
 .profile-stat-icon--trophy{ background: #fff8e1; }
 .profile-stat-icon--level { background: #f3e8ff; }
+.profile-stat-icon--freeze{ background: #e0f7fa; color: #00838f; }
 .profile-stat-icon--xp    {
   background: linear-gradient(135deg, #635bff20, #a78bfa20);
   color: #635bff;
