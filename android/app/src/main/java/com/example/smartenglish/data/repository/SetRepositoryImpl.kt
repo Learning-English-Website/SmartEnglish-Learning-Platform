@@ -10,16 +10,22 @@ import com.example.smartenglish.domain.model.FlashcardSet
 import com.example.smartenglish.domain.model.SyncStatus
 import com.example.smartenglish.domain.model.toDomain
 import com.example.smartenglish.domain.repository.SetRepository
+import com.example.smartenglish.util.NetworkMonitor
 import com.example.smartenglish.util.ApiResult
+import com.example.smartenglish.data.sync.SyncManager
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class SetRepositoryImpl @Inject constructor(
     private val setApi: SetApi,
-    private val setDao: FlashcardSetDao
+    private val setDao: FlashcardSetDao,
+    private val networkMonitor: NetworkMonitor,
+    private val syncManager: SyncManager
 ) : SetRepository {
 
     companion object {
@@ -38,19 +44,35 @@ class SetRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun getMySetsList(): List<FlashcardSet> {
-        return setDao.getMySetsList().map { it.toDomain() }
+    override suspend fun getMySetsList(): List<FlashcardSet> = withContext(Dispatchers.IO) {
+        return@withContext setDao.getMySetsList().map { it.toDomain() }
     }
 
-    override suspend fun getSetById(id: String): ApiResult<FlashcardSet> {
+    override suspend fun getSetById(id: String): ApiResult<FlashcardSet> = withContext(Dispatchers.IO) {
         Log.d(TAG, "getSetById: $id")
+        
+        // Check local DB first. If it's downloaded offline, return it instantly!
+        val localSet = setDao.getSetById(id)
+        if (localSet != null && localSet.isDownloaded) {
+            Log.d(TAG, "getSetById: Found downloaded set in local DB, returning instantly")
+            return@withContext ApiResult.Success(localSet.toDomain())
+        }
+        
+        // If offline, immediately load from local CSDL without waiting for Retrofit/OkHttp timeouts
+        if (!networkMonitor.isOnline.value) {
+            return@withContext if (localSet != null && localSet.isDownloaded) {
+                ApiResult.Success(localSet.toDomain())
+            } else {
+                ApiResult.Error("Thiết bị đang ngoại tuyến và học phần này chưa được tải về.")
+            }
+        }
         
         // Check if it's a valid MongoDB ObjectId (24 hex chars) before calling API
         if (!isValidObjectId(id)) {
             Log.d(TAG, "getSetById: Not valid ObjectId, checking local DB")
             // It's a local UUID, get from local DB only
             val localSet = setDao.getSetById(id)
-            return if (localSet != null) {
+            return@withContext if (localSet != null) {
                 Log.d(TAG, "getSetById: Found in local DB")
                 ApiResult.Success(localSet.toDomain())
             } else {
@@ -59,7 +81,7 @@ class SetRepositoryImpl @Inject constructor(
             }
         }
 
-        return try {
+        return@withContext try {
             Log.d(TAG, "getSetById: Calling API with valid ObjectId")
             val response = setApi.getSetById(id)
             Log.d(TAG, "getSetById: API response - success=${response.isSuccessful}")
@@ -69,8 +91,14 @@ class SetRepositoryImpl @Inject constructor(
                 if (data != null) {
                     val set = data.toDomain()
                     Log.d(TAG, "getSetById: Got set from API - ${set.title}")
-                    // Save to local DB with the server's ID
-                    setDao.insertSet(FlashcardSetEntity.fromDomain(set))
+                    // Save to local DB preserving offline downloaded properties
+                    val existing = setDao.getSetById(set.id)
+                    val entity = FlashcardSetEntity.fromDomain(set).copy(
+                        isDownloaded = existing?.isDownloaded ?: false,
+                        downloadedAt = existing?.downloadedAt,
+                        localMediaPath = existing?.localMediaPath
+                    )
+                    setDao.insertOrUpdate(entity)
                     ApiResult.Success(set)
                 } else {
                     // Try to get from local DB
@@ -112,9 +140,9 @@ class SetRepositoryImpl @Inject constructor(
         language: String?,
         isPublic: Boolean,
         tags: List<String>
-    ): ApiResult<FlashcardSet> {
+    ): ApiResult<FlashcardSet> = withContext(Dispatchers.IO) {
         Log.d(TAG, "createSet: title=$title")
-        return try {
+        return@withContext try {
             val response = setApi.createSet(
                 CreateSetRequest(
                     title = title,
@@ -130,7 +158,7 @@ class SetRepositoryImpl @Inject constructor(
                 if (data != null) {
                     val set = data.toDomain()
                     Log.d(TAG, "createSet: Success - id=${set.id}")
-                    setDao.insertSet(FlashcardSetEntity.fromDomain(set))
+                    setDao.insertOrUpdate(FlashcardSetEntity.fromDomain(set))
                     ApiResult.Success(set)
                 } else {
                     Log.d(TAG, "createSet: No data received")
@@ -154,16 +182,16 @@ class SetRepositoryImpl @Inject constructor(
         language: String?,
         isPublic: Boolean?,
         tags: List<String>?
-    ): ApiResult<FlashcardSet> {
+    ): ApiResult<FlashcardSet> = withContext(Dispatchers.IO) {
         Log.d(TAG, "updateSet: id=$id")
         
         // Check if it's a valid ObjectId before calling API
         if (!isValidObjectId(id)) {
             Log.d(TAG, "updateSet: Invalid ObjectId")
-            return ApiResult.Error("Cannot update set that hasn't been synced yet")
+            return@withContext ApiResult.Error("Cannot update set that hasn't been synced yet")
         }
 
-        return try {
+        return@withContext try {
             val response = setApi.updateSet(
                 id,
                 UpdateSetRequest(
@@ -179,7 +207,14 @@ class SetRepositoryImpl @Inject constructor(
                 val data = response.body()?.data
                 if (data != null) {
                     val set = data.toDomain()
-                    setDao.insertSet(FlashcardSetEntity.fromDomain(set))
+                    // Save to local DB preserving offline downloaded properties
+                    val existing = setDao.getSetById(set.id)
+                    val entity = FlashcardSetEntity.fromDomain(set).copy(
+                        isDownloaded = existing?.isDownloaded ?: false,
+                        downloadedAt = existing?.downloadedAt,
+                        localMediaPath = existing?.localMediaPath
+                    )
+                    setDao.insertOrUpdate(entity)
                     ApiResult.Success(set)
                 } else {
                     ApiResult.Error("No data received")
@@ -193,7 +228,7 @@ class SetRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun deleteSet(id: String): ApiResult<Unit> {
+    override suspend fun deleteSet(id: String): ApiResult<Unit> = withContext(Dispatchers.IO) {
         Log.d(TAG, "deleteSet: id=$id, isValid=${isValidObjectId(id)}")
         
         // First, mark as DELETED in local DB (don't delete yet)
@@ -207,11 +242,11 @@ class SetRepositoryImpl @Inject constructor(
         if (!isValidObjectId(id)) {
             Log.d(TAG, "deleteSet: Not synced, removing from local")
             setDao.deleteSet(id)
-            return ApiResult.Success(Unit)
+            return@withContext ApiResult.Success(Unit)
         }
 
         // Try to delete from server
-        return try {
+        return@withContext try {
             val response = setApi.deleteSet(id)
             Log.d(TAG, "deleteSet: API response - success=${response.isSuccessful}")
             
@@ -232,15 +267,23 @@ class SetRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun searchSets(query: String): ApiResult<List<FlashcardSet>> {
-        return try {
+    override suspend fun searchSets(query: String): ApiResult<List<FlashcardSet>> = withContext(Dispatchers.IO) {
+        return@withContext try {
             val response = setApi.getSets(query = query)
             if (response.isSuccessful && response.body()?.success == true) {
                 val data = response.body()?.data ?: emptyList()
                 val sets = data.map { it.toDomain() }
-                // Update local DB with search results
-                val entities = data.map { FlashcardSetEntity.fromDomain(it.toDomain()) }
-                setDao.insertSets(entities)
+                // Update local DB with search results preserving offline downloaded properties
+                val entities = data.map { dto ->
+                    val domain = dto.toDomain()
+                    val existing = setDao.getSetById(domain.id)
+                    FlashcardSetEntity.fromDomain(domain).copy(
+                        isDownloaded = existing?.isDownloaded ?: false,
+                        downloadedAt = existing?.downloadedAt,
+                        localMediaPath = existing?.localMediaPath
+                    )
+                }
+                setDao.insertOrUpdate(entities)
                 ApiResult.Success(sets)
             } else {
                 val localSets = setDao.searchSets(query)
@@ -252,8 +295,8 @@ class SetRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun getPublicSets(query: String?, tags: List<String>?): ApiResult<List<FlashcardSet>> {
-        return try {
+    override suspend fun getPublicSets(query: String?, tags: List<String>?): ApiResult<List<FlashcardSet>> = withContext(Dispatchers.IO) {
+        return@withContext try {
             val tagsStr = tags?.joinToString(",")
             val response = setApi.getPublicSets(
                 query = query,
@@ -272,69 +315,90 @@ class SetRepositoryImpl @Inject constructor(
     }
 
     override suspend fun syncPublicSets() {
-        Log.d(TAG, "syncPublicSets: Starting...")
-        try {
-            val response = setApi.getPublicSets(query = null, tags = null)
-            if (response.isSuccessful && response.body()?.success == true) {
-                val data = response.body()?.data ?: emptyList()
-                Log.d(TAG, "syncPublicSets: Got ${data.size} public sets from server")
-                val entities = data.map { FlashcardSetEntity.fromDomain(it.toDomain()) }
-                // Insert public sets (they may be shared by others — don't overwrite user's own sets)
-                for (entity in entities) {
-                    val existing = setDao.getSetById(entity.id)
-                    if (existing == null || existing.userId == entity.userId) {
-                        setDao.insertSet(entity)
+        withContext(Dispatchers.IO) {
+            Log.d(TAG, "syncPublicSets: Starting...")
+            try {
+                val response = setApi.getPublicSets(query = null, tags = null)
+                if (response.isSuccessful && response.body()?.success == true) {
+                    val data = response.body()?.data ?: emptyList()
+                    Log.d(TAG, "syncPublicSets: Got ${data.size} public sets from server")
+                    val entities = data.map { FlashcardSetEntity.fromDomain(it.toDomain()) }
+                    // Insert public sets (they may be shared by others — don't overwrite user's own sets)
+                    for (entity in entities) {
+                        val existing = setDao.getSetById(entity.id)
+                        if (existing == null || existing.userId == entity.userId) {
+                            setDao.insertOrUpdate(entity)
+                        }
                     }
                 }
+            } catch (_: Exception) {
+                Log.e(TAG, "syncPublicSets: Exception")
             }
-        } catch (_: Exception) {
-            Log.e(TAG, "syncPublicSets: Exception")
+            Log.d(TAG, "syncPublicSets: Done")
         }
-        Log.d(TAG, "syncPublicSets: Done")
     }
 
     override suspend fun syncSets() {
-        Log.d(TAG, "syncSets: Starting...")
-        try {
-            // First, sync any pending deletes to server
-            val deletedSets = setDao.getUnsyncedSets().filter { 
-                SyncStatus.valueOf(it.syncStatus) == SyncStatus.DELETED 
-            }
-            Log.d(TAG, "syncSets: Found ${deletedSets.size} sets marked as DELETED")
-            
-            for (set in deletedSets) {
-                try {
-                    val response = setApi.deleteSet(set.id)
-                    if (response.isSuccessful && response.body()?.success == true) {
-                        setDao.deleteSet(set.id)
-                        Log.d(TAG, "syncSets: Deleted ${set.id} from server")
-                    }
-                } catch (_: Exception) {
-                    // Keep marked as DELETED for next sync
-                    Log.d(TAG, "syncSets: Failed to delete ${set.id} from server")
+        withContext(Dispatchers.IO) {
+            Log.d(TAG, "syncSets: Starting...")
+            if (syncManager.hasPendingOperations()) {
+                Log.i(TAG, "syncSets: Pending operations exist. Processing them first to avoid data loss.")
+                syncManager.processPendingOperations()
+                if (syncManager.hasPendingOperations()) {
+                    Log.w(TAG, "syncSets: Push failed or pending operations still exist. Aborting server fetch to protect local data.")
+                    return@withContext
                 }
             }
 
-            // Then fetch fresh data from server
-            val response = setApi.getSets()
-            Log.d(TAG, "syncSets: API response - success=${response.isSuccessful}")
-            
-            if (response.isSuccessful && response.body()?.success == true) {
-                val data = response.body()?.data ?: emptyList()
-                Log.d(TAG, "syncSets: Got ${data.size} sets from server")
+            try {
+                // First, sync any pending deletes to server
+                val deletedSets = setDao.getUnsyncedSets().filter { 
+                    SyncStatus.valueOf(it.syncStatus) == SyncStatus.DELETED 
+                }
+                Log.d(TAG, "syncSets: Found ${deletedSets.size} sets marked as DELETED")
                 
-                // Delete locally deleted sets from local DB
-                // (already deleted from server above)
+                for (set in deletedSets) {
+                    try {
+                        val response = setApi.deleteSet(set.id)
+                        if (response.isSuccessful && response.body()?.success == true) {
+                            setDao.deleteSet(set.id)
+                            Log.d(TAG, "syncSets: Deleted ${set.id} from server")
+                        }
+                    } catch (_: Exception) {
+                        // Keep marked as DELETED for next sync
+                        Log.d(TAG, "syncSets: Failed to delete ${set.id} from server")
+                    }
+                }
+
+                // Then fetch fresh data from server
+                val response = setApi.getSets()
+                Log.d(TAG, "syncSets: API response - success=${response.isSuccessful}")
                 
-                // Insert all server sets
-                val entities = data.map { FlashcardSetEntity.fromDomain(it.toDomain()) }
-                setDao.insertSets(entities)
-                Log.d(TAG, "syncSets: Inserted ${entities.size} sets to local DB")
+                if (response.isSuccessful && response.body()?.success == true) {
+                    val data = response.body()?.data ?: emptyList()
+                    Log.d(TAG, "syncSets: Got ${data.size} sets from server")
+                    
+                    // Delete locally deleted sets from local DB
+                    // (already deleted from server above)
+                    
+                    // Insert all server sets preserving offline downloaded properties
+                    val entities = data.map { dto ->
+                        val domain = dto.toDomain()
+                        val existing = setDao.getSetById(domain.id)
+                        FlashcardSetEntity.fromDomain(domain).copy(
+                            isDownloaded = existing?.isDownloaded ?: false,
+                            downloadedAt = existing?.downloadedAt,
+                            localMediaPath = existing?.localMediaPath
+                        )
+                    }
+                    setDao.insertOrUpdate(entities)
+                    Log.d(TAG, "syncSets: Inserted ${entities.size} sets to local DB")
+                }
+            } catch (_: Exception) {
+                Log.e(TAG, "syncSets: Exception")
             }
-        } catch (_: Exception) {
-            Log.e(TAG, "syncSets: Exception")
+            Log.d(TAG, "syncSets: Done")
         }
-        Log.d(TAG, "syncSets: Done")
     }
 
     private fun isValidObjectId(id: String): Boolean {

@@ -23,6 +23,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
@@ -30,6 +32,7 @@ import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 import javax.inject.Named
+import kotlinx.coroutines.flow.first
 
 @Singleton
 class SyncManager @Inject constructor(
@@ -45,6 +48,8 @@ class SyncManager @Inject constructor(
     @ApplicationContext private val applicationContext: android.content.Context,
     @Named("IO") private val dispatcher: CoroutineDispatcher = Dispatchers.IO
 ) {
+    private val syncMutex = Mutex()
+
     private val mediaBaseDir: File by lazy {
         File(applicationContext.filesDir, "offline_media").also { it.mkdirs() }
     }
@@ -52,16 +57,59 @@ class SyncManager @Inject constructor(
         private const val TAG = "SyncManager"
     }
 
+    private val sharedPrefs by lazy {
+        applicationContext.getSharedPreferences("sync_prefs", android.content.Context.MODE_PRIVATE)
+    }
+
+    private val _lastSyncTime = MutableStateFlow(sharedPrefs.getLong("last_sync_time", 0L))
+    val lastSyncTime: StateFlow<Long> = _lastSyncTime.asStateFlow()
+
     private val _syncState = MutableStateFlow<SyncState>(SyncState.Idle)
     val syncState: StateFlow<SyncState> = _syncState.asStateFlow()
 
     private val _pendingCount = MutableStateFlow(0)
     val pendingCount: StateFlow<Int> = _pendingCount.asStateFlow()
 
+    init {
+        kotlinx.coroutines.CoroutineScope(dispatcher).launch {
+            // Khôi phục mốc thời gian đồng bộ từ DB nếu SharedPreferences trống
+            try {
+                val persisted = sharedPrefs.getLong("last_sync_time", 0L)
+                if (persisted == 0L) {
+                    val list = downloadedContentDao.getAllDownloaded().first()
+                    val latestDownload = list.maxByOrNull { it.downloadedAt }?.downloadedAt ?: 0L
+                    if (latestDownload > 0L) {
+                        sharedPrefs.edit().putLong("last_sync_time", latestDownload).apply()
+                        _lastSyncTime.value = latestDownload
+                    }
+                }
+            } catch (_: Exception) {}
+
+            // Đồng bộ ngay khi khởi động nếu đang online
+            if (networkMonitor.isOnline.value) {
+                processPendingOperations()
+            }
+
+            // Đồng bộ tự động ngay khi thiết bị chuyển từ mất mạng sang có mạng
+            var wasOffline = false
+            networkMonitor.isOnline.collect { online ->
+                if (online && wasOffline) {
+                    Log.d(TAG, "Network restored. Auto-syncing pending operations...")
+                    processPendingOperations()
+                }
+                wasOffline = !online
+            }
+        }
+    }
+
     suspend fun refreshPendingCount() {
         pendingOperationDao.getAllPending().let { ops ->
             _pendingCount.value = ops.size
         }
+    }
+
+    suspend fun hasPendingOperations(): Boolean = withContext(dispatcher) {
+        pendingOperationDao.getAllPending().isNotEmpty()
     }
 
     private suspend fun compactPendingQueue() = withContext(dispatcher) {
@@ -101,40 +149,56 @@ class SyncManager @Inject constructor(
     }
 
     suspend fun processPendingOperations(): Result<Int> = withContext(dispatcher) {
-        if (!networkMonitor.isOnline.value) {
-            return@withContext Result.failure(Exception("No network"))
+        if (!syncMutex.tryLock()) {
+            Log.d(TAG, "processPendingOperations: Already syncing, ignoring duplicate call")
+            return@withContext Result.success(0)
         }
+        try {
+            if (!networkMonitor.isOnline.value) {
+                return@withContext Result.failure(Exception("No network"))
+            }
 
-        _syncState.value = SyncState.Syncing
-        compactPendingQueue()
+            _syncState.value = SyncState.Syncing
+            compactPendingQueue()
 
-        val allOps = pendingOperationDao.getAllPending()
-        var successCount = 0
-        var failCount = 0
+            val allOps = pendingOperationDao.getAllPending()
+            var successCount = 0
+            var failCount = 0
 
-        for (op in allOps) {
-            try {
-                val result = executeOperation(op)
-                if (result.isSuccess) {
-                    pendingOperationDao.deleteById(op.id)
-                    successCount++
-                } else {
+            for (op in allOps) {
+                try {
+                    val result = executeOperation(op)
+                    if (result.isSuccess) {
+                        pendingOperationDao.deleteById(op.id)
+                        successCount++
+                    } else {
+                        pendingOperationDao.incrementRetry(op.id)
+                        failCount++
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "executeOperation failed: ${e.message}")
                     pendingOperationDao.incrementRetry(op.id)
                     failCount++
                 }
-            } catch (e: Exception) {
-                Log.e(TAG, "executeOperation failed: ${e.message}")
-                pendingOperationDao.incrementRetry(op.id)
-                failCount++
             }
+
+            pendingOperationDao.deleteFailed(5)
+            refreshPendingCount()
+
+            val isSuccess = failCount == 0
+            if (isSuccess) {
+                val now = System.currentTimeMillis()
+                sharedPrefs.edit().putLong("last_sync_time", now).apply()
+                _lastSyncTime.value = now
+            }
+
+            _syncState.value = if (isSuccess) SyncState.Success else SyncState.PartialSuccess(failCount)
+            Result.success(successCount)
+        } finally {
+            syncMutex.unlock()
         }
-
-        pendingOperationDao.deleteFailed(5)
-        refreshPendingCount()
-
-        _syncState.value = if (failCount == 0) SyncState.Success else SyncState.PartialSuccess(failCount)
-        Result.success(successCount)
     }
+
 
     private suspend fun executeOperation(op: PendingOperationEntity): Result<Unit> {
         return when (op.operation) {
@@ -187,6 +251,12 @@ class SyncManager @Inject constructor(
                         )
                     )
                     if (response.isSuccessful && response.body()?.success == true) {
+                        val serverCardDto = response.body()?.data
+                        if (serverCardDto != null) {
+                            flashcardDao.deleteCard(op.entityId)
+                            val serverCard = serverCardDto.toDomain()
+                            flashcardDao.insertCard(com.example.smartenglish.data.local.entity.FlashcardEntity.fromDomain(serverCard))
+                        }
                         Result.success(Unit)
                     } else {
                         Result.failure(Exception("Create card failed"))
@@ -258,7 +328,7 @@ class SyncManager @Inject constructor(
             when (op.entityType) {
                 "set" -> {
                     val response = setApi.deleteSet(op.entityId)
-                    if (response.isSuccessful && response.body()?.success == true) {
+                    if ((response.isSuccessful && response.body()?.success == true) || response.code() == 404) {
                         flashcardSetDao.deleteSet(op.entityId)
                         Result.success(Unit)
                     } else {
@@ -267,7 +337,7 @@ class SyncManager @Inject constructor(
                 }
                 "card" -> {
                     val response = cardApi.deleteCard(op.entityId)
-                    if (response.isSuccessful && response.body()?.success == true) {
+                    if ((response.isSuccessful && response.body()?.success == true) || response.code() == 404) {
                         Result.success(Unit)
                     } else {
                         Result.failure(Exception("Delete card failed"))
@@ -341,7 +411,7 @@ class SyncManager @Inject constructor(
                 downloadedAt = System.currentTimeMillis(),
                 syncStatus = SyncStatus.SYNCED.name
             )
-            flashcardSetDao.insertSet(entity)
+            flashcardSetDao.insertOrUpdate(entity)
 
             val cardEntities = cards.map {
                 com.example.smartenglish.data.local.entity.FlashcardEntity.fromDomain(it)
@@ -351,6 +421,10 @@ class SyncManager @Inject constructor(
             var totalMediaSize = 0L
             if (includeMedia) {
                 totalMediaSize = downloadMediaForSet(setId, cards)
+            }
+            if (totalMediaSize == 0L) {
+                // Estimate a realistic baseline text database footprint (1KB base + 512B per card) so size is never 0 B
+                totalMediaSize = 1024L + (cards.size * 512L)
             }
 
             downloadedContentDao.insert(DownloadedContentEntity(
@@ -364,6 +438,10 @@ class SyncManager @Inject constructor(
             ))
 
             flashcardSetDao.updateDownloadStatus(setId, true, System.currentTimeMillis())
+
+            val now = System.currentTimeMillis()
+            sharedPrefs.edit().putLong("last_sync_time", now).apply()
+            _lastSyncTime.value = now
 
             _syncState.value = SyncState.Success
             Result.success(Unit)
@@ -461,7 +539,7 @@ class SyncManager @Inject constructor(
                     downloadedAt = System.currentTimeMillis(),
                     syncStatus = SyncStatus.SYNCED.name
                 )
-                flashcardSetDao.insertSet(entity)
+                flashcardSetDao.insertOrUpdate(entity)
 
                 val cardResponse = cardApi.getCardsBySet(set.id)
                 val cards = if (cardResponse.isSuccessful && cardResponse.body()?.success == true) {
@@ -481,6 +559,11 @@ class SyncManager @Inject constructor(
                 flashcardSetDao.updateDownloadStatus(set.id, true, System.currentTimeMillis())
             }
 
+            if (totalMediaSize == 0L) {
+                // Estimate a realistic baseline text database footprint (2KB base + 512B per card) so size is never 0 B
+                totalMediaSize = 2048L + (totalCards * 512L)
+            }
+
             val folderName = folderSets.firstOrNull()?.title ?: "Folder"
 
             downloadedContentDao.insert(DownloadedContentEntity(
@@ -492,6 +575,10 @@ class SyncManager @Inject constructor(
                 sizeBytes = totalMediaSize,
                 mediaIncluded = includeMedia
             ))
+
+            val now = System.currentTimeMillis()
+            sharedPrefs.edit().putLong("last_sync_time", now).apply()
+            _lastSyncTime.value = now
 
             _syncState.value = SyncState.Success
             Result.success(Unit)
@@ -550,6 +637,91 @@ class SyncManager @Inject constructor(
                 retryCount = 0
             )
         )
+        refreshPendingCount()
+
+        // Tự động đồng bộ ngay lập tức nếu thiết bị đang trực tuyến
+        if (networkMonitor.isOnline.value) {
+            kotlinx.coroutines.CoroutineScope(dispatcher).launch {
+                processPendingOperations()
+            }
+        }
+    }
+
+    suspend fun updateDownloadedSetSizeAndCount(setId: String) = withContext(dispatcher) {
+        val entity = downloadedContentDao.getById(setId) ?: return@withContext
+        val setDir = File(mediaBaseDir, setId)
+        val mediaSize = if (setDir.exists()) {
+            setDir.listFiles()?.sumOf { it.length() } ?: 0L
+        } else 0L
+
+        val cardsCount = flashcardDao.getCardsBySetList(setId).size
+        val estimatedDbSize = 1024L + (cardsCount * 512L)
+
+        val updatedEntity = entity.copy(
+            cardCount = cardsCount,
+            sizeBytes = mediaSize + estimatedDbSize
+        )
+        downloadedContentDao.insert(updatedEntity)
+    }
+
+    suspend fun downloadMediaForCard(setId: String, card: Flashcard) = withContext(dispatcher) {
+        val set = flashcardSetDao.getSetById(setId)
+        if (set == null || !set.isDownloaded) return@withContext
+
+        val mediaDir = File(mediaBaseDir, setId)
+        mediaDir.mkdirs()
+
+        val httpClient = OkHttpClient.Builder()
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(15, TimeUnit.SECONDS)
+            .build()
+
+        var localImagePath: String? = null
+        var localAudioPath: String? = null
+
+        card.imageUrl?.takeIf { it.isNotBlank() }?.let { url ->
+            try {
+                val request = Request.Builder().url(url).build()
+                val response = httpClient.newCall(request).execute()
+                if (response.isSuccessful) {
+                    val extension = url.substringAfterLast(".", "jpg").take(4)
+                    val file = File(mediaDir, "img_${card.id}.${extension}")
+                    response.body?.byteStream()?.use { input ->
+                        file.outputStream().use { output ->
+                            input.copyTo(output)
+                        }
+                    }
+                    localImagePath = file.absolutePath
+                }
+            } catch (_: Exception) { }
+        }
+
+        card.pronunciation?.takeIf { it.isNotBlank() }?.let { url ->
+            try {
+                val request = Request.Builder().url(url).build()
+                val response = httpClient.newCall(request).execute()
+                if (response.isSuccessful) {
+                    val extension = url.substringAfterLast(".", "mp3").take(4)
+                    val file = File(mediaDir, "audio_${card.id}.${extension}")
+                    response.body?.byteStream()?.use { input ->
+                        file.outputStream().use { output ->
+                            input.copyTo(output)
+                        }
+                    }
+                    localAudioPath = file.absolutePath
+                }
+            } catch (_: Exception) { }
+        }
+
+        if (localImagePath != null || localAudioPath != null) {
+            flashcardDao.updateLocalMediaPaths(card.id, localImagePath, localAudioPath)
+        }
+
+        updateDownloadedSetSizeAndCount(setId)
+    }
+
+    suspend fun cancelPendingCreate(entityType: String, entityId: String) = withContext(dispatcher) {
+        pendingOperationDao.deleteByEntityAndOp(entityId, entityType, "create")
         refreshPendingCount()
     }
 

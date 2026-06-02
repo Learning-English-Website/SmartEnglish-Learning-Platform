@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.smartenglish.util.TimeFormatter
 import com.example.smartenglish.data.sync.SyncManager
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -26,15 +27,29 @@ fun DownloadedContentScreen(
     val pendingCount by viewModel.pendingCount.collectAsStateWithLifecycle()
     val isOnline by viewModel.isOnline.collectAsStateWithLifecycle()
     val syncState by viewModel.syncState.collectAsStateWithLifecycle()
+    val lastSyncTime by viewModel.lastSyncTime.collectAsStateWithLifecycle()
     val wifiOnly by viewModel.wifiOnlyEnabled.collectAsStateWithLifecycle()
-    val syncStateText = remember(syncState) {
+
+    var currentTime by remember { mutableStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            kotlinx.coroutines.delay(30_000)
+            currentTime = System.currentTimeMillis()
+        }
+    }
+
+    val syncStateText = remember(syncState, lastSyncTime, currentTime) {
         when (syncState) {
-            is SyncManager.SyncState.Idle -> ""
             is SyncManager.SyncState.Syncing -> "Đang đồng bộ..."
             is SyncManager.SyncState.Downloading -> "Đang tải..."
-            is SyncManager.SyncState.Success -> "Thành công"
-            is SyncManager.SyncState.PartialSuccess -> "Hoàn thành (có lỗi)"
-            is SyncManager.SyncState.Error -> (syncState as SyncManager.SyncState.Error).message
+            is SyncManager.SyncState.Error -> "Lỗi: ${(syncState as SyncManager.SyncState.Error).message}"
+            else -> {
+                if (lastSyncTime > 0) {
+                    "Đã đồng bộ ${TimeFormatter.formatRelativeTime(lastSyncTime, currentTime)}"
+                } else {
+                    "Chưa đồng bộ"
+                }
+            }
         }
     }
 
@@ -85,16 +100,6 @@ fun DownloadedContentScreen(
                 Text(formatBytes(totalSize))
             }
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text("Thay đổi chờ đồng bộ:")
-                Text("$pendingCount")
-            }
-
             if (syncStateText.isNotEmpty()) {
                 Row(
                     modifier = Modifier
@@ -104,19 +109,6 @@ fun DownloadedContentScreen(
                 ) {
                     Text("Trạng thái:")
                     Text(syncStateText)
-                }
-            }
-
-            if (pendingCount > 0 && isOnline) {
-                Button(
-                    onClick = { viewModel.syncNow() },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                ) {
-                    Icon(Icons.Default.Sync, null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("Đồng bộ ngay")
                 }
             }
 

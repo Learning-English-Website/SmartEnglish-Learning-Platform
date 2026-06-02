@@ -7,15 +7,20 @@ import com.example.smartenglish.domain.model.StudySession
 import com.example.smartenglish.domain.model.toDomain
 import com.example.smartenglish.domain.repository.StudyRepository
 import com.example.smartenglish.util.ApiResult
+import com.example.smartenglish.util.NetworkMonitor
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class StudyRepositoryImpl @Inject constructor(
-    private val studyApi: StudyApi
+    private val studyApi: StudyApi,
+    private val networkMonitor: NetworkMonitor
 ) : StudyRepository {
 
     override suspend fun getStudySessionsBySet(setId: String): ApiResult<List<StudySession>> {
+        if (!networkMonitor.isOnline.value) {
+            return ApiResult.Error("Thiết bị đang ngoại tuyến")
+        }
         return try {
             val response = studyApi.getStudySessionsBySet(setId)
             if (response.isSuccessful && response.body()?.success == true) {
@@ -31,6 +36,9 @@ class StudyRepositoryImpl @Inject constructor(
     }
 
     override suspend fun getAllStudySessions(): ApiResult<List<StudySession>> {
+        if (!networkMonitor.isOnline.value) {
+            return ApiResult.Error("Thiết bị đang ngoại tuyến")
+        }
         return try {
             val response = studyApi.getAllStudySessions()
             if (response.isSuccessful && response.body()?.success == true) {
@@ -46,6 +54,9 @@ class StudyRepositoryImpl @Inject constructor(
     }
 
     override suspend fun createStudySession(setId: String): ApiResult<StudySession> {
+        if (!networkMonitor.isOnline.value) {
+            return ApiResult.Error("Thiết bị đang ngoại tuyến")
+        }
         return try {
             val response = studyApi.createStudySession(CreateStudySessionRequest(setId))
             if (response.isSuccessful && response.body()?.success == true) {
@@ -71,6 +82,9 @@ class StudyRepositoryImpl @Inject constructor(
         incorrectCount: Int,
         duration: Int
     ): ApiResult<StudySession> {
+        if (!networkMonitor.isOnline.value) {
+            return ApiResult.Error("Thiết bị đang ngoại tuyến")
+        }
         return try {
             // Submit answer for the session
             val response = studyApi.submitAnswer(
@@ -99,6 +113,9 @@ class StudyRepositoryImpl @Inject constructor(
     }
 
     override suspend fun completeStudySession(id: String): ApiResult<StudySession> {
+        if (!networkMonitor.isOnline.value) {
+            return ApiResult.Error("Thiết bị đang ngoại tuyến")
+        }
         return try {
             val response = studyApi.completeSession(id)
             if (response.isSuccessful && response.body()?.success == true) {

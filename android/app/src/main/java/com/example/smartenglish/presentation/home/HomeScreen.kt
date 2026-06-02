@@ -3,6 +3,7 @@ package com.example.smartenglish.presentation.home
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
@@ -110,15 +111,7 @@ fun HomeScreen(
                             .verticalScroll(rememberScrollState())
                             .padding(horizontal = 20.dp, vertical = 16.dp)
                     ) {
-                        OfflineBanner(
-                            pendingCount = pendingCount,
-                            isOnline = isOnline,
-                            onSyncClick = { viewModel.syncNow() }
-                        )
 
-                        if (!isOnline || pendingCount > 0) {
-                            Spacer(modifier = Modifier.height(16.dp))
-                        }
 
                         val avatarUrl = state.user.avatar
                         val email = state.user.email
@@ -141,21 +134,27 @@ fun HomeScreen(
 
                         Spacer(modifier = Modifier.height(24.dp))
 
-                        // 2. "Học tiếp" (Continue Learning) Card Pager
-                        ContinueLearningSection(
-                            sets = state.recentSets,
-                            onSetDetail = onNavigateToSetDetail
-                        )
+                        if (!isOnline) {
+                            OfflineHomeCard(
+                                onGoToLibrary = onNavigateToLibrary
+                            )
+                        } else {
+                            // 2. "Học tiếp" (Continue Learning) Card Pager
+                            ContinueLearningSection(
+                                sets = state.recentSets,
+                                onSetDetail = onNavigateToSetDetail
+                            )
 
-                        Spacer(modifier = Modifier.height(28.dp))
+                            Spacer(modifier = Modifier.height(28.dp))
 
-                        // 3. "Gần đây" (Recent) Sets List
-                        RecentSetsSection(
-                            sets = state.recentSets,
-                            currentUserId = state.user.id,
-                            onSetDetail = onNavigateToSetDetail,
-                            onSeeAllClick = onNavigateToLibrary
-                        )
+                            // 3. "Gần đây" (Recent) Sets List
+                            RecentSetsSection(
+                                sets = state.recentSets,
+                                currentUserId = state.user.id,
+                                onSetDetail = onNavigateToSetDetail,
+                                onSeeAllClick = onNavigateToLibrary
+                            )
+                        }
 
                         Spacer(modifier = Modifier.height(24.dp))
                     }
@@ -571,6 +570,97 @@ private fun RecentSetRowItem(
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Normal
             )
+        }
+    }
+}
+
+@Composable
+private fun OfflineHomeCard(
+    onGoToLibrary: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val isDark = isSystemInDarkTheme()
+    val cardContainerColor = if (isDark) CardBg else Color.White
+    val cardBorderColor = if (isDark) Color.White.copy(alpha = 0.05f) else Color.Black.copy(alpha = 0.05f)
+    val iconBgColor = if (isDark) IconBg else Color(0xFFEBF2FE)
+    val iconBorderColor = if (isDark) Color.White.copy(alpha = 0.12f) else Color(0xFF4255FF).copy(alpha = 0.1f)
+    val iconTintColor = if (isDark) IconCyan else Color(0xFF4255FF)
+    val titleTextColor = if (isDark) Color.White else Color(0xFF0F172A) // slate-900
+    val descTextColor = if (isDark) TextGray else Color(0xFF475569) // slate-600
+    val btnContainerColor = if (isDark) QuizletBlue else Color(0xFFEDF2FF)
+    val btnContentColor = if (isDark) Color.White else Color(0xFF4255FF)
+
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 12.dp)
+            .border(1.dp, cardBorderColor, RoundedCornerShape(24.dp)),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = cardContainerColor)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp, vertical = 32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            // Translucent glowing circle background for WifiOff icon
+            Box(
+                modifier = Modifier
+                    .size(80.dp)
+                    .background(iconBgColor, shape = CircleShape)
+                    .border(1.2.dp, iconBorderColor, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.WifiOff,
+                    contentDescription = null,
+                    tint = iconTintColor,
+                    modifier = Modifier.size(36.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Text(
+                text = "Không có mạng? Đừng lo!",
+                color = titleTextColor,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Text(
+                text = "Có vẻ như bạn đang ngoại tuyến, nhưng bạn vẫn có thể học thẻ ghi nhớ hoặc chơi Ghép thẻ!",
+                color = descTextColor,
+                fontSize = 14.sp,
+                lineHeight = 22.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 8.dp)
+            )
+
+            Spacer(modifier = Modifier.height(28.dp))
+
+            Button(
+                onClick = onGoToLibrary,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp),
+                shape = RoundedCornerShape(50.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = btnContainerColor,
+                    contentColor = btnContentColor
+                )
+            ) {
+                Text(
+                    text = "Tới thư viện",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
         }
     }
 }

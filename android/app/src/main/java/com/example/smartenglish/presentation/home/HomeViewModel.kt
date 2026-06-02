@@ -2,6 +2,8 @@ package com.example.smartenglish.presentation.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.smartenglish.domain.model.Streak
+import com.example.smartenglish.domain.model.Gamification
 import com.example.smartenglish.domain.model.FlashcardSet
 import com.example.smartenglish.domain.model.User
 import com.example.smartenglish.domain.repository.ProgressRepository
@@ -70,6 +72,19 @@ class HomeViewModel @Inject constructor(
 
     init {
         loadData()
+        observeNetworkChanges()
+    }
+
+    private fun observeNetworkChanges() {
+        viewModelScope.launch {
+            var wasOffline = false
+            networkMonitor.isOnline.collect { online ->
+                if (online && wasOffline) {
+                    loadData(isSilent = true)
+                }
+                wasOffline = !online
+            }
+        }
     }
 
     fun loadData(isSilent: Boolean = false) {
@@ -78,12 +93,41 @@ class HomeViewModel @Inject constructor(
                 _uiState.value = HomeUiState.Loading
             }
 
+            // If offline, immediately return success state with cached sets and guest profile
+            if (!networkMonitor.isOnline.value) {
+                val sets = runCatching { setRepository.getMySetsList() }.getOrElse { emptyList() }
+                val offlineUser = User(
+                    id = "offline_user",
+                    email = "offline@memoris.com",
+                    username = "Người dùng ngoại tuyến",
+                    role = "user",
+                    avatar = null,
+                    premium = "none",
+                    streak = Streak(current = 0, longest = 0, lastStudyDate = null),
+                    gamification = Gamification(xp = 0, level = 1),
+                    createdAt = null
+                )
+                _uiState.value = HomeUiState.Success(
+                    user = offlineUser,
+                    stats = HomeStats(
+                        streak = 0,
+                        xp = 0,
+                        level = 1,
+                        totalSets = sets.size,
+                        masteredCards = 0,
+                        dueToday = 0
+                    ),
+                    recentSets = sets.take(5)
+                )
+                return@launch
+            }
+
             // Chạy song song 3 requests
             val userDeferred = async {
                 runCatching { userRepository.getMe() }.getOrElse { ApiResult.Error("Network error") }
             }
             val setsDeferred = async {
-                runCatching { setRepository.getSets().first() }.getOrElse { emptyList() }
+                runCatching { setRepository.getMySetsList() }.getOrElse { emptyList() }
             }
             val statsDeferred = async {
                 runCatching { progressRepository.getOverallStats() }.getOrElse { ApiResult.Error("") }
@@ -116,7 +160,36 @@ class HomeViewModel @Inject constructor(
                         recentSets = sets.take(5)
                     )
                 }
-                is ApiResult.Error -> _uiState.value = HomeUiState.Error(userResult.message)
+                is ApiResult.Error -> {
+                    // Fallback to offline guest profile if we have cached sets or if we are offline
+                    if (sets.isNotEmpty()) {
+                        val offlineUser = User(
+                            id = "offline_user",
+                            email = "offline@memoris.com",
+                            username = "Người dùng ngoại tuyến",
+                            role = "user",
+                            avatar = null,
+                            premium = "none",
+                            streak = Streak(current = 0, longest = 0, lastStudyDate = null),
+                            gamification = Gamification(xp = 0, level = 1),
+                            createdAt = null
+                        )
+                        _uiState.value = HomeUiState.Success(
+                            user = offlineUser,
+                            stats = HomeStats(
+                                streak = 0,
+                                xp = 0,
+                                level = 1,
+                                totalSets = sets.size,
+                                masteredCards = 0,
+                                dueToday = 0
+                            ),
+                            recentSets = sets.take(5)
+                        )
+                    } else {
+                        _uiState.value = HomeUiState.Error(userResult.message)
+                    }
+                }
                 is ApiResult.Loading -> _uiState.value = HomeUiState.Loading
                 is ApiResult.EmailVerificationRequired -> _uiState.value = HomeUiState.Error("Email verification required")
             }

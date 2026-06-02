@@ -37,8 +37,32 @@ interface FlashcardSetDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSets(sets: List<FlashcardSetEntity>)
 
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertSetIgnore(set: FlashcardSetEntity): Long
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertSetsIgnore(sets: List<FlashcardSetEntity>): List<Long>
+
     @Update
     suspend fun updateSet(set: FlashcardSetEntity)
+
+    @Transaction
+    suspend fun insertOrUpdate(set: FlashcardSetEntity) {
+        val id = insertSetIgnore(set)
+        if (id == -1L) {
+            updateSet(set)
+        }
+    }
+
+    @Transaction
+    suspend fun insertOrUpdate(sets: List<FlashcardSetEntity>) {
+        val ids = insertSetsIgnore(sets)
+        for (i in sets.indices) {
+            if (ids[i] == -1L) {
+                updateSet(sets[i])
+            }
+        }
+    }
 
     @Query("UPDATE flashcard_sets SET syncStatus = :status WHERE id = :id")
     suspend fun updateSyncStatus(id: String, status: String)

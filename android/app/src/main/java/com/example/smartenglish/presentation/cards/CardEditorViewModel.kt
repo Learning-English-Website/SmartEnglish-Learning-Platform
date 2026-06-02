@@ -7,6 +7,7 @@ import com.example.smartenglish.domain.model.Flashcard
 import com.example.smartenglish.domain.repository.CardRepository
 import com.example.smartenglish.util.ApiResult
 import com.example.smartenglish.util.DictionaryHelper
+import com.example.smartenglish.util.NetworkMonitor
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -38,6 +39,7 @@ sealed class CardEditorEvent {
 @HiltViewModel
 class CardEditorViewModel @Inject constructor(
     private val cardRepository: CardRepository,
+    private val networkMonitor: NetworkMonitor,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -123,6 +125,7 @@ class CardEditorViewModel @Inject constructor(
             _state.update { it.copy(error = "Front and back are required") }
             return
         }
+
 
         viewModelScope.launch {
             _state.update { it.copy(isSaving = true, error = null) }

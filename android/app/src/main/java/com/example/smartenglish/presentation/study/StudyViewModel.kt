@@ -10,7 +10,9 @@ import com.example.smartenglish.domain.repository.CardRepository
 import com.example.smartenglish.domain.repository.GamificationRepository
 import com.example.smartenglish.domain.repository.SetRepository
 import com.example.smartenglish.domain.repository.StudyRepository
+import com.example.smartenglish.domain.repository.DownloadRepository
 import com.example.smartenglish.util.ApiResult
+import com.example.smartenglish.util.NetworkMonitor
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -62,6 +64,8 @@ class StudyViewModel @Inject constructor(
     private val cardRepository: CardRepository,
     private val studyRepository: StudyRepository,
     private val gamificationRepository: GamificationRepository,
+    private val networkMonitor: NetworkMonitor,
+    private val downloadRepository: DownloadRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -88,16 +92,35 @@ class StudyViewModel @Inject constructor(
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
 
-            // Load set info
-            when (val setResult = setRepository.getSetById(setId)) {
-                is ApiResult.Success -> {
-                    _state.update { it.copy(set = setResult.data) }
-                }
-                is ApiResult.Error -> {
-                    _state.update { it.copy(error = setResult.message, isLoading = false) }
+            // If offline, check if the set is downloaded
+            if (!networkMonitor.isOnline.value) {
+                val isDownloaded = downloadRepository.getDownloadedContent().first().any { it.contentId == setId }
+                if (!isDownloaded) {
+                    _state.update { it.copy(error = "Học phần này chưa được tải về để học ngoại tuyến.", isLoading = false) }
                     return@launch
                 }
-                else -> {}
+                when (val setResult = setRepository.getSetById(setId)) {
+                    is ApiResult.Success -> {
+                        _state.update { it.copy(set = setResult.data) }
+                    }
+                    is ApiResult.Error -> {
+                        _state.update { it.copy(error = setResult.message, isLoading = false) }
+                        return@launch
+                    }
+                    else -> {}
+                }
+            } else {
+                // Load set info online
+                when (val setResult = setRepository.getSetById(setId)) {
+                    is ApiResult.Success -> {
+                        _state.update { it.copy(set = setResult.data) }
+                    }
+                    is ApiResult.Error -> {
+                        _state.update { it.copy(error = setResult.message, isLoading = false) }
+                        return@launch
+                    }
+                    else -> {}
+                }
             }
 
             // Load cards from server (not just local cache)

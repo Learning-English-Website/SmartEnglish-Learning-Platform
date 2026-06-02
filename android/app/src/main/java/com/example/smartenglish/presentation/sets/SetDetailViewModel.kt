@@ -16,6 +16,8 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+import com.example.smartenglish.util.NetworkMonitor
+
 data class SetDetailState(
     val set: FlashcardSet? = null,
     val isLoading: Boolean = false,
@@ -32,6 +34,7 @@ class SetDetailViewModel @Inject constructor(
     private val cardRepository: CardRepository,
     private val downloadRepository: DownloadRepository,
     private val syncManager: SyncManager,
+    private val networkMonitor: NetworkMonitor,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -41,11 +44,35 @@ class SetDetailViewModel @Inject constructor(
         .map { list -> list.any { it.contentId == setId } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
+    val cardsState: StateFlow<List<Flashcard>> = cardRepository.getCardsBySet(setId)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     private val _state = MutableStateFlow(SetDetailState())
     val state: StateFlow<SetDetailState> = _state.asStateFlow()
 
     init {
         loadSet()
+        fetchCards()
+        observeNetworkChanges()
+    }
+
+    private fun observeNetworkChanges() {
+        viewModelScope.launch {
+            var wasOffline = false
+            networkMonitor.isOnline.collect { online ->
+                if (online && wasOffline) {
+                    loadSet()
+                    fetchCards()
+                }
+                wasOffline = !online
+            }
+        }
+    }
+
+    private fun fetchCards() {
+        viewModelScope.launch {
+            cardRepository.getCardsBySetList(setId)
+        }
     }
 
     private fun loadSet() {

@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.smartenglish.domain.repository.SetRepository
 import com.example.smartenglish.util.ApiResult
+import com.example.smartenglish.util.NetworkMonitor
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -11,7 +12,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class SetListViewModel @Inject constructor(
-    private val setRepository: SetRepository
+    private val setRepository: SetRepository,
+    private val networkMonitor: NetworkMonitor
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(SetListState())
@@ -21,6 +23,20 @@ class SetListViewModel @Inject constructor(
         observeMySets()
         refreshMySets()
         refreshCommunitySets()
+        observeNetworkChanges()
+    }
+
+    private fun observeNetworkChanges() {
+        viewModelScope.launch {
+            var wasOffline = false
+            networkMonitor.isOnline.collect { online ->
+                if (online && wasOffline) {
+                    refreshMySets()
+                    refreshCommunitySets()
+                }
+                wasOffline = !online
+            }
+        }
     }
 
     private fun observeMySets() {
@@ -65,6 +81,11 @@ class SetListViewModel @Inject constructor(
     private fun refreshCommunitySets() {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
+            if (!networkMonitor.isOnline.value) {
+                kotlinx.coroutines.delay(500)
+                _state.update { it.copy(isLoading = false, error = "Không thể kết nối Internet. Thiết bị đang ngoại tuyến.") }
+                return@launch
+            }
             when (val result = setRepository.getPublicSets(null, null)) {
                 is ApiResult.Success -> {
                     _state.update { currentState ->
@@ -152,6 +173,10 @@ class SetListViewModel @Inject constructor(
     }
 
     private fun createSet(title: String, description: String?, language: String?, isPublic: Boolean) {
+        if (!networkMonitor.isOnline.value) {
+            _state.update { it.copy(error = "Không thể tạo học phần khi thiết bị đang ngoại tuyến.", isLoading = false) }
+            return
+        }
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null, isCreateSetSuccess = false) }
             when (val result = setRepository.createSet(title, description, language, isPublic, emptyList())) {
@@ -169,6 +194,10 @@ class SetListViewModel @Inject constructor(
     }
 
     private fun deleteSet(setId: String) {
+        if (!networkMonitor.isOnline.value) {
+            _state.update { it.copy(error = "Không thể xóa học phần khi thiết bị đang ngoại tuyến.") }
+            return
+        }
         viewModelScope.launch {
             when (val result = setRepository.deleteSet(setId)) {
                 is ApiResult.Success -> {}

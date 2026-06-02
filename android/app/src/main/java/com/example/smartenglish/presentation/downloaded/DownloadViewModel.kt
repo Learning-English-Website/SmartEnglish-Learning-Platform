@@ -39,6 +39,8 @@ class DownloadViewModel @Inject constructor(
 
     val syncState: StateFlow<SyncManager.SyncState> = syncManager.syncState
 
+    val lastSyncTime: StateFlow<Long> = syncManager.lastSyncTime
+
     val wifiOnlyEnabled: StateFlow<Boolean> = settingsRepository.wifiOnlyDownload
 
     fun syncNow() {

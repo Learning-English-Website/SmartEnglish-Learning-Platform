@@ -6,12 +6,15 @@ import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import com.example.smartenglish.data.local.dao.FlashcardDao
 import com.example.smartenglish.data.local.dao.FlashcardSetDao
+import com.example.smartenglish.data.local.dao.DownloadedContentDao
 import com.example.smartenglish.data.remote.api.*
 import com.example.smartenglish.data.remote.interceptor.AuthInterceptor
 import com.example.smartenglish.data.remote.interceptor.TokenAuthenticator
 import com.example.smartenglish.data.repository.*
 import com.example.smartenglish.domain.repository.*
 import com.example.smartenglish.util.TokenManager
+import com.example.smartenglish.util.NetworkMonitor
+import com.example.smartenglish.data.sync.SyncManager
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import dagger.Module
@@ -99,9 +102,9 @@ object AppModule {
             .addInterceptor(authInterceptor)
             .addInterceptor(loggingInterceptor)
             .authenticator(tokenAuthenticator)
-            .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
-            .writeTimeout(30, TimeUnit.SECONDS)
+            .connectTimeout(3, TimeUnit.SECONDS)
+            .readTimeout(3, TimeUnit.SECONDS)
+            .writeTimeout(3, TimeUnit.SECONDS)
             .build()
     }
 
@@ -185,18 +188,21 @@ object AppModule {
     @Singleton
     fun provideUserRepository(
         userApi: UserApi,
-        mediaApi: MediaApi
+        mediaApi: MediaApi,
+        networkMonitor: NetworkMonitor
     ): UserRepository {
-        return UserRepositoryImpl(userApi, mediaApi)
+        return UserRepositoryImpl(userApi, mediaApi, networkMonitor)
     }
 
     @Provides
     @Singleton
     fun provideSetRepository(
         setApi: SetApi,
-        setDao: FlashcardSetDao
+        setDao: FlashcardSetDao,
+        networkMonitor: NetworkMonitor,
+        syncManager: SyncManager
     ): SetRepository {
-        return SetRepositoryImpl(setApi, setDao)
+        return SetRepositoryImpl(setApi, setDao, networkMonitor, syncManager)
     }
 
     @Provides
@@ -204,15 +210,22 @@ object AppModule {
     fun provideCardRepository(
         cardApi: CardApi,
         cardDao: FlashcardDao,
-        setDao: FlashcardSetDao
+        setDao: FlashcardSetDao,
+        downloadedContentDao: DownloadedContentDao,
+        networkMonitor: NetworkMonitor,
+        syncManager: SyncManager,
+        moshi: Moshi
     ): CardRepository {
-        return CardRepositoryImpl(cardApi, cardDao, setDao)
+        return CardRepositoryImpl(cardApi, cardDao, setDao, downloadedContentDao, networkMonitor, syncManager, moshi)
     }
 
     @Provides
     @Singleton
-    fun provideStudyRepository(studyApi: StudyApi): StudyRepository {
-        return StudyRepositoryImpl(studyApi)
+    fun provideStudyRepository(
+        studyApi: StudyApi,
+        networkMonitor: NetworkMonitor
+    ): StudyRepository {
+        return StudyRepositoryImpl(studyApi, networkMonitor)
     }
 
     @Provides
@@ -226,8 +239,11 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideProgressRepository(progressApi: ProgressApi): ProgressRepository {
-        return ProgressRepositoryImpl(progressApi)
+    fun provideProgressRepository(
+        progressApi: ProgressApi,
+        networkMonitor: NetworkMonitor
+    ): ProgressRepository {
+        return ProgressRepositoryImpl(progressApi, networkMonitor)
     }
 
     @Provides

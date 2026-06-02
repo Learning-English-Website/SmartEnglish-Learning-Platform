@@ -44,7 +44,7 @@ private val IconCyan = Color(0xFF38BDF8)
 @Composable
 fun SetDetailScreen(
     onNavigateBack: () -> Unit,
-    onNavigateToStudy: (String) -> Unit,
+    onNavigateToStudy: (String, String) -> Unit,
     onNavigateToAddCards: (String) -> Unit,
     viewModel: SetDetailViewModel = hiltViewModel()
 ) {
@@ -59,14 +59,7 @@ fun SetDetailScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
-    val setId = state.set?.id
-    var cards by remember(setId) { mutableStateOf<List<Flashcard>>(emptyList()) }
-
-    LaunchedEffect(setId) {
-        if (setId != null) {
-            cards = viewModel.getCardsForSet(setId)
-        }
-    }
+    val cards by viewModel.cardsState.collectAsState()
 
     LaunchedEffect(Unit) {
         viewModel.downloadEvent.collectLatest { event ->
@@ -312,7 +305,7 @@ fun SetDetailScreen(
 
                             // Term count
                             Text(
-                                text = "${set.cardCount} thuật ngữ",
+                                text = "${if (cards.isNotEmpty()) cards.size else set.cardCount} thuật ngữ",
                                 color = TextGray,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Normal
@@ -331,7 +324,7 @@ fun SetDetailScreen(
                                 title = "Thẻ ghi nhớ",
                                 icon = Icons.Default.Style,
                                 iconColor = IconCyan,
-                                onClick = { onNavigateToStudy(set.id) }
+                                onClick = { onNavigateToStudy(set.id, "flashcards") }
                             )
 
                             // Card 2: Học (Learn)
@@ -339,7 +332,7 @@ fun SetDetailScreen(
                                 title = "Học",
                                 icon = Icons.Default.Autorenew,
                                 iconColor = QuizletBlue,
-                                onClick = { onNavigateToStudy(set.id) }
+                                onClick = { onNavigateToStudy(set.id, "learn") }
                             )
 
                             // Card 3: Kiểm tra (Test)
@@ -347,7 +340,7 @@ fun SetDetailScreen(
                                 title = "Kiểm tra",
                                 icon = Icons.Default.Assignment,
                                 iconColor = Color(0xFFC77DFF),
-                                onClick = { onNavigateToStudy(set.id) }
+                                onClick = { onNavigateToStudy(set.id, "test") }
                             )
 
                             // Card 4: Ghép thẻ (Match)
@@ -355,7 +348,7 @@ fun SetDetailScreen(
                                 title = "Ghép thẻ",
                                 icon = Icons.Default.Dashboard,
                                 iconColor = Color(0xFFFF9F1C),
-                                onClick = { onNavigateToStudy(set.id) }
+                                onClick = { onNavigateToStudy(set.id, "match") }
                             )
                         }
 
@@ -438,9 +431,6 @@ fun SetDetailScreen(
             onImportSuccess = { importedCount ->
                 scope.launch {
                     showSnack("Imported $importedCount cards")
-                }
-                scope.launch {
-                    cards = viewModel.getCardsForSet(state.set!!.id)
                 }
             }
         )

@@ -5,6 +5,7 @@ import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
+import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -20,6 +21,7 @@ class NetworkMonitor @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
     private val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+    private val TAG = "NetworkMonitor"
 
     private val _isOnline = MutableStateFlow(checkCurrentConnection())
     val isOnline: StateFlow<Boolean> = _isOnline.asStateFlow()
@@ -30,9 +32,15 @@ class NetworkMonitor @Inject constructor(
     private var callback: ConnectivityManager.NetworkCallback? = null
 
     private fun checkCurrentConnection(): Boolean {
-        val network = connectivityManager.activeNetwork ?: return false
-        val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
-        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+        val network = connectivityManager.activeNetwork
+        Log.i(TAG, "checkCurrentConnection: activeNetwork = $network")
+        if (network == null) return false
+        val capabilities = connectivityManager.getNetworkCapabilities(network)
+        Log.i(TAG, "checkCurrentConnection: capabilities = $capabilities")
+        if (capabilities == null) return false
+        val hasInternet = capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+        Log.i(TAG, "checkCurrentConnection: hasInternet = $hasInternet")
+        return hasInternet
     }
 
     private fun getConnectionType(): ConnectionType {
@@ -45,41 +53,55 @@ class NetworkMonitor @Inject constructor(
         }
     }
 
+    private fun updateNetworkState() {
+        val hasInternet = checkCurrentConnection()
+        val connType = getConnectionType()
+        Log.i(TAG, "updateNetworkState: hasInternet = $hasInternet, connectionType = $connType")
+        _isOnline.value = hasInternet
+        _connectionType.value = connType
+    }
+
     fun startMonitoring() {
+        Log.i(TAG, "startMonitoring called. callback = $callback")
         if (callback != null) return
 
         callback = object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) {
-                _isOnline.value = true
-                _connectionType.value = getConnectionType()
+                Log.i(TAG, "onAvailable: network = $network")
+                updateNetworkState()
             }
 
             override fun onLost(network: Network) {
-                _isOnline.value = false
-                _connectionType.value = ConnectionType.NONE
+                Log.i(TAG, "onLost: network = $network")
+                updateNetworkState()
             }
 
             override fun onCapabilitiesChanged(network: Network, capabilities: NetworkCapabilities) {
-                _connectionType.value = when {
-                    capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> ConnectionType.WIFI
-                    capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> ConnectionType.CELLULAR
-                    else -> ConnectionType.OTHER
-                }
+                Log.i(TAG, "onCapabilitiesChanged: network = $network")
+                updateNetworkState()
             }
         }
 
-        val request = NetworkRequest.Builder()
-            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-            .build()
-
-        connectivityManager.registerNetworkCallback(request, callback!!)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+            Log.i(TAG, "Registering default network callback")
+            connectivityManager.registerDefaultNetworkCallback(callback!!)
+        } else {
+            Log.i(TAG, "Registering network callback with request")
+            val request = NetworkRequest.Builder()
+                .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                .build()
+            connectivityManager.registerNetworkCallback(request, callback!!)
+        }
     }
 
     fun stopMonitoring() {
+        Log.i(TAG, "stopMonitoring called. callback = $callback")
         callback?.let {
             try {
                 connectivityManager.unregisterNetworkCallback(it)
-            } catch (_: Exception) { }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error unregistering callback: ${e.message}")
+            }
         }
         callback = null
     }
@@ -88,3 +110,4 @@ class NetworkMonitor @Inject constructor(
         WIFI, CELLULAR, OTHER, NONE
     }
 }
+

@@ -48,8 +48,9 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector)
     data object CardEditor : Screen("card/{setId}/{cardId}", "Edit Card", Icons.Default.School) {
         fun createRoute(setId: String, cardId: String?) = "card/$setId/${cardId ?: "new"}"
     }
-    data object StudyMode : Screen("study/{setId}", "Study", Icons.Default.School) {
-        fun createRoute(setId: String) = "study/$setId"
+    data object StudyMode : Screen("study/{setId}?mode={mode}", "Study", Icons.Default.School) {
+        fun createRoute(setId: String, mode: String? = null) =
+            if (mode != null) "study/$setId?mode=$mode" else "study/$setId"
     }
     data object Browse : Screen("browse", "Browse", Icons.Default.Search)
     data object Search : Screen("search", "Search", Icons.Default.Search)

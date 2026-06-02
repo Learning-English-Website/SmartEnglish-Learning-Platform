@@ -49,6 +49,14 @@ private val QuizletCoral = Color(0xFFFF6B6B)
 private val QuizletGreen = Color(0xFF00C853)
 private val QuizletAmber = Color(0xFFF59E0B)
 
+private val DeepDarkNavy = Color(0xFF07091E)
+private val DarkBackground = Color(0xFF0F112A)
+private val TextWhite = Color(0xFFF8FAFC)
+private val TextGray = Color(0xFF94A3B8)
+private val CardBg = Color(0xFF161A3F)
+private val IconBg = Color(0xFF1E214A)
+private val IconCyan = Color(0xFF38BDF8)
+
 enum class StudyModeType { FLASHCARDS, LEARN, TEST, MATCH }
 
 enum class LearnModeStyle { MULTIPLE_CHOICE, TYPE_ANSWER }
@@ -68,12 +76,22 @@ private data class TestQuestion(
 @Composable
 fun FlashcardStudyScreen(
     setId: String,
+    initialMode: String? = null,
     onNavigateBack: () -> Unit,
     viewModel: StudyViewModel = hiltViewModel(key = "study_$setId")
 ) {
     val state by viewModel.state.collectAsState()
     val gamificationResult by viewModel.gamificationResult.collectAsState()
-    var currentMode by remember { mutableStateOf(StudyModeType.FLASHCARDS) }
+    var currentMode by remember {
+        mutableStateOf(
+            when (initialMode?.lowercase()) {
+                "learn" -> StudyModeType.LEARN
+                "test" -> StudyModeType.TEST
+                "match" -> StudyModeType.MATCH
+                else -> StudyModeType.FLASHCARDS
+            }
+        )
+    }
     var learnStyle by remember { mutableStateOf(LearnModeStyle.MULTIPLE_CHOICE) }
 
     var testStarted by remember { mutableStateOf(false) }
@@ -187,26 +205,42 @@ fun FlashcardStudyScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(state.set?.title ?: "Study", fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                actions = {
-                    ModeSelector(
-                        currentMode = currentMode,
-                        onModeChange = { currentMode = it }
-                    )
-                }
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                brush = Brush.verticalGradient(
+                    colors = listOf(DeepDarkNavy, DarkBackground)
+                )
             )
-        }
-    ) { paddingValues ->
+    ) {
+        Scaffold(
+            containerColor = Color.Transparent,
+            topBar = {
+                TopAppBar(
+                    title = {
+                        Text(state.set?.title ?: "Học phần", fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onNavigateBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        }
+                    },
+                    actions = {
+                        ModeSelector(
+                            currentMode = currentMode,
+                            onModeChange = { currentMode = it }
+                        )
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color.Transparent,
+                        titleContentColor = Color.White,
+                        navigationIconContentColor = Color.White,
+                        actionIconContentColor = Color.White
+                    )
+                )
+            }
+        ) { paddingValues ->
         Box(modifier = Modifier.fillMaxSize()) {
             when {
             state.isLoading -> {
@@ -416,8 +450,9 @@ fun FlashcardStudyScreen(
                 }
             )
         }
-    } // end Box
-} // end Scaffold/Screen
+    } // end inner Box
+    } // end Scaffold
+    } // end parent Box
 }
 
 @Composable
@@ -428,10 +463,10 @@ private fun ModeSelector(
     var expanded by remember { mutableStateOf(false) }
 
     val modes = listOf(
-        Triple(StudyModeType.FLASHCARDS, "Cards", Icons.Default.Style),
-        Triple(StudyModeType.LEARN, "Learn", Icons.Default.School),
-        Triple(StudyModeType.TEST, "Test", Icons.AutoMirrored.Filled.Assignment),
-        Triple(StudyModeType.MATCH, "Match", Icons.Default.GridOn)
+        Triple(StudyModeType.FLASHCARDS, "Thẻ ghi nhớ", Icons.Default.Style),
+        Triple(StudyModeType.LEARN, "Học", Icons.Default.School),
+        Triple(StudyModeType.TEST, "Kiểm tra", Icons.AutoMirrored.Filled.Assignment),
+        Triple(StudyModeType.MATCH, "Ghép thẻ", Icons.Default.GridOn)
     )
 
     val current = modes.find { it.first == currentMode } ?: modes[0]
@@ -439,21 +474,34 @@ private fun ModeSelector(
     Box {
         FilledTonalButton(
             onClick = { expanded = true },
-            colors = ButtonDefaults.filledTonalButtonColors(containerColor = QuizletBlue.copy(alpha = 0.1f))
+            colors = ButtonDefaults.filledTonalButtonColors(
+                containerColor = CardBg,
+                contentColor = IconCyan
+            ),
+            border = BorderStroke(1.dp, IconCyan.copy(alpha = 0.3f)),
+            shape = RoundedCornerShape(12.dp)
         ) {
-            Icon(current.third, contentDescription = null, modifier = Modifier.size(18.dp), tint = QuizletBlue)
+            Icon(current.third, contentDescription = null, modifier = Modifier.size(18.dp), tint = IconCyan)
             Spacer(modifier = Modifier.width(6.dp))
-            Text(current.second, color = QuizletBlue, fontWeight = FontWeight.SemiBold)
-            Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = QuizletBlue)
+            Text(current.second, color = Color.White, fontWeight = FontWeight.SemiBold)
+            Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = IconCyan)
         }
 
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.background(CardBg)
+        ) {
             modes.forEach { (mode, label, icon) ->
                 DropdownMenuItem(
-                    text = { Text(label) },
+                    text = { Text(label, color = Color.White) },
                     onClick = { onModeChange(mode); expanded = false },
-                    leadingIcon = { Icon(icon, contentDescription = null) },
-                    trailingIcon = { if (mode == currentMode) Icon(Icons.Default.Check, contentDescription = null, tint = QuizletBlue) }
+                    leadingIcon = { Icon(icon, contentDescription = null, tint = IconCyan) },
+                    trailingIcon = {
+                        if (mode == currentMode) {
+                            Icon(Icons.Default.Check, contentDescription = null, tint = IconCyan)
+                        }
+                    }
                 )
             }
         }
@@ -489,15 +537,15 @@ private fun FlashcardsModeView(
                 .fillMaxWidth()
                 .height(6.dp)
                 .clip(RoundedCornerShape(3.dp)),
-            color = QuizletBlue,
-            trackColor = MaterialTheme.colorScheme.surfaceVariant
+            color = IconCyan,
+            trackColor = CardBg
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             "${currentIndex + 1} / ${cards.size}",
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.Bold,
-            color = QuizletBlue
+            color = IconCyan
         )
 
         Spacer(modifier = Modifier.height(20.dp))
@@ -517,11 +565,11 @@ private fun FlashcardsModeView(
             shape = RoundedCornerShape(24.dp),
             elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface
+                containerColor = CardBg
             ),
             border = BorderStroke(
                 width = 1.5.dp, 
-                color = if (isFlipped) QuizletGreen.copy(alpha = 0.5f) else QuizletBlue.copy(alpha = 0.5f)
+                color = if (isFlipped) QuizletGreen.copy(alpha = 0.5f) else IconCyan.copy(alpha = 0.5f)
             )
         ) {
             Box(
@@ -538,7 +586,7 @@ private fun FlashcardsModeView(
                                 colors = if (isFlipped) {
                                     listOf(QuizletGreen, QuizletGreen.copy(alpha = 0.6f))
                                 } else {
-                                    listOf(QuizletBlue, QuizletBlue.copy(alpha = 0.6f))
+                                    listOf(IconCyan, IconCyan.copy(alpha = 0.6f))
                                 }
                             )
                         )
@@ -559,7 +607,7 @@ private fun FlashcardsModeView(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Surface(
-                                color = QuizletBlue.copy(alpha = 0.1f),
+                                color = IconCyan.copy(alpha = 0.1f),
                                 shape = RoundedCornerShape(20.dp)
                             ) {
                                 Text(
@@ -567,14 +615,14 @@ private fun FlashcardsModeView(
                                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold,
-                                    color = QuizletBlue
+                                    color = IconCyan
                                 )
                             }
                             IconButton(onClick = { /* Star bookmark placeholder */ }) {
                                 Icon(
                                     imageVector = Icons.Default.StarOutline,
                                     contentDescription = "Bookmark",
-                                    tint = MaterialTheme.colorScheme.outline
+                                    tint = TextGray
                                 )
                             }
                         }
@@ -586,7 +634,7 @@ private fun FlashcardsModeView(
                             fontSize = frontFontSize,
                             fontWeight = FontWeight.Bold,
                             textAlign = TextAlign.Center,
-                            color = MaterialTheme.colorScheme.onSurface,
+                            color = Color.White,
                             modifier = Modifier.padding(horizontal = 8.dp)
                         )
 
@@ -594,12 +642,12 @@ private fun FlashcardsModeView(
                             onClick = { /* Audio Pronounce placeholder */ },
                             modifier = Modifier
                                 .align(Alignment.End)
-                                .background(QuizletBlue.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
+                                .background(IconCyan.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
                         ) {
                             Icon(
                                 imageVector = Icons.Default.VolumeUp,
                                 contentDescription = "Listen",
-                                tint = QuizletBlue
+                                tint = IconCyan
                             )
                         }
                     }
@@ -633,7 +681,7 @@ private fun FlashcardsModeView(
                                 Icon(
                                     imageVector = Icons.Default.StarOutline,
                                     contentDescription = "Bookmark",
-                                    tint = MaterialTheme.colorScheme.outline
+                                    tint = TextGray
                                 )
                             }
                         }
@@ -653,7 +701,7 @@ private fun FlashcardsModeView(
                                 fontSize = backFontSize,
                                 fontWeight = FontWeight.SemiBold,
                                 textAlign = TextAlign.Center,
-                                color = MaterialTheme.colorScheme.onSurface
+                                color = Color.White
                             )
                             cards[currentIndex].pronunciation?.let {
                                 Spacer(modifier = Modifier.height(10.dp))
@@ -668,13 +716,13 @@ private fun FlashcardsModeView(
                             cards[currentIndex].example?.let {
                                 Spacer(modifier = Modifier.height(16.dp))
                                 Card(
-                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                                    colors = CardDefaults.cardColors(containerColor = IconBg),
                                     shape = RoundedCornerShape(12.dp)
                                 ) {
                                     Text(
                                         text = it,
                                         style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        color = TextWhite.copy(alpha = 0.8f),
                                         textAlign = TextAlign.Center,
                                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                                     )
@@ -705,7 +753,7 @@ private fun FlashcardsModeView(
             text = "Chạm vào thẻ để lật",
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.outline
+            color = TextGray
         )
 
         Spacer(modifier = Modifier.height(20.dp))
@@ -724,7 +772,14 @@ private fun FlashcardsModeView(
                 modifier = Modifier
                     .weight(1f)
                     .height(56.dp),
-                shape = RoundedCornerShape(16.dp)
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.filledTonalButtonColors(
+                    containerColor = CardBg,
+                    contentColor = Color.White,
+                    disabledContainerColor = CardBg.copy(alpha = 0.5f),
+                    disabledContentColor = Color.White.copy(alpha = 0.3f)
+                ),
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
             ) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, null)
                 Spacer(Modifier.width(8.dp))
@@ -738,7 +793,10 @@ private fun FlashcardsModeView(
                 modifier = Modifier
                     .weight(1f)
                     .height(56.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = QuizletBlue),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = QuizletBlue,
+                    contentColor = Color.White
+                ),
                 shape = RoundedCornerShape(16.dp)
             ) {
                 Text(
@@ -761,9 +819,9 @@ private fun FlashcardsModeView(
                 val isStudied = idx < currentIndex
                 val width = if (isSelected) 24.dp else 8.dp
                 val color = when {
-                    isSelected -> QuizletBlue
+                    isSelected -> IconCyan
                     isStudied -> QuizletGreen
-                    else -> MaterialTheme.colorScheme.outline.copy(alpha = 0.25f)
+                    else -> Color.White.copy(alpha = 0.2f)
                 }
                 Box(
                     modifier = Modifier
@@ -1041,7 +1099,7 @@ private fun LearnModeView(
     when (screen) {
         "loading" -> {
             Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = QuizletBlue)
+                CircularProgressIndicator(color = IconCyan)
             }
         }
         "batch-complete" -> {
@@ -1071,42 +1129,44 @@ private fun LearnModeView(
                     }
                 }
 
-                Text("Tuyệt vời!", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-                Text("Bạn đã hoàn thành vòng học này", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
+                Text("Tuyệt vời!", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = Color.White)
+                Text("Bạn đã hoàn thành vòng học này", style = MaterialTheme.typography.bodyMedium, color = TextGray)
 
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                    colors = CardDefaults.cardColors(containerColor = CardBg),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
                 ) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("Tiến trình tổng thể", fontWeight = FontWeight.SemiBold)
+                            Text("Tiến trình tổng thể", fontWeight = FontWeight.SemiBold, color = Color.White)
                             Text("$overallPct%", fontWeight = FontWeight.Bold, color = QuizletGreen)
                         }
                         LinearProgressIndicator(
                             progress = { overallPct / 100f },
                             modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)),
                             color = QuizletGreen,
-                            trackColor = MaterialTheme.colorScheme.surfaceVariant
+                            trackColor = IconBg
                         )
                     }
                 }
 
-                Text("Thuật ngữ vừa học:", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Start))
+                Text("Thuật ngữ vừa học:", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White, modifier = Modifier.align(Alignment.Start))
 
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     completedCards.forEach { card ->
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                            colors = CardDefaults.cardColors(containerColor = CardBg),
+                            border = BorderStroke(1.dp, IconCyan.copy(alpha = 0.15f))
                         ) {
                             Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                                 Column(Modifier.weight(1f)) {
-                                    Text(card.front, fontWeight = FontWeight.Bold, color = QuizletBlue)
+                                    Text(card.front, fontWeight = FontWeight.Bold, color = IconCyan)
                                     Spacer(Modifier.height(4.dp))
-                                    Text(card.back, style = MaterialTheme.typography.bodyMedium)
+                                    Text(card.back, style = MaterialTheme.typography.bodyMedium, color = TextGray)
                                 }
                             }
                         }
@@ -1117,7 +1177,7 @@ private fun LearnModeView(
                     onClick = handleBatchContinue,
                     modifier = Modifier.fillMaxWidth().height(56.dp),
                     shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = QuizletBlue)
+                    colors = ButtonDefaults.buttonColors(containerColor = QuizletBlue, contentColor = Color.White)
                 ) {
                     Text("Tiếp tục", fontWeight = FontWeight.Bold)
                 }
@@ -1147,7 +1207,7 @@ private fun LearnModeView(
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold
                 )
-                Text("Bạn đã hoàn thành phiên học", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
+                Text("Bạn đã hoàn thành phiên học", style = MaterialTheme.typography.bodyMedium, color = TextGray)
 
                 Spacer(Modifier.height(32.dp))
 
@@ -1157,11 +1217,11 @@ private fun LearnModeView(
                         modifier = Modifier.size(150.dp),
                         color = QuizletGreen,
                         strokeWidth = 10.dp,
-                        trackColor = MaterialTheme.colorScheme.surfaceVariant
+                        trackColor = CardBg
                     )
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("$accuracy%", fontSize = 32.sp, fontWeight = FontWeight.Bold)
-                        Text("Chính xác", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
+                        Text("$accuracy%", fontSize = 32.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        Text("Chính xác", style = MaterialTheme.typography.labelSmall, color = TextGray)
                     }
                 }
 
@@ -1174,22 +1234,22 @@ private fun LearnModeView(
                     Card(
                         modifier = Modifier.weight(1f),
                         colors = CardDefaults.cardColors(containerColor = QuizletGreen.copy(alpha = 0.08f)),
-                        border = BorderStroke(1.dp, QuizletGreen.copy(alpha = 0.2f))
+                        border = BorderStroke(1.dp, QuizletGreen.copy(alpha = 0.3f))
                     ) {
                         Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                             Text("Đúng", color = QuizletGreen, fontWeight = FontWeight.Bold)
-                            Text("$totalCorrect", fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                            Text("$totalCorrect", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.White)
                         }
                     }
 
                     Card(
                         modifier = Modifier.weight(1f),
                         colors = CardDefaults.cardColors(containerColor = QuizletCoral.copy(alpha = 0.08f)),
-                        border = BorderStroke(1.dp, QuizletCoral.copy(alpha = 0.2f))
+                        border = BorderStroke(1.dp, QuizletCoral.copy(alpha = 0.3f))
                     ) {
                         Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                             Text("Sai", color = QuizletCoral, fontWeight = FontWeight.Bold)
-                            Text("${totalStudied - totalCorrect}", fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                            Text("${totalStudied - totalCorrect}", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.White)
                         }
                     }
                 }
@@ -1203,7 +1263,12 @@ private fun LearnModeView(
                     FilledTonalButton(
                         onClick = handleRestart,
                         modifier = Modifier.weight(1f).height(56.dp),
-                        shape = RoundedCornerShape(16.dp)
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.filledTonalButtonColors(
+                            containerColor = CardBg,
+                            contentColor = Color.White
+                        ),
+                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
                     ) {
                         Icon(Icons.Default.Refresh, null)
                         Spacer(Modifier.width(8.dp))
@@ -1232,7 +1297,7 @@ private fun LearnModeView(
                         Icon(
                             Icons.Default.Settings,
                             null,
-                            tint = if (settingsOpen) QuizletBlue else MaterialTheme.colorScheme.outline
+                            tint = if (settingsOpen) IconCyan else TextGray
                         )
                     }
 
@@ -1252,11 +1317,12 @@ private fun LearnModeView(
                     Card(
                         modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
                         shape = RoundedCornerShape(16.dp),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                        colors = CardDefaults.cardColors(containerColor = CardBg),
+                        border = BorderStroke(1.dp, IconCyan.copy(alpha = 0.2f))
                     ) {
                         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Text("Cài đặt học", fontWeight = FontWeight.Bold)
-                            Divider()
+                            Text("Cài đặt học", fontWeight = FontWeight.Bold, color = Color.White)
+                            Divider(color = Color.White.copy(alpha = 0.1f))
                             Row(
                                 modifier = Modifier.fillMaxWidth().clickable {
                                     if (!(includeMC && !includeTA)) {
@@ -1266,14 +1332,18 @@ private fun LearnModeView(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text("Trắc nghiệm")
+                                Text("Trắc nghiệm", color = TextWhite)
                                 Checkbox(
                                     checked = includeMC,
                                     onCheckedChange = {
                                         if (!(includeMC && !includeTA)) {
                                             includeMC = it
                                         }
-                                    }
+                                    },
+                                    colors = CheckboxDefaults.colors(
+                                        checkedColor = QuizletBlue,
+                                        uncheckedColor = TextGray
+                                    )
                                 )
                             }
                             Row(
@@ -1285,14 +1355,18 @@ private fun LearnModeView(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text("Tự luận")
+                                Text("Tự luận", color = TextWhite)
                                 Checkbox(
                                     checked = includeTA,
                                     onCheckedChange = {
                                         if (!(includeTA && !includeMC)) {
                                             includeTA = it
                                         }
-                                    }
+                                    },
+                                    colors = CheckboxDefaults.colors(
+                                        checkedColor = QuizletBlue,
+                                        uncheckedColor = TextGray
+                                    )
                                 )
                             }
                         }
@@ -1320,8 +1394,8 @@ private fun LearnModeView(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(24.dp),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                    colors = CardDefaults.cardColors(containerColor = CardBg),
+                    border = BorderStroke(1.dp, IconCyan.copy(alpha = 0.2f))
                 ) {
                     Box(modifier = Modifier.fillMaxWidth()) {
                         Box(
@@ -1329,7 +1403,7 @@ private fun LearnModeView(
                                 .align(Alignment.CenterStart)
                                 .fillMaxHeight()
                                 .width(6.dp)
-                                .background(QuizletBlue)
+                                .background(IconCyan)
                         )
 
                         Column(
@@ -1340,7 +1414,7 @@ private fun LearnModeView(
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Surface(
-                                color = QuizletBlue.copy(alpha = 0.1f),
+                                color = IconCyan.copy(alpha = 0.1f),
                                 shape = RoundedCornerShape(20.dp)
                             ) {
                                 Text(
@@ -1348,7 +1422,7 @@ private fun LearnModeView(
                                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold,
-                                    color = QuizletBlue
+                                    color = IconCyan
                                 )
                             }
                             Spacer(Modifier.height(16.dp))
@@ -1360,7 +1434,7 @@ private fun LearnModeView(
                                 fontSize = backFontSize,
                                 fontWeight = FontWeight.Bold,
                                 textAlign = TextAlign.Center,
-                                color = MaterialTheme.colorScheme.onSurface
+                                color = Color.White
                             )
                         }
                     }
@@ -1382,30 +1456,30 @@ private fun LearnModeView(
                             }
 
                             val bgColor = when {
-                                !answered && isSelected -> QuizletBlue.copy(alpha = 0.08f)
-                                answered && isCorrect -> QuizletGreen.copy(alpha = 0.08f)
-                                answered && isSelected && !isCorrect -> QuizletCoral.copy(alpha = 0.08f)
-                                else -> MaterialTheme.colorScheme.surface
+                                !answered && isSelected -> QuizletBlue.copy(alpha = 0.12f)
+                                answered && isCorrect -> QuizletGreen.copy(alpha = 0.1f)
+                                answered && isSelected && !isCorrect -> QuizletCoral.copy(alpha = 0.1f)
+                                else -> CardBg
                             }
                             val borderColor = when {
                                 !answered && isSelected -> QuizletBlue
                                 answered && isCorrect -> QuizletGreen
                                 answered && isSelected && !isCorrect -> QuizletCoral
-                                else -> MaterialTheme.colorScheme.outline.copy(alpha = 0.25f)
+                                else -> Color.White.copy(alpha = 0.12f)
                             }
                             
                             val letterColor = when {
                                 !answered && isSelected -> QuizletBlue
                                 answered && isCorrect -> QuizletGreen
                                 answered && isSelected && !isCorrect -> QuizletCoral
-                                else -> MaterialTheme.colorScheme.outline
+                                else -> TextGray
                             }
                             
                             val letterBg = when {
-                                !answered && isSelected -> QuizletBlue.copy(alpha = 0.12f)
-                                answered && isCorrect -> QuizletGreen.copy(alpha = 0.12f)
-                                answered && isSelected && !isCorrect -> QuizletCoral.copy(alpha = 0.12f)
-                                else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                                !answered && isSelected -> QuizletBlue.copy(alpha = 0.15f)
+                                answered && isCorrect -> QuizletGreen.copy(alpha = 0.15f)
+                                answered && isSelected && !isCorrect -> QuizletCoral.copy(alpha = 0.15f)
+                                else -> IconBg
                             }
 
                             OutlinedCard(
@@ -1445,7 +1519,7 @@ private fun LearnModeView(
                                         text = option,
                                         style = MaterialTheme.typography.bodyLarge,
                                         fontWeight = FontWeight.Medium,
-                                        color = MaterialTheme.colorScheme.onSurface,
+                                        color = Color.White,
                                         modifier = Modifier.weight(1f)
                                     )
                                     
@@ -1469,22 +1543,27 @@ private fun LearnModeView(
                         singleLine = true,
                         shape = RoundedCornerShape(16.dp),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = QuizletBlue,
-                            focusedLabelColor = QuizletBlue,
+                            focusedBorderColor = IconCyan,
+                            focusedLabelColor = IconCyan,
+                            unfocusedBorderColor = Color.White.copy(alpha = 0.15f),
+                            unfocusedLabelColor = TextGray,
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            cursorColor = IconCyan,
                             disabledBorderColor = when {
                                 answered && isCorrectState -> QuizletGreen
                                 answered && !isCorrectState -> QuizletCoral
-                                else -> MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
+                                else -> Color.White.copy(alpha = 0.1f)
                             },
                             disabledTextColor = when {
                                 answered && isCorrectState -> QuizletGreen
                                 answered && !isCorrectState -> QuizletCoral
-                                else -> MaterialTheme.colorScheme.onSurface
+                                else -> Color.White
                             },
                             disabledLabelColor = when {
                                 answered && isCorrectState -> QuizletGreen
                                 answered && !isCorrectState -> QuizletCoral
-                                else -> MaterialTheme.colorScheme.outline
+                                else -> TextGray
                             },
                             disabledContainerColor = when {
                                 answered && isCorrectState -> QuizletGreen.copy(alpha = 0.05f)
@@ -1504,12 +1583,12 @@ private fun LearnModeView(
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             colors = CardDefaults.cardColors(containerColor = QuizletGreen.copy(alpha = 0.08f)),
-                            border = BorderStroke(1.dp, QuizletGreen.copy(alpha = 0.2f))
+                            border = BorderStroke(1.dp, QuizletGreen.copy(alpha = 0.3f))
                         ) {
                             Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Icon(Icons.Default.CheckCircle, null, tint = QuizletGreen)
                                 Spacer(Modifier.width(10.dp))
-                                Text("Đáp án đúng: ", style = MaterialTheme.typography.bodyMedium)
+                                Text("Đáp án đúng: ", style = MaterialTheme.typography.bodyMedium, color = TextGray)
                                 Text(currentItem.card.front, fontWeight = FontWeight.Bold, color = QuizletGreen)
                             }
                         }
@@ -1530,9 +1609,9 @@ private fun LearnModeView(
                             onClick = handleDontKnow,
                             modifier = Modifier.weight(1f).height(56.dp),
                             shape = RoundedCornerShape(16.dp),
-                            border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
+                            border = BorderStroke(1.5.dp, Color.White.copy(alpha = 0.2f))
                         ) {
-                            Text("Chưa biết", color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold)
+                            Text("Chưa biết", color = TextGray, fontWeight = FontWeight.Bold)
                         }
                     }
 
@@ -1548,7 +1627,7 @@ private fun LearnModeView(
                         },
                         enabled = buttonEnabled,
                         modifier = Modifier.weight(if (answered) 1f else 1.5f).height(56.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = QuizletBlue),
+                        colors = ButtonDefaults.buttonColors(containerColor = QuizletBlue, contentColor = Color.White),
                         shape = RoundedCornerShape(16.dp)
                     ) {
                         val buttonText = when {
@@ -1592,13 +1671,13 @@ private fun QuizletProgressBar(
                 text = "Vòng học ${currentBatchIdx + 1} / $totalBatches",
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Bold,
-                color = QuizletBlue
+                color = IconCyan
             )
             Text(
                 text = "Câu $globalItemNum / $totalItems",
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.outline
+                color = TextGray
             )
         }
         
@@ -1619,14 +1698,14 @@ private fun QuizletProgressBar(
                         .weight(1f)
                         .fillMaxHeight()
                         .clip(RoundedCornerShape(4.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        .background(CardBg)
                 ) {
                     if (progress > 0f) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth(progress)
                                 .fillMaxHeight()
-                                .background(if (isCompleted || isCurrent) QuizletGreen else MaterialTheme.colorScheme.outline)
+                                .background(if (isCompleted || isCurrent) QuizletGreen else TextGray)
                         )
                     }
                 }
@@ -1647,18 +1726,19 @@ private fun TestSetupView(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Icon(Icons.AutoMirrored.Filled.Assignment, null, modifier = Modifier.size(64.dp), tint = QuizletBlue)
+        Icon(Icons.AutoMirrored.Filled.Assignment, null, modifier = Modifier.size(64.dp), tint = IconCyan)
         Spacer(Modifier.height(16.dp))
-        Text("Kiểm tra", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        Text("Kiểm tra", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = Color.White)
         Spacer(Modifier.height(8.dp))
-        Text("$cardCount thẻ trong bộ này", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
+        Text("$cardCount thẻ trong bộ này", style = MaterialTheme.typography.bodyMedium, color = TextGray)
         Spacer(Modifier.height(32.dp))
         Button(
             onClick = onStart,
-            modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(containerColor = QuizletBlue)
+            modifier = Modifier.fillMaxWidth().height(56.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = QuizletBlue, contentColor = Color.White)
         ) {
-            Text("Bắt đầu kiểm tra")
+            Text("Bắt đầu kiểm tra", fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -1686,17 +1766,21 @@ private fun TestModeView(
     ) {
         LinearProgressIndicator(
             progress = { (currentIndex + 1).toFloat() / questions.size },
-            modifier = Modifier.fillMaxWidth(),
-            color = QuizletBlue,
+            modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
+            color = IconCyan,
+            trackColor = CardBg
         )
         Spacer(Modifier.height(4.dp))
-        Text("Câu ${currentIndex + 1} / ${questions.size}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+        Text("Câu ${currentIndex + 1} / ${questions.size}", style = MaterialTheme.typography.bodySmall, color = TextGray)
 
         Spacer(Modifier.height(24.dp))
 
-        Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
+        Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = CardBg),
+            border = BorderStroke(1.dp, IconCyan.copy(alpha = 0.2f))
+        ) {
             Column(Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Surface(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f), shape = RoundedCornerShape(20.dp)) {
+                Surface(color = IconCyan.copy(alpha = 0.1f), shape = RoundedCornerShape(20.dp)) {
                     Text(
                         when (q.type) {
                             TestQuestionType.MULTIPLE_CHOICE -> "Chọn đáp án đúng"
@@ -1705,11 +1789,11 @@ private fun TestModeView(
                         },
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.outline
+                        color = IconCyan
                     )
                 }
                 Spacer(Modifier.height(16.dp))
-                Text(q.question, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                Text(q.question, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, color = Color.White)
             }
         }
 
@@ -1722,24 +1806,24 @@ private fun TestModeView(
                         val isCorrect = option == q.answer
                         val isSelected = selectedAnswer == option
                         val bgColor = when {
-                            !isAnswered && isSelected -> QuizletBlue.copy(alpha = 0.1f)
+                            !isAnswered && isSelected -> QuizletBlue.copy(alpha = 0.12f)
                             isAnswered && isCorrect -> QuizletGreen.copy(alpha = 0.1f)
                             isAnswered && isSelected && !isCorrect -> QuizletCoral.copy(alpha = 0.1f)
-                            else -> MaterialTheme.colorScheme.surface
+                            else -> CardBg
                         }
                         val borderColor = when {
                             !isAnswered && isSelected -> QuizletBlue
                             isAnswered && isCorrect -> QuizletGreen
                             isAnswered && isSelected && !isCorrect -> QuizletCoral
-                            else -> MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                            else -> Color.White.copy(alpha = 0.12f)
                         }
                         OutlinedCard(
                             modifier = Modifier.fillMaxWidth().clickable(enabled = !isAnswered) { onAnswer(option) },
                             colors = CardDefaults.outlinedCardColors(containerColor = bgColor),
-                            border = CardDefaults.outlinedCardBorder().copy(brush = androidx.compose.ui.graphics.SolidColor(borderColor))
+                            border = CardDefaults.outlinedCardBorder().copy(brush = SolidColor(borderColor))
                         ) {
                             Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Text(option, Modifier.weight(1f))
+                                Text(option, Modifier.weight(1f), color = Color.White)
                                 if (isAnswered && isCorrect) Icon(Icons.Default.Check, null, tint = QuizletGreen)
                                 if (isAnswered && isSelected && !isCorrect) Icon(Icons.Default.Close, null, tint = QuizletCoral)
                             }
@@ -1752,18 +1836,26 @@ private fun TestModeView(
                     listOf(true to "Đúng", false to "Sai").forEach { (value, label) ->
                         val isSelected = selectedAnswer == value
                         val bgColor = when {
-                            !isAnswered && isSelected -> QuizletBlue.copy(alpha = 0.1f)
+                            !isAnswered && isSelected -> QuizletBlue.copy(alpha = 0.12f)
                             isAnswered && value == (q.answer == "true") -> QuizletGreen.copy(alpha = 0.1f)
                             isAnswered && isSelected && value != (q.answer == "true") -> QuizletCoral.copy(alpha = 0.1f)
-                            else -> MaterialTheme.colorScheme.surface
+                            else -> CardBg
+                        }
+                        val borderColor = when {
+                            !isAnswered && isSelected -> QuizletBlue
+                            isAnswered && value == (q.answer == "true") -> QuizletGreen
+                            isAnswered && isSelected && value != (q.answer == "true") -> QuizletCoral
+                            else -> Color.White.copy(alpha = 0.12f)
                         }
                         OutlinedCard(
                             modifier = Modifier.weight(1f).clickable(enabled = !isAnswered) { onAnswer(value) },
-                            colors = CardDefaults.outlinedCardColors(containerColor = bgColor)
+                            colors = CardDefaults.outlinedCardColors(containerColor = bgColor),
+                            border = BorderStroke(1.5.dp, borderColor)
                         ) {
                             Column(Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(if (value) Icons.Default.Check else Icons.Default.Close, null, modifier = Modifier.size(32.dp))
-                                Text(label)
+                                Icon(if (value) Icons.Default.Check else Icons.Default.Close, null, modifier = Modifier.size(32.dp),
+                                    tint = if (!isAnswered) TextGray else if (value == (q.answer == "true")) QuizletGreen else QuizletCoral)
+                                Text(label, color = Color.White)
                             }
                         }
                     }
@@ -1777,6 +1869,16 @@ private fun TestModeView(
                     modifier = Modifier.fillMaxWidth(),
                     label = { Text("Nhập đáp án...") },
                     singleLine = true,
+                    shape = RoundedCornerShape(16.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = IconCyan,
+                        focusedLabelColor = IconCyan,
+                        unfocusedBorderColor = Color.White.copy(alpha = 0.15f),
+                        unfocusedLabelColor = TextGray,
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        cursorColor = IconCyan
+                    ),
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                     keyboardActions = KeyboardActions(onDone = {
                         if (typed.isNotBlank()) onAnswer(typed)
@@ -1786,9 +1888,10 @@ private fun TestModeView(
                 Button(
                     onClick = { if (typed.isNotBlank()) onAnswer(typed) },
                     enabled = typed.isNotBlank(),
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = QuizletBlue)
-                ) { Text("Kiểm tra") }
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = QuizletBlue, contentColor = Color.White)
+                ) { Text("Kiểm tra", fontWeight = FontWeight.Bold) }
             }
         }
 
@@ -1796,10 +1899,11 @@ private fun TestModeView(
 
         Button(
             onClick = onNext,
-            modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(containerColor = QuizletBlue)
+            modifier = Modifier.fillMaxWidth().height(56.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = QuizletBlue, contentColor = Color.White)
         ) {
-            Text(if (currentIndex < questions.size - 1) "Tiếp" else "Xong")
+            Text(if (currentIndex < questions.size - 1) "Tiếp" else "Xong", fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -1838,27 +1942,34 @@ private fun TestResultsView(
                 else -> "Cần cố gắng thêm!"
             },
             style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.Bold,
+            color = Color.White
         )
         Spacer(Modifier.height(8.dp))
         Text("$accuracy%", style = MaterialTheme.typography.displayMedium, fontWeight = FontWeight.Bold, color = QuizletBlue)
-        Text("Đúng $correct / ${questions.size} câu", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
+        Text("Đúng $correct / ${questions.size} câu", style = MaterialTheme.typography.bodyMedium, color = TextGray)
 
         Spacer(Modifier.height(24.dp))
 
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            Card(shape = RoundedCornerShape(16.dp)) {
+            Card(shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = CardBg),
+                border = BorderStroke(1.dp, QuizletGreen.copy(alpha = 0.3f))
+            ) {
                 Column(Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(Icons.Default.Check, null, tint = QuizletGreen, modifier = Modifier.size(24.dp))
                     Text("$correct", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = QuizletGreen)
-                    Text("Đúng", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+                    Text("Đúng", style = MaterialTheme.typography.bodySmall, color = TextGray)
                 }
             }
-            Card(shape = RoundedCornerShape(16.dp)) {
+            Card(shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = CardBg),
+                border = BorderStroke(1.dp, QuizletCoral.copy(alpha = 0.3f))
+            ) {
                 Column(Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(Icons.Default.Close, null, tint = QuizletCoral, modifier = Modifier.size(24.dp))
                     Text("${questions.size - correct}", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = QuizletCoral)
-                    Text("Sai", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+                    Text("Sai", style = MaterialTheme.typography.bodySmall, color = TextGray)
                 }
             }
         }
@@ -1867,19 +1978,22 @@ private fun TestResultsView(
 
         Button(
             onClick = onRestart,
-            modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(containerColor = QuizletBlue)
+            modifier = Modifier.fillMaxWidth().height(56.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = QuizletBlue, contentColor = Color.White)
         ) {
             Icon(Icons.Default.Refresh, null)
             Spacer(Modifier.width(8.dp))
-            Text("Làm lại")
+            Text("Làm lại", fontWeight = FontWeight.Bold)
         }
         Spacer(Modifier.height(8.dp))
         OutlinedButton(
             onClick = onClose,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth().height(56.dp),
+            shape = RoundedCornerShape(16.dp),
+            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.2f))
         ) {
-            Text("Đóng")
+            Text("Đóng", color = Color.White, fontWeight = FontWeight.SemiBold)
         }
     }
 }
@@ -1916,13 +2030,13 @@ private fun MatchModeView(
                 text = "Ghép thẻ",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
+                color = Color.White
             )
             
             Surface(
-                color = QuizletBlue.copy(alpha = 0.08f),
+                color = IconCyan.copy(alpha = 0.08f),
                 shape = RoundedCornerShape(12.dp),
-                border = BorderStroke(1.dp, QuizletBlue.copy(alpha = 0.2f))
+                border = BorderStroke(1.dp, IconCyan.copy(alpha = 0.25f))
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
@@ -1932,14 +2046,14 @@ private fun MatchModeView(
                         imageVector = Icons.Default.Timer,
                         contentDescription = "Time",
                         modifier = Modifier.size(16.dp),
-                        tint = QuizletBlue
+                        tint = IconCyan
                     )
                     Spacer(Modifier.width(6.dp))
                     Text(
                         text = timeFormatted,
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = QuizletBlue
+                        color = IconCyan
                     )
                 }
             }
@@ -1974,7 +2088,7 @@ private fun MatchModeView(
                     text = "Hoàn thành xuất sắc!",
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = Color.White
                 )
                 
                 Spacer(Modifier.height(8.dp))
@@ -1982,7 +2096,7 @@ private fun MatchModeView(
                 Text(
                     text = "Thời gian hoàn thành của bạn:",
                     style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.outline
+                    color = TextGray
                 )
                 
                 Text(
@@ -1999,7 +2113,7 @@ private fun MatchModeView(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = QuizletBlue),
+                    colors = ButtonDefaults.buttonColors(containerColor = QuizletBlue, contentColor = Color.White),
                     shape = RoundedCornerShape(16.dp)
                 ) {
                     Icon(Icons.Default.Refresh, null)
@@ -2082,15 +2196,15 @@ private fun MatchTile(
 
     val bgColor = when {
         isMatched -> QuizletGreen.copy(alpha = 0.08f)
-        isMismatched -> QuizletCoral.copy(alpha = 0.08f)
-        isSelected -> QuizletBlue.copy(alpha = 0.08f)
-        else -> MaterialTheme.colorScheme.surface
+        isMismatched -> QuizletCoral.copy(alpha = 0.1f)
+        isSelected -> QuizletBlue.copy(alpha = 0.12f)
+        else -> CardBg
     }
     val borderColor = when {
         isMatched -> QuizletGreen
         isMismatched -> QuizletCoral
-        isSelected -> QuizletBlue
-        else -> MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
+        isSelected -> IconCyan
+        else -> Color.White.copy(alpha = 0.12f)
     }
 
     Surface(
@@ -2119,7 +2233,7 @@ private fun MatchTile(
                 textAlign = TextAlign.Center,
                 maxLines = 3,
                 overflow = TextOverflow.Ellipsis,
-                color = MaterialTheme.colorScheme.onSurface
+                color = Color.White
             )
             
             if (isMatched) {

@@ -6,6 +6,7 @@ import com.example.smartenglish.domain.model.Folder
 import com.example.smartenglish.domain.model.FlashcardSet
 import com.example.smartenglish.domain.repository.FolderRepository
 import com.example.smartenglish.util.ApiResult
+import com.example.smartenglish.util.NetworkMonitor
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -36,7 +37,8 @@ sealed interface FolderEvent {
 
 @HiltViewModel
 class FolderViewModel @Inject constructor(
-    private val folderRepository: FolderRepository
+    private val folderRepository: FolderRepository,
+    private val networkMonitor: NetworkMonitor
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(FolderState())
@@ -71,6 +73,11 @@ class FolderViewModel @Inject constructor(
     private fun loadFolders() {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
+            if (!networkMonitor.isOnline.value) {
+                kotlinx.coroutines.delay(500)
+                _state.update { it.copy(isLoading = false, error = "Không thể kết nối Internet. Thiết bị đang ngoại tuyến.") }
+                return@launch
+            }
             when (val result = folderRepository.getFolders()) {
                 is ApiResult.Success -> {
                     _state.update { it.copy(isLoading = false) }
@@ -86,6 +93,10 @@ class FolderViewModel @Inject constructor(
     }
 
     private fun createFolder(name: String, parentId: String?) {
+        if (!networkMonitor.isOnline.value) {
+            _state.update { it.copy(error = "Không thể tạo thư mục khi thiết bị đang ngoại tuyến.", isLoading = false) }
+            return
+        }
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null, isCreateFolderSuccess = false) }
             when (val result = folderRepository.createFolder(name, parentId)) {
@@ -103,6 +114,10 @@ class FolderViewModel @Inject constructor(
     }
 
     private fun deleteFolder(folderId: String) {
+        if (!networkMonitor.isOnline.value) {
+            _state.update { it.copy(error = "Không thể xóa thư mục khi thiết bị đang ngoại tuyến.", isLoading = false) }
+            return
+        }
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
             when (val result = folderRepository.deleteFolder(folderId)) {
@@ -122,6 +137,11 @@ class FolderViewModel @Inject constructor(
     private fun loadFolderSets(folderId: String) {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
+            if (!networkMonitor.isOnline.value) {
+                kotlinx.coroutines.delay(500)
+                _state.update { it.copy(isLoading = false, error = "Không thể kết nối Internet. Thiết bị đang ngoại tuyến.") }
+                return@launch
+            }
             
             // Get folder details first to set currentFolder
             when (val folderResult = folderRepository.getFolderById(folderId)) {
@@ -150,6 +170,10 @@ class FolderViewModel @Inject constructor(
     }
 
     private fun addSetToFolder(folderId: String, setId: String) {
+        if (!networkMonitor.isOnline.value) {
+            _state.update { it.copy(error = "Không thể thêm học phần vào thư mục khi thiết bị đang ngoại tuyến.", isLoading = false) }
+            return
+        }
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
             when (val result = folderRepository.addSetToFolder(folderId, setId)) {
@@ -167,6 +191,10 @@ class FolderViewModel @Inject constructor(
     }
 
     private fun removeSetFromFolder(folderId: String, setId: String) {
+        if (!networkMonitor.isOnline.value) {
+            _state.update { it.copy(error = "Không thể xóa học phần khỏi thư mục khi thiết bị đang ngoại tuyến.", isLoading = false) }
+            return
+        }
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
             when (val result = folderRepository.removeSetFromFolder(folderId, setId)) {

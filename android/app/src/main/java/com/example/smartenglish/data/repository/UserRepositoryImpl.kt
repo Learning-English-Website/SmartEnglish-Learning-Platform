@@ -7,20 +7,27 @@ import com.example.smartenglish.domain.model.User
 import com.example.smartenglish.domain.model.toDomain
 import com.example.smartenglish.domain.repository.UserRepository
 import com.example.smartenglish.util.ApiResult
+import com.example.smartenglish.util.NetworkMonitor
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class UserRepositoryImpl @Inject constructor(
     private val userApi: UserApi,
-    private val mediaApi: MediaApi
+    private val mediaApi: MediaApi,
+    private val networkMonitor: NetworkMonitor
 ) : UserRepository {
 
-    override suspend fun getMe(): ApiResult<User> {
-        return try {
+    override suspend fun getMe(): ApiResult<User> = withContext(Dispatchers.IO) {
+        if (!networkMonitor.isOnline.value) {
+            return@withContext ApiResult.Error("Thiết bị đang ngoại tuyến")
+        }
+        return@withContext try {
             val response = userApi.getMe()
             if (response.isSuccessful && response.body()?.success == true) {
                 val data = response.body()?.data
@@ -40,8 +47,11 @@ class UserRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun updateProfile(username: String?, avatar: String?): ApiResult<User> {
-        return try {
+    override suspend fun updateProfile(username: String?, avatar: String?): ApiResult<User> = withContext(Dispatchers.IO) {
+        if (!networkMonitor.isOnline.value) {
+            return@withContext ApiResult.Error("Thiết bị đang ngoại tuyến")
+        }
+        return@withContext try {
             val response = userApi.updateProfile(UpdateProfileRequest(username, avatar))
             if (response.isSuccessful && response.body()?.success == true) {
                 val data = response.body()?.data
@@ -61,8 +71,11 @@ class UserRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun uploadImage(bytes: ByteArray, fileName: String): ApiResult<String> {
-        return try {
+    override suspend fun uploadImage(bytes: ByteArray, fileName: String): ApiResult<String> = withContext(Dispatchers.IO) {
+        if (!networkMonitor.isOnline.value) {
+            return@withContext ApiResult.Error("Thiết bị đang ngoại tuyến")
+        }
+        return@withContext try {
             val extension = fileName.substringAfterLast('.', "jpg").lowercase()
             val mimeType = when (extension) {
                 "png" -> "image/png"

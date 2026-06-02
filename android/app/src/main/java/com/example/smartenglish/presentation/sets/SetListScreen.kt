@@ -33,6 +33,7 @@ import com.example.smartenglish.domain.model.Folder
 import com.example.smartenglish.presentation.components.EmptyState
 import com.example.smartenglish.presentation.components.ShimmerGrid
 import com.example.smartenglish.presentation.downloaded.DownloadViewModel
+import com.example.smartenglish.util.TimeFormatter
 import com.example.smartenglish.data.sync.SyncManager
 
 // Premium Dark Theme Colors
@@ -69,17 +70,38 @@ fun SetListScreen(
     val pendingCount by downloadViewModel.pendingCount.collectAsStateWithLifecycle()
     val isOnline by downloadViewModel.isOnline.collectAsStateWithLifecycle()
     val syncState by downloadViewModel.syncState.collectAsStateWithLifecycle()
+    val lastSyncTime by downloadViewModel.lastSyncTime.collectAsStateWithLifecycle()
     val wifiOnly by downloadViewModel.wifiOnlyEnabled.collectAsStateWithLifecycle()
 
-    val syncStateText = remember(syncState) {
+    var currentTime by remember { mutableStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            kotlinx.coroutines.delay(30_000)
+            currentTime = System.currentTimeMillis()
+        }
+    }
+
+    val syncStateText = remember(syncState, lastSyncTime, currentTime) {
         when (syncState) {
-            is SyncManager.SyncState.Idle -> ""
             is SyncManager.SyncState.Syncing -> "Đang đồng bộ..."
             is SyncManager.SyncState.Downloading -> "Đang tải..."
-            is SyncManager.SyncState.Success -> "Thành công"
-            is SyncManager.SyncState.PartialSuccess -> "Hoàn thành (có lỗi)"
-            is SyncManager.SyncState.Error -> (syncState as SyncManager.SyncState.Error).message
+            is SyncManager.SyncState.Error -> "Lỗi: ${(syncState as SyncManager.SyncState.Error).message}"
+            else -> {
+                if (lastSyncTime > 0) {
+                    "Đã đồng bộ ${TimeFormatter.formatRelativeTime(lastSyncTime, currentTime)}"
+                } else {
+                    "Chưa đồng bộ"
+                }
+            }
         }
+    }
+
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val downloadedSetIds = remember(downloadedContent) { 
+        downloadedContent.filter { it.contentType == "set" }.map { it.contentId }.toSet() 
+    }
+    val downloadedFolderIds = remember(downloadedContent) { 
+        downloadedContent.filter { it.contentType == "folder" }.map { it.contentId }.toSet() 
     }
 
     LaunchedEffect(Unit) {
@@ -337,7 +359,17 @@ fun SetListScreen(
                                 items(filteredSets, key = { it.id }) { set ->
                                     LibrarySetRow(
                                         set = set,
-                                        onClick = { onNavigateToSetDetail(set.id) },
+                                        onClick = {
+                                            if (!isOnline && set.id !in downloadedSetIds) {
+                                                android.widget.Toast.makeText(
+                                                    context,
+                                                    "Học phần này chưa được tải xuống để học ngoại tuyến.",
+                                                    android.widget.Toast.LENGTH_SHORT
+                                                ).show()
+                                            } else {
+                                                onNavigateToSetDetail(set.id)
+                                            }
+                                        },
                                         onDelete = { showDeleteSetDialog = set }
                                     )
                                 }
@@ -364,7 +396,17 @@ fun SetListScreen(
                                 items(filteredFolders, key = { it.id }) { folder ->
                                     LibraryFolderRow(
                                         folder = folder,
-                                        onClick = { onNavigateToFolderDetail(folder.id) },
+                                        onClick = {
+                                            if (!isOnline && folder.id !in downloadedFolderIds) {
+                                                android.widget.Toast.makeText(
+                                                    context,
+                                                    "Thư mục này chưa được tải xuống để học ngoại tuyến.",
+                                                    android.widget.Toast.LENGTH_SHORT
+                                                ).show()
+                                            } else {
+                                                onNavigateToFolderDetail(folder.id)
+                                            }
+                                        },
                                         onDelete = { showDeleteFolderDialog = folder }
                                     )
                                 }
@@ -450,31 +492,6 @@ fun SetListScreen(
                                             Text(formatBytes(totalSize), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                                         }
 
-                                        HorizontalDivider(color = Color.White.copy(alpha = 0.06f))
-
-                                        // Pending Changes Row
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(36.dp)
-                                                    .background(IconBg, shape = RoundedCornerShape(10.dp)),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.Default.Sync,
-                                                    contentDescription = null,
-                                                    tint = if (pendingCount > 0) QuizletCoral else IconCyan,
-                                                    modifier = Modifier.size(18.dp)
-                                                )
-                                            }
-                                            Spacer(modifier = Modifier.width(12.dp))
-                                            Text("Thay đổi chờ đồng bộ", color = Color.White, fontWeight = FontWeight.Medium, fontSize = 14.sp, modifier = Modifier.weight(1f))
-                                            Text("$pendingCount", color = if (pendingCount > 0) QuizletCoral else Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                        }
-
                                         if (syncStateText.isNotEmpty()) {
                                             HorizontalDivider(color = Color.White.copy(alpha = 0.06f))
 
@@ -498,20 +515,6 @@ fun SetListScreen(
                                                 Spacer(modifier = Modifier.width(12.dp))
                                                 Text("Trạng thái đồng bộ", color = Color.White, fontWeight = FontWeight.Medium, fontSize = 14.sp, modifier = Modifier.weight(1f))
                                                 Text(syncStateText, color = QuizletBlue, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                            }
-                                        }
-
-                                        if (pendingCount > 0 && isOnline) {
-                                            Spacer(modifier = Modifier.height(4.dp))
-                                            Button(
-                                                onClick = { downloadViewModel.syncNow() },
-                                                modifier = Modifier.fillMaxWidth().height(44.dp),
-                                                shape = RoundedCornerShape(12.dp),
-                                                colors = ButtonDefaults.buttonColors(containerColor = QuizletBlue)
-                                            ) {
-                                                Icon(Icons.Default.Sync, null, modifier = Modifier.size(18.dp))
-                                                Spacer(Modifier.width(8.dp))
-                                                Text("Đồng bộ ngay", fontSize = 14.sp, fontWeight = FontWeight.Bold)
                                             }
                                         }
                                     }

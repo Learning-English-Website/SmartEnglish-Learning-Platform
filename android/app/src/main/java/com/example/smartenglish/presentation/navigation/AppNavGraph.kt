@@ -264,8 +264,8 @@ fun AppNavGraph(
                 onNavigateBack = {
                     navController.popBackStack()
                 },
-                onNavigateToStudy = { id ->
-                    navController.navigate(Screen.StudyMode.createRoute(id))
+                onNavigateToStudy = { id, mode ->
+                    navController.navigate(Screen.StudyMode.createRoute(id, mode))
                 },
                 onNavigateToAddCards = { id ->
                     navController.navigate(Screen.CardList.createRoute(id))
@@ -316,12 +316,19 @@ fun AppNavGraph(
         composable(
             route = Screen.StudyMode.route,
             arguments = listOf(
-                navArgument("setId") { type = NavType.StringType }
+                navArgument("setId") { type = NavType.StringType },
+                navArgument("mode") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
             )
         ) { backStackEntry ->
             val setId = backStackEntry.arguments?.getString("setId") ?: ""
+            val initialMode = backStackEntry.arguments?.getString("mode")
             FlashcardStudyScreen(
                 setId = setId,
+                initialMode = initialMode,
                 onNavigateBack = {
                     navController.popBackStack()
                 }
