@@ -98,7 +98,7 @@ export default function SuccessPage() {
           </div>
 
           <h2 className="success-title-clean">Thanh toán thành công</h2>
-          <p className="success-subtitle-clean">Tài khoản của bạn đã được nâng cấp lên gói **SmartEnglish Pro**.</p>
+          <p className="success-subtitle-clean">Tài khoản của bạn đã được nâng cấp lên gói **Memoris Pro**.</p>
 
           {/* Receipt Section */}
           <div className="premium-receipt-clean">

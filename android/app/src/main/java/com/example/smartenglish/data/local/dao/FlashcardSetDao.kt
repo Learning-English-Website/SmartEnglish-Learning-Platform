@@ -57,4 +57,16 @@ interface FlashcardSetDao {
 
     @Query("UPDATE flashcard_sets SET cardCount = cardCount - 1 WHERE id = :setId AND cardCount > 0")
     suspend fun decrementCardCount(setId: String)
+
+    @Query("SELECT * FROM flashcard_sets WHERE isDownloaded = 1")
+    fun getDownloadedSets(): Flow<List<FlashcardSetEntity>>
+
+    @Query("SELECT * FROM flashcard_sets WHERE isDownloaded = 1")
+    suspend fun getDownloadedSetsList(): List<FlashcardSetEntity>
+
+    @Query("UPDATE flashcard_sets SET isDownloaded = :downloaded, downloadedAt = :downloadedAt WHERE id = :setId")
+    suspend fun updateDownloadStatus(setId: String, downloaded: Boolean, downloadedAt: Long?)
+
+    @Query("UPDATE flashcard_sets SET localMediaPath = :path WHERE id = :setId")
+    suspend fun updateLocalMediaPath(setId: String, path: String?)
 }

@@ -3,11 +3,14 @@ package com.example.smartenglish.presentation.sets
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -17,15 +20,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.smartenglish.domain.model.FlashcardSet
 import com.example.smartenglish.domain.model.Folder
 import com.example.smartenglish.presentation.components.EmptyState
 import com.example.smartenglish.presentation.components.ShimmerGrid
+import com.example.smartenglish.presentation.downloaded.DownloadViewModel
+import com.example.smartenglish.data.sync.SyncManager
 
 // Premium Dark Theme Colors
 private val DeepDarkNavy = Color(0xFF07091E)
@@ -36,9 +44,10 @@ private val TextGray = Color(0xFF94A3B8)
 private val CardBg = Color(0xFF161A3F)
 private val IconBg = Color(0xFF1E214A)
 private val IconCyan = Color(0xFF38BDF8)
+private val QuizletCoral = Color(0xFFFF6B6B)
 
 enum class LibraryTabSelection {
-    SET, FOLDER
+    SET, FOLDER, DOWNLOADED
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -49,10 +58,29 @@ fun SetListScreen(
     onNavigateToBrowse: () -> Unit,
     onNavigateToFolderDetail: (String) -> Unit,
     viewModel: SetListViewModel = hiltViewModel(),
-    folderViewModel: FolderViewModel = hiltViewModel()
+    folderViewModel: FolderViewModel = hiltViewModel(),
+    downloadViewModel: DownloadViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
     val folderState by folderViewModel.state.collectAsState()
+
+    val downloadedContent by downloadViewModel.downloadedContent.collectAsStateWithLifecycle()
+    val totalSize by downloadViewModel.totalSize.collectAsStateWithLifecycle()
+    val pendingCount by downloadViewModel.pendingCount.collectAsStateWithLifecycle()
+    val isOnline by downloadViewModel.isOnline.collectAsStateWithLifecycle()
+    val syncState by downloadViewModel.syncState.collectAsStateWithLifecycle()
+    val wifiOnly by downloadViewModel.wifiOnlyEnabled.collectAsStateWithLifecycle()
+
+    val syncStateText = remember(syncState) {
+        when (syncState) {
+            is SyncManager.SyncState.Idle -> ""
+            is SyncManager.SyncState.Syncing -> "Đang đồng bộ..."
+            is SyncManager.SyncState.Downloading -> "Đang tải..."
+            is SyncManager.SyncState.Success -> "Thành công"
+            is SyncManager.SyncState.PartialSuccess -> "Hoàn thành (có lỗi)"
+            is SyncManager.SyncState.Error -> (syncState as SyncManager.SyncState.Error).message
+        }
+    }
 
     LaunchedEffect(Unit) {
         viewModel.onEvent(SetListEvent.Refresh)
@@ -136,10 +164,12 @@ fun SetListScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // 2. HORIZONTAL CHIPS ROW (Học phần / Thư mục)
+            // 2. HORIZONTAL CHIPS ROW (Học phần / Thư mục / Đã tải xuống)
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 // Học phần chip
                 val setTabSelected = activeTab == LibraryTabSelection.SET
@@ -150,13 +180,15 @@ fun SetListScreen(
                             shape = RoundedCornerShape(50.dp)
                         )
                         .clickable { activeTab = LibraryTabSelection.SET }
-                        .padding(horizontal = 20.dp, vertical = 10.dp)
+                        .padding(horizontal = 14.dp, vertical = 8.dp)
                 ) {
                     Text(
                         text = "Học phần",
                         color = if (setTabSelected) DeepDarkNavy else Color.White,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 15.sp
+                        fontSize = 14.sp,
+                        maxLines = 1,
+                        softWrap = false
                     )
                 }
 
@@ -169,135 +201,357 @@ fun SetListScreen(
                             shape = RoundedCornerShape(50.dp)
                         )
                         .clickable { activeTab = LibraryTabSelection.FOLDER }
-                        .padding(horizontal = 20.dp, vertical = 10.dp)
+                        .padding(horizontal = 14.dp, vertical = 8.dp)
                 ) {
                     Text(
                         text = "Thư mục",
                         color = if (folderTabSelected) DeepDarkNavy else Color.White,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 15.sp
+                        fontSize = 14.sp,
+                        maxLines = 1,
+                        softWrap = false
                     )
                 }
-            }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // 3. DROPDOWN CHIP "Tất cả" & SEARCH BAR
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                // Dropdown category
-                Row(
+                // Đã tải xuống chip
+                val downloadedTabSelected = activeTab == LibraryTabSelection.DOWNLOADED
+                Box(
                     modifier = Modifier
-                        .background(Color.White.copy(alpha = 0.08f), shape = RoundedCornerShape(50.dp))
-                        .padding(horizontal = 14.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .background(
+                            color = if (downloadedTabSelected) Color.White else Color.White.copy(alpha = 0.08f),
+                            shape = RoundedCornerShape(50.dp)
+                        )
+                        .clickable { activeTab = LibraryTabSelection.DOWNLOADED }
+                        .padding(horizontal = 14.dp, vertical = 8.dp)
                 ) {
                     Text(
-                        text = "Tất cả",
-                        color = Color.White,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold
+                        text = "Đã tải xuống",
+                        color = if (downloadedTabSelected) DeepDarkNavy else Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        maxLines = 1,
+                        softWrap = false
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Icon(
-                        imageVector = Icons.Default.ArrowDropDown,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(16.dp)
+                }
+            }
+
+            if (activeTab != LibraryTabSelection.DOWNLOADED) {
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // 3. DROPDOWN CHIP "Tất cả" & SEARCH BAR
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    // Dropdown category
+                    Row(
+                        modifier = Modifier
+                            .background(Color.White.copy(alpha = 0.08f), shape = RoundedCornerShape(50.dp))
+                            .padding(horizontal = 14.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Tất cả",
+                            color = Color.White,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Icon(
+                            imageVector = Icons.Default.ArrowDropDown,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+
+                    // Translucent Search Bar
+                    BasicTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(44.dp)
+                            .background(Color.White.copy(alpha = 0.08f), shape = RoundedCornerShape(50.dp)),
+                        singleLine = true,
+                        textStyle = TextStyle(color = Color.White, fontSize = 14.sp),
+                        cursorBrush = SolidColor(QuizletBlue),
+                        decorationBox = { innerTextField ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(horizontal = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Search,
+                                    contentDescription = null,
+                                    tint = TextWhite.copy(alpha = 0.5f),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Box(
+                                    modifier = Modifier.weight(1f),
+                                    contentAlignment = Alignment.CenterStart
+                                ) {
+                                    if (searchQuery.isEmpty()) {
+                                        Text(
+                                            text = "Tìm kiếm",
+                                            color = TextWhite.copy(alpha = 0.5f),
+                                            fontSize = 14.sp
+                                        )
+                                    }
+                                    innerTextField()
+                                }
+                            }
+                        }
                     )
                 }
 
-                // Translucent Search Bar
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    placeholder = {
-                        Text(
-                            text = "Tìm kiếm",
-                            color = TextWhite.copy(alpha = 0.5f),
-                            fontSize = 14.sp
-                        )
-                    },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = null,
-                            tint = TextWhite.copy(alpha = 0.5f),
-                            modifier = Modifier.size(18.dp)
-                        )
-                    },
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(44.dp)
-                        .background(Color.White.copy(alpha = 0.08f), shape = RoundedCornerShape(50.dp)),
-                    singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
-                        focusedBorderColor = Color.Transparent,
-                        unfocusedBorderColor = Color.Transparent,
-                        cursorColor = QuizletBlue
-                    ),
-                    shape = RoundedCornerShape(50.dp)
-                )
+                Spacer(modifier = Modifier.height(20.dp))
+            } else {
+                Spacer(modifier = Modifier.height(16.dp))
             }
-
-            Spacer(modifier = Modifier.height(20.dp))
 
             // 4. LIST CONTENT
             Box(modifier = Modifier.weight(1f)) {
-                if (activeTab == LibraryTabSelection.SET) {
-                    if (state.isLoading && filteredSets.isEmpty()) {
-                        ShimmerGrid(columns = 1, itemCount = 5)
-                    } else if (filteredSets.isEmpty()) {
-                        EmptyState(
-                            icon = Icons.Default.LibraryBooks,
-                            title = "Không tìm thấy học phần nào",
-                            subtitle = "Hãy tạo học phần đầu tiên của bạn!",
-                            actionLabel = "Tạo học phần",
-                            onAction = { showCreateSetDialog = true }
-                        )
-                    } else {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            verticalArrangement = Arrangement.spacedBy(16.dp),
-                            contentPadding = PaddingValues(bottom = 80.dp)
-                        ) {
-                            items(filteredSets, key = { it.id }) { set ->
-                                LibrarySetRow(
-                                    set = set,
-                                    onClick = { onNavigateToSetDetail(set.id) },
-                                    onDelete = { showDeleteSetDialog = set }
-                                )
+                when (activeTab) {
+                    LibraryTabSelection.SET -> {
+                        if (state.isLoading && filteredSets.isEmpty()) {
+                            ShimmerGrid(columns = 1, itemCount = 5)
+                        } else if (filteredSets.isEmpty()) {
+                            EmptyState(
+                                icon = Icons.Default.LibraryBooks,
+                                title = "Không tìm thấy học phần nào",
+                                subtitle = "Hãy tạo học phần đầu tiên của bạn!",
+                                actionLabel = "Tạo học phần",
+                                onAction = { showCreateSetDialog = true }
+                            )
+                        } else {
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                verticalArrangement = Arrangement.spacedBy(16.dp),
+                                contentPadding = PaddingValues(bottom = 80.dp)
+                            ) {
+                                items(filteredSets, key = { it.id }) { set ->
+                                    LibrarySetRow(
+                                        set = set,
+                                        onClick = { onNavigateToSetDetail(set.id) },
+                                        onDelete = { showDeleteSetDialog = set }
+                                    )
+                                }
                             }
                         }
                     }
-                } else {
-                    if (folderState.isLoading && filteredFolders.isEmpty()) {
-                        ShimmerGrid(columns = 1, itemCount = 5)
-                    } else if (filteredFolders.isEmpty()) {
-                        EmptyState(
-                            icon = Icons.Default.Folder,
-                            title = "Không tìm thấy thư mục nào",
-                            subtitle = "Hãy tạo thư mục đầu tiên để gom nhóm học phần!",
-                            actionLabel = "Tạo thư mục",
-                            onAction = { showCreateFolderDialog = true }
-                        )
-                    } else {
+                    LibraryTabSelection.FOLDER -> {
+                        if (folderState.isLoading && filteredFolders.isEmpty()) {
+                            ShimmerGrid(columns = 1, itemCount = 5)
+                        } else if (filteredFolders.isEmpty()) {
+                            EmptyState(
+                                icon = Icons.Default.Folder,
+                                title = "Không tìm thấy thư mục nào",
+                                subtitle = "Hãy tạo thư mục đầu tiên để gom nhóm học phần!",
+                                actionLabel = "Tạo thư mục",
+                                onAction = { showCreateFolderDialog = true }
+                            )
+                        } else {
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                verticalArrangement = Arrangement.spacedBy(16.dp),
+                                contentPadding = PaddingValues(bottom = 80.dp)
+                            ) {
+                                items(filteredFolders, key = { it.id }) { folder ->
+                                    LibraryFolderRow(
+                                        folder = folder,
+                                        onClick = { onNavigateToFolderDetail(folder.id) },
+                                        onDelete = { showDeleteFolderDialog = folder }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    LibraryTabSelection.DOWNLOADED -> {
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
                             verticalArrangement = Arrangement.spacedBy(16.dp),
                             contentPadding = PaddingValues(bottom = 80.dp)
                         ) {
-                            items(filteredFolders, key = { it.id }) { folder ->
-                                LibraryFolderRow(
-                                    folder = folder,
-                                    onClick = { onNavigateToFolderDetail(folder.id) },
-                                    onDelete = { showDeleteFolderDialog = folder }
-                                )
+                            // 1. Sleek Translucent Settings and Metadata Card
+                            item {
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(20.dp)),
+                                    shape = RoundedCornerShape(20.dp),
+                                    colors = CardDefaults.cardColors(containerColor = CardBg.copy(alpha = 0.65f))
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(20.dp),
+                                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                                    ) {
+                                        // Wi-Fi Only Switch Row
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(36.dp)
+                                                    .background(IconBg, shape = RoundedCornerShape(10.dp)),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Wifi,
+                                                    contentDescription = null,
+                                                    tint = IconCyan,
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                            }
+                                            Spacer(modifier = Modifier.width(12.dp))
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text("Chỉ tải qua Wi-Fi", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                                Text("Tiết kiệm dữ liệu di động", color = TextGray, fontSize = 12.sp)
+                                            }
+                                            Switch(
+                                                checked = wifiOnly,
+                                                onCheckedChange = { downloadViewModel.setWifiOnly(it) },
+                                                colors = SwitchDefaults.colors(
+                                                    checkedThumbColor = Color.White,
+                                                    checkedTrackColor = QuizletBlue,
+                                                    uncheckedThumbColor = TextGray,
+                                                    uncheckedTrackColor = Color.White.copy(alpha = 0.08f)
+                                                )
+                                            )
+                                        }
+
+                                        HorizontalDivider(color = Color.White.copy(alpha = 0.06f))
+
+                                        // Storage Size Row
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(36.dp)
+                                                    .background(IconBg, shape = RoundedCornerShape(10.dp)),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Storage,
+                                                    contentDescription = null,
+                                                    tint = IconCyan,
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                            }
+                                            Spacer(modifier = Modifier.width(12.dp))
+                                            Text("Tổng dung lượng offline", color = Color.White, fontWeight = FontWeight.Medium, fontSize = 14.sp, modifier = Modifier.weight(1f))
+                                            Text(formatBytes(totalSize), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                        }
+
+                                        HorizontalDivider(color = Color.White.copy(alpha = 0.06f))
+
+                                        // Pending Changes Row
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(36.dp)
+                                                    .background(IconBg, shape = RoundedCornerShape(10.dp)),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Sync,
+                                                    contentDescription = null,
+                                                    tint = if (pendingCount > 0) QuizletCoral else IconCyan,
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                            }
+                                            Spacer(modifier = Modifier.width(12.dp))
+                                            Text("Thay đổi chờ đồng bộ", color = Color.White, fontWeight = FontWeight.Medium, fontSize = 14.sp, modifier = Modifier.weight(1f))
+                                            Text("$pendingCount", color = if (pendingCount > 0) QuizletCoral else Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                        }
+
+                                        if (syncStateText.isNotEmpty()) {
+                                            HorizontalDivider(color = Color.White.copy(alpha = 0.06f))
+
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(36.dp)
+                                                        .background(IconBg, shape = RoundedCornerShape(10.dp)),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Sync,
+                                                        contentDescription = null,
+                                                        tint = QuizletBlue,
+                                                        modifier = Modifier.size(18.dp)
+                                                    )
+                                                }
+                                                Spacer(modifier = Modifier.width(12.dp))
+                                                Text("Trạng thái đồng bộ", color = Color.White, fontWeight = FontWeight.Medium, fontSize = 14.sp, modifier = Modifier.weight(1f))
+                                                Text(syncStateText, color = QuizletBlue, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                            }
+                                        }
+
+                                        if (pendingCount > 0 && isOnline) {
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Button(
+                                                onClick = { downloadViewModel.syncNow() },
+                                                modifier = Modifier.fillMaxWidth().height(44.dp),
+                                                shape = RoundedCornerShape(12.dp),
+                                                colors = ButtonDefaults.buttonColors(containerColor = QuizletBlue)
+                                            ) {
+                                                Icon(Icons.Default.Sync, null, modifier = Modifier.size(18.dp))
+                                                Spacer(Modifier.width(8.dp))
+                                                Text("Đồng bộ ngay", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // 2. Downloaded List Items or EmptyState
+                            if (downloadedContent.isEmpty()) {
+                                item {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(top = 16.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        EmptyState(
+                                            icon = Icons.Default.CloudDownload,
+                                            title = "Chưa có nội dung tải xuống",
+                                            subtitle = "Vào chi tiết học phần hoặc thư mục rồi nhấn nút tải xuống nhé!",
+                                            actionLabel = "Khám phá học phần",
+                                            onAction = { activeTab = LibraryTabSelection.SET }
+                                        )
+                                    }
+                                }
+                            } else {
+                                items(downloadedContent, key = { it.contentId }) { item ->
+                                    LibraryDownloadedRow(
+                                        item = item,
+                                        onClick = {
+                                            if (item.contentType == "folder") {
+                                                onNavigateToFolderDetail(item.contentId)
+                                            } else {
+                                                onNavigateToSetDetail(item.contentId)
+                                            }
+                                        },
+                                        onRemove = {
+                                            downloadViewModel.removeDownload(item.contentId, item.contentType)
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
@@ -544,5 +798,122 @@ fun LibraryFolderRow(
                 )
             }
         }
+    }
+}
+
+@Composable
+fun LibraryDownloadedRow(
+    item: com.example.smartenglish.domain.model.DownloadedContent,
+    onClick: () -> Unit,
+    onRemove: () -> Unit
+) {
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var showMenu by remember { mutableStateOf(false) }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Xóa bản offline?", color = Color.White) },
+            text = { Text("Xóa \"${item.title}\" khỏi bộ nhớ? Bạn vẫn có thể tải lại sau.", color = Color.White.copy(alpha = 0.7f)) },
+            containerColor = Color(0xFF161A3F),
+            confirmButton = {
+                TextButton(onClick = { onRemove(); showDeleteDialog = false }) {
+                    Text("Xóa", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Hủy", color = Color.White.copy(alpha = 0.7f))
+                }
+            }
+        )
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Icon container: rounded square box with double-card or folder icon
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .background(IconBg, shape = RoundedCornerShape(12.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = if (item.contentType == "folder") Icons.Default.Folder else Icons.Default.Style,
+                contentDescription = null,
+                tint = if (item.contentType == "folder") Color.White else IconCyan,
+                modifier = Modifier.size(24.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.width(16.dp))
+
+        // Text details column
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = item.title,
+                color = Color.White,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            val typeText = if (item.contentType == "folder") "Thư mục" else "Học phần"
+            Text(
+                text = "$typeText • ${item.cardCount} thuật ngữ • ${formatBytes(item.sizeBytes)}",
+                color = TextGray,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Normal
+            )
+        }
+
+        Spacer(modifier = Modifier.width(8.dp))
+
+        // Actions
+        Box {
+            IconButton(onClick = { showMenu = true }) {
+                Icon(
+                    imageVector = Icons.Default.MoreVert,
+                    contentDescription = "Options",
+                    tint = TextGray
+                )
+            }
+            DropdownMenu(
+                expanded = showMenu,
+                onDismissRequest = { showMenu = false },
+                modifier = Modifier.background(CardBg)
+            ) {
+                DropdownMenuItem(
+                    text = { Text("Mở offline", color = Color.White) },
+                    onClick = {
+                        showMenu = false
+                        onClick()
+                    },
+                    leadingIcon = { Icon(if (item.contentType == "folder") Icons.Default.FolderOpen else Icons.Default.Visibility, null, tint = Color.White) }
+                )
+                DropdownMenuItem(
+                    text = { Text("Xóa bản offline", color = MaterialTheme.colorScheme.error) },
+                    onClick = {
+                        showMenu = false
+                        showDeleteDialog = true
+                    },
+                    leadingIcon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error) }
+                )
+            }
+        }
+    }
+}
+
+private fun formatBytes(bytes: Long): String {
+    return when {
+        bytes < 1024 -> "$bytes B"
+        bytes < 1024 * 1024 -> "${bytes / 1024} KB"
+        else -> String.format("%.1f MB", bytes / (1024.0 * 1024.0))
     }
 }

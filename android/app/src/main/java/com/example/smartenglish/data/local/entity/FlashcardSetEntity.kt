@@ -20,7 +20,10 @@ data class FlashcardSetEntity(
     val updatedAt: String?,
     val syncStatus: String = SyncStatus.SYNCED.name,
     val localCreatedAt: Long = System.currentTimeMillis(),
-    val localUpdatedAt: Long = System.currentTimeMillis()
+    val localUpdatedAt: Long = System.currentTimeMillis(),
+    val isDownloaded: Boolean = false,
+    val downloadedAt: Long? = null,
+    val localMediaPath: String? = null
 ) {
     fun toDomain(): FlashcardSet {
         return FlashcardSet(
@@ -55,7 +58,10 @@ data class FlashcardSetEntity(
                 updatedAt = set.updatedAt,
                 syncStatus = set.syncStatus.name,
                 localCreatedAt = System.currentTimeMillis(),
-                localUpdatedAt = System.currentTimeMillis()
+                localUpdatedAt = System.currentTimeMillis(),
+                isDownloaded = false,
+                downloadedAt = null,
+                localMediaPath = null
             )
         }
     }

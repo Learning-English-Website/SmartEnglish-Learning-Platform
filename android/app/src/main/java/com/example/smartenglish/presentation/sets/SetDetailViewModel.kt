@@ -8,6 +8,8 @@ import com.example.smartenglish.domain.model.Flashcard
 import com.example.smartenglish.domain.repository.SetRepository
 import com.example.smartenglish.domain.repository.ShareRepository
 import com.example.smartenglish.domain.repository.CardRepository
+import com.example.smartenglish.domain.repository.DownloadRepository
+import com.example.smartenglish.data.sync.SyncManager
 import com.example.smartenglish.util.ApiResult
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
@@ -28,10 +30,16 @@ class SetDetailViewModel @Inject constructor(
     private val setRepository: SetRepository,
     private val shareRepository: ShareRepository,
     private val cardRepository: CardRepository,
+    private val downloadRepository: DownloadRepository,
+    private val syncManager: SyncManager,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
     private val setId: String = savedStateHandle.get<String>("setId") ?: ""
+
+    val isDownloaded: StateFlow<Boolean> = downloadRepository.getDownloadedContent()
+        .map { list -> list.any { it.contentId == setId } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     private val _state = MutableStateFlow(SetDetailState())
     val state: StateFlow<SetDetailState> = _state.asStateFlow()
@@ -113,5 +121,38 @@ class SetDetailViewModel @Inject constructor(
 
     suspend fun getCardsForSet(setId: String): List<Flashcard> {
         return cardRepository.getCardsBySetList(setId)
+    }
+
+    private val _isDownloading = MutableStateFlow(false)
+    val isDownloading = _isDownloading.asStateFlow()
+
+    private val _downloadEvent = MutableSharedFlow<DownloadResultEvent>()
+    val downloadEvent = _downloadEvent.asSharedFlow()
+
+    sealed interface DownloadResultEvent {
+        object Success : DownloadResultEvent
+        data class Error(val message: String) : DownloadResultEvent
+        object Deleted : DownloadResultEvent
+    }
+
+    fun downloadSet() {
+        viewModelScope.launch {
+            _isDownloading.value = true
+            val result = syncManager.downloadSet(setId, includeMedia = true)
+            _isDownloading.value = false
+            if (result.isSuccess) {
+                _downloadEvent.emit(DownloadResultEvent.Success)
+            } else {
+                val errorMsg = result.exceptionOrNull()?.message ?: "Lỗi tải xuống"
+                _downloadEvent.emit(DownloadResultEvent.Error(errorMsg))
+            }
+        }
+    }
+
+    fun removeDownload() {
+        viewModelScope.launch {
+            syncManager.removeDownload(setId, "set")
+            _downloadEvent.emit(DownloadResultEvent.Deleted)
+        }
     }
 }

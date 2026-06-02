@@ -36,7 +36,10 @@ data class FlashcardEntity(
     val nextReviewDate: String? = null,
     val correctStreak: Int = 0,
     val localCreatedAt: Long = System.currentTimeMillis(),
-    val localUpdatedAt: Long = System.currentTimeMillis()
+    val localUpdatedAt: Long = System.currentTimeMillis(),
+    val localImagePath: String? = null,
+    val localAudioPath: String? = null,
+    val lastSyncedAt: Long? = null
 ) {
     fun toDomain(): Flashcard {
         return Flashcard(
@@ -77,7 +80,10 @@ data class FlashcardEntity(
                 nextReviewDate = card.nextReviewDate,
                 correctStreak = card.correctStreak,
                 localCreatedAt = System.currentTimeMillis(),
-                localUpdatedAt = System.currentTimeMillis()
+                localUpdatedAt = System.currentTimeMillis(),
+                localImagePath = null,
+                localAudioPath = null,
+                lastSyncedAt = null
             )
         }
     }

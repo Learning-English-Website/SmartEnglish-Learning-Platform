@@ -35,7 +35,7 @@ export default function ProPage() {
     <div className="pro-page-container">
       {/* Hero Section */}
       <div className="pro-hero-section">
-        <span className="premium-label">SmartEnglish Premium</span>
+        <span className="premium-label">Memoris Premium</span>
         <h1 className="pro-hero-title">Đầu tư cho tương lai ngôn ngữ của bạn</h1>
         <p className="pro-hero-subtitle">
           Chỉ với 5.000đ/tháng, nâng cấp ngay để mở khóa toàn bộ tính năng và loại bỏ mọi giới hạn học tập.

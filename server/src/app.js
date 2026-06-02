@@ -66,7 +66,7 @@ if (process.env.NODE_ENV !== 'test') {
 app.get('/api/health', (req, res) =>
   res.json({ status: 'ok', timestamp: new Date(), environment: process.env.NODE_ENV })
 );
-app.get('/', (req, res) => res.json({ message: 'Welcome to SmartEnglish API' }));
+app.get('/', (req, res) => res.json({ message: 'Welcome to Memoris API' }));
 
 // ── Routes ───────────────────────────────────────────────────────────────────
 app.use('/api/auth', require('./modules/auth/auth.routes'));

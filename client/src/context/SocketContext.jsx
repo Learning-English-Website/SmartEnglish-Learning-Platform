@@ -180,7 +180,7 @@ export function SocketProvider({ children }) {
 
     socket.on('auth:welcome', (data) => {
       console.log('[Socket] auth:welcome:', data);
-      toast.success(data.message || 'Chào mừng đã gia nhập SmartEnglish!', {
+      toast.success(data.message || 'Chào mừng đã gia nhập Memoris!', {
         icon: '👋',
         duration: 5000,
       });

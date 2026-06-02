@@ -1,6 +1,7 @@
 package com.example.smartenglish.presentation.navigation
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LibraryBooks
 import androidx.compose.material.icons.filled.Person
@@ -57,6 +58,8 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector)
     data object FolderDetail : Screen("folder/{folderId}", "Thư mục", Icons.Default.Folder) {
         fun createRoute(folderId: String) = "folder/$folderId"
     }
+
+    data object DownloadedContent : Screen("downloaded_content", "Tải xuống", Icons.Default.CloudDownload)
 
     companion object {
         val bottomNavItems = listOf(Home, Create, Library)

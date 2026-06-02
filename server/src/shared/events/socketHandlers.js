@@ -154,7 +154,7 @@ const registerSocketHandlers = () => {
   safeOn('user:registered', ({ userId, email, username }) => {
     emitToUser(userId, 'auth:welcome', {
       username,
-      message: `Chào mừng ${username} đã gia nhập SmartEnglish! Hãy bắt đầu hành trình học tiếng Anh của bạn ngay hôm nay!`,
+      message: `Chào mừng ${username} đã gia nhập Memoris! Hãy bắt đầu hành trình học tập của bạn ngay hôm nay!`,
     });
   });
 

@@ -104,7 +104,7 @@ export default function DashboardLayout({ children }) {
               <path d="M2 17l10 5 10-5" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
               <path d="M2 12l10 5 10-5" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
-            <span>SmartEnglish</span>
+            <span>Memoris</span>
           </Link>
         </div>
 

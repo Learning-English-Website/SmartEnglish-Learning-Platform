@@ -10,8 +10,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'robots.txt', 'apple-touch-icon.png'],
       manifest: {
-        name: 'SmartEnglish Learning Platform',
-        short_name: 'SmartEnglish',
+        name: 'Memoris Learning Platform',
+        short_name: 'Memoris',
         description: 'Learn English with flashcards, spaced repetition, and gamification',
         theme_color: '#4a90d9',
         background_color: '#ffffff',

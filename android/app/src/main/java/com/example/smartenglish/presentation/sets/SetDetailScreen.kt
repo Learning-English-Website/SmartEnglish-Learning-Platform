@@ -2,6 +2,7 @@ package com.example.smartenglish.presentation.sets
 
 import com.example.smartenglish.domain.model.Flashcard
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.collectLatest
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -48,6 +49,8 @@ fun SetDetailScreen(
     viewModel: SetDetailViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
+    val isDownloaded by viewModel.isDownloaded.collectAsState()
+    val isDownloading by viewModel.isDownloading.collectAsState()
     var showEditDialog by remember { mutableStateOf(false) }
     var showShareSheet by remember { mutableStateOf(false) }
     var showExportSheet by remember { mutableStateOf(false) }
@@ -62,6 +65,22 @@ fun SetDetailScreen(
     LaunchedEffect(setId) {
         if (setId != null) {
             cards = viewModel.getCardsForSet(setId)
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.downloadEvent.collectLatest { event ->
+            when (event) {
+                is SetDetailViewModel.DownloadResultEvent.Success -> {
+                    snackbarHostState.showSnackbar(message = "Đã tải học phần thành công để học offline!", withDismissAction = true)
+                }
+                is SetDetailViewModel.DownloadResultEvent.Deleted -> {
+                    snackbarHostState.showSnackbar(message = "Đã xóa bản tải offline của học phần này.", withDismissAction = true)
+                }
+                is SetDetailViewModel.DownloadResultEvent.Error -> {
+                    snackbarHostState.showSnackbar(message = "Tải offline thất bại: ${event.message}", withDismissAction = true)
+                }
+            }
         }
     }
 
@@ -94,17 +113,99 @@ fun SetDetailScreen(
                         }
                     },
                     actions = {
-                        IconButton(onClick = { showImportModal = true }) {
-                            Icon(Icons.Default.CloudUpload, contentDescription = "Import", tint = Color.White)
+                        if (isDownloading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier
+                                    .padding(end = 8.dp)
+                                    .size(20.dp),
+                                color = Color.White,
+                                strokeWidth = 2.dp
+                            )
                         }
-                        IconButton(onClick = { showExportSheet = true }) {
-                            Icon(Icons.Default.Download, contentDescription = "Export", tint = Color.White)
-                        }
-                        IconButton(onClick = { showEditDialog = true }) {
-                            Icon(Icons.Default.Edit, contentDescription = "Edit", tint = Color.White)
-                        }
-                        IconButton(onClick = { showShareSheet = true }) {
-                            Icon(Icons.Default.Share, contentDescription = "Share", tint = Color.White)
+
+                        // More Options Overflow Menu
+                        var showMenu by remember { mutableStateOf(false) }
+                        Box {
+                            IconButton(onClick = { showMenu = true }) {
+                                Icon(
+                                    imageVector = Icons.Default.MoreVert,
+                                    contentDescription = "Tùy chọn khác",
+                                    tint = Color.White
+                                )
+                            }
+
+                            DropdownMenu(
+                                expanded = showMenu,
+                                onDismissRequest = { showMenu = false },
+                                modifier = Modifier.background(CardBg)
+                            ) {
+                                // Option A: Chỉnh sửa học phần
+                                DropdownMenuItem(
+                                    text = { Text("Chỉnh sửa học phần", color = Color.White) },
+                                    onClick = {
+                                        showMenu = false
+                                        showEditDialog = true
+                                    },
+                                    leadingIcon = { Icon(Icons.Default.Edit, null, tint = Color.White) }
+                                )
+
+                                // Option B: Chia sẻ
+                                DropdownMenuItem(
+                                    text = { Text("Chia sẻ", color = Color.White) },
+                                    onClick = {
+                                        showMenu = false
+                                        showShareSheet = true
+                                    },
+                                    leadingIcon = { Icon(Icons.Default.Share, null, tint = Color.White) }
+                                )
+
+                                // Option C: Nhập từ tệp (Import)
+                                DropdownMenuItem(
+                                    text = { Text("Nhập từ tệp (Import)", color = Color.White) },
+                                    onClick = {
+                                        showMenu = false
+                                        showImportModal = true
+                                    },
+                                    leadingIcon = { Icon(Icons.Default.CloudUpload, null, tint = Color.White) }
+                                )
+
+                                // Option D: Xuất thành tệp (Export)
+                                DropdownMenuItem(
+                                    text = { Text("Xuất thành tệp (Export)", color = Color.White) },
+                                    onClick = {
+                                        showMenu = false
+                                        showExportSheet = true
+                                    },
+                                    leadingIcon = { Icon(Icons.Default.CloudDownload, null, tint = Color.White) }
+                                )
+
+                                HorizontalDivider(color = Color.White.copy(alpha = 0.08f))
+
+                                // Option E: Tải xuống offline / Xóa bản offline
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            text = if (isDownloaded) "Xóa bản offline" else "Tải xuống offline",
+                                            color = if (isDownloaded) QuizletCoral else Color.White
+                                        )
+                                    },
+                                    onClick = {
+                                        showMenu = false
+                                        if (isDownloaded) {
+                                            viewModel.removeDownload()
+                                        } else {
+                                            viewModel.downloadSet()
+                                        }
+                                    },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = if (isDownloaded) Icons.Default.Delete else Icons.Default.Download,
+                                            contentDescription = null,
+                                            tint = if (isDownloaded) QuizletCoral else Color.White
+                                        )
+                                    }
+                                )
+                            }
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(

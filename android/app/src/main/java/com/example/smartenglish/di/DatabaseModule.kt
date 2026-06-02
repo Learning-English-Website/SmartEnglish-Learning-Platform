@@ -3,8 +3,11 @@ package com.example.smartenglish.di
 import android.content.Context
 import androidx.room.Room
 import com.example.smartenglish.data.local.AppDatabase
+import com.example.smartenglish.data.local.dao.DownloadedContentDao
 import com.example.smartenglish.data.local.dao.FlashcardDao
 import com.example.smartenglish.data.local.dao.FlashcardSetDao
+import com.example.smartenglish.data.local.dao.FolderDao
+import com.example.smartenglish.data.local.dao.PendingOperationDao
 import com.example.smartenglish.data.local.dao.ProgressDao
 import com.example.smartenglish.data.local.dao.VocabularyDao
 import dagger.Module
@@ -52,5 +55,23 @@ object DatabaseModule {
     @Singleton
     fun provideFlashcardDao(database: AppDatabase): FlashcardDao {
         return database.flashcardDao()
+    }
+
+    @Provides
+    @Singleton
+    fun provideFolderDao(database: AppDatabase): FolderDao {
+        return database.folderDao()
+    }
+
+    @Provides
+    @Singleton
+    fun providePendingOperationDao(database: AppDatabase): PendingOperationDao {
+        return database.pendingOperationDao()
+    }
+
+    @Provides
+    @Singleton
+    fun provideDownloadedContentDao(database: AppDatabase): DownloadedContentDao {
+        return database.downloadedContentDao()
     }
 }

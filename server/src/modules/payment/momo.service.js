@@ -11,7 +11,7 @@ class MoMoService {
     if (!user) throw new Error('User not found');
 
     const orderId = `PRO_${userId}_${Date.now()}`;
-    const orderInfo = `SmartEnglish Pro Subscription - ${user.email}`;
+    const orderInfo = `Memoris Pro Subscription - ${user.email}`;
     const returnUrl = `${process.env.CLIENT_URL || 'http://localhost:5173'}/premium/success?method=momo&orderId=${orderId}`;
     const serverUrl = process.env.SERVER_URL || 'http://localhost:5000';
     const notifyUrl = `${serverUrl}/api/payment/momo/webhook`;

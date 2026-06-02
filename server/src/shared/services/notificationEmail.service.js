@@ -25,7 +25,7 @@ const STREAK_REMINDER_HTML = (username, streak) => `
   </div>
   <div style="padding: 16px 24px; border-top: 1px solid #e5e7eb; text-align: center;">
     <p style="font-size: 12px; color: #9ca3af; margin: 0;">
-      You're receiving this email because you have an active streak on SmartEnglish.
+      You're receiving this email because you have an active streak on Memoris.
     </p>
   </div>
 </div>`;
@@ -104,7 +104,7 @@ class NotificationEmailService {
         if (!user?.email) return;
         await mailerService.sendMail({
           to: user.email,
-          subject: `🏆 You unlocked "${achievement.title}" on SmartEnglish!`,
+          subject: `🏆 You unlocked "${achievement.title}" on Memoris!`,
           text: `Congratulations ${user.username}! You've unlocked the achievement: ${achievement.title}. ${achievement.description}`,
           html: ACHIEVEMENT_UNLOCKED_HTML(user.username, achievement),
         });
@@ -145,7 +145,7 @@ class NotificationEmailService {
 
       await mailerService.sendMail({
         to: user.email,
-        subject: `📊 Your SmartEnglish Weekly Report — ${stats.totalXP || 0} XP earned!`,
+        subject: `📊 Your Memoris Weekly Report — ${stats.totalXP || 0} XP earned!`,
         text: `Hi ${user.username}, here's your weekly progress. You earned ${stats.totalXP || 0} XP this week!`,
         html: WEEKLY_PROGRESS_HTML(user.username, stats),
       });

@@ -48,7 +48,7 @@ export default function StudyLayout({ backTo: defaultBackTo, hideHeader = false 
                 <path d="M2 17l10 5 10-5" stroke="#4255ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                 <path d="M2 12l10 5 10-5" stroke="#4255ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
-              <span className="study-layout__brand-name">SmartEnglish</span>
+              <span className="study-layout__brand-name">Memoris</span>
             </div>
             {title && (
               <>

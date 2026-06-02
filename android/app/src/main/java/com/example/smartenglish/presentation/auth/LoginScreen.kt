@@ -59,8 +59,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.runtime.SideEffect
+import androidx.core.view.WindowCompat
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -101,6 +105,18 @@ fun LoginScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val focusManager = LocalFocusManager.current
     val context = LocalContext.current
+    val view = LocalView.current
+
+    if (!view.isInEditMode) {
+        SideEffect {
+            val window = (context as Activity).window
+            window.statusBarColor = Color.Transparent.toArgb()
+            window.navigationBarColor = Color.Transparent.toArgb()
+            val insetsController = WindowCompat.getInsetsController(window, view)
+            insetsController.isAppearanceLightStatusBars = false
+            insetsController.isAppearanceLightNavigationBars = false
+        }
+    }
 
     val googleSignInLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
@@ -133,9 +149,7 @@ fun LoginScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { paddingValues ->
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
+            modifier = Modifier.fillMaxSize()
         ) {
             // Premium Starry Night Background Image
             Image(
@@ -148,6 +162,7 @@ fun LoginScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    .padding(paddingValues)
                     .padding(horizontal = 24.dp)
                     .verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -236,20 +251,11 @@ fun LoginScreen(
                                     horizontalArrangement = Arrangement.Center
                                 ) {
                                     // Multicolor Google G Icon
-                                    Text(
-                                        text = "G",
-                                        style = TextStyle(
-                                            brush = Brush.linearGradient(
-                                                colors = listOf(
-                                                    Color(0xFFEA4335), // Red
-                                                    Color(0xFFFBBC05), // Yellow
-                                                    Color(0xFF34A853), // Green
-                                                    Color(0xFF4285F4)  // Blue
-                                                )
-                                            ),
-                                            fontWeight = FontWeight.Black,
-                                            fontSize = 18.sp
-                                        )
+                                    Icon(
+                                        painter = painterResource(id = com.example.smartenglish.R.drawable.ic_google),
+                                        contentDescription = "Google Icon",
+                                        tint = Color.Unspecified,
+                                        modifier = Modifier.size(20.dp)
                                     )
                                     Spacer(Modifier.width(10.dp))
                                     Text(

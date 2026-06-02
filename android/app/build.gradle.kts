@@ -3,6 +3,7 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.dagger.hilt.android")
     id("com.google.devtools.ksp")
+    id("dagger.hilt.android.plugin")
     alias(libs.plugins.kotlin.android)
 }
 
@@ -64,9 +65,12 @@ dependencies {
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     implementation(libs.hilt.navigation.compose)
+    // Hilt Work
+    implementation(libs.hilt.work)
+    ksp(libs.hilt.compiler)
 
-    // Coroutines
-    implementation(libs.kotlinx.coroutines.android)
+    // WorkManager
+    implementation(libs.androidx.work.runtime)
 
     // Networking
     implementation(libs.retrofit)

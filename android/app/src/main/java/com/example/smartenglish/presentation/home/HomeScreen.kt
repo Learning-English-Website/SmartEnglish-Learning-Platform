@@ -32,6 +32,8 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.example.smartenglish.domain.model.FlashcardSet
+import com.example.smartenglish.presentation.components.OfflineBanner
+import com.example.smartenglish.presentation.components.HomeSkeleton
 import kotlin.math.absoluteValue
 
 // Premium Theme Colors
@@ -63,6 +65,8 @@ fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val isOnline by viewModel.isOnline.collectAsState()
+    val pendingCount by viewModel.pendingCount.collectAsState()
     val isRefreshing = uiState is HomeUiState.Loading
     val pullToRefreshState = rememberPullToRefreshState()
 
@@ -97,12 +101,7 @@ fun HomeScreen(
         ) {
             when (val state = uiState) {
                 is HomeUiState.Loading -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(color = QuizletBlue)
-                    }
+                    HomeSkeleton()
                 }
                 is HomeUiState.Success -> {
                     Column(
@@ -111,6 +110,16 @@ fun HomeScreen(
                             .verticalScroll(rememberScrollState())
                             .padding(horizontal = 20.dp, vertical = 16.dp)
                     ) {
+                        OfflineBanner(
+                            pendingCount = pendingCount,
+                            isOnline = isOnline,
+                            onSyncClick = { viewModel.syncNow() }
+                        )
+
+                        if (!isOnline || pendingCount > 0) {
+                            Spacer(modifier = Modifier.height(16.dp))
+                        }
+
                         val avatarUrl = state.user.avatar
                         val email = state.user.email
                         val fullAvatarUrl = if (!avatarUrl.isNullOrBlank()) {

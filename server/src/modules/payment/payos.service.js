@@ -8,7 +8,7 @@ const PRO_PRICE_VND = 5000; // 5,000 VND
 class PayOSService {
   async createPayment(userId, userEmail) {
     const orderCode = Number(Date.now().toString() + Math.floor(Math.random() * 10).toString());
-    const description = 'SmartEnglish Pro';
+    const description = 'Memoris Pro';
     const returnUrl = `${process.env.CLIENT_URL}/premium/success?method=payos&orderId=${orderCode}`;
     const cancelUrl = `${process.env.CLIENT_URL}/premium/cancel`;
 

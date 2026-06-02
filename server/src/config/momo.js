@@ -25,8 +25,8 @@ async function createPayment(params) {
   
   const requestBody = {
     partnerCode: MOMO_CONFIG.partnerCode,
-    partnerName: 'SmartEnglish',
-    storeId: 'SmartEnglish',
+    partnerName: 'Memoris',
+    storeId: 'Memoris',
     requestId: orderId,
     amount: amount.toString(),
     orderId: orderId,

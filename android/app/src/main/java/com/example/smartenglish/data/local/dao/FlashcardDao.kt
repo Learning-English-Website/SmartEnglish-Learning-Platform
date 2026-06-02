@@ -51,4 +51,10 @@ interface FlashcardDao {
 
     @Query("DELETE FROM flashcards WHERE setId = :setId")
     suspend fun deleteCardsBySet(setId: String)
+
+    @Query("SELECT * FROM flashcards WHERE setId = :setId AND syncStatus IN ('PENDING', 'DIRTY')")
+    suspend fun getUnsyncedCardsBySet(setId: String): List<FlashcardEntity>
+
+    @Query("UPDATE flashcards SET localImagePath = :imagePath, localAudioPath = :audioPath WHERE id = :cardId")
+    suspend fun updateLocalMediaPaths(cardId: String, imagePath: String?, audioPath: String?)
 }

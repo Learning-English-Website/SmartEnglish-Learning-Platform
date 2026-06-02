@@ -19,6 +19,8 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import okhttp3.Authenticator
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -33,6 +35,10 @@ import javax.inject.Singleton
 object AppModule {
 
     private const val BASE_URL = "http://192.168.1.3:5000/api/"
+
+    @Provides
+    @Named("IO")
+    fun provideIODispatcher(): CoroutineDispatcher = Dispatchers.IO
 
     @Provides
     @Singleton
@@ -246,5 +252,62 @@ object AppModule {
     @Singleton
     fun provideGamificationRepository(gamificationApi: GamificationApi): GamificationRepository {
         return GamificationRepositoryImpl(gamificationApi)
+    }
+
+    @Provides
+    @Singleton
+    fun provideNetworkMonitor(@ApplicationContext context: android.content.Context): com.example.smartenglish.util.NetworkMonitor {
+        return com.example.smartenglish.util.NetworkMonitor(context)
+    }
+
+    @Provides
+    @Singleton
+    fun provideSyncManager(
+        pendingOperationDao: com.example.smartenglish.data.local.dao.PendingOperationDao,
+        flashcardSetDao: com.example.smartenglish.data.local.dao.FlashcardSetDao,
+        flashcardDao: com.example.smartenglish.data.local.dao.FlashcardDao,
+        downloadedContentDao: com.example.smartenglish.data.local.dao.DownloadedContentDao,
+        networkMonitor: com.example.smartenglish.util.NetworkMonitor,
+        setApi: com.example.smartenglish.data.remote.api.SetApi,
+        cardApi: com.example.smartenglish.data.remote.api.CardApi,
+        folderApi: com.example.smartenglish.data.remote.api.FolderApi,
+        moshi: com.squareup.moshi.Moshi,
+        @Named("IO") dispatcher: CoroutineDispatcher,
+        @ApplicationContext applicationContext: android.content.Context
+    ): com.example.smartenglish.data.sync.SyncManager {
+        return com.example.smartenglish.data.sync.SyncManager(
+            pendingOperationDao = pendingOperationDao,
+            flashcardSetDao = flashcardSetDao,
+            flashcardDao = flashcardDao,
+            downloadedContentDao = downloadedContentDao,
+            networkMonitor = networkMonitor,
+            setApi = setApi,
+            cardApi = cardApi,
+            folderApi = folderApi,
+            moshi = moshi,
+            dispatcher = dispatcher,
+            applicationContext = applicationContext
+        )
+    }
+
+    @Provides
+    @Singleton
+    fun provideSyncScheduler(@ApplicationContext context: android.content.Context): com.example.smartenglish.data.sync.SyncScheduler {
+        return com.example.smartenglish.data.sync.SyncScheduler(context)
+    }
+
+    @Provides
+    @Singleton
+    fun provideSettingsRepository(@ApplicationContext context: android.content.Context): com.example.smartenglish.data.repository.SettingsRepository {
+        return com.example.smartenglish.data.repository.SettingsRepository(context)
+    }
+
+    @Provides
+    @Singleton
+    fun provideDownloadRepository(
+        downloadedContentDao: com.example.smartenglish.data.local.dao.DownloadedContentDao,
+        pendingOperationDao: com.example.smartenglish.data.local.dao.PendingOperationDao
+    ): com.example.smartenglish.domain.repository.DownloadRepository {
+        return com.example.smartenglish.data.repository.DownloadRepositoryImpl(downloadedContentDao, pendingOperationDao)
     }
 }

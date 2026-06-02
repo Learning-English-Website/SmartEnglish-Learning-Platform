@@ -27,6 +27,7 @@ import com.example.smartenglish.presentation.cards.CardEditorScreen
 import com.example.smartenglish.presentation.search.SearchScreen
 import com.example.smartenglish.presentation.browse.BrowseScreen
 import com.example.smartenglish.presentation.sets.FolderDetailScreen
+import com.example.smartenglish.presentation.downloaded.DownloadedContentScreen
 
 @Composable
 fun AppNavGraph(
@@ -375,6 +376,15 @@ fun AppNavGraph(
                 },
                 onNavigateToSetDetail = { setId ->
                     navController.navigate(Screen.SetDetail.createRoute(setId))
+                }
+            )
+        }
+
+        // Downloaded Content Screen
+        composable(Screen.DownloadedContent.route) {
+            DownloadedContentScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
                 }
             )
         }

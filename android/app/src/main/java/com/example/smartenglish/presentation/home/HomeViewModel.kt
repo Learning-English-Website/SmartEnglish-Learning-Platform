@@ -14,6 +14,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import com.example.smartenglish.domain.repository.DownloadRepository
+import com.example.smartenglish.util.NetworkMonitor
+import com.example.smartenglish.data.sync.SyncManager
+import com.example.smartenglish.data.sync.SyncScheduler
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -40,8 +46,24 @@ sealed class HomeUiState {
 class HomeViewModel @Inject constructor(
     private val userRepository: UserRepository,
     private val setRepository: SetRepository,
-    private val progressRepository: ProgressRepository
+    private val progressRepository: ProgressRepository,
+    private val downloadRepository: DownloadRepository,
+    private val networkMonitor: NetworkMonitor,
+    private val syncManager: SyncManager,
+    private val syncScheduler: SyncScheduler
 ) : ViewModel() {
+
+    val isOnline: StateFlow<Boolean> = networkMonitor.isOnline
+
+    val pendingCount: StateFlow<Int> = downloadRepository.getPendingSyncCount()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    fun syncNow() {
+        syncScheduler.triggerImmediateSync()
+        viewModelScope.launch {
+            syncManager.processPendingOperations()
+        }
+    }
 
     private val _uiState = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
