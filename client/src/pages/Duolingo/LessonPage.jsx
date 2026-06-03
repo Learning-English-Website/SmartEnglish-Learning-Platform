@@ -716,9 +716,6 @@ export default function LessonPage() {
       await duolingoService.completeLesson(lessonId);
       localStorage.removeItem(`duolingo_lesson_progress_${lessonId}`);
 
-      // Immediately refresh Daily Challenge leaderboard so XP shows in real-time
-      window.dispatchEvent(new CustomEvent('dailyChallenge:leaderboard:refresh'));
-
       // Also refresh quests panel
       window.dispatchEvent(new CustomEvent('quest:update'));
 

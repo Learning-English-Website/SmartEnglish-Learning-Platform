@@ -7,7 +7,11 @@ import toast from 'react-hot-toast';
 
 const SocketContext = createContext(null);
 
-const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const SOCKET_URL = (() => {
+  const rawUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+  const normalized = rawUrl.endsWith('/api') ? rawUrl.slice(0, -4) : rawUrl;
+  return normalized.replace(/\/$/, '');
+})();
 
 /**
  * Provides a Socket.IO connection that auto-connects when user is authenticated.
@@ -20,13 +24,22 @@ export function SocketProvider({ children }) {
   const [notifications, setNotifications] = useState([]);
 
   const auth = useSelector(selectAuth);
+
+  // triggerRewards is intentionally NOT a dependency — it causes socket recreation loops
+  // because it changes whenever GamificationContext re-renders.
+  // We call it only inside the 'gamification:xp_update' handler (which already captures it).
   const { triggerRewards } = useGamification();
 
+  useEffect(() => {
+    console.log('[Socket] Provider mounted');
+  }, []);
+
   const connect = useCallback(() => {
-    if (!auth.token || socketRef.current?.connected) return;
+    if (!auth.isAuthenticated || !auth.user) return;
+    if (socketRef.current?.connected) return;
 
     const socket = io(SOCKET_URL, {
-      auth: { token: auth.token },
+      withCredentials: true,
       transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionDelay: 1000,
@@ -34,8 +47,9 @@ export function SocketProvider({ children }) {
     });
 
     socket.on('connect', () => {
-      console.log('[Socket] Connected:', socket.id);
+      console.log('[Socket] Connected:', socket.id, 'userId:', socket.userId);
       setIsConnected(true);
+      window.dispatchEvent(new CustomEvent('socket:connected'));
     });
 
     socket.on('disconnect', (reason) => {
@@ -47,11 +61,8 @@ export function SocketProvider({ children }) {
       console.error('[Socket] Connection error:', err.message);
     });
 
-    // ── Gamification events ──────────────────────────────────────────────
-
     socket.on('gamification:xp_update', (data) => {
       console.log('[Socket] xp_update:', data);
-      // Trigger the floating XP popup and XP bar via GamificationContext
       if (data.xpGained > 0) {
         triggerRewards({
           xp: {
@@ -135,32 +146,24 @@ export function SocketProvider({ children }) {
       });
     });
 
-    // ── Leaderboard events ───────────────────────────────────────────────
-
     socket.on('leaderboard:update', (data) => {
       console.log('[Socket] leaderboard:update:', data);
-      // Dispatch Redux action or call a refetch callback
-      // Components listening to leaderboard will refetch via window event
       window.dispatchEvent(new CustomEvent('leaderboard:refresh', { detail: data }));
     });
 
-    // ── Daily Challenge events ─────────────────────────────────────────────
-
-    socket.on('dailyChallenge:leaderboard:update', (data) => {
-      console.log('[Socket] dailyChallenge:leaderboard:update:', data);
-      console.log('[Socket] dispatch dailyChallenge:leaderboard:refresh');
+    socket.on('dailyChallenge:leaderboard:snapshot', (data) => {
+      console.log('[Socket] dailyChallenge:leaderboard:snapshot:', data);
       window.dispatchEvent(new CustomEvent('dailyChallenge:leaderboard:refresh', { detail: data }));
-
-      // Show a brief toast so User B sees who just earned XP
-      if (data.reason === 'question_answered' && data.xpDelta) {
-        toast(`🎯 ${data.username} vừa được +${data.xpDelta} XP!`, {
-          icon: '🎯',
-          duration: 2500,
-        });
-      }
     });
 
-    // ── Notification events ─────────────────────────────────────────────
+    socket.on('dailyChallenge:challenge:snapshot', (data) => {
+      console.log('[Socket] dailyChallenge:challenge:snapshot:', data);
+      window.dispatchEvent(new CustomEvent('dailyChallenge:challenge:refresh', { detail: data }));
+    });
+
+    socket.on('dailyChallenge:leaderboard:error', (data) => {
+      console.error('[Socket] dailyChallenge:leaderboard:error:', data);
+    });
 
     socket.on('notification:new', (data) => {
       console.log('[Socket] notification:new:', data);
@@ -176,8 +179,6 @@ export function SocketProvider({ children }) {
       });
     });
 
-    // ── Auth events ─────────────────────────────────────────────────────
-
     socket.on('auth:welcome', (data) => {
       console.log('[Socket] auth:welcome:', data);
       toast.success(data.message || 'Chào mừng đã gia nhập Memoris!', {
@@ -187,7 +188,7 @@ export function SocketProvider({ children }) {
     });
 
     socketRef.current = socket;
-  }, [auth.token, triggerRewards]);
+  }, [auth.isAuthenticated, auth.user, triggerRewards]);
 
   const disconnect = useCallback(() => {
     if (socketRef.current) {
@@ -199,13 +200,13 @@ export function SocketProvider({ children }) {
 
   // Auto-connect when authenticated, disconnect when logged out
   useEffect(() => {
-    if (auth.isAuthenticated && auth.token) {
+    if (auth.isAuthenticated && auth.user) {
       connect();
     } else {
       disconnect();
     }
     return () => disconnect();
-  }, [auth.isAuthenticated, auth.token, connect, disconnect]);
+  }, [auth.isAuthenticated, auth.user, connect, disconnect]);
 
   const markNotificationRead = useCallback((id) => {
     setUnreadCount(prev => Math.max(0, prev - 1));
@@ -216,15 +217,28 @@ export function SocketProvider({ children }) {
     setUnreadCount(0);
   }, []);
 
+  const subscribeDailyChallenge = useCallback((dateKey, limit = 20) => {
+    const socket = socketRef.current;
+    console.log('[Socket] subscribeDailyChallenge →', { dateKey, limit, socketId: socket?.id, connected: socket?.connected });
+    socket?.emit('dailyChallenge:subscribe', { dateKey, limit });
+  }, []);
+
+  const unsubscribeDailyChallenge = useCallback((dateKey) => {
+    socketRef.current?.emit('dailyChallenge:unsubscribe', { dateKey });
+  }, []);
+
   return (
     <SocketContext.Provider value={{
       socket: socketRef.current,
+      socketRef,
       isConnected,
       unreadCount,
       setUnreadCount,
       notifications,
       markNotificationRead,
       clearUnread,
+      subscribeDailyChallenge,
+      unsubscribeDailyChallenge,
     }}>
       {children}
     </SocketContext.Provider>

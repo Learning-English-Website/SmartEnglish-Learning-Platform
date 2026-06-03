@@ -1,4 +1,4 @@
-const { getIO, emitToUser, broadcast } = require('../../config/socketIO');
+const { getIO, emitToUser, broadcast, broadcastToRoom } = require('../../config/socketIO');
 const eventBus = require('./eventBus');
 const notificationService = require('../../modules/notification/notification.service');
 
@@ -108,35 +108,55 @@ const registerSocketHandlers = () => {
 
   // ── Daily Challenge events ───────────────────────────────────────────────────
 
-  // Per-question XP update → broadcast to all connected clients for live leaderboard
-  safeOn('dailyChallenge:xp_progress', ({ date, userId, username, xpDelta, totalXp }) => {
-    console.log('[Socket] dailyChallenge:xp_progress → broadcast', { date, userId, username, xpDelta, totalXp });
-    broadcast('dailyChallenge:leaderboard:update', {
-      date,
-      userId,
-      username,
-      xp: totalXp,
-      xpDelta,
-      timestamp: Date.now(),
-      reason: 'question_answered',
-    });
+  // Per-question XP update → push full leaderboard snapshot to the day's room
+  safeOn('dailyChallenge:xp_progress', async ({ date, userId, username, xpDelta, totalXp }) => {
+    console.log('[Socket] dailyChallenge:xp_progress → push leaderboard snapshot', { date, userId, username, xpDelta, totalXp });
+    try {
+      const dailyChallengeService = require('../../modules/quest/dailyChallenge.service');
+      const leaderboard = await dailyChallengeService.getLeaderboard(date, { limit: 20 });
+      const room = `dailyChallenge:${date}`;
+      broadcastToRoom(room, 'dailyChallenge:leaderboard:snapshot', {
+        date,
+        leaderboard,
+        reason: 'xp_progress',
+        updatedUserId: String(userId),
+        username,
+        xpDelta,
+        timestamp: Date.now(),
+      });
+    } catch (err) {
+      console.error('[Socket] dailyChallenge:xp_progress handler failed:', err.message);
+    }
   });
 
-  // Final lesson completion → full leaderboard refresh
-  safeOn('dailyChallenge:score_updated', ({ date, userId, xp, reason }) => {
-    console.log('[Socket] dailyChallenge:score_updated → broadcast', {
-      date,
-      userId,
-      xp,
-      reason,
-    });
-    broadcast('dailyChallenge:leaderboard:update', {
-      date,
-      timestamp: Date.now(),
-      userId,
-      xp,
-      reason,
-    });
+  // Join, lesson complete, or any score change → push full leaderboard snapshot to the day's room
+  safeOn('dailyChallenge:score_updated', async ({ date, userId, xp, reason }) => {
+    console.log('[Socket] dailyChallenge:score_updated → push leaderboard snapshot', { date, userId, xp, reason });
+    try {
+      const dailyChallengeService = require('../../modules/quest/dailyChallenge.service');
+      const [leaderboard, challenge] = await Promise.all([
+        dailyChallengeService.getLeaderboard(date, { limit: 20 }),
+        dailyChallengeService.getTodayChallenge(),
+      ]);
+      const room = `dailyChallenge:${date}`;
+      broadcastToRoom(room, 'dailyChallenge:leaderboard:snapshot', {
+        date,
+        leaderboard,
+        reason: reason || 'score_updated',
+        updatedUserId: String(userId),
+        xp,
+        timestamp: Date.now(),
+      });
+      if (challenge) {
+        broadcastToRoom(room, 'dailyChallenge:challenge:snapshot', {
+          date,
+          challenge,
+          timestamp: Date.now(),
+        });
+      }
+    } catch (err) {
+      console.error('[Socket] dailyChallenge:score_updated handler failed:', err.message);
+    }
   });
 
   // New notification created → deliver to user via Socket

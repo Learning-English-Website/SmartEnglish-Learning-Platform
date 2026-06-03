@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Trophy, Zap, Play, Star } from 'lucide-react';
-import { dailyChallengeService } from '../../../services/dailyChallengeService';
+import { Trophy, Zap, Play } from 'lucide-react';
 import { selectUser } from '../../../store/slices/authSlice';
+import { useSocket } from '../../../context/SocketContext';
+import { dailyChallengeService } from '../../../services/dailyChallengeService';
 
 const TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Ho_Chi_Minh';
 
@@ -12,26 +13,32 @@ function getDateKey(d = new Date()) {
   return d.toLocaleDateString('en-CA', { timeZone: TIME_ZONE });
 }
 
+function normalizeChallenge(payload) {
+  if (!payload) return null;
+  return payload.challenge || payload.data?.challenge || payload.data || payload;
+}
+
+function normalizeLeaderboard(payload) {
+  const rows = payload?.leaderboard || payload?.data?.leaderboard || payload?.data || payload || [];
+  return Array.isArray(rows) ? rows : [];
+}
+
 export default function DailyChallengeCard({ hideLeaderboard = false } = {}) {
   const [challenge, setChallenge] = useState(null);
   const [leaderboard, setLeaderboard] = useState([]);
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState(false);
+  const [socketError, setSocketError] = useState(null);
   const navigate = useNavigate();
-  const pollingRef = useRef(null);
   const currentUser = useSelector(selectUser);
+  const { isConnected, socketRef, subscribeDailyChallenge, unsubscribeDailyChallenge } = useSocket();
 
-  const dateKey = getDateKey();
+  const dateKey = useMemo(() => getDateKey(), []);
 
-  // Merge the live leaderboard with current user appended at the bottom if not present
-  const rankedLeaderboard = [];
-
-  // Merge the live leaderboard with current user appended at the bottom if not present
-  const computeRankedLeaderboard = () => {
+  const computeRankedLeaderboard = useCallback(() => {
     if (!leaderboard.length && !currentUser) return [];
 
     const currentUid = currentUser?._id ?? currentUser?.id ?? null;
-
     const isCurrentUserInList = leaderboard.some((row) => {
       const uid = typeof row.userId === 'object'
         ? String(row.userId?._id ?? row.userId?.id ?? '')
@@ -39,8 +46,7 @@ export default function DailyChallengeCard({ hideLeaderboard = false } = {}) {
       return uid === String(currentUid);
     });
 
-    let entries = [...leaderboard];
-
+    const entries = [...leaderboard];
     if (!isCurrentUserInList && currentUser) {
       entries.push({
         userId: currentUid,
@@ -50,154 +56,114 @@ export default function DailyChallengeCard({ hideLeaderboard = false } = {}) {
       });
     }
 
-    const sorted = [...entries].sort((a, b) => b.xp - a.xp);
+    return [...entries]
+      .sort((a, b) => b.xp - a.xp)
+      .map((row, idx) => ({ ...row, rank: idx + 1 }));
+  }, [leaderboard, currentUser]);
 
-    const currentUserEntry = sorted.find((r) => r.isCurrentUser);
-    const withoutCurrentUser = sorted.filter((r) => !r.isCurrentUser);
-    const finalOrder = currentUserEntry ? [...withoutCurrentUser, currentUserEntry] : sorted;
-
-    return finalOrder.map((row, idx) => ({
-      ...row,
-      rank: idx + 1,
-    }));
-  };
-
-  const load = async () => {
-    setLoading(true);
+  const fetchLeaderboard = useCallback(async () => {
     try {
-      console.log('[DailyChallengeCard] loading…', { dateKey });
-      const cRes = await dailyChallengeService.getToday();
-      console.log('[DailyChallengeCard] getToday response:', cRes);
-      const c = cRes?.data || null;
-      setChallenge(c);
-
-      const lbRes = await dailyChallengeService.getLeaderboard({ date: dateKey });
-      console.log('[DailyChallengeCard] leaderboard response:', lbRes);
-      const next = lbRes?.data?.leaderboard || lbRes?.leaderboard || lbRes?.data?.data?.leaderboard || [];
-      console.log('[DailyChallengeCard] leaderboard load parsed length:', Array.isArray(next) ? next.length : -1);
-      setLeaderboard(next);
+      const [challengeRes, leaderboardRes] = await Promise.all([
+        dailyChallengeService.getToday(),
+        dailyChallengeService.getLeaderboard({ date: dateKey }),
+      ]);
+      setChallenge(normalizeChallenge(challengeRes.data));
+      setLeaderboard(normalizeLeaderboard(leaderboardRes.data));
+      setSocketError(null);
     } catch (err) {
-      console.error('[DailyChallengeCard] load failed:', err);
+      setSocketError(err?.response?.data?.message || err?.message || 'Không thể tải Daily Challenge');
     } finally {
       setLoading(false);
     }
-  };
+  }, [dateKey]);
+
+  // ── Effect 1: Initial load ────────────────────────────────────────────────
+  useEffect(() => {
+    setLoading(true);
+    fetchLeaderboard();
+  }, [fetchLeaderboard]);
+
+  // ── Effect 2: WebSocket via window event bridge ─────────────────────────
+  useEffect(() => {
+    let mounted = true;
+
+    console.log('[DailyChallengeCard] effect mount', { dateKey });
+
+    // Subscribe to daily challenge room when socket is available
+    if (socketRef.current?.connected) {
+      console.log('[DailyChallengeCard] initial subscribe', { dateKey, socketId: socketRef.current.id });
+      subscribeDailyChallenge(dateKey, 20);
+    }
+
+    const onLeaderboardRefresh = (event) => {
+      if (!mounted) return;
+      const data = event.detail;
+      if (data?.date !== dateKey) return;
+      console.log('[DailyChallengeCard] leaderboard refresh', data);
+      setLeaderboard(normalizeLeaderboard(data));
+      setSocketError(null);
+      setLoading(false);
+    };
+
+    const onChallengeRefresh = (event) => {
+      if (!mounted) return;
+      const data = event.detail;
+      if (data?.date !== dateKey) return;
+      console.log('[DailyChallengeCard] challenge refresh', data);
+      setChallenge(normalizeChallenge(data));
+      setLoading(false);
+    };
+
+    // When socket connects, re-subscribe and fetch
+    const onSocketConnected = () => {
+      if (!mounted) return;
+      console.log('[DailyChallengeCard] socket connected -> resubscribe', { dateKey, socketId: socketRef.current?.id });
+      subscribeDailyChallenge(dateKey, 20);
+      fetchLeaderboard();
+    };
+
+    window.addEventListener('dailyChallenge:leaderboard:refresh', onLeaderboardRefresh);
+    window.addEventListener('dailyChallenge:challenge:refresh', onChallengeRefresh);
+    window.addEventListener('socket:connected', onSocketConnected);
+    window.addEventListener('quest:update', onSocketConnected);
+
+    return () => {
+      mounted = false;
+      console.log('[DailyChallengeCard] effect cleanup', { dateKey });
+      unsubscribeDailyChallenge(dateKey);
+      window.removeEventListener('dailyChallenge:leaderboard:refresh', onLeaderboardRefresh);
+      window.removeEventListener('dailyChallenge:challenge:refresh', onChallengeRefresh);
+      window.removeEventListener('socket:connected', onSocketConnected);
+      window.removeEventListener('quest:update', onSocketConnected);
+    };
+  }, [dateKey, socketRef, subscribeDailyChallenge, unsubscribeDailyChallenge, fetchLeaderboard]);
 
   useEffect(() => {
-    load();
-  }, []);
-
-  useEffect(() => {
-    // Check every 10s: if day changed, reload so dateKey and challenge both update
     const id = window.setInterval(() => {
       const nextKey = getDateKey();
       if (nextKey !== dateKey) {
-        console.log('[DailyChallengeCard] day rolled over, reloading…', { from: dateKey, to: nextKey });
         window.location.reload();
       }
     }, 10000);
+
     return () => window.clearInterval(id);
   }, [dateKey]);
-
-  useEffect(() => {
-    if (loading) return;
-
-    const refreshLeaderboard = () => {
-      const key = getDateKey();
-      dailyChallengeService.getLeaderboard({ date: key })
-        .then((lbRes) => {
-          const next = lbRes?.data?.leaderboard || lbRes?.leaderboard || lbRes?.data?.data?.leaderboard || [];
-          console.log('[DailyChallengeCard] leaderboard refresh parsed:', {
-            hasData: Boolean(lbRes?.data),
-            keys: lbRes ? Object.keys(lbRes) : null,
-            parsedLength: Array.isArray(next) ? next.length : -1,
-          });
-          setLeaderboard(next);
-        })
-        .catch(() => {});
-    };
-
-    // Apply XP delta from socket event directly — instant, no API round-trip
-    const onRefresh = (event) => {
-      console.log('[DailyChallengeCard] window event dailyChallenge:leaderboard:refresh', event?.detail);
-      const detail = event?.detail;
-
-      if (detail?.xpDelta != null && detail?.userId) {
-        setLeaderboard((prev) => {
-          const uid = typeof detail.userId === 'object'
-            ? String(detail.userId._id || detail.userId.id || detail.userId)
-            : String(detail.userId);
-          const updated = prev.map((row) => {
-            const rowUid = typeof row.userId === 'object'
-              ? String(row.userId._id || row.userId.id || row.userId)
-              : String(row.userId || '');
-            if (rowUid === uid) {
-              return { ...row, xp: detail.totalXp ?? (row.xp + detail.xpDelta) };
-            }
-            return row;
-          });
-          return [...updated].sort((a, b) => b.xp - a.xp);
-        });
-      } else {
-        refreshLeaderboard();
-      }
-    };
-
-    const startPolling = () => {
-      if (pollingRef.current) return;
-      pollingRef.current = window.setInterval(() => {
-        refreshLeaderboard();
-      }, 10000);
-    };
-
-    const stopPolling = () => {
-      if (!pollingRef.current) return;
-      window.clearInterval(pollingRef.current);
-      pollingRef.current = null;
-    };
-
-    window.addEventListener('dailyChallenge:leaderboard:refresh', onRefresh);
-
-    startPolling();
-
-    const onRealtime = () => {
-      stopPolling();
-      window.setTimeout(() => startPolling(), 30000);
-    };
-    window.addEventListener('dailyChallenge:leaderboard:refresh', onRealtime);
-
-    const onVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        refreshLeaderboard();
-      }
-    };
-    document.addEventListener('visibilitychange', onVisibilityChange);
-
-    return () => {
-      stopPolling();
-      window.removeEventListener('dailyChallenge:leaderboard:refresh', onRefresh);
-      window.removeEventListener('dailyChallenge:leaderboard:refresh', onRealtime);
-      document.removeEventListener('visibilitychange', onVisibilityChange);
-    };
-  }, [loading]);
 
   const onJoin = async () => {
     if (!challenge?._id || !challenge?.lesson?._id) return;
     setJoining(true);
     try {
-      console.log('[DailyChallengeCard] join click:', { challengeId: challenge._id, lessonId: challenge.lesson._id, dateKey });
-      const joinRes = await dailyChallengeService.join(challenge._id);
-      console.log('[DailyChallengeCard] join response:', joinRes);
-
-      const lbRes = await dailyChallengeService.getLeaderboard({ date: dateKey });
-      console.log('[DailyChallengeCard] leaderboard after join:', lbRes);
-      const next = lbRes?.data?.leaderboard || lbRes?.leaderboard || lbRes?.data?.data?.leaderboard || [];
-      console.log('[DailyChallengeCard] leaderboard after join parsed length:', Array.isArray(next) ? next.length : -1);
-      setLeaderboard(next);
-
+      const response = await dailyChallengeService.join(challenge._id);
+      const result = response?.data?.data || response?.data || response;
+      const lessonId = result?.lessonId || result?.challenge?.lesson?._id || challenge.lesson._id;
+      if (lessonId) {
+        navigate(`/duolingo/lesson/${lessonId}`);
+        return;
+      }
       navigate(`/duolingo/lesson/${challenge.lesson._id}`);
     } catch (err) {
       console.error('[DailyChallengeCard] join failed:', err);
+      setSocketError(err?.response?.data?.message || err?.message || 'Không thể tham gia Daily Challenge.');
     } finally {
       setJoining(false);
     }
@@ -228,9 +194,7 @@ export default function DailyChallengeCard({ hideLeaderboard = false } = {}) {
         padding: 16,
         marginBottom: 16,
       }}>
-        <div style={{ fontWeight: 900, color: '#1e1b4b', marginBottom: 6 }}>
-          Daily Challenge
-        </div>
+        <div style={{ fontWeight: 900, color: '#1e1b4b', marginBottom: 6 }}>Daily Challenge</div>
         <div style={{ color: '#64748b', fontSize: '0.9rem' }}>
           Hôm nay chưa có thử thách (hoặc thiếu dữ liệu bài học).
         </div>
@@ -256,7 +220,8 @@ export default function DailyChallengeCard({ hideLeaderboard = false } = {}) {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{
-            width: 44, height: 44, borderRadius: 14,
+            width: 44, height: 44,
+            borderRadius: 14,
             background: 'rgba(99,91,255,0.18)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             flexShrink: 0,
@@ -273,13 +238,24 @@ export default function DailyChallengeCard({ hideLeaderboard = false } = {}) {
           </div>
         </div>
 
-        {/* removed XP/bonus badges */}
+        <div style={{ fontSize: '0.75rem', color: isConnected ? '#16a34a' : '#f59e0b', fontWeight: 700 }}>
+          {isConnected ? 'LIVE' : 'ĐANG KẾT NỐI'}
+        </div>
       </div>
 
+      {socketError && (
+        <div style={{ marginTop: 10, color: '#b45309', fontSize: '0.85rem' }}>
+          {socketError}
+        </div>
+      )}
+
       <div style={{
-        marginTop: 10, padding: '8px 12px',
-        background: 'rgba(255,255,255,0.5)', borderRadius: 12,
-        fontSize: '0.82rem', color: '#475569',
+        marginTop: 10,
+        padding: '8px 12px',
+        background: 'rgba(255,255,255,0.5)',
+        borderRadius: 12,
+        fontSize: '0.82rem',
+        color: '#475569',
       }}>
         <span style={{ fontWeight: 600 }}>{challenge.lesson?.title || 'Unknown lesson'}</span>
         <span style={{ color: '#94a3b8' }}> · {challenge.participants || 0} người tham gia</span>
@@ -289,10 +265,16 @@ export default function DailyChallengeCard({ hideLeaderboard = false } = {}) {
         onClick={onJoin}
         disabled={joining}
         style={{
-          width: '100%', marginTop: 10, padding: '9px 0',
+          width: '100%',
+          marginTop: 10,
+          padding: '9px 0',
           background: 'linear-gradient(135deg, #635bff, #818cf8)',
-          color: '#fff', border: 'none', borderRadius: 14,
-          fontWeight: 700, fontSize: '0.875rem', cursor: 'pointer',
+          color: '#fff',
+          border: 'none',
+          borderRadius: 14,
+          fontWeight: 700,
+          fontSize: '0.875rem',
+          cursor: 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
           opacity: joining ? 0.7 : 1,
         }}
@@ -313,21 +295,36 @@ export default function DailyChallengeCard({ hideLeaderboard = false } = {}) {
             const isMe = row.isCurrentUser || row.userId === currentUser?._id || row.userId === currentUser?.id;
             return (
               <div key={i} style={{
-                display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                marginBottom: 6,
                 background: isMe ? 'rgba(99,91,255,0.08)' : 'transparent',
-                borderRadius: 10, padding: '6px 8px',
+                borderRadius: 10,
+                padding: '6px 8px',
               }}>
                 <span style={{
-                  width: 20, textAlign: 'center', fontWeight: 800,
-                  fontSize: '0.75rem', color: i === 0 ? '#f59e0b' : i === 1 ? '#94a3b8' : i === 2 ? '#cd7f32' : '#94a3b8',
+                  width: 20,
+                  textAlign: 'center',
+                  fontWeight: 800,
+                  fontSize: '0.75rem',
+                  color: i === 0 ? '#f59e0b' : i === 1 ? '#94a3b8' : i === 2 ? '#cd7f32' : '#94a3b8',
                 }}>
-                  {row.rank <= 3 ? ['🥇','🥈','🥉'][row.rank - 1] : `#${row.rank}`}
+                  {row.rank <= 3 ? ['🥇', '🥈', '🥉'][row.rank - 1] : `#${row.rank}`}
                 </span>
                 <div style={{
-                  width: 28, height: 28, borderRadius: '50%', background: '#e2e8f0',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: '0.7rem', fontWeight: 700, color: '#64748b',
-                  flexShrink: 0, overflow: 'hidden',
+                  width: 28,
+                  height: 28,
+                  borderRadius: '50%',
+                  background: '#e2e8f0',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '0.7rem',
+                  fontWeight: 700,
+                  color: '#64748b',
+                  flexShrink: 0,
+                  overflow: 'hidden',
                 }}>
                   {row.avatar
                     ? <img src={row.avatar} alt={row.username} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -335,8 +332,13 @@ export default function DailyChallengeCard({ hideLeaderboard = false } = {}) {
                   }
                 </div>
                 <span style={{
-                  flex: 1, fontSize: '0.8rem', fontWeight: isMe ? 700 : 500,
-                  color: isMe ? '#1e1b4b' : '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  flex: 1,
+                  fontSize: '0.8rem',
+                  fontWeight: isMe ? 700 : 500,
+                  color: isMe ? '#1e1b4b' : '#374151',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
                 }}>
                   {isMe ? 'Bạn' : row.username}
                 </span>
@@ -354,3 +356,4 @@ export default function DailyChallengeCard({ hideLeaderboard = false } = {}) {
     </motion.div>
   );
 }
+

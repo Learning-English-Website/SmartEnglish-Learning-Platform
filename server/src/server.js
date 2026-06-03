@@ -11,12 +11,12 @@ const connectDB = require('./config/database');
 // Initialize Redis (connect event logged inside)
 require('./config/redis');
 
-  // Register all event handlers (Node EventEmitter — no HTTP needed)
-  require('./shared/events/eventHandlers');
+// Register all event handlers (Node EventEmitter — no HTTP needed)
+require('./shared/events/eventHandlers');
 
-  // ── Schedulers ───────────────────────────────────────────────────────────────
-  // Streak reminder email/in-app notification at 20:00 daily
-  require('./shared/schedulers/streakReminder.scheduler').start();
+// ── Schedulers ───────────────────────────────────────────────────────────────
+// Streak reminder email/in-app notification at 20:00 daily
+require('./shared/schedulers/streakReminder.scheduler').start();
 
 const PORT = process.env.PORT || 5000;
 

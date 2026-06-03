@@ -1,6 +1,7 @@
 const DailyChallenge = require('../../models/dailyChallenge.model');
 const DailyChallengeScore = require('../../models/dailyChallengeScore.model');
 const Lesson = require('../../models/lesson.model');
+const { getIO } = require('../../config/socketIO');
 const eventBus = require('../../shared/events/eventBus');
 const { getDateKey } = require('../../shared/utils/dateKey');
 
@@ -21,15 +22,40 @@ class DailyChallengeService {
     const lesson = await Lesson.aggregate([{ $sample: { size: 1 } }]);
     if (!lesson || lesson.length === 0) return null;
 
-    challenge = await DailyChallenge.create({
-      date: todayKey,
-      lesson: lesson[0]._id,
-      xpReward: 50,
-      bonusMultiplier: 2,
-      participants: 0,
+    try {
+      await DailyChallenge.create({
+        date: todayKey,
+        lesson: lesson[0]._id,
+        xpReward: 50,
+        bonusMultiplier: 2,
+        participants: 0,
+      });
+    } catch (err) {
+      if (err?.code !== 11000) {
+        throw err;
+      }
+    }
+
+    return DailyChallenge.findOne({ date: todayKey }).populate('lesson');
+  }
+
+  async getTodayChallengeSnapshot() {
+    const challenge = await this.getTodayChallenge();
+    return challenge ? challenge.toObject?.() || challenge : null;
+  }
+
+  async emitTodayChallengeSnapshot() {
+    const io = getIO();
+    const challenge = await this.getTodayChallenge();
+    if (!challenge) return null;
+
+    io.emit('dailyChallenge:challenge:snapshot', {
+      date: challenge.date,
+      challenge,
+      timestamp: Date.now(),
     });
 
-    return DailyChallenge.findById(challenge._id).populate('lesson');
+    return challenge;
   }
 
   async joinChallenge(userId, challengeId) {
@@ -41,8 +67,6 @@ class DailyChallengeService {
 
     if (!challenge) return null;
 
-    // If today's challenge points to a locked lesson, unlock it so the user can complete it.
-    // NOTE: This is a global unlock (lesson.isLocked is not per-user in current schema).
     if (challenge.lesson?._id) {
       try {
         const unlocked = await Lesson.findOneAndUpdate(
@@ -62,10 +86,6 @@ class DailyChallengeService {
       }
     }
 
-    // Ensure the user appears on today's leaderboard immediately (0 XP)
-    // This makes "Join" feel responsive even before the lesson is completed.
-    // NOTE: dailyChallenge leaderboard API returns ApiResponse.success({ date, leaderboard })
-    // so changes should be visible as soon as the client refetches.
     let upserted = false;
     try {
       const res = await DailyChallengeScore.updateOne(
@@ -83,7 +103,6 @@ class DailyChallengeService {
         upsertedCount: res?.upsertedCount,
       });
 
-      // Debug: read back the doc after upsert so we know xp value in DB
       const after = await DailyChallengeScore.findOne({ date: challenge.date, user: userId }).select('date user challenge xp updatedAt');
       console.log('[DailyChallenge] joinChallenge score after:', after ? {
         date: after.date,
@@ -93,7 +112,6 @@ class DailyChallengeService {
         updatedAt: after.updatedAt,
       } : null);
     } catch (err) {
-      // Ignore duplicate key races
       if (err?.code !== 11000) {
         console.error('[DailyChallenge] Failed to upsert score on join:', err);
       }
@@ -106,7 +124,6 @@ class DailyChallengeService {
       lessonId: String(challenge.lesson?._id),
     });
 
-    // Trigger clients to refresh leaderboard right away
     eventBus.emit('dailyChallenge:score_updated', {
       date: challenge.date,
       userId: String(userId),
@@ -120,7 +137,6 @@ class DailyChallengeService {
   async addXpForUserOncePerDay({ userId, dateKey, challengeId, xp }) {
     if (!xp || xp <= 0) return { updated: false, reason: 'no_xp' };
 
-    // Only set XP once per day. If user already has xp > 0 for this date, ignore.
     const existing = await DailyChallengeScore.findOne({ date: dateKey, user: userId })
       .select('xp')
       .lean();

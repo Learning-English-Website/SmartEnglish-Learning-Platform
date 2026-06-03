@@ -1,5 +1,7 @@
 const { Server } = require('socket.io');
+const cookie = require('cookie');
 const { verifyAccessToken } = require('../shared/utils/jwt');
+const { getDateKey } = require('../shared/utils/dateKey');
 
 let io = null;
 
@@ -27,17 +29,23 @@ const initSocketIO = (httpServer) => {
   // ── Authentication middleware ───────────────────────────────────────────────
   io.use(async (socket, next) => {
     try {
-      const token = socket.handshake.auth?.token || socket.handshake.headers?.authorization?.split(' ')[1];
+      const authHeaderToken = socket.handshake.auth?.token || socket.handshake.headers?.authorization?.split(' ')[1];
+      const cookieHeader = socket.request.headers.cookie || socket.handshake.headers.cookie;
+      const cookies = cookieHeader ? cookie.parse(cookieHeader) : {};
+      const cookieToken = cookies.accessToken;
+      const token = cookieToken || authHeaderToken;
+
       if (!token) {
         // Allow unauthenticated connections for public events (e.g., public leaderboard)
         socket.userId = null;
         return next();
       }
+
       const decoded = verifyAccessToken(token);
       socket.userId = decoded.sub;
       next();
-    } catch {
-      // Invalid token → allow as guest
+    } catch (err) {
+      console.warn('[Socket.IO] Auth failed, continuing as guest:', err.message);
       socket.userId = null;
       next();
     }
@@ -45,7 +53,7 @@ const initSocketIO = (httpServer) => {
 
   // ── Connection handler ───────────────────────────────────────────────────────
   io.on('connection', (socket) => {
-    console.log(`[Socket.IO] Client connected: ${socket.id}, userId: ${socket.userId}`);
+    console.log(`[Socket.IO] Client connected: ${socket.id}, userId: ${socket.userId}, rooms: ${Array.from(socket.rooms).join(',')}`);
 
     // Join user-specific private room
     if (socket.userId) {
@@ -56,6 +64,75 @@ const initSocketIO = (httpServer) => {
     }
 
     // ── Client → Server events ───────────────────────────────────────────────
+
+    socket.on('dailyChallenge:subscribe', async (payload = {}) => {
+      try {
+        const requestedDateKey = typeof payload.dateKey === 'string' && payload.dateKey.trim()
+          ? payload.dateKey.trim()
+          : getDateKey(new Date());
+        const room = `dailyChallenge:${requestedDateKey}`;
+
+        socket.data.dailyChallengeRoom = room;
+        socket.join(room);
+
+        const dailyChallengeService = require('../modules/quest/dailyChallenge.service');
+        const leaderboard = await dailyChallengeService.getLeaderboard(requestedDateKey, { limit: payload.limit || 20 });
+
+        console.log(`[Socket.IO] dailyChallenge:subscribe → socket=${socket.id} userId=${socket.userId} joined room=${room}`);
+
+        socket.emit('dailyChallenge:leaderboard:snapshot', {
+          date: requestedDateKey,
+          leaderboard,
+          timestamp: Date.now(),
+        });
+      } catch (err) {
+        console.error('[Socket.IO] Failed to subscribe daily challenge room:', err.message);
+        socket.emit('dailyChallenge:leaderboard:error', {
+          message: 'Không thể tải bảng xếp hạng realtime',
+        });
+      }
+    });
+
+    socket.on('dailyChallenge:unsubscribe', (payload = {}) => {
+      const requestedDateKey = typeof payload.dateKey === 'string' && payload.dateKey.trim()
+        ? payload.dateKey.trim()
+        : getDateKey(new Date());
+      const room = `dailyChallenge:${requestedDateKey}`;
+      socket.leave(room);
+      if (socket.data.dailyChallengeRoom === room) {
+        socket.data.dailyChallengeRoom = null;
+      }
+    });
+
+    socket.on('dailyChallenge:join', async (payload = {}, callback) => {
+      try {
+        if (!socket.userId) {
+          return callback({ error: 'unauthorized', message: 'Vui lòng đăng nhập để tham gia Daily Challenge.' });
+        }
+
+        const { challengeId } = payload;
+        if (!challengeId) {
+          return callback({ error: 'invalid_payload', message: 'Thiếu challengeId.' });
+        }
+
+        const dailyChallengeService = require('../modules/quest/dailyChallenge.service');
+        const challenge = await dailyChallengeService.joinChallenge(socket.userId, challengeId);
+
+        if (!challenge) {
+          return callback({ error: 'not_found', message: 'Daily Challenge không tìm thấy.' });
+        }
+
+        callback(null, {
+          success: true,
+          challenge,
+          lessonId: String(challenge.lesson?._id || challenge.lesson),
+          date: challenge.date,
+        });
+      } catch (err) {
+        console.error('[Socket.IO] dailyChallenge:join error:', err.message);
+        callback({ error: 'server_error', message: 'Không thể tham gia Daily Challenge. Vui lòng thử lại.' });
+      }
+    });
 
     // Request leaderboard refresh
     socket.on('leaderboard:request', async () => {
@@ -103,4 +180,13 @@ const broadcast = (event, data) => {
   io.emit(event, data);
 };
 
-module.exports = { initSocketIO, getIO, emitToUser, broadcast };
+/**
+ * Emit an event to a named room.
+ */
+const broadcastToRoom = (room, event, data) => {
+  if (!io) return;
+  console.log(`[Socket.IO] broadcastToRoom → room="${room}" event="${event}" clients=${io.sockets.adapter.rooms.get(room)?.size ?? '?'}`);
+  io.to(room).emit(event, data);
+};
+
+module.exports = { initSocketIO, getIO, emitToUser, broadcast, broadcastToRoom };
