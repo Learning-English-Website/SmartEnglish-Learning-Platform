@@ -1,0 +1,324 @@
+import { useState, useEffect, useCallback } from 'react';
+import { Search, Trash2, Eye, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { adminService } from '../../services/adminService';
+import toast from 'react-hot-toast';
+import './AdminPage.css';
+
+function Modal({ isOpen, onClose, title, children }) {
+  if (!isOpen) return null;
+  return (
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal-content modal-lg">
+        <div className="modal-header">
+          <h3>{title}</h3>
+          <button className="modal-close" onClick={onClose}><X size={16} /></button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function DeleteModal({ isOpen, onClose, onConfirm, title }) {
+  const [loading, setLoading] = useState(false);
+  if (!isOpen) return null;
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content" style={{ maxWidth: 420 }}>
+        <div className="modal-header">
+          <h3>Xác nhận xóa</h3>
+          <button className="modal-close" onClick={onClose}><X size={16} /></button>
+        </div>
+        <div className="modal-body">
+          <p style={{ textAlign: 'center', color: 'var(--text-muted)', marginBottom: '1rem' }}>
+            Bạn có chắc muốn xóa bộ flashcard này?
+          </p>
+          <p style={{ textAlign: 'center', fontSize: '0.85rem', color: 'var(--text-heading)', wordBreak: 'break-word' }}>{title}</p>
+          <div className="delete-confirm-warning">⚠️ Tất cả thẻ trong bộ này sẽ bị xóa vĩnh viễn.</div>
+        </div>
+        <div className="modal-footer">
+          <button className="btn-secondary-admin" onClick={onClose}>Hủy</button>
+          <button className="btn-danger-admin" disabled={loading} onClick={async () => { setLoading(true); await onConfirm(); setLoading(false); }}>
+            {loading ? 'Đang xóa...' : 'Xóa vĩnh viễn'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function AdminFlashcardSetsPage() {
+  const [sets, setSets] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pages, setPages] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const [deleteItem, setDeleteItem] = useState(null);
+  const [viewItem, setViewItem] = useState(null);
+  const [viewLoading, setViewLoading] = useState(false);
+
+  const loadData = useCallback(async (pageNum = 1) => {
+    setLoading(true);
+    try {
+      const params = { page: pageNum, limit: 10 };
+      if (search.trim()) params.search = search.trim();
+      const res = await adminService.getFlashcardSets(params);
+      const data = res.data;
+      setSets(data.sets || []);
+      setTotal(data.total || 0);
+      setPage(data.page || 1);
+      setPages(data.pages || 1);
+    } catch { toast.error('Không thể tải dữ liệu'); }
+    finally { setLoading(false); }
+  }, [search]);
+
+  useEffect(() => { loadData(1); }, [loadData]);
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    setSearch(searchInput);
+  };
+
+  const openView = async (item) => {
+    setViewLoading(true);
+    setViewItem(null);
+    try {
+      const res = await adminService.getFlashcardSet(item._id);
+      setViewItem(res.data);
+    } catch { toast.error('Không thể tải chi tiết'); }
+    finally { setViewLoading(false); }
+  };
+
+  const handleDelete = async () => {
+    try {
+      await adminService.deleteFlashcardSet(deleteItem._id);
+      toast.success('Đã xóa bộ flashcard');
+      setDeleteItem(null);
+      loadData(page);
+    } catch (err) { toast.error(err.response?.data?.error?.message || 'Xóa thất bại'); }
+  };
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return '—';
+    return new Date(dateStr).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  };
+
+  const getPageNumbers = () => {
+    const range = [];
+    const delta = 2;
+    for (let i = 1; i <= pages; i++) {
+      if (i === 1 || i === pages || (i >= page - delta && i <= page + delta)) {
+        range.push(i);
+      } else if (range[range.length - 1] !== '...') {
+        range.push('...');
+      }
+    }
+    return range;
+  };
+
+  if (loading && !sets.length) return <div className="admin-page-loading"><div className="admin-spinner" /><p>Đang tải...</p></div>;
+
+  return (
+    <div className="admin-page">
+      <div className="admin-page-header">
+        <div>
+          <h2>Quản lý Flashcard Sets</h2>
+          <p>{total} bộ flashcard</p>
+        </div>
+      </div>
+
+      <div className="admin-filter-bar">
+        <form onSubmit={handleSearch} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, maxWidth: 400 }}>
+          <div style={{ position: 'relative', flex: 1 }}>
+            <Search size={15} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
+            <input
+              type="text"
+              value={searchInput}
+              onChange={e => setSearchInput(e.target.value)}
+              placeholder="Tìm kiếm theo tiêu đề, mô tả..."
+              style={{ paddingLeft: 40, width: '100%', boxSizing: 'border-box' }}
+            />
+          </div>
+          <button type="submit" className="btn-primary-admin" style={{ padding: '10px 16px' }}>Tìm</button>
+        </form>
+      </div>
+
+      {sets.length === 0 ? (
+        <div className="admin-empty">
+          <div className="admin-empty-icon">📇</div>
+          <h3>Chưa có bộ flashcard nào</h3>
+          <p>{(search) ? 'Không tìm thấy kết quả phù hợp' : 'Danh sách trống'}</p>
+        </div>
+      ) : (
+        <>
+          <div className="admin-table-wrap">
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>STT</th>
+                  <th>Tiêu đề</th>
+                  <th>Mô tả</th>
+                  <th>Chủ sở hữu</th>
+                  <th>Thẻ</th>
+                  <th>Ngôn ngữ</th>
+                  <th>Công khai</th>
+                  <th>Thumbnail</th>
+                  <th>Ngày tạo</th>
+                  <th style={{ textAlign: 'right' }}>Hành động</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sets.map((s, i) => (
+                  <tr key={s._id} onClick={() => openView(s)} style={{ cursor: 'pointer' }}>
+                    <td className="admin-td-num">{(page - 1) * 10 + i + 1}</td>
+                    <td className="admin-td-title">{s.title || '—'}</td>
+                    <td className="admin-td-muted" title={s.description}>{s.description || '—'}</td>
+                    <td className="admin-td-muted">{s.owner?.username || s.owner?.email || '—'}</td>
+                    <td style={{ textAlign: 'center', fontWeight: 600, color: 'var(--text-heading)' }}>{s.cardCount ?? s.cards?.length ?? 0}</td>
+                    <td><span className="admin-badge" style={{ fontSize: '0.7rem' }}>{s.language || '—'}</span></td>
+                    <td>
+                      <span className={`admin-badge ${s.isPublic ? 'published' : 'draft'}`} style={{ fontSize: '0.7rem' }}>
+                        {s.isPublic ? 'Có' : 'Không'}
+                      </span>
+                    </td>
+                    <td>
+                      {s.thumbnail ? (
+                        <img src={s.thumbnail} alt="thumb" style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 8 }} onError={e => { e.target.style.display = 'none'; }} />
+                      ) : (
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>—</span>
+                      )}
+                    </td>
+                    <td className="admin-td-muted">{formatDate(s.createdAt)}</td>
+                    <td className="admin-td-actions" onClick={e => e.stopPropagation()}>
+                      <button className="btn-action" onClick={() => openView(s)} title="Xem chi tiết"><Eye size={14} /></button>
+                      <button className="btn-action danger" onClick={() => setDeleteItem(s)} title="Xóa"><Trash2 size={14} /></button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {pages > 1 && (
+            <div className="admin-pagination">
+              <button
+                className="admin-pagination-btn"
+                disabled={page <= 1 || loading}
+                onClick={() => loadData(page - 1)}
+              >
+                <ChevronLeft size={16} />
+              </button>
+              {getPageNumbers().map((p, idx) => {
+                if (p === '...') {
+                  return <span key={`ellipsis-${idx}`} className="admin-pagination-ellipsis">...</span>;
+                }
+                return (
+                  <button
+                    key={p}
+                    className={`admin-pagination-btn ${page === p ? 'active' : ''}`}
+                    disabled={loading}
+                    onClick={() => loadData(p)}
+                  >
+                    {p}
+                  </button>
+                );
+              })}
+              <button
+                className="admin-pagination-btn"
+                disabled={page >= pages || loading}
+                onClick={() => loadData(page + 1)}
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          )}
+        </>
+      )}
+
+      <Modal isOpen={!!viewItem || viewLoading} onClose={() => setViewItem(null)} title="Chi tiết Flashcard Set">
+        {viewLoading ? (
+          <div className="modal-body" style={{ textAlign: 'center', padding: '3rem' }}>
+            <div className="admin-spinner" />
+            <p style={{ color: 'var(--text-muted)', marginTop: '1rem' }}>Đang tải...</p>
+          </div>
+        ) : viewItem ? (
+          <>
+            <div className="modal-body">
+              {viewItem.thumbnail && (
+                <div style={{ marginBottom: '1.5rem', textAlign: 'center' }}>
+                  <img src={viewItem.thumbnail} alt="cover" style={{ maxWidth: '100%', maxHeight: 200, objectFit: 'cover', borderRadius: 12 }} />
+                </div>
+              )}
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Tiêu đề</label>
+                  <div style={{ padding: '10px 16px', background: 'var(--bg-page)', borderRadius: 10, fontWeight: 600, color: 'var(--text-heading)', border: '1px solid var(--border-subtle)' }}>{viewItem.title || '—'}</div>
+                </div>
+                <div className="form-group">
+                  <label>Chủ sở hữu</label>
+                  <div style={{ padding: '10px 16px', background: 'var(--bg-page)', borderRadius: 10, fontWeight: 600, color: 'var(--text-heading)', border: '1px solid var(--border-subtle)' }}>{viewItem.owner?.username || viewItem.owner?.email || '—'}</div>
+                </div>
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Ngôn ngữ</label>
+                  <div style={{ padding: '10px 16px', background: 'var(--bg-page)', borderRadius: 10, fontWeight: 600, color: 'var(--text-heading)', border: '1px solid var(--border-subtle)' }}>{viewItem.language || '—'}</div>
+                </div>
+                <div className="form-group">
+                  <label>Công khai</label>
+                  <div style={{ padding: '10px 16px', background: 'var(--bg-page)', borderRadius: 10, fontWeight: 600, color: 'var(--text-heading)', border: '1px solid var(--border-subtle)' }}>
+                    <span className={`admin-badge ${viewItem.isPublic ? 'published' : 'draft'}`}>{viewItem.isPublic ? 'Có' : 'Không'}</span>
+                  </div>
+                </div>
+              </div>
+              <div className="form-group">
+                <label>Mô tả</label>
+                <div style={{ padding: '10px 16px', background: 'var(--bg-page)', borderRadius: 10, fontSize: '0.9rem', color: 'var(--text-body)', border: '1px solid var(--border-subtle)', minHeight: 60 }}>{viewItem.description || '—'}</div>
+              </div>
+              <div className="form-group">
+                <label>Ngày tạo</label>
+                <div style={{ padding: '10px 16px', background: 'var(--bg-page)', borderRadius: 10, fontSize: '0.85rem', color: 'var(--text-muted)', border: '1px solid var(--border-subtle)' }}>{formatDate(viewItem.createdAt)}</div>
+              </div>
+
+              <div style={{ marginTop: '1.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.725rem', fontWeight: 750, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px' }}>
+                    Danh sách thẻ ({viewItem.cards?.length ?? 0})
+                  </label>
+                </div>
+                {viewItem.cards && viewItem.cards.length > 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 350, overflowY: 'auto' }}>
+                    {viewItem.cards.map((card, idx) => (
+                      <div key={card._id || idx} style={{ display: 'flex', alignItems: 'stretch', background: 'var(--bg-page)', border: '1px solid var(--border-subtle)', borderRadius: 12, overflow: 'hidden' }}>
+                        <div style={{ width: 4, background: 'linear-gradient(to bottom, #6366f1, #7c3aed)', flexShrink: 0 }} />
+                        <div style={{ padding: '12px 16px', flex: 1 }}>
+                          <div style={{ fontWeight: 700, color: 'var(--text-heading)', marginBottom: 4 }}>{card.front || card.term || '—'}</div>
+                          <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{card.back || card.definition || '—'}</div>
+                          {card.pronunciation && <div style={{ fontSize: '0.775rem', color: '#a855f7', marginTop: 4, fontStyle: 'italic' }}>{card.pronunciation}</div>}
+                        </div>
+                        {card.image && (
+                          <div style={{ width: 80, flexShrink: 0 }}>
+                            <img src={card.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { e.target.parentElement.style.display = 'none'; }} />
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '2rem', fontSize: '0.9rem' }}>Không có thẻ nào</p>
+                )}
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn-secondary-admin" onClick={() => setViewItem(null)}>Đóng</button>
+            </div>
+          </>
+        ) : null}
+      </Modal>
+
+      <DeleteModal isOpen={!!deleteItem} onClose={() => setDeleteItem(null)} onConfirm={handleDelete} title={deleteItem?.title || ''} />
+    </div>
+  );
+}

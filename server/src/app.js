@@ -86,6 +86,7 @@ app.use('/api/duolingo', require('./modules/duolingo/duolingo.routes'));
 app.use('/api/payment', require('./modules/payment/payment.routes'));
 app.use('/api/quests', require('./modules/quest/quest.routes'));
 app.use('/api/notifications', require('./modules/notification/notification.routes'));
+app.use('/api/admin', require('./modules/admin/admin.routes'));
 
 // ── 404 Handler ───────────────────────────────────────────────────────────────
 app.use('/{*path}', (req, res) => {

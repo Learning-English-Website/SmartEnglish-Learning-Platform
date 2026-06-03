@@ -30,7 +30,11 @@ export function useAuth() {
     const result = await dispatch(loginUser({ email, password }));
     if (loginUser.fulfilled.match(result)) {
       toast.success(`Welcome back, ${result.payload.username}! 👋`);
-      navigate('/', { replace: true });
+      if (result.payload.role === 'admin') {
+        navigate('/admin', { replace: true });
+      } else {
+        navigate('/', { replace: true });
+      }
     } else {
       toast.error(result.payload || 'Login failed');
     }
@@ -53,7 +57,11 @@ export function useAuth() {
     const result = await dispatch(verifyEmailOtp({ email, otp }));
     if (verifyEmailOtp.fulfilled.match(result)) {
       toast.success('Email verified! Account activated.');
-      navigate('/', { replace: true });
+      if (result.payload.role === 'admin') {
+        navigate('/admin', { replace: true });
+      } else {
+        navigate('/', { replace: true });
+      }
       return true;
     } else {
       toast.error(result.payload || 'OTP verification failed');

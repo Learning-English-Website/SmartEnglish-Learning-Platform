@@ -113,9 +113,24 @@ export default function CommunitySetDetail() {
               {set.description && <p className="sd-desc">{set.description}</p>}
               {set.tags?.length > 0 && (
                 <div className="sd-tags">
-                  {set.tags.map((tag) => (
-                    <span key={tag} className="sd-tag">{tag}</span>
-                  ))}
+                  {set.tags.map((tag) => {
+                    const tagId = tag?._id || tag;
+                    const tagName = tag?.name || tag;
+                    const tagColor = tag?.color;
+                    return (
+                      <span
+                        key={tagId}
+                        className="sd-tag"
+                        style={tagColor ? {
+                          background: `${tagColor}15`,
+                          borderColor: `${tagColor}30`,
+                          color: tagColor
+                        } : {}}
+                      >
+                        {tagName}
+                      </span>
+                    );
+                  })}
                 </div>
               )}
               <div className="sd-meta">
