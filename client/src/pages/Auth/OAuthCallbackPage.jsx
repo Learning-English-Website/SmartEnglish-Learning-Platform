@@ -27,7 +27,8 @@ export default function OAuthCallbackPage() {
     dispatch(loadUser())
       .then((result) => {
         if (loadUser.fulfilled.match(result) && result.payload) {
-          navigate(redirect, { replace: true });
+          const dest = result.payload.role === 'admin' ? '/admin' : (redirect !== '/dashboard' ? redirect : '/');
+          navigate(dest, { replace: true });
         } else {
           navigate('/login?error=oauth_failed', { replace: true });
         }

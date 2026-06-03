@@ -5,6 +5,8 @@ import DashboardLayout from './components/Layout/DashboardLayout';
 import StudyLayout from './components/Layout/StudyLayout';
 import PublicSetLayout from './components/PublicSetLayout/PublicSetLayout';
 import ProtectedRoute from './components/ProtectedRoute/ProtectedRoute';
+import AdminRoute from './components/AdminRoute/AdminRoute';
+import AdminLayout from './components/AdminLayout/AdminLayout';
 import LoadingSpinner from './components/common/LoadingSpinner/LoadingSpinner';
 
 // ── Lazy-loaded pages ─────────────────────────────────────────────────────────
@@ -40,25 +42,26 @@ const ProPage = lazy(() => import('./pages/Pro/ProPage'));
 const SuccessPage = lazy(() => import('./pages/Pro/SuccessPage'));
 const CancelPage = lazy(() => import('./pages/Pro/CancelPage'));
 
+// Admin pages
+const AdminDashboard = lazy(() => import('./pages/Admin/AdminDashboard'));
+const AdminCoursesPage = lazy(() => import('./pages/Admin/AdminCoursesPage'));
+const AdminUnitsPage = lazy(() => import('./pages/Admin/AdminUnitsPage'));
+const AdminLessonsPage = lazy(() => import('./pages/Admin/AdminLessonsPage'));
+const AdminChallengesPage = lazy(() => import('./pages/Admin/AdminChallengesPage'));
+const AdminFlashcardSetsPage = lazy(() => import('./pages/Admin/AdminFlashcardSetsPage'));
+const AdminFoldersPage = lazy(() => import('./pages/Admin/AdminFoldersPage'));
+const AdminCommunitySetsPage = lazy(() => import('./pages/Admin/AdminCommunitySetsPage'));
+const AdminUsersPage = lazy(() => import('./pages/Admin/AdminUsersPage'));
+
 const withSuspense = (element) => (
   <Suspense fallback={<LoadingSpinner fullScreen text="Loading..." />}>
     {element}
   </Suspense>
 );
 
-// Study route wrappers
-const withStudyLayout = (Page) => {
-  const Wrapped = (props) => (
-    <StudyLayout backTo="/dashboard">
-      <Page {...props} />
-    </StudyLayout>
-  );
-  return Wrapped;
-};
-
-  // ── Routes ─────────────────────────────────────────────────────────────────────
+// ── Routes ─────────────────────────────────────────────────────────────────────
 const router = createBrowserRouter([
-  // Public routes (Login, Register, etc.)
+  // Public routes
   {
     element: <Layout />,
     children: [
@@ -70,13 +73,12 @@ const router = createBrowserRouter([
       { path: '/forgot-password/otp', element: withSuspense(<ForgotPasswordPage />) },
       { path: '/oauth/callback', element: withSuspense(<OAuthCallbackPage />) },
       { path: '/shared/:shareCode', element: withSuspense(<SharedSet />) },
-      // Payment pages (public - success/cancel)
       { path: '/premium/success', element: withSuspense(<SuccessPage />) },
       { path: '/premium/cancel', element: withSuspense(<CancelPage />) },
     ],
   },
 
-  // Public set routes with PublicSetLayout (không require login)
+  // Public set routes
   {
     element: <PublicSetLayout />,
     children: [
@@ -84,7 +86,7 @@ const router = createBrowserRouter([
     ],
   },
 
-  // Protected routes with DashboardLayout (sidebar + top navbar)
+  // Protected routes with DashboardLayout
   {
     element: (
       <ProtectedRoute>
@@ -115,17 +117,15 @@ const router = createBrowserRouter([
       { path: '/duolingo/lesson/:lessonId', element: withSuspense(<LessonPage />) },
       { path: '/profile', element: withSuspense(<ProfilePage />) },
       { path: '/user/profile', element: withSuspense(<ProfilePage />) },
-      { path: '/admin/profile', element: withSuspense(<ProfilePage />) },
       { path: '/profile/edit', element: withSuspense(<EditProfilePage />) },
       { path: '/community/sets/:id', element: withSuspense(<CommunitySetDetail />) },
       { path: '/study-sets/:id', element: withSuspense(<StudySetDetail />) },
       { path: '/folders/:id/:slug', element: withSuspense(<FolderPage />) },
-      // Premium page (protected)
       { path: '/premium', element: withSuspense(<ProPage />) },
     ],
   },
 
-  // Protected routes with StudyLayout (minimal topbar, no sidebar — immersive study)
+  // Protected routes with StudyLayout
   {
     element: (
       <ProtectedRoute>
@@ -137,17 +137,30 @@ const router = createBrowserRouter([
       { path: '/study-sets/:id/flashcards', element: withSuspense(<StudyPage />) },
       { path: '/study-sets/:id/test', element: withSuspense(<StudyPage />) },
       { path: '/study-sets/:id/match', element: withSuspense(<StudyPage />) },
+      { path: '/study-sets/:id/learn', element: withSuspense(<StudySetLearn />) },
     ],
   },
-  // Learn page - no header
+
+  // Admin routes (separate layout, admin only)
   {
     element: (
-      <ProtectedRoute>
-        <StudyLayout backTo="/dashboard" hideHeader />
-      </ProtectedRoute>
+      <AdminRoute>
+        <AdminLayout>
+          <Outlet />
+        </AdminLayout>
+      </AdminRoute>
     ),
     children: [
-      { path: '/study-sets/:id/learn', element: withSuspense(<StudySetLearn />) },
+      { path: '/admin', element: withSuspense(<AdminDashboard />) },
+      { path: '/admin/dashboard', element: withSuspense(<AdminDashboard />) },
+      { path: '/admin/courses', element: withSuspense(<AdminCoursesPage />) },
+      { path: '/admin/units', element: withSuspense(<AdminUnitsPage />) },
+      { path: '/admin/lessons', element: withSuspense(<AdminLessonsPage />) },
+      { path: '/admin/challenges', element: withSuspense(<AdminChallengesPage />) },
+      { path: '/admin/flashcards', element: withSuspense(<AdminFlashcardSetsPage />) },
+      { path: '/admin/folders', element: withSuspense(<AdminFoldersPage />) },
+      { path: '/admin/community', element: withSuspense(<AdminCommunitySetsPage />) },
+      { path: '/admin/users', element: withSuspense(<AdminUsersPage />) },
     ],
   },
 ]);
