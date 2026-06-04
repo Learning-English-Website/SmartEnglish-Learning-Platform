@@ -376,10 +376,10 @@ fun RegisterScreen(
                                 onDone = {
                                     focusManager.clearFocus()
                                     if (validateRegister(
-                                            email, username, password, confirmPassword,
+                                            email.trim(), username.trim(), password, confirmPassword,
                                             { emailError = it }, { usernameError = it }, { passwordError = it }, { confirmError = it }
                                         )) {
-                                        viewModel.register(email, username, password)
+                                        viewModel.register(email.trim(), username.trim(), password)
                                     }
                                 }
                             ),
@@ -406,10 +406,10 @@ fun RegisterScreen(
                             onClick = {
                                 focusManager.clearFocus()
                                 if (validateRegister(
-                                        email, username, password, confirmPassword,
+                                        email.trim(), username.trim(), password, confirmPassword,
                                         { emailError = it }, { usernameError = it }, { passwordError = it }, { confirmError = it }
                                     )) {
-                                    viewModel.register(email, username, password)
+                                    viewModel.register(email.trim(), username.trim(), password)
                                 }
                             },
                             enabled = uiState !is AuthUiState.Loading,

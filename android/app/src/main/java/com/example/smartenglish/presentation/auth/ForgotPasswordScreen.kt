@@ -120,7 +120,7 @@ fun ForgotPasswordScreen(
                 // Navigate to OTP Reset Password screen after showing success
                 kotlinx.coroutines.delay(1500)
                 viewModel.resetState()
-                onNavigateToOtpResetPassword(email)
+                onNavigateToOtpResetPassword(email.trim())
             }
             is AuthUiState.Error -> {
                 snackbarHostState.showSnackbar((uiState as AuthUiState.Error).message)
@@ -321,8 +321,8 @@ fun ForgotPasswordScreen(
                                 keyboardActions = KeyboardActions(
                                     onDone = {
                                         focusManager.clearFocus()
-                                        if (validateEmail(email, { emailError = it })) {
-                                            viewModel.forgotPassword(email)
+                                        if (validateEmail(email.trim(), { emailError = it })) {
+                                            viewModel.forgotPassword(email.trim())
                                         }
                                     }
                                 ),
@@ -348,8 +348,8 @@ fun ForgotPasswordScreen(
                             Button(
                                 onClick = {
                                     focusManager.clearFocus()
-                                    if (validateEmail(email, { emailError = it })) {
-                                        viewModel.forgotPassword(email)
+                                    if (validateEmail(email.trim(), { emailError = it })) {
+                                        viewModel.forgotPassword(email.trim())
                                     }
                                 },
                                 enabled = uiState !is AuthUiState.Loading,

@@ -331,18 +331,23 @@ private fun OtpInput(
             modifier = Modifier
                 .focusRequester(focusRequester),
             decorationBox = { innerTextField ->
-                Row(
-                    horizontalArrangement = Arrangement.Center,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    repeat(6) { index ->
-                        OtpBox(
-                            index = index,
-                            otp = otp,
-                            isFocused = otp.length == index
-                        )
-                        if (index < 5) {
-                            Spacer(modifier = Modifier.width(8.dp))
+                Box {
+                    Box(modifier = Modifier.size(0.dp)) {
+                        innerTextField()
+                    }
+                    Row(
+                        horizontalArrangement = Arrangement.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        repeat(6) { index ->
+                            OtpBox(
+                                index = index,
+                                otp = otp,
+                                isFocused = otp.length == index
+                            )
+                            if (index < 5) {
+                                Spacer(modifier = Modifier.width(6.dp))
+                            }
                         }
                     }
                 }
@@ -373,7 +378,7 @@ private fun OtpBox(
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier
-            .size(46.dp)
+            .size(38.dp)
             .clip(RoundedCornerShape(12.dp))
             .border(
                 1.dp,
@@ -394,7 +399,7 @@ private fun OtpBox(
             text = digit,
             style = MaterialTheme.typography.headlineMedium.copy(
                 fontWeight = FontWeight.Bold,
-                fontSize = 22.sp
+                fontSize = 18.sp
             ),
             color = Color.White
         )

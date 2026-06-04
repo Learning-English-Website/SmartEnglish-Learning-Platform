@@ -49,13 +49,14 @@ class AuthViewModel @Inject constructor(
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
 
     fun login(email: String, password: String) {
+        val trimmedEmail = email.trim()
         viewModelScope.launch {
             _uiState.value = AuthUiState.Loading
-            when (val result = loginUseCase(email, password)) {
+            when (val result = loginUseCase(trimmedEmail, password)) {
                 is ApiResult.Success -> _uiState.value = AuthUiState.Success(result.data)
                 is ApiResult.EmailVerificationRequired -> {
-                    _pendingEmail.value = result.email
-                    _uiState.value = AuthUiState.EmailVerificationRequired(result.email)
+                    _pendingEmail.value = result.email.trim()
+                    _uiState.value = AuthUiState.EmailVerificationRequired(result.email.trim())
                 }
                 is ApiResult.Error -> _uiState.value = AuthUiState.Error(result.message)
                 is ApiResult.Loading -> _uiState.value = AuthUiState.Loading
@@ -64,12 +65,13 @@ class AuthViewModel @Inject constructor(
     }
 
     fun register(email: String, username: String, password: String) {
+        val trimmedEmail = email.trim()
         viewModelScope.launch {
             _uiState.value = AuthUiState.Loading
-            _pendingEmail.value = email
-            when (val result = registerUseCase(email, username, password)) {
+            _pendingEmail.value = trimmedEmail
+            when (val result = registerUseCase(trimmedEmail, username.trim(), password)) {
                 is ApiResult.Success -> _uiState.value = AuthUiState.Success(result.data)
-                is ApiResult.EmailVerificationRequired -> _uiState.value = AuthUiState.EmailVerificationRequired(email)
+                is ApiResult.EmailVerificationRequired -> _uiState.value = AuthUiState.EmailVerificationRequired(trimmedEmail)
                 is ApiResult.Error -> _uiState.value = AuthUiState.Error(result.message)
                 is ApiResult.Loading -> _uiState.value = AuthUiState.Loading
             }
@@ -77,10 +79,11 @@ class AuthViewModel @Inject constructor(
     }
 
     fun forgotPassword(email: String) {
+        val trimmedEmail = email.trim()
         viewModelScope.launch {
             _uiState.value = AuthUiState.Loading
-            _pendingEmail.value = email
-            when (val result = forgotPasswordUseCase(email)) {
+            _pendingEmail.value = trimmedEmail
+            when (val result = forgotPasswordUseCase(trimmedEmail)) {
                 is ApiResult.Success -> _uiState.value = AuthUiState.ForgotPasswordSuccess("OTP sent to your email")
                 is ApiResult.Error -> _uiState.value = AuthUiState.Error(result.message)
                 is ApiResult.Loading -> _uiState.value = AuthUiState.Loading

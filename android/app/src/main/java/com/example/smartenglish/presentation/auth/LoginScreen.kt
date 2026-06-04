@@ -392,8 +392,8 @@ fun LoginScreen(
                         Button(
                             onClick = {
                                 focusManager.clearFocus()
-                                if (validateLogin(email, password, { emailError = it }, { passwordError = it })) {
-                                    viewModel.login(email, password)
+                                if (validateLogin(email.trim(), password, { emailError = it }, { passwordError = it })) {
+                                    viewModel.login(email.trim(), password)
                                 }
                             },
                             enabled = uiState !is AuthUiState.Loading,
