@@ -179,9 +179,10 @@ object AppModule {
     @Singleton
     fun provideAuthRepository(
         authApi: AuthApi,
-        tokenManager: TokenManager
+        tokenManager: TokenManager,
+        database: com.example.smartenglish.data.local.AppDatabase
     ): AuthRepository {
-        return AuthRepositoryImpl(authApi, tokenManager)
+        return AuthRepositoryImpl(authApi, tokenManager, database)
     }
 
     @Provides
@@ -189,9 +190,10 @@ object AppModule {
     fun provideUserRepository(
         userApi: UserApi,
         mediaApi: MediaApi,
-        networkMonitor: NetworkMonitor
+        networkMonitor: NetworkMonitor,
+        tokenManager: TokenManager
     ): UserRepository {
-        return UserRepositoryImpl(userApi, mediaApi, networkMonitor)
+        return UserRepositoryImpl(userApi, mediaApi, networkMonitor, tokenManager)
     }
 
     @Provides
@@ -200,9 +202,10 @@ object AppModule {
         setApi: SetApi,
         setDao: FlashcardSetDao,
         networkMonitor: NetworkMonitor,
-        syncManager: SyncManager
+        syncManager: SyncManager,
+        tokenManager: TokenManager
     ): SetRepository {
-        return SetRepositoryImpl(setApi, setDao, networkMonitor, syncManager)
+        return SetRepositoryImpl(setApi, setDao, networkMonitor, syncManager, tokenManager)
     }
 
     @Provides

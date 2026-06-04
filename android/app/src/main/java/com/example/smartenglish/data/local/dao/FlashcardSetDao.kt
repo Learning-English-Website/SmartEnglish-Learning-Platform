@@ -7,17 +7,17 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface FlashcardSetDao {
 
-    @Query("SELECT * FROM flashcard_sets WHERE syncStatus != 'DELETED' ORDER BY localUpdatedAt DESC")
-    fun getAllSets(): Flow<List<FlashcardSetEntity>>
+    @Query("SELECT * FROM flashcard_sets WHERE syncStatus != 'DELETED' AND (userId = :userId OR isDownloaded = 1) ORDER BY localUpdatedAt DESC")
+    fun getAllSets(userId: String): Flow<List<FlashcardSetEntity>>
 
-    @Query("SELECT * FROM flashcard_sets WHERE syncStatus != 'DELETED' ORDER BY localUpdatedAt DESC")
-    suspend fun getAllSetsList(): List<FlashcardSetEntity>
+    @Query("SELECT * FROM flashcard_sets WHERE syncStatus != 'DELETED' AND (userId = :userId OR isDownloaded = 1) ORDER BY localUpdatedAt DESC")
+    suspend fun getAllSetsList(userId: String): List<FlashcardSetEntity>
 
-    @Query("SELECT * FROM flashcard_sets WHERE syncStatus != 'DELETED' ORDER BY localUpdatedAt DESC")
-    suspend fun getMySetsList(): List<FlashcardSetEntity>
+    @Query("SELECT * FROM flashcard_sets WHERE syncStatus != 'DELETED' AND (userId = :userId OR isDownloaded = 1) ORDER BY localUpdatedAt DESC")
+    suspend fun getMySetsList(userId: String): List<FlashcardSetEntity>
 
-    @Query("SELECT * FROM flashcard_sets WHERE syncStatus != 'DELETED' ORDER BY localUpdatedAt DESC")
-    fun getMySets(): Flow<List<FlashcardSetEntity>>
+    @Query("SELECT * FROM flashcard_sets WHERE syncStatus != 'DELETED' AND (userId = :userId OR isDownloaded = 1) ORDER BY localUpdatedAt DESC")
+    fun getMySets(userId: String): Flow<List<FlashcardSetEntity>>
 
     @Query("SELECT * FROM flashcard_sets WHERE id = :id")
     suspend fun getSetById(id: String): FlashcardSetEntity?
@@ -25,8 +25,8 @@ interface FlashcardSetDao {
     @Query("SELECT * FROM flashcard_sets WHERE id = :id")
     fun getSetByIdFlow(id: String): Flow<FlashcardSetEntity?>
 
-    @Query("SELECT * FROM flashcard_sets WHERE syncStatus != 'DELETED' AND (title LIKE '%' || :query || '%' OR description LIKE '%' || :query || '%')")
-    suspend fun searchSets(query: String): List<FlashcardSetEntity>
+    @Query("SELECT * FROM flashcard_sets WHERE syncStatus != 'DELETED' AND (userId = :userId OR isDownloaded = 1) AND (title LIKE '%' || :query || '%' OR description LIKE '%' || :query || '%')")
+    suspend fun searchSets(query: String, userId: String): List<FlashcardSetEntity>
 
     @Query("SELECT * FROM flashcard_sets WHERE syncStatus = 'PENDING' OR syncStatus = 'DIRTY'")
     suspend fun getUnsyncedSets(): List<FlashcardSetEntity>
@@ -93,4 +93,7 @@ interface FlashcardSetDao {
 
     @Query("UPDATE flashcard_sets SET localMediaPath = :path WHERE id = :setId")
     suspend fun updateLocalMediaPath(setId: String, path: String?)
+
+    @Query("DELETE FROM flashcard_sets WHERE isDownloaded = 0")
+    suspend fun deleteNonDownloadedSets()
 }

@@ -11,6 +11,7 @@ import com.example.smartenglish.data.remote.dto.ResetPasswordRequest
 import com.example.smartenglish.domain.model.User
 import com.example.smartenglish.domain.model.toDomain
 import com.example.smartenglish.domain.repository.AuthRepository
+import com.example.smartenglish.data.local.AppDatabase
 import com.example.smartenglish.util.ApiResult
 import com.example.smartenglish.util.TokenManager
 import com.example.smartenglish.util.ErrorParser
@@ -20,7 +21,8 @@ import javax.inject.Singleton
 @Singleton
 class AuthRepositoryImpl @Inject constructor(
     private val authApi: AuthApi,
-    private val tokenManager: TokenManager
+    private val tokenManager: TokenManager,
+    private val database: AppDatabase
 ) : AuthRepository {
 
     override suspend fun login(email: String, password: String): ApiResult<User> {
@@ -36,6 +38,7 @@ class AuthRepositoryImpl @Inject constructor(
                 if (data?.user != null) {
                     val user = data.user.toDomain()
                     tokenManager.saveUserRole(user.role)
+                    tokenManager.saveUserId(user.id)
                     ApiResult.Success(user)
                 } else {
                     ApiResult.Error("Login failed: No user data received")
@@ -69,6 +72,7 @@ class AuthRepositoryImpl @Inject constructor(
                     tokenManager.saveTokens(data.accessToken, data.refreshToken)
                     val user = data.user.toDomain()
                     tokenManager.saveUserRole(user.role)
+                    tokenManager.saveUserId(user.id)
                     ApiResult.Success(user)
                 } else {
                     Log.e("AuthRepository", "register success but incomplete data")
@@ -95,6 +99,7 @@ class AuthRepositoryImpl @Inject constructor(
                 if (data != null) {
                     val user = data.toDomain()
                     tokenManager.saveUserRole(user.role)
+                    tokenManager.saveUserId(user.id)
                     ApiResult.Success(user)
                 } else {
                     ApiResult.Error("Failed to get user: No data received")
@@ -209,6 +214,7 @@ class AuthRepositoryImpl @Inject constructor(
                 if (data?.user != null) {
                     val user = data.user.toDomain()
                     tokenManager.saveUserRole(user.role)
+                    tokenManager.saveUserId(user.id)
                     ApiResult.Success(user)
                 } else {
                     ApiResult.Error("Google auth failed: No user data received")
@@ -230,6 +236,15 @@ class AuthRepositoryImpl @Inject constructor(
         } catch (_: Exception) {
             // Ignore errors during logout
         } finally {
+            try {
+                // Clear local user-specific data from DB on logout
+                database.flashcardSetDao().deleteNonDownloadedSets()
+                database.folderDao().deleteNonDownloadedFolders()
+                database.progressDao().deleteAllProgress()
+                database.pendingOperationDao().deleteAllPending()
+            } catch (e: Exception) {
+                Log.e("AuthRepository", "Error clearing local DB tables on logout: ${e.message}")
+            }
             tokenManager.clearTokens()
         }
     }

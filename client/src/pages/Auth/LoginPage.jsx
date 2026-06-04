@@ -14,7 +14,8 @@ export default function LoginPage() {
   const handleGoogleLogin = () => {
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
     const backendUrl = apiUrl.replace(/\/api$/, '');
-    window.location.href = `${backendUrl}/api/auth/google?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+    const redirect = searchParams.get('redirect') || '/';
+    window.location.href = `${backendUrl}/api/auth/google?redirect=${encodeURIComponent(redirect)}`;
   };
 
   const [formData, setFormData] = useState({ email: '', password: '' });

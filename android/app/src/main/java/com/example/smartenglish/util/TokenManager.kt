@@ -13,6 +13,7 @@ class TokenManager @Inject constructor(
         private const val KEY_ACCESS_TOKEN = "access_token"
         private const val KEY_REFRESH_TOKEN = "refresh_token"
         private const val KEY_USER_ROLE = "user_role"
+        private const val KEY_USER_ID = "user_id"
     }
 
     fun saveTokens(accessToken: String, refreshToken: String) {
@@ -24,6 +25,10 @@ class TokenManager @Inject constructor(
 
     fun saveUserRole(role: String?) {
         prefs.edit().putString(KEY_USER_ROLE, role).apply()
+    }
+
+    fun saveUserId(userId: String?) {
+        prefs.edit().putString(KEY_USER_ID, userId).apply()
     }
 
     fun saveAccessToken(accessToken: String) {
@@ -39,6 +44,8 @@ class TokenManager @Inject constructor(
     fun getRefreshToken(): String? = prefs.getString(KEY_REFRESH_TOKEN, null)
 
     fun getUserRole(): String? = prefs.getString(KEY_USER_ROLE, null)
+
+    fun getUserId(): String? = prefs.getString(KEY_USER_ID, null)
 
     fun clearTokens() {
         prefs.edit().clear().apply()

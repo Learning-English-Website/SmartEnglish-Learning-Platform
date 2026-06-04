@@ -30,6 +30,15 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.foundation.clickable
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
+import android.Manifest
+import android.content.pm.PackageManager
 
 // Premium Dark Theme Colors
 private val DeepDarkNavy = Color(0xFF07091E)
@@ -463,6 +472,156 @@ fun ProfileScreen(
                                 label = "Thành viên từ",
                                 value = formatDate(date)
                             )
+                        }
+
+                        // Daily Study Reminder Section
+                        val reminderPrefs = remember { com.example.smartenglish.data.local.preferences.ReminderPreferences(context) }
+                        var isReminderEnabled by remember { mutableStateOf(reminderPrefs.isReminderEnabled()) }
+                        var reminderHour by remember { mutableStateOf(reminderPrefs.getReminderHour()) }
+                        var reminderMinute by remember { mutableStateOf(reminderPrefs.getReminderMinute()) }
+
+                        val permissionLauncher = rememberLauncherForActivityResult(
+                            contract = ActivityResultContracts.RequestPermission()
+                        ) { isGranted ->
+                            if (isGranted) {
+                                isReminderEnabled = true
+                                reminderPrefs.setReminderEnabled(true)
+                                com.example.smartenglish.util.StudyReminderHelper.scheduleReminder(context)
+                            } else {
+                                isReminderEnabled = false
+                                reminderPrefs.setReminderEnabled(false)
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .border(1.dp, Color.White.copy(alpha = 0.05f), RoundedCornerShape(16.dp)),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = CardBg)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(40.dp)
+                                                .background(IconBg, shape = RoundedCornerShape(10.dp)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.NotificationsActive,
+                                                contentDescription = null,
+                                                tint = IconCyan,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
+
+                                        Spacer(modifier = Modifier.width(16.dp))
+
+                                        Column {
+                                            Text(
+                                                text = "Nhắc học mỗi ngày",
+                                                color = Color.White,
+                                                fontSize = 16.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                            Text(
+                                                text = "Nhận thông báo học hằng ngày",
+                                                color = TextGray,
+                                                style = MaterialTheme.typography.bodySmall
+                                            )
+                                        }
+                                    }
+
+                                    Switch(
+                                        checked = isReminderEnabled,
+                                        onCheckedChange = { enabled ->
+                                            if (enabled) {
+                                                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                                                    val hasPermission = ContextCompat.checkSelfPermission(
+                                                        context,
+                                                        Manifest.permission.POST_NOTIFICATIONS
+                                                    ) == PackageManager.PERMISSION_GRANTED
+                                                    
+                                                    if (hasPermission) {
+                                                        isReminderEnabled = true
+                                                        reminderPrefs.setReminderEnabled(true)
+                                                        com.example.smartenglish.util.StudyReminderHelper.scheduleReminder(context)
+                                                    } else {
+                                                        permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                                    }
+                                                } else {
+                                                    isReminderEnabled = true
+                                                    reminderPrefs.setReminderEnabled(true)
+                                                    com.example.smartenglish.util.StudyReminderHelper.scheduleReminder(context)
+                                                }
+                                            } else {
+                                                isReminderEnabled = false
+                                                reminderPrefs.setReminderEnabled(false)
+                                                com.example.smartenglish.util.StudyReminderHelper.cancelReminder(context)
+                                            }
+                                        },
+                                        colors = SwitchDefaults.colors(
+                                            checkedThumbColor = Color.White,
+                                            checkedTrackColor = QuizletBlue,
+                                            uncheckedThumbColor = TextGray,
+                                            uncheckedTrackColor = IconBg
+                                        )
+                                    )
+                                }
+
+                                if (isReminderEnabled) {
+                                    HorizontalDivider(color = Color.White.copy(alpha = 0.08f))
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable {
+                                                val timePickerDialog = android.app.TimePickerDialog(
+                                                    context,
+                                                    { _, hour, minute ->
+                                                        reminderHour = hour
+                                                        reminderMinute = minute
+                                                        reminderPrefs.setReminderHour(hour)
+                                                        reminderPrefs.setReminderMinute(minute)
+                                                        com.example.smartenglish.util.StudyReminderHelper.scheduleReminder(context)
+                                                    },
+                                                    reminderHour,
+                                                    reminderMinute,
+                                                    true
+                                                )
+                                                timePickerDialog.show()
+                                            }
+                                            .padding(vertical = 4.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "Thời gian nhắc nhở",
+                                            color = Color.White,
+                                            fontSize = 14.sp
+                                        )
+                                        Text(
+                                            text = String.format("%02d:%02d", reminderHour, reminderMinute),
+                                            color = IconCyan,
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                            }
                         }
 
                         Spacer(modifier = Modifier.height(36.dp))

@@ -43,9 +43,35 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        // Initialize daily study reminder if enabled
+        try {
+            val reminderPrefs = com.example.smartenglish.data.local.preferences.ReminderPreferences(this)
+            if (reminderPrefs.isReminderEnabled()) {
+                com.example.smartenglish.util.StudyReminderHelper.scheduleReminder(this)
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "Failed to schedule reminder on startup: ${e.message}")
+        }
+
         setContent {
             SmartEnglishTheme {
                 val navController = rememberNavController()
+
+                androidx.compose.runtime.LaunchedEffect(intent) {
+                    val setId = intent?.getStringExtra("SET_ID")
+                    if (!setId.isNullOrBlank()) {
+                        val studyMode = intent?.getStringExtra("STUDY_MODE")
+                        if (!studyMode.isNullOrBlank()) {
+                            navController.navigate(Screen.StudyMode.createRoute(setId, studyMode))
+                        } else {
+                            navController.navigate(Screen.SetDetail.createRoute(setId))
+                        }
+                        intent.removeExtra("SET_ID")
+                        intent.removeExtra("STUDY_MODE")
+                    }
+                }
+
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
                 val currentRoute = navBackStackEntry?.destination?.route
 
@@ -212,5 +238,10 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
     }
 }

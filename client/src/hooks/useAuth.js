@@ -33,7 +33,8 @@ export function useAuth() {
       if (result.payload.role === 'admin') {
         navigate('/admin', { replace: true });
       } else {
-        navigate('/', { replace: true });
+        const dest = (redirect && redirect !== 'null') ? redirect : '/';
+        navigate(dest, { replace: true });
       }
     } else {
       toast.error(result.payload || 'Login failed');

@@ -12,6 +12,7 @@ import com.example.smartenglish.domain.model.toDomain
 import com.example.smartenglish.domain.repository.SetRepository
 import com.example.smartenglish.util.NetworkMonitor
 import com.example.smartenglish.util.ApiResult
+import com.example.smartenglish.util.TokenManager
 import com.example.smartenglish.util.ErrorParser
 import com.example.smartenglish.data.sync.SyncManager
 import kotlinx.coroutines.Dispatchers
@@ -26,7 +27,8 @@ class SetRepositoryImpl @Inject constructor(
     private val setApi: SetApi,
     private val setDao: FlashcardSetDao,
     private val networkMonitor: NetworkMonitor,
-    private val syncManager: SyncManager
+    private val syncManager: SyncManager,
+    private val tokenManager: TokenManager
 ) : SetRepository {
 
     companion object {
@@ -34,34 +36,42 @@ class SetRepositoryImpl @Inject constructor(
     }
 
     override fun getSets(): Flow<List<FlashcardSet>> {
-        return setDao.getAllSets().map { entities ->
+        val currentUserId = tokenManager.getUserId() ?: ""
+        return setDao.getAllSets(currentUserId).map { entities ->
             entities.map { it.toDomain() }
         }
     }
 
     override fun getMySets(): Flow<List<FlashcardSet>> {
-        return setDao.getMySets().map { entities ->
+        val currentUserId = tokenManager.getUserId() ?: ""
+        return setDao.getMySets(currentUserId).map { entities ->
             entities.map { it.toDomain() }
         }
     }
 
     override suspend fun getMySetsList(): List<FlashcardSet> = withContext(Dispatchers.IO) {
-        return@withContext setDao.getMySetsList().map { it.toDomain() }
+        val currentUserId = tokenManager.getUserId() ?: ""
+        return@withContext setDao.getMySetsList(currentUserId).map { it.toDomain() }
     }
 
     override suspend fun getSetById(id: String): ApiResult<FlashcardSet> = withContext(Dispatchers.IO) {
         Log.d(TAG, "getSetById: $id")
+        val currentUserId = tokenManager.getUserId() ?: ""
         
-        // Check local DB first. If it's downloaded offline, return it instantly!
+        // Check local DB first. If it's downloaded offline or belongs to the current user, return it instantly!
         val localSet = setDao.getSetById(id)
-        if (localSet != null && localSet.isDownloaded) {
-            Log.d(TAG, "getSetById: Found downloaded set in local DB, returning instantly")
+        if (localSet != null && (localSet.isDownloaded || localSet.userId == currentUserId)) {
+            if (localSet.isDownloaded) {
+                Log.d(TAG, "getSetById: Found downloaded set in local DB, returning instantly")
+            } else {
+                Log.d(TAG, "getSetById: Found user's own set in local DB, returning instantly")
+            }
             return@withContext ApiResult.Success(localSet.toDomain())
         }
         
         // If offline, immediately load from local CSDL without waiting for Retrofit/OkHttp timeouts
         if (!networkMonitor.isOnline.value) {
-            return@withContext if (localSet != null && localSet.isDownloaded) {
+            return@withContext if (localSet != null && (localSet.isDownloaded || localSet.userId == currentUserId)) {
                 ApiResult.Success(localSet.toDomain())
             } else {
                 ApiResult.Error("Thiết bị đang ngoại tuyến và học phần này chưa được tải về.")
@@ -72,8 +82,7 @@ class SetRepositoryImpl @Inject constructor(
         if (!isValidObjectId(id)) {
             Log.d(TAG, "getSetById: Not valid ObjectId, checking local DB")
             // It's a local UUID, get from local DB only
-            val localSet = setDao.getSetById(id)
-            return@withContext if (localSet != null) {
+            return@withContext if (localSet != null && (localSet.isDownloaded || localSet.userId == currentUserId)) {
                 Log.d(TAG, "getSetById: Found in local DB")
                 ApiResult.Success(localSet.toDomain())
             } else {
@@ -99,12 +108,14 @@ class SetRepositoryImpl @Inject constructor(
                         downloadedAt = existing?.downloadedAt,
                         localMediaPath = existing?.localMediaPath
                     )
-                    setDao.insertOrUpdate(entity)
+                    // Security Check: Only save if the set belongs to current user or is public
+                    if (set.userId == currentUserId || set.isPublic) {
+                        setDao.insertOrUpdate(entity)
+                    }
                     ApiResult.Success(set)
                 } else {
                     // Try to get from local DB
-                    val localSet = setDao.getSetById(id)
-                    if (localSet != null) {
+                    if (localSet != null && (localSet.isDownloaded || localSet.userId == currentUserId)) {
                         ApiResult.Success(localSet.toDomain())
                     } else {
                         Log.d(TAG, "getSetById: No data from API and not in local DB")
@@ -114,8 +125,7 @@ class SetRepositoryImpl @Inject constructor(
             } else {
                 Log.d(TAG, "getSetById: API call failed")
                 // Try to get from local DB
-                val localSet = setDao.getSetById(id)
-                if (localSet != null) {
+                if (localSet != null && (localSet.isDownloaded || localSet.userId == currentUserId)) {
                     ApiResult.Success(localSet.toDomain())
                 } else {
                     val rawError = response.errorBody()?.string()
@@ -128,8 +138,7 @@ class SetRepositoryImpl @Inject constructor(
         } catch (e: Exception) {
             Log.e(TAG, "getSetById: Exception - ${e.message}")
             // Try to get from local DB on network error
-            val localSet = setDao.getSetById(id)
-            if (localSet != null) {
+            if (localSet != null && (localSet.isDownloaded || localSet.userId == currentUserId)) {
                 ApiResult.Success(localSet.toDomain())
             } else {
                 ApiResult.Error(e.message ?: "Network error")
@@ -275,6 +284,7 @@ class SetRepositoryImpl @Inject constructor(
     }
 
     override suspend fun searchSets(query: String): ApiResult<List<FlashcardSet>> = withContext(Dispatchers.IO) {
+        val currentUserId = tokenManager.getUserId() ?: ""
         return@withContext try {
             val response = setApi.getSets(query = query)
             if (response.isSuccessful && response.body()?.success == true) {
@@ -293,11 +303,11 @@ class SetRepositoryImpl @Inject constructor(
                 setDao.insertOrUpdate(entities)
                 ApiResult.Success(sets)
             } else {
-                val localSets = setDao.searchSets(query)
+                val localSets = setDao.searchSets(query, currentUserId)
                 ApiResult.Success(localSets.map { it.toDomain() })
             }
         } catch (e: Exception) {
-            val localSets = setDao.searchSets(query)
+            val localSets = setDao.searchSets(query, currentUserId)
             ApiResult.Success(localSets.map { it.toDomain() })
         }
     }

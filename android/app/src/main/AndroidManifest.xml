@@ -4,6 +4,8 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:name=".SmartEnglishApplication"
@@ -50,16 +52,6 @@
                     android:scheme="smartenglish"
                     android:host="set" />
             </intent-filter>
-            
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data
-                    android:scheme="https"
-                    android:host="smartenglish.app"
-                    android:pathPrefix="/set" />
-            </intent-filter>
         </activity>
         
         <!-- Deep Link Activity -->
@@ -75,7 +67,28 @@
                     android:scheme="smartenglish"
                     android:host="set" />
             </intent-filter>
+            
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="https"
+                    android:host="smart-english-learning-platform.vercel.app"
+                    android:pathPrefix="/flashcards/sets" />
+            </intent-filter>
         </activity>
+
+        <!-- Daily Study Reminder Receiver -->
+        <receiver
+            android:name=".receiver.StudyReminderReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
         
     </application>
 

@@ -32,4 +32,7 @@ interface FolderDao {
 
     @Query("SELECT * FROM folders WHERE syncStatus IN ('PENDING', 'DIRTY')")
     suspend fun getUnsyncedFolders(): List<FolderEntity>
+
+    @Query("DELETE FROM folders WHERE isDownloaded = 0")
+    suspend fun deleteNonDownloadedFolders()
 }

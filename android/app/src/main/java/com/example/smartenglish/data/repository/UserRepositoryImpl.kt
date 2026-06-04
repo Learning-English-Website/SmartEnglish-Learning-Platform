@@ -8,6 +8,7 @@ import com.example.smartenglish.domain.model.toDomain
 import com.example.smartenglish.domain.repository.UserRepository
 import com.example.smartenglish.util.ApiResult
 import com.example.smartenglish.util.NetworkMonitor
+import com.example.smartenglish.util.TokenManager
 import com.example.smartenglish.util.ErrorParser
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
@@ -21,7 +22,8 @@ import javax.inject.Singleton
 class UserRepositoryImpl @Inject constructor(
     private val userApi: UserApi,
     private val mediaApi: MediaApi,
-    private val networkMonitor: NetworkMonitor
+    private val networkMonitor: NetworkMonitor,
+    private val tokenManager: TokenManager
 ) : UserRepository {
 
     override suspend fun getMe(): ApiResult<User> = withContext(Dispatchers.IO) {
@@ -33,7 +35,9 @@ class UserRepositoryImpl @Inject constructor(
             if (response.isSuccessful && response.body()?.success == true) {
                 val data = response.body()?.data
                 if (data != null) {
-                    ApiResult.Success(data.toDomain())
+                    val user = data.toDomain()
+                    tokenManager.saveUserId(user.id)
+                    ApiResult.Success(user)
                 } else {
                     ApiResult.Error("Failed to get user: No data received")
                 }
@@ -57,7 +61,9 @@ class UserRepositoryImpl @Inject constructor(
             if (response.isSuccessful && response.body()?.success == true) {
                 val data = response.body()?.data
                 if (data != null) {
-                    ApiResult.Success(data.toDomain())
+                    val user = data.toDomain()
+                    tokenManager.saveUserId(user.id)
+                    ApiResult.Success(user)
                 } else {
                     ApiResult.Error("Failed to update profile: No data received")
                 }
