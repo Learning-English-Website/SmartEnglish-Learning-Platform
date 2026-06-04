@@ -49,6 +49,7 @@ private const val DEFAULT_AVATAR_URL = "https://images.unsplash.com/photo-156434
 fun ProfileScreen(
     onNavigateToEditProfile: () -> Unit,
     onNavigateToAchievements: () -> Unit = {},
+    onNavigateToUserManagement: () -> Unit = {},
     onNavigateBack: () -> Unit = {},
     onLogout: () -> Unit,
     viewModel: ProfileViewModel = hiltViewModel()
@@ -301,6 +302,13 @@ fun ProfileScreen(
                             )
                         }
 
+                        if (state.user.role.equals("admin", ignoreCase = true)) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            AdminActionCard(
+                                onClick = onNavigateToUserManagement
+                            )
+                        }
+
                         state.user.createdAt?.let { date ->
                             Spacer(modifier = Modifier.height(12.dp))
                             ProfileInfoCard(
@@ -462,6 +470,66 @@ private fun ProfileInfoCard(
             if (action != null) {
                 action()
             }
+        }
+    }
+}
+
+@Composable
+private fun AdminActionCard(
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, QuizletBlue.copy(alpha = 0.28f), RoundedCornerShape(16.dp)),
+        onClick = onClick,
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = CardBg
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(QuizletBlue.copy(alpha = 0.18f), shape = RoundedCornerShape(10.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.AdminPanelSettings,
+                    contentDescription = null,
+                    tint = QuizletBlue,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Quản lý người dùng",
+                    color = Color.White,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "Xem danh sách, chi tiết, Premium và xóa user",
+                    color = TextGray,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+
+            Icon(
+                imageVector = Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = TextGray
+            )
         }
     }
 }

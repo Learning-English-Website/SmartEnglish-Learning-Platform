@@ -18,6 +18,7 @@ import com.example.smartenglish.presentation.home.HomeScreen
 import com.example.smartenglish.presentation.profile.AchievementsScreen
 import com.example.smartenglish.presentation.profile.EditProfileScreen
 import com.example.smartenglish.presentation.profile.ProfileScreen
+import com.example.smartenglish.presentation.admin.UserManagementScreen
 import com.example.smartenglish.presentation.study.StudyScreen
 import com.example.smartenglish.presentation.study.FlashcardStudyScreen
 import com.example.smartenglish.presentation.sets.SetListScreen
@@ -33,7 +34,7 @@ import com.example.smartenglish.presentation.downloaded.DownloadedContentScreen
 fun AppNavGraph(
     navController: NavHostController,
     startDestination: String = Screen.Login.route,
-    onLoginSuccess: () -> Unit,
+    onLoginSuccess: (com.example.smartenglish.domain.model.User) -> Unit,
     onLogout: () -> Unit,
     innerPadding: PaddingValues,
     modifier: Modifier = Modifier
@@ -52,8 +53,17 @@ fun AppNavGraph(
                 onNavigateToForgotPassword = {
                     navController.navigate(Screen.ForgotPassword.route)
                 },
-                onLoginSuccess = {
-                    onLoginSuccess()
+                onLoginSuccess = { user ->
+                    onLoginSuccess(user)
+                    val destination = if (user.role.equals("admin", ignoreCase = true)) {
+                        Screen.UserManagement.route
+                    } else {
+                        Screen.Home.route
+                    }
+                    navController.navigate(destination) {
+                        popUpTo(Screen.Login.route) { inclusive = true }
+                        launchSingleTop = true
+                    }
                 }
             )
         }
@@ -63,8 +73,8 @@ fun AppNavGraph(
                 onNavigateToLogin = {
                     navController.popBackStack()
                 },
-                onRegisterSuccess = {
-                    onLoginSuccess()
+                onRegisterSuccess = { user ->
+                    onLoginSuccess(user)
                 },
                 onNavigateToOtp = { email ->
                     navController.navigate(Screen.Otp.createRoute(email))
@@ -215,6 +225,9 @@ fun AppNavGraph(
                 onNavigateToAchievements = {
                     navController.navigate(Screen.Achievements.route)
                 },
+                onNavigateToUserManagement = {
+                    navController.navigate(Screen.UserManagement.route)
+                },
                 onNavigateBack = {
                     navController.popBackStack()
                 },
@@ -230,6 +243,17 @@ fun AppNavGraph(
                     navController.popBackStack()
                 },
                 onLogout = onLogout
+            )
+        }
+
+        composable(Screen.UserManagement.route) {
+            UserManagementScreen(
+                onNavigateBack = {
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(0) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                }
             )
         }
 

@@ -1,6 +1,7 @@
 package com.example.smartenglish.presentation.navigation
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LibraryBooks
@@ -36,6 +37,7 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector)
 
     // Profile sub-screens
     data object EditProfile : Screen("edit_profile", "Edit Profile", Icons.Default.Person)
+    data object UserManagement : Screen("user_management", "Quản lý người dùng", Icons.Default.AdminPanelSettings)
 
     // Week 2: Sets & Cards screens
     data object SetList : Screen("sets", "My Sets", Icons.Default.LibraryBooks)

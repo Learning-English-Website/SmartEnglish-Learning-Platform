@@ -106,9 +106,11 @@ class HomeViewModel @Inject constructor(
                     role = "user",
                     avatar = null,
                     premium = "none",
+                    isVerified = false,
                     streak = Streak(current = 0, longest = 0, lastStudyDate = null),
                     gamification = Gamification(xp = 0, level = 1),
-                    createdAt = null
+                    createdAt = null,
+                    updatedAt = null
                 )
                 val progressState = HomeProgressState(
                     todayXp = 0,
@@ -191,9 +193,11 @@ class HomeViewModel @Inject constructor(
                             role = "user",
                             avatar = null,
                             premium = "none",
+                            isVerified = false,
                             streak = Streak(current = 0, longest = 0, lastStudyDate = null),
                             gamification = Gamification(xp = 0, level = 1),
-                            createdAt = null
+                            createdAt = null,
+                            updatedAt = null
                         )
                         val progressState = HomeProgressState(
                             todayXp = 0,

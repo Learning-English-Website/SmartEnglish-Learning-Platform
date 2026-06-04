@@ -98,7 +98,7 @@ private val IconCyan = Color(0xFF38BDF8)
 fun LoginScreen(
     onNavigateToRegister: () -> Unit,
     onNavigateToForgotPassword: () -> Unit,
-    onLoginSuccess: () -> Unit,
+    onLoginSuccess: (com.example.smartenglish.domain.model.User) -> Unit,
     viewModel: AuthViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -134,7 +134,7 @@ fun LoginScreen(
     LaunchedEffect(uiState) {
         when (val state = uiState) {
             is AuthUiState.Success -> {
-                onLoginSuccess()
+                onLoginSuccess(state.user)
                 viewModel.resetState()
             }
             is AuthUiState.Error -> {

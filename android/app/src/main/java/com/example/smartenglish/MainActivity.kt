@@ -52,12 +52,17 @@ class MainActivity : ComponentActivity() {
                 val showBottomBar = currentRoute in Screen.bottomNavItems.map { it.route }
 
                 var isLoggedIn by remember { mutableStateOf(tokenManager.isLoggedIn()) }
+                var cachedUserRole by remember { mutableStateOf(tokenManager.getUserRole()) }
                 var showCreateBottomSheet by remember { mutableStateOf(false) }
                 var showCreateSetDialog by remember { mutableStateOf(false) }
                 var showCreateFolderDialog by remember { mutableStateOf(false) }
 
                 val startDestination = if (isLoggedIn) {
-                    Screen.Home.route
+                    if (cachedUserRole.equals("admin", ignoreCase = true)) {
+                        Screen.UserManagement.route
+                    } else {
+                        Screen.Home.route
+                    }
                 } else {
                     Screen.Login.route
                 }
@@ -79,14 +84,23 @@ class MainActivity : ComponentActivity() {
                     AppNavGraph(
                         navController = navController,
                         startDestination = startDestination,
-                        onLoginSuccess = {
+                        onLoginSuccess = { user ->
                             isLoggedIn = true
-                            navController.navigate(Screen.Home.route) {
-                                popUpTo(0) { inclusive = true }
+                            cachedUserRole = user.role
+                            if (user.role.equals("admin", ignoreCase = true)) {
+                                navController.navigate(Screen.UserManagement.route) {
+                                    popUpTo(Screen.Login.route) { inclusive = true }
+                                    launchSingleTop = true
+                                }
+                            } else {
+                                navController.navigate(Screen.Home.route) {
+                                    popUpTo(0) { inclusive = true }
+                                }
                             }
                         },
                         onLogout = {
                             isLoggedIn = false
+                            cachedUserRole = null
                             navController.navigate(Screen.Login.route) {
                                 popUpTo(0) { inclusive = true }
                             }

@@ -492,7 +492,8 @@ const getUsers = async (req, res) => {
   if (role) filter.role = role;
 
   const skip = (Number(page) - 1) * Number(limit);
-  const [users, total] = await Promise.all([
+
+  const [users, total, premiumUsers, verifiedUsers] = await Promise.all([
     User.find(filter)
       .select('-password')
       .sort({ createdAt: -1 })
@@ -500,9 +501,18 @@ const getUsers = async (req, res) => {
       .limit(Number(limit))
       .lean(),
     User.countDocuments(filter),
+    User.countDocuments({ ...filter, premium: 'premium' }),
+    User.countDocuments({ ...filter, isVerified: true }),
   ]);
 
-  res.json(ApiResponse.success({ users, total, page: Number(page), pages: Math.ceil(total / Number(limit)) }, 'Users fetched'));
+  res.json(ApiResponse.success({
+    users,
+    total,
+    premiumUsers,
+    verifiedUsers,
+    page: Number(page),
+    pages: Math.ceil(total / Number(limit))
+  }, 'Users fetched'));
 };
 
 const getUser = async (req, res) => {

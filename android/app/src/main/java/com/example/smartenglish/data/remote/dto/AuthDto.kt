@@ -88,6 +88,28 @@ data class UpdateProfileRequest(
 )
 
 @JsonClass(generateAdapter = true)
+data class AdminUserListDto(
+    @Json(name = "users") val users: List<UserDto>,
+    @Json(name = "total") val total: Int,
+    @Json(name = "premiumUsers") val premiumUsers: Int,
+    @Json(name = "verifiedUsers") val verifiedUsers: Int,
+    @Json(name = "page") val page: Int,
+    @Json(name = "pages") val pages: Int
+)
+
+@JsonClass(generateAdapter = true)
+data class UpdateAdminUserRequest(
+    @Json(name = "username") val username: String? = null,
+    @Json(name = "avatar") val avatar: String? = null,
+    @Json(name = "premium") val premium: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class UpdateUserRoleRequest(
+    @Json(name = "role") val role: String
+)
+
+@JsonClass(generateAdapter = true)
 data class VerifyOtpResponse(
     @Json(name = "verified") val verified: Boolean = true
 )

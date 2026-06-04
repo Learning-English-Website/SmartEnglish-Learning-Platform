@@ -50,9 +50,11 @@ class ProfileViewModel @Inject constructor(
                     role = "user",
                     avatar = null,
                     premium = "none",
+                    isVerified = false,
                     streak = Streak(current = 0, longest = 0, lastStudyDate = null),
                     gamification = Gamification(xp = 0, level = 1),
-                    createdAt = null
+                    createdAt = null,
+                    updatedAt = null
                 )
                 _uiState.value = ProfileUiState.Success(offlineUser)
                 return@launch
@@ -69,9 +71,11 @@ class ProfileViewModel @Inject constructor(
                         role = "user",
                         avatar = null,
                         premium = "none",
+                        isVerified = false,
                         streak = Streak(current = 0, longest = 0, lastStudyDate = null),
                         gamification = Gamification(xp = 0, level = 1),
-                        createdAt = null
+                        createdAt = null,
+                        updatedAt = null
                     )
                     _uiState.value = ProfileUiState.Success(offlineUser)
                 }

@@ -53,7 +53,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 @Composable
 fun RegisterScreen(
     onNavigateToLogin: () -> Unit,
-    onRegisterSuccess: () -> Unit,
+    onRegisterSuccess: (com.example.smartenglish.domain.model.User) -> Unit,
     onNavigateToOtp: (String) -> Unit,
     viewModel: AuthViewModel = hiltViewModel()
 ) {
@@ -72,16 +72,16 @@ fun RegisterScreen(
     var confirmError by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(uiState) {
-        when (uiState) {
+        when (val state = uiState) {
             is AuthUiState.Success -> {
-                onRegisterSuccess()
+                onRegisterSuccess(state.user)
             }
             is AuthUiState.EmailVerificationRequired -> {
-                val email = (uiState as AuthUiState.EmailVerificationRequired).email
+                val email = state.email
                 onNavigateToOtp(email)
             }
             is AuthUiState.Error -> {
-                snackbarHostState.showSnackbar((uiState as AuthUiState.Error).message)
+                snackbarHostState.showSnackbar(state.message)
             }
             else -> {}
         }

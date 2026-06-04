@@ -34,7 +34,9 @@ class AuthRepositoryImpl @Inject constructor(
                     tokenManager.saveTokens(data.accessToken, data.refreshToken)
                 }
                 if (data?.user != null) {
-                    ApiResult.Success(data.user.toDomain())
+                    val user = data.user.toDomain()
+                    tokenManager.saveUserRole(user.role)
+                    ApiResult.Success(user)
                 } else {
                     ApiResult.Error("Login failed: No user data received")
                 }
@@ -59,7 +61,9 @@ class AuthRepositoryImpl @Inject constructor(
                     ApiResult.EmailVerificationRequired(email)
                 } else if (data?.accessToken != null && data.refreshToken != null && data.user != null) {
                     tokenManager.saveTokens(data.accessToken, data.refreshToken)
-                    ApiResult.Success(data.user.toDomain())
+                    val user = data.user.toDomain()
+                    tokenManager.saveUserRole(user.role)
+                    ApiResult.Success(user)
                 } else {
                     ApiResult.Error("Registration successful, but no user data received")
                 }
@@ -80,7 +84,9 @@ class AuthRepositoryImpl @Inject constructor(
             if (response.isSuccessful && response.body()?.success == true) {
                 val data = response.body()?.data
                 if (data != null) {
-                    ApiResult.Success(data.toDomain())
+                    val user = data.toDomain()
+                    tokenManager.saveUserRole(user.role)
+                    ApiResult.Success(user)
                 } else {
                     ApiResult.Error("Failed to get user: No data received")
                 }
@@ -183,7 +189,9 @@ class AuthRepositoryImpl @Inject constructor(
                     tokenManager.saveTokens(data.accessToken, data.refreshToken)
                 }
                 if (data?.user != null) {
-                    ApiResult.Success(data.user.toDomain())
+                    val user = data.user.toDomain()
+                    tokenManager.saveUserRole(user.role)
+                    ApiResult.Success(user)
                 } else {
                     ApiResult.Error("Google auth failed: No user data received")
                 }

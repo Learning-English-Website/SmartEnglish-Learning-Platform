@@ -21,9 +21,11 @@ data class User(
     val role: String,
     val avatar: String?,
     val premium: String,
+    val isVerified: Boolean,
     val streak: Streak = Streak(),
     val gamification: Gamification = Gamification(),
-    val createdAt: String?
+    val createdAt: String?,
+    val updatedAt: String?
 )
 
 fun com.example.smartenglish.data.remote.dto.UserDto.toDomain(): User {
@@ -34,6 +36,7 @@ fun com.example.smartenglish.data.remote.dto.UserDto.toDomain(): User {
         role = role,
         avatar = avatar,
         premium = premium,
+        isVerified = isVerified ?: false,
         streak = streak?.let {
             Streak(
                 current = it.current,
@@ -44,6 +47,7 @@ fun com.example.smartenglish.data.remote.dto.UserDto.toDomain(): User {
         gamification = gamification?.let {
             Gamification(xp = it.xp, level = it.level)
         } ?: Gamification(),
-        createdAt = createdAt
+        createdAt = createdAt,
+        updatedAt = updatedAt
     )
 }
