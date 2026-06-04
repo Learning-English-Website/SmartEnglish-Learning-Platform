@@ -54,9 +54,7 @@ class AuthService {
           username: existing.username,
           otp,
         });
-        if (process.env.NODE_ENV !== 'production') {
-          console.log(`🔑 [Dev] Registration OTP for existing unverified user ${existing.email}: ${otp}`);
-        }
+        console.log(`🔑 [OTP] Registration OTP for existing unverified user ${existing.email}: ${otp}`);
         return {
           email: existing.email,
           requiresEmailVerification: true,
@@ -78,9 +76,7 @@ class AuthService {
     // Emit event for side effects (send OTP email)
     eventBus.emit('user:registered', { userId: user._id, email: normalizedEmail, username, otp });
 
-    if (process.env.NODE_ENV !== 'production') {
-      console.log(`🔑 [Dev] Registration OTP for new user ${normalizedEmail}: ${otp}`);
-    }
+    console.log(`🔑 [OTP] Registration OTP for new user ${normalizedEmail}: ${otp}`);
 
     return {
       email: normalizedEmail,
@@ -327,9 +323,7 @@ class AuthService {
       otp,
     });
 
-    if (process.env.NODE_ENV !== 'production') {
-      console.log(`🔑 [Dev] Resent Registration OTP for ${normalizedEmail}: ${otp}`);
-    }
+    console.log(`🔑 [OTP] Resent Registration OTP for ${normalizedEmail}: ${otp}`);
 
     return { message: 'If that email exists and is pending verification, a new OTP has been sent.' };
   }
@@ -388,9 +382,7 @@ class AuthService {
       otp,
     });
 
-    if (process.env.NODE_ENV !== 'production') {
-      console.log(`🔑 [Dev] Reset OTP for ${email}: ${otp}`);
-    }
+    console.log(`🔑 [OTP] Reset OTP for ${email}: ${otp}`);
 
     return { message: 'If that email exists, a reset OTP has been sent.' };
   }
