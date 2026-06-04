@@ -115,10 +115,6 @@ fun ForgotPasswordScreen(
     LaunchedEffect(uiState) {
         when (uiState) {
             is AuthUiState.ForgotPasswordSuccess -> {
-                showSuccess = true
-                snackbarHostState.showSnackbar((uiState as AuthUiState.ForgotPasswordSuccess).message)
-                // Navigate to OTP Reset Password screen after showing success
-                kotlinx.coroutines.delay(1500)
                 viewModel.resetState()
                 onNavigateToOtpResetPassword(email.trim())
             }
@@ -170,9 +166,9 @@ fun ForgotPasswordScreen(
                     .padding(horizontal = 24.dp)
                     .verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
+                verticalArrangement = Arrangement.Top
             ) {
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(56.dp))
 
                 // Translucent glassmorphic card container
                 Card(
@@ -224,48 +220,6 @@ fun ForgotPasswordScreen(
                                 textAlign = TextAlign.Center,
                                 lineHeight = 20.sp
                             )
-
-                            Spacer(modifier = Modifier.height(28.dp))
-
-                            Button(
-                                onClick = onNavigateToLogin,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(50.dp)
-                                    .background(
-                                        brush = Brush.horizontalGradient(
-                                            colors = listOf(Color(0xFF2563EB), Color(0xFF7C3AED))
-                                        ),
-                                        shape = RoundedCornerShape(16.dp)
-                                    ),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color.Transparent,
-                                    disabledContainerColor = Color.Transparent
-                                ),
-                                contentPadding = PaddingValues(),
-                                shape = RoundedCornerShape(16.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = "Quay Lại Đăng Nhập",
-                                        color = Color.White,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 15.sp
-                                    )
-                                    Icon(
-                                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                                        contentDescription = null,
-                                        tint = Color.White,
-                                        modifier = Modifier
-                                            .align(Alignment.CenterEnd)
-                                            .padding(end = 16.dp)
-                                            .size(20.dp)
-                                    )
-                                }
-                            }
                         } else {
                             // Key emoji with cyan glow effect
                             Box(

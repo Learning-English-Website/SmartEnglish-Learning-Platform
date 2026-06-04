@@ -1196,7 +1196,7 @@ private fun LearnModeView(
     // Auto-advance correct answers
     LaunchedEffect(answered, isCorrectState) {
         if (answered && isCorrectState) {
-            delay(1000)
+            delay(600)
             handleNext()
         }
     }

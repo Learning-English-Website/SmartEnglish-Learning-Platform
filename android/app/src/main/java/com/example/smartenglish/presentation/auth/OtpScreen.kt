@@ -114,7 +114,7 @@ fun OtpScreen(
     LaunchedEffect(uiState) {
         when (uiState) {
             is AuthUiState.OtpVerified -> {
-                snackbarHostState.showSnackbar("Xác minh Email thành công! Vui lòng đăng nhập.")
+                android.widget.Toast.makeText(context, "Xác minh Email thành công! Vui lòng đăng nhập.", android.widget.Toast.LENGTH_SHORT).show()
                 viewModel.resetState()
                 onNavigateToLogin()
             }
@@ -166,9 +166,9 @@ fun OtpScreen(
                     .padding(horizontal = 24.dp)
                     .verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
+                verticalArrangement = Arrangement.Top
             ) {
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(56.dp))
 
                 // Translucent glassmorphic card container
                 Card(

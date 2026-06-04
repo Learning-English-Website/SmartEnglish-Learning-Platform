@@ -53,27 +53,36 @@ class AuthRepositoryImpl @Inject constructor(
 
     override suspend fun register(email: String, username: String, password: String): ApiResult<User> {
         return try {
+            Log.d("AuthRepository", "register called - email: $email, username: $username")
             val response = authApi.register(RegisterRequest(email, username, password))
+            Log.d("AuthRepository", "Response code: ${response.code()}")
+            Log.d("AuthRepository", "Response body: ${response.body()}")
+            Log.d("AuthRepository", "Response errorBody: ${response.errorBody()?.string()}")
             if (response.isSuccessful && response.body()?.success == true) {
                 val data = response.body()?.data
                 // Check if email verification is required first
                 if (data?.requiresEmailVerification == true) {
+                    Log.d("AuthRepository", "register SUCCESS - EmailVerificationRequired")
                     ApiResult.EmailVerificationRequired(email)
                 } else if (data?.accessToken != null && data.refreshToken != null && data.user != null) {
+                    Log.d("AuthRepository", "register SUCCESS - Direct login")
                     tokenManager.saveTokens(data.accessToken, data.refreshToken)
                     val user = data.user.toDomain()
                     tokenManager.saveUserRole(user.role)
                     ApiResult.Success(user)
                 } else {
+                    Log.e("AuthRepository", "register success but incomplete data")
                     ApiResult.Error("Registration successful, but no user data received")
                 }
             } else {
                 val rawError = response.body()?.error?.message
                     ?: response.errorBody()?.string()
                     ?: "Registration failed"
+                Log.e("AuthRepository", "register FAILED: $rawError")
                 ApiResult.Error(ErrorParser.parseErrorMessage(rawError))
             }
         } catch (e: Exception) {
+            Log.e("AuthRepository", "register EXCEPTION: ${e.message}", e)
             ApiResult.Error(e.message ?: "Network error")
         }
     }

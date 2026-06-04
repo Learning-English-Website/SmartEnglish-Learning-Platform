@@ -123,7 +123,7 @@ fun ResetPasswordScreen(
     LaunchedEffect(uiState) {
         when (uiState) {
             is AuthUiState.ForgotPasswordSuccess -> {
-                snackbarHostState.showSnackbar((uiState as AuthUiState.ForgotPasswordSuccess).message)
+                android.widget.Toast.makeText(context, (uiState as AuthUiState.ForgotPasswordSuccess).message, android.widget.Toast.LENGTH_SHORT).show()
                 viewModel.resetState()
                 onNavigateToLogin()
             }
@@ -175,9 +175,9 @@ fun ResetPasswordScreen(
                     .padding(horizontal = 24.dp)
                     .verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
+                verticalArrangement = Arrangement.Top
             ) {
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(56.dp))
 
                 // Translucent glassmorphic card container
                 Card(
