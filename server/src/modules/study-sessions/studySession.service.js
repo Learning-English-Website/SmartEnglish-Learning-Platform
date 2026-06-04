@@ -373,10 +373,38 @@ const getSessionById = async (userId, sessionId) => {
   return session;
 };
 
+/**
+ * Update a study session in bulk (cumulative fields)
+ */
+const updateSessionBulk = async (userId, sessionId, { cardsStudied = 0, correctCount = 0, incorrectCount = 0, duration = 0 }) => {
+  console.log('[StudySession] updateSessionBulk called:', { userId, sessionId, cardsStudied, correctCount, incorrectCount, duration });
+  const session = await StudySession.findOne({ _id: sessionId, user: userId });
+  if (!session) throw new AppError('Study session not found', 404);
+  if (session.completedAt) throw new AppError('Session already completed', 400);
+
+  session.cardsReviewed = cardsStudied;
+  
+  if (cardsStudied > 0) {
+    session.accuracy = Math.min(100, Math.round((correctCount / cardsStudied) * 100));
+  } else {
+    session.accuracy = 0;
+  }
+  
+  if (duration > 0) {
+    session.durationMs = duration * 1000;
+  }
+
+  const saved = await session.save();
+  console.log('[StudySession] bulk updated saved:', saved._id, { cardsReviewed: saved.cardsReviewed, accuracy: saved.accuracy });
+  return saved;
+};
+
 module.exports = {
   startSession,
   submitAnswer,
   completeSession,
   getUserSessions,
   getSessionById,
+  updateSessionBulk,
 };
+

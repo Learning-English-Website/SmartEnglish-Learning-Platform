@@ -27,10 +27,18 @@ const startSession = async (req, res) => {
  */
 const submitAnswer = async (req, res) => {
   const { sessionId } = req.params;
-  const { cardId, isCorrect } = req.body;
+  const { cardId, isCorrect, cardsStudied, correctCount, incorrectCount, duration } = req.body;
 
   if (cardId === undefined || isCorrect === undefined) {
-    throw new (require('../../shared/errors/AppError'))('cardId and isCorrect are required', 400);
+    if (cardsStudied !== undefined || correctCount !== undefined) {
+      const session = await studySessionService.updateSessionBulk(
+        req.user._id,
+        sessionId,
+        { cardsStudied, correctCount, incorrectCount, duration }
+      );
+      return res.json(ApiResponse.success(session, 'Study session bulk updated'));
+    }
+    throw new (require('../../shared/errors/AppError'))('cardId and isCorrect, or bulk update fields are required', 400);
   }
 
   const session = await studySessionService.submitAnswer(

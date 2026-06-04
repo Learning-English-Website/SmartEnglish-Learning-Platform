@@ -170,6 +170,24 @@ describe('Study Session API', () => {
       }
     });
 
+    it('should bulk update session stats when cardsStudied and correctCount are sent', async () => {
+      const res = await request(app)
+        .post(`/api/study-sessions/${sessionId}/answer`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({
+          cardsStudied: 10,
+          correctCount: 8,
+          incorrectCount: 2,
+          duration: 30
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.cardsReviewed).toBe(10);
+      expect(res.body.data.accuracy).toBe(80);
+      expect(res.body.data.durationMs).toBe(30000);
+    });
+
     it('should return 404 for non-existent session', async () => {
       const fakeId = new mongoose.Types.ObjectId();
       const res = await request(app)
