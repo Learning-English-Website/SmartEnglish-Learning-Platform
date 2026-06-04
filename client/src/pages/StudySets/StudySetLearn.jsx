@@ -14,6 +14,7 @@ import { setService } from '../../api/setService';
 import { cardService } from '../../api/cardService';
 import { gamificationService } from '../../api/gamificationService';
 import { useGamification } from '../../context/GamificationContext';
+import { progressService } from '../../services/progressService';
 import './StudySetLearn.css';
 
 const BATCH_SIZE = 7;
@@ -192,6 +193,11 @@ export default function StudySetLearn() {
     setIsCorrect(correct_);
     setItemResults(prev => new Map(prev).set(currentItem.itemId, correct_));
 
+    // Save progress to server
+    progressService.updateCardProgress(currentItem._id, correct_ ? 3 : 0).catch(err => {
+      console.error('[LearnProgress] Failed to save card progress:', err);
+    });
+
     if (correct_) {
       playCorrectSound();
       setBatchProgress(prev => {
@@ -228,6 +234,11 @@ export default function StudySetLearn() {
     setIsCorrect(correct_);
     setItemResults(prev => new Map(prev).set(currentItem.itemId, correct_));
 
+    // Save progress to server
+    progressService.updateCardProgress(currentItem._id, correct_ ? 3 : 0).catch(err => {
+      console.error('[LearnProgress] Failed to save card progress:', err);
+    });
+
     if (correct_) {
       playCorrectSound();
       setBatchProgress(prev => {
@@ -262,6 +273,11 @@ export default function StudySetLearn() {
     setAnswered(true);
     setIsCorrect(false);
     setItemResults(prev => new Map(prev).set(currentItem.itemId, false));
+
+    // Save progress to server
+    progressService.updateCardProgress(currentItem._id, 0).catch(err => {
+      console.error('[LearnProgress] Failed to save card progress:', err);
+    });
   }, [answered, currentItem]);
 
   const handleNext = useCallback(() => {
@@ -336,31 +352,72 @@ export default function StudySetLearn() {
     setScreen('learning');
   }, [currentBatchIdx, sessionItems, totalBatches_]);
 
-  const handleRestart = useCallback(() => {
-    const items = buildItems(shuffleArray(cards), includeMC, includeTA);
-    const eb = Math.ceil(items.length / Math.max(1, Math.ceil(items.length / BATCH_SIZE)));
-    setSessionItems(items);
-    setBatchQueue(items.slice(0, eb));
-    setBatchProgress(new Map([[0, { correct: 0 }]]));
-    setItemResults(new Map());
-    setCurrentBatchIdx(0);
-    setQueueIdx(0);
-    setScreen('learning');
-    setIsShuffled(true);
-  }, [cards, includeMC, includeTA]);
+  const handleRestart = useCallback(async () => {
+    setLoading(true);
+    try {
+      await progressService.resetSetProgress(id);
+      const [setRes, cardsRes, progressRes] = await Promise.all([
+        setService.getById(id),
+        cardService.getBySetId(id),
+        progressService.getCardSchedules(id),
+      ]);
+      const loadedSet = setRes?.data ?? setRes;
+      const loadedCards = [...(cardsRes?.data ?? cardsRes ?? [])];
+      const schedules = progressRes?.data ?? progressRes ?? [];
+      const schedulesMap = new Map(schedules.map(s => [s.cardId, s]));
+      const unlearnedCards = loadedCards.filter(card => {
+        const prog = schedulesMap.get(card._id);
+        return !prog || (prog.correctReviews === 0 && prog.masteryLevel < 4);
+      });
+      const finalCards = unlearnedCards.length > 0 ? unlearnedCards : loadedCards;
 
-  const handleShuffle = useCallback(() => {
-    const items = buildItems(shuffleArray(cards), includeMC, includeTA);
-    const eb = Math.ceil(items.length / Math.max(1, Math.ceil(items.length / BATCH_SIZE)));
-    setSessionItems(items);
-    setBatchQueue(items.slice(0, eb));
-    setBatchProgress(new Map([[0, { correct: 0 }]]));
-    setItemResults(new Map());
-    setCurrentBatchIdx(0);
-    setQueueIdx(0);
-    setScreen('learning');
-    setIsShuffled(true);
-  }, [cards, includeMC, includeTA]);
+      setCards(loadedCards);
+      const items = buildItems(shuffleArray(finalCards), includeMC, includeTA);
+      setSessionItems(items);
+      const eb = Math.ceil(items.length / Math.max(1, Math.ceil(items.length / BATCH_SIZE)));
+      setBatchQueue(items.slice(0, eb));
+      setBatchProgress(new Map([[0, { correct: 0 }]]));
+      setItemResults(new Map());
+      setCurrentBatchIdx(0);
+      setQueueIdx(0);
+      setScreen('learning');
+      setIsShuffled(true);
+    } catch (err) {
+      toast.error('Không thể thiết lập lại tiến trình.');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }, [id, includeMC, includeTA]);
+
+  const handleShuffle = useCallback(async () => {
+    setLoading(true);
+    try {
+      const progressRes = await progressService.getCardSchedules(id);
+      const schedules = progressRes?.data ?? progressRes ?? [];
+      const schedulesMap = new Map(schedules.map(s => [s.cardId, s]));
+      const unlearnedCards = cards.filter(card => {
+        const prog = schedulesMap.get(card._id);
+        return !prog || (prog.correctReviews === 0 && prog.masteryLevel < 4);
+      });
+      const finalCards = unlearnedCards.length > 0 ? unlearnedCards : cards;
+
+      const items = buildItems(shuffleArray(finalCards), includeMC, includeTA);
+      const eb = Math.ceil(items.length / Math.max(1, Math.ceil(items.length / BATCH_SIZE)));
+      setSessionItems(items);
+      setBatchQueue(items.slice(0, eb));
+      setBatchProgress(new Map([[0, { correct: 0 }]]));
+      setItemResults(new Map());
+      setCurrentBatchIdx(0);
+      setQueueIdx(0);
+      setScreen('learning');
+      setIsShuffled(true);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }, [id, cards, includeMC, includeTA]);
 
   const handleModeChange = useCallback((m) => {
     if (m === 'flashcards') navigate(`/study-sets/${id}/flashcards`, { state: { returnTo } });
@@ -433,15 +490,24 @@ export default function StudySetLearn() {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const [setRes, cardsRes] = await Promise.all([
+        const [setRes, cardsRes, progressRes] = await Promise.all([
           setService.getById(id),
           cardService.getBySetId(id),
+          progressService.getCardSchedules(id),
         ]);
         const loadedSet = setRes?.data ?? setRes;
         const loadedCards = [...(cardsRes?.data ?? cardsRes ?? [])];
+        const schedules = progressRes?.data ?? progressRes ?? [];
+        const schedulesMap = new Map(schedules.map(s => [s.cardId, s]));
+        const unlearnedCards = loadedCards.filter(card => {
+          const prog = schedulesMap.get(card._id);
+          return !prog || (prog.correctReviews === 0 && prog.masteryLevel < 4);
+        });
+        const finalCards = unlearnedCards.length > 0 ? unlearnedCards : loadedCards;
+
         setStudySet(loadedSet);
         setCards(loadedCards);
-        const items = buildItems(shuffleArray(loadedCards), true, true);
+        const items = buildItems(shuffleArray(finalCards), true, true);
         setSessionItems(items);
       } catch {
         toast.error('Không thể tải dữ liệu.');

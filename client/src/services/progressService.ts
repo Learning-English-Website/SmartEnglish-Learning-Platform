@@ -93,6 +93,13 @@ export const progressService = {
     axiosClient.post(`/progress/cards/${cardId}/reset`),
 
   /**
+   * Reset progress for all cards in a set
+   * @param {string} setId - Set ID
+   */
+  resetSetProgress: (setId: string) =>
+    axiosClient.post(`/progress/sets/${setId}/reset`),
+
+  /**
    * Get due cards count for a set
    * @param {string} setId - Set ID
    */

@@ -6,6 +6,7 @@ const {
   updateCardProgress,
   resetCardProgress,
   getSetProgress,
+  resetSetProgress,
   getCardSchedules,
   getDueCardsCount,
   getOverallStats,
@@ -29,6 +30,9 @@ router.post('/cards/:cardId/reset', resetCardProgress);
 // Set progress routes
 // GET /api/progress/sets/:setId
 router.get('/sets/:setId', getSetProgress);
+
+// POST /api/progress/sets/:setId/reset
+router.post('/sets/:setId/reset', resetSetProgress);
 
 // GET /api/progress/sets/:setId/schedules
 router.get('/sets/:setId/schedules', getCardSchedules);

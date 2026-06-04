@@ -221,9 +221,9 @@ const getSetProgress = async (userId, setId) => {
   }).sort({ createdAt: -1 });
 
   // Calculate stats
-  const masteredCards = progressRecords.filter(p => p.masteryLevel >= 4).length;
-  const learningCards = progressRecords.filter(p => p.repetitions > 0 && p.masteryLevel < 4).length;
-  const newCards = progressRecords.filter(p => p.repetitions === 0).length;
+  const masteredCards = progressRecords.filter(p => p.correctReviews > 0).length;
+  const learningCards = progressRecords.filter(p => p.totalReviews > 0 && p.correctReviews === 0).length;
+  const newCards = progressRecords.filter(p => p.totalReviews === 0).length;
   const dueCards = progressRecords.filter(p => new Date(p.nextReview) <= now).length;
 
   // Calculate average accuracy
@@ -326,6 +326,36 @@ const resetCardProgress = async (userId, cardId) => {
 };
 
 /**
+ * Reset all cards' progress in a set
+ */
+const resetSetProgress = async (userId, setId) => {
+  const cards = await Flashcard.find({ set: setId });
+  const cardIds = cards.map(c => c._id);
+
+  await CardProgress.updateMany(
+    { user: userId, card: { $in: cardIds } },
+    {
+      $set: {
+        easeFactor: INITIAL_EASE_FACTOR,
+        interval: 0,
+        repetitions: 0,
+        nextReview: new Date(),
+        lastReview: null,
+        lapses: 0,
+        totalReviews: 0,
+        correctReviews: 0,
+        masteryLevel: 0,
+      }
+    }
+  );
+
+  return {
+    success: true,
+    message: 'Set progress reset successfully',
+  };
+};
+
+/**
  * Get due cards count for a set
  */
 const getDueCardsCount = async (userId, setId) => {
@@ -360,9 +390,9 @@ const getOverallStats = async (userId) => {
   const sessions = await StudySession.find({ user: userId, completedAt: { $exists: true } });
 
   // Calculate mastery distribution
-  const masteredCards = allProgress.filter(p => p.masteryLevel >= 4).length;
-  const learningCards = allProgress.filter(p => p.repetitions > 0 && p.masteryLevel < 4).length;
-  const newCards = allProgress.filter(p => p.repetitions === 0).length;
+  const masteredCards = allProgress.filter(p => p.correctReviews > 0).length;
+  const learningCards = allProgress.filter(p => p.totalReviews > 0 && p.correctReviews === 0).length;
+  const newCards = allProgress.filter(p => p.totalReviews === 0).length;
 
   // Due today — thẻ có nextReview <= now
   const now = new Date();
@@ -510,6 +540,7 @@ module.exports = {
   getSetProgress,
   getCardSchedules,
   resetCardProgress,
+  resetSetProgress,
   getDueCardsCount,
   getOverallStats,
   getStudyCalendar,

@@ -73,12 +73,9 @@ cardProgressSchema.virtual('accuracy').get(function () {
 
 // Virtual for mastery level calculation
 cardProgressSchema.virtual('calculatedMasteryLevel').get(function () {
-  if (this.repetitions === 0) return 0;
-  if (this.repetitions < 3) return 1;
-  if (this.repetitions < 6) return 2;
-  if (this.repetitions < 10) return 3;
-  if (this.repetitions < 15) return 4;
-  return 5;
+  if (this.correctReviews > 0) return 4;
+  if (this.totalReviews > 0) return 2;
+  return 0;
 });
 
 // Pre-save middleware to update mastery level
@@ -106,13 +103,13 @@ cardProgressSchema.statics.getSetStats = async function (userId, cardIds) {
         _id: null,
         totalCards: { $sum: 1 },
         masteredCards: {
-          $sum: { $cond: [{ $gte: ['$masteryLevel', 4] }, 1, 0] },
+          $sum: { $cond: [{ $gt: ['$correctReviews', 0] }, 1, 0] },
         },
         learningCards: {
-          $sum: { $cond: [{ $and: [{ $gt: ['$repetitions', 0] }, { $lt: ['$masteryLevel', 4] }] }, 1, 0] },
+          $sum: { $cond: [{ $and: [{ $gt: ['$totalReviews', 0] }, { $eq: ['$correctReviews', 0] }] }, 1, 0] },
         },
         newCards: {
-          $sum: { $cond: [{ $eq: ['$repetitions', 0] }, 1, 0] },
+          $sum: { $cond: [{ $eq: ['$totalReviews', 0] }, 1, 0] },
         },
         dueCards: {
           $sum: { $cond: [{ $lte: ['$nextReview', new Date()] }, 1, 0] },

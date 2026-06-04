@@ -39,6 +39,15 @@ const resetCardProgress = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Reset set progress
+ * POST /api/progress/sets/:setId/reset
+ */
+const resetSetProgress = asyncHandler(async (req, res) => {
+  const result = await progressService.resetSetProgress(req.userId, req.params.setId);
+  res.json({ success: true, data: result });
+});
+
+/**
  * Get progress for a specific set
  * GET /api/progress/sets/:setId
  */
@@ -107,6 +116,7 @@ module.exports = {
   updateCardProgress,
   resetCardProgress,
   getSetProgress,
+  resetSetProgress,
   getCardSchedules,
   getDueCardsCount,
   getOverallStats,
