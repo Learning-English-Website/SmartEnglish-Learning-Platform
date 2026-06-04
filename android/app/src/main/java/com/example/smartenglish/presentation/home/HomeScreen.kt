@@ -62,6 +62,7 @@ fun HomeScreen(
     onNavigateToCreateSet: () -> Unit,
     onNavigateToSearch: () -> Unit,
     onNavigateToSetDetail: (String) -> Unit,
+    onNavigateToStudyMode: (String, String) -> Unit,
     onLogout: () -> Unit,
     innerPadding: PaddingValues,
     viewModel: HomeViewModel = hiltViewModel()
@@ -72,6 +73,7 @@ fun HomeScreen(
     val isRefreshing = uiState is HomeUiState.Loading
     val pullToRefreshState = rememberPullToRefreshState()
     var showGoalDialog by remember { mutableStateOf(false) }
+    var showActivityDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         viewModel.loadData(isSilent = true)
@@ -117,6 +119,13 @@ fun HomeScreen(
                         )
                     }
 
+                    if (showActivityDialog) {
+                        DailyActivityDialog(
+                            progressState = state.progress,
+                            onDismiss = { showActivityDialog = false }
+                        )
+                    }
+
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
@@ -149,7 +158,8 @@ fun HomeScreen(
                         // Study Progress Dashboard Card
                         ProgressDashboardCard(
                             progressState = state.progress,
-                            onGoalClick = { showGoalDialog = true }
+                            onGoalClick = { showGoalDialog = true },
+                            onActivityClick = { showActivityDialog = true }
                         )
 
                         Spacer(modifier = Modifier.height(24.dp))
@@ -162,7 +172,7 @@ fun HomeScreen(
                             // 2. "Học tiếp" (Continue Learning) Card Pager
                             ContinueLearningSection(
                                 sets = state.recentSets,
-                                onSetDetail = onNavigateToSetDetail
+                                onContinueClick = { setId -> onNavigateToStudyMode(setId, "learn") }
                             )
 
                             Spacer(modifier = Modifier.height(28.dp))
@@ -296,7 +306,7 @@ private fun HomeHeader(
 @Composable
 private fun ContinueLearningSection(
     sets: List<FlashcardSet>,
-    onSetDetail: (String) -> Unit
+    onContinueClick: (String) -> Unit
 ) {
     var selectedIndex by remember { mutableStateOf(0) }
 
@@ -364,7 +374,7 @@ private fun ContinueLearningSection(
                 ContinueLearningCard(
                     set = set,
                     progressPercent = progressPercent,
-                    onContinueClick = { onSetDetail(set.id) },
+                    onContinueClick = { onContinueClick(set.id) },
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -692,6 +702,7 @@ private fun OfflineHomeCard(
 private fun ProgressDashboardCard(
     progressState: HomeProgressState,
     onGoalClick: () -> Unit,
+    onActivityClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val progressFraction = if (progressState.dailyXpGoal > 0) {
@@ -736,16 +747,33 @@ private fun ProgressDashboardCard(
                     fontWeight = FontWeight.Bold
                 )
 
-                IconButton(
-                    onClick = onGoalClick,
-                    modifier = Modifier.size(32.dp)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Settings,
-                        contentDescription = "Cấu hình mục tiêu",
-                        tint = TextWhite.copy(alpha = 0.6f),
-                        modifier = Modifier.size(18.dp)
-                    )
+                    IconButton(
+                        onClick = onActivityClick,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.BarChart,
+                            contentDescription = "Daily Activity",
+                            tint = TextWhite.copy(alpha = 0.6f),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    IconButton(
+                        onClick = onGoalClick,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = "Cấu hình mục tiêu",
+                            tint = TextWhite.copy(alpha = 0.6f),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
             }
 
@@ -760,20 +788,21 @@ private fun ProgressDashboardCard(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier.size(85.dp)
                 ) {
-                    CircularProgressIndicator(
-                        progress = { 1f },
-                        modifier = Modifier.fillMaxSize(),
-                        color = Color.White.copy(alpha = 0.06f),
-                        strokeWidth = 8.dp,
-                        strokeCap = StrokeCap.Round
-                    )
+                    androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxSize()) {
+                        drawCircle(
+                            color = Color.White.copy(alpha = 0.12f),
+                            radius = (size.minDimension - 8.dp.toPx()) / 2f,
+                            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 8.dp.toPx())
+                        )
+                    }
                     val progressColor = if (percentage >= 100) QuizletGreen else Color(0xFFFFB300)
                     CircularProgressIndicator(
                         progress = { progressFraction },
                         modifier = Modifier.fillMaxSize(),
                         color = progressColor,
                         strokeWidth = 8.dp,
-                        strokeCap = StrokeCap.Round
+                        strokeCap = StrokeCap.Round,
+                        trackColor = Color.Transparent
                     )
 
                     Column(
@@ -930,6 +959,343 @@ private fun DailyGoalSettingsDialog(
                             fontSize = 14.sp,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                         )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Đóng", color = QuizletBlue, fontWeight = FontWeight.Bold)
+            }
+        },
+        containerColor = Color(0xFF161A3F),
+        shape = RoundedCornerShape(24.dp)
+    )
+}
+
+@Composable
+private fun DailyActivityDialog(
+    progressState: HomeProgressState,
+    onDismiss: () -> Unit
+) {
+    val last7DaysXp = progressState.last7DaysXp
+    val dailyGoal = progressState.dailyXpGoal
+    val totalXp = last7DaysXp.sumOf { it.xp }
+    
+    // Parse helper for Vietnamese day labels
+    fun getDayLabel(dateStr: String): String {
+        return try {
+            val parts = dateStr.split("-")
+            if (parts.size == 3) {
+                val year = parts[0].toInt()
+                val month = parts[1].toInt()
+                val day = parts[2].toInt()
+                val calendar = java.util.Calendar.getInstance().apply {
+                    set(year, month - 1, day)
+                }
+                when (calendar.get(java.util.Calendar.DAY_OF_WEEK)) {
+                    java.util.Calendar.MONDAY -> "T2"
+                    java.util.Calendar.TUESDAY -> "T3"
+                    java.util.Calendar.WEDNESDAY -> "T4"
+                    java.util.Calendar.THURSDAY -> "T5"
+                    java.util.Calendar.FRIDAY -> "T6"
+                    java.util.Calendar.SATURDAY -> "T7"
+                    java.util.Calendar.SUNDAY -> "CN"
+                    else -> ""
+                }
+            } else ""
+        } catch (e: Exception) {
+            ""
+        }
+    }
+
+    // Format YYYY-MM-DD -> DD/MM
+    fun getFormattedDate(dateStr: String): String {
+        return try {
+            val parts = dateStr.split("-")
+            if (parts.size == 3) {
+                "${parts[2]}/${parts[1]}"
+            } else ""
+        } catch (e: Exception) {
+            ""
+        }
+    }
+
+    val maxVal = maxOf(dailyGoal, last7DaysXp.maxOfOrNull { it.xp } ?: 0, 20)
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Daily Activity",
+                    color = Color.White,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                IconButton(onClick = onDismiss) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Đóng",
+                        tint = TextWhite.copy(alpha = 0.6f)
+                    )
+                }
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "Tổng XP 7 ngày qua: $totalXp XP (Mục tiêu: $dailyGoal XP/ngày)",
+                    color = QuizletGreen,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center
+                )
+                
+                Spacer(modifier = Modifier.height(20.dp))
+
+                if (last7DaysXp.isEmpty()) {
+                    Text(
+                        text = "Chưa có dữ liệu hoạt động",
+                        color = TextGray,
+                        fontSize = 14.sp,
+                        modifier = Modifier.padding(vertical = 32.dp)
+                    )
+                } else {
+                    val density = androidx.compose.ui.platform.LocalDensity.current
+                    
+                    BoxWithConstraints(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(185.dp)
+                    ) {
+                        val widthPx = constraints.maxWidth.toFloat()
+                        val heightPx = with(density) { 140.dp.toPx() }
+                        
+                        val startX = with(density) { 24.dp.toPx() }
+                        val endX = widthPx - with(density) { 24.dp.toPx() }
+                        val topY = with(density) { 22.dp.toPx() }
+                        val bottomY = heightPx - with(density) { 10.dp.toPx() }
+                        
+                        val points = last7DaysXp.mapIndexed { index, dayXp ->
+                            val xp = dayXp.xp
+                            val fraction = (xp.toFloat() / maxVal).coerceIn(0f, 1f)
+                            val x = startX + index * (endX - startX) / 6f
+                            val y = bottomY - fraction * (bottomY - topY)
+                            androidx.compose.ui.geometry.Offset(x, y)
+                        }
+
+                        androidx.compose.foundation.Canvas(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(140.dp)
+                        ) {
+                            if (points.isNotEmpty()) {
+                                val fillPath = androidx.compose.ui.graphics.Path().apply {
+                                    moveTo(points.first().x, bottomY)
+                                    for (i in 0 until points.size - 1) {
+                                        val fromPoint = points[i]
+                                        val toPoint = points[i + 1]
+                                        val conPoint1 = androidx.compose.ui.geometry.Offset(
+                                            x = fromPoint.x + (toPoint.x - fromPoint.x) / 2f,
+                                            y = fromPoint.y
+                                        )
+                                        val conPoint2 = androidx.compose.ui.geometry.Offset(
+                                            x = fromPoint.x + (toPoint.x - fromPoint.x) / 2f,
+                                            y = toPoint.y
+                                        )
+                                        cubicTo(
+                                            conPoint1.x, conPoint1.y,
+                                            conPoint2.x, conPoint2.y,
+                                            toPoint.x, toPoint.y
+                                        )
+                                    }
+                                    lineTo(points.last().x, bottomY)
+                                    close()
+                                }
+                                
+                                drawPath(
+                                    path = fillPath,
+                                    brush = Brush.verticalGradient(
+                                        colors = listOf(
+                                            Color(0xFF38BDF8).copy(alpha = 0.25f),
+                                            Color(0xFF00E676).copy(alpha = 0.08f),
+                                            Color.Transparent
+                                        ),
+                                        startY = topY,
+                                        endY = bottomY
+                                    )
+                                )
+                                
+                                val strokePath = androidx.compose.ui.graphics.Path().apply {
+                                    moveTo(points.first().x, points.first().y)
+                                    for (i in 0 until points.size - 1) {
+                                        val fromPoint = points[i]
+                                        val toPoint = points[i + 1]
+                                        val conPoint1 = androidx.compose.ui.geometry.Offset(
+                                            x = fromPoint.x + (toPoint.x - fromPoint.x) / 2f,
+                                            y = fromPoint.y
+                                        )
+                                        val conPoint2 = androidx.compose.ui.geometry.Offset(
+                                            x = fromPoint.x + (toPoint.x - fromPoint.x) / 2f,
+                                            y = toPoint.y
+                                        )
+                                        cubicTo(
+                                            conPoint1.x, conPoint1.y,
+                                            conPoint2.x, conPoint2.y,
+                                            toPoint.x, toPoint.y
+                                        )
+                                    }
+                                }
+                                
+                                drawPath(
+                                    path = strokePath,
+                                    brush = Brush.horizontalGradient(
+                                        colors = listOf(
+                                            Color(0xFF00B0FF),
+                                            Color(0xFF00E676),
+                                            Color(0xFFFFB300)
+                                        ),
+                                        startX = startX,
+                                        endX = endX
+                                    ),
+                                    style = androidx.compose.ui.graphics.drawscope.Stroke(
+                                        width = 3.dp.toPx(),
+                                        cap = StrokeCap.Round
+                                    )
+                                )
+                                
+                                points.forEachIndexed { i, point ->
+                                    val xp = last7DaysXp[i].xp
+                                    val isGoalMet = xp >= dailyGoal
+                                    val dotColor = if (isGoalMet) Color(0xFFFFB300) else Color(0xFF00B0FF)
+                                    
+                                    drawCircle(
+                                        color = dotColor.copy(alpha = 0.3f),
+                                        radius = 7.dp.toPx(),
+                                        center = point
+                                    )
+                                    
+                                    drawCircle(
+                                        color = dotColor,
+                                        radius = 4.dp.toPx(),
+                                        center = point
+                                    )
+                                    
+                                    drawCircle(
+                                        color = Color.White,
+                                        radius = 1.5.dp.toPx(),
+                                        center = point
+                                    )
+                                }
+                            }
+                        }
+
+
+
+                        points.forEachIndexed { i, point ->
+                            val xp = last7DaysXp[i].xp
+                            val isGoalMet = xp >= dailyGoal
+                            val xDp = with(density) { point.x.toDp() }
+                            val yDp = with(density) { point.y.toDp() }
+                            
+                            Box(
+                                modifier = Modifier
+                                    .offset(x = xDp - 20.dp, y = yDp - 20.dp)
+                                    .width(40.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = if (xp > 0) "$xp" else "0",
+                                    color = if (isGoalMet) Color(0xFFFFB300) else Color.White.copy(alpha = 0.6f),
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1
+                                )
+                            }
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(40.dp)
+                                .align(Alignment.BottomStart)
+                        ) {
+                            last7DaysXp.forEachIndexed { i, dayXp ->
+                                val x = startX + i * (endX - startX) / 6f
+                                val xDp = with(density) { x.toDp() }
+                                val dayLabel = getDayLabel(dayXp.date)
+                                val dateLabel = getFormattedDate(dayXp.date)
+                                
+                                Column(
+                                    modifier = Modifier
+                                        .offset(x = xDp - 25.dp, y = 0.dp)
+                                        .width(50.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text(
+                                        text = dayLabel,
+                                        color = Color.White,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Spacer(modifier = Modifier.height(1.dp))
+                                    Text(
+                                        text = dateLabel,
+                                        color = TextGray,
+                                        fontSize = 8.sp,
+                                        fontWeight = FontWeight.Normal
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color.White.copy(alpha = 0.03f), RoundedCornerShape(12.dp))
+                            .padding(horizontal = 16.dp, vertical = 10.dp),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .background(Color(0xFFFFB300), CircleShape)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Đạt mục tiêu",
+                                color = Color.White.copy(alpha = 0.7f),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .background(Color(0xFF00B0FF), CircleShape)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Chưa đạt",
+                                color = Color.White.copy(alpha = 0.7f),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
                     }
                 }
             }

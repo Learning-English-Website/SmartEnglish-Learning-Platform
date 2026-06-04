@@ -57,4 +57,7 @@ interface FlashcardDao {
 
     @Query("UPDATE flashcards SET localImagePath = COALESCE(:imagePath, localImagePath), localAudioPath = COALESCE(:audioPath, localAudioPath) WHERE id = :cardId")
     suspend fun updateLocalMediaPaths(cardId: String, imagePath: String?, audioPath: String?)
+
+    @Query("UPDATE flashcards SET correctStreak = 0, nextReviewDate = NULL, localUpdatedAt = :updatedAt WHERE setId = :setId")
+    suspend fun resetStudyProgressForSet(setId: String, updatedAt: Long = System.currentTimeMillis())
 }

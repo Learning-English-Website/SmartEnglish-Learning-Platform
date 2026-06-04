@@ -134,6 +134,7 @@ export default function StudySetLearn() {
 
   const [studySet, setStudySet] = useState(null);
   const [cards, setCards] = useState([]);
+  const [cardProgressMap, setCardProgressMap] = useState(new Map());
   const [loading, setLoading] = useState(true);
   const [sessionItems, setSessionItems] = useState([]);
   const [currentBatchIdx, setCurrentBatchIdx] = useState(0);
@@ -208,6 +209,8 @@ export default function StudySetLearn() {
         next.set(currentBatchIdx, { correct: newCorrect });
         if (newCorrect >= actualBatchSize) {
           if (currentBatchIdx + 1 >= totalBatches_) {
+            console.log('[LearnProgress] handleAnswer: finished last round. Clearing learn_round');
+            localStorage.removeItem(`learn_round_${id}`);
             setScreen('session-complete');
             // Trigger gamification
             const acc = Math.round((newCorrect / actualBatchSize) * 100);
@@ -219,6 +222,8 @@ export default function StudySetLearn() {
               })
               .catch(err => console.error('[Gamification] Learn error:', err));
           } else {
+            console.log('[LearnProgress] handleAnswer: saving learn_round =', currentBatchIdx + 1);
+            localStorage.setItem(`learn_round_${id}`, currentBatchIdx + 1);
             setScreen('batch-complete');
           }
         }
@@ -249,6 +254,8 @@ export default function StudySetLearn() {
         const actualBatchSize = getBatchSize(currentBatchIdx, totalItems, totalBatches_);
         if (newCorrect >= actualBatchSize) {
           if (currentBatchIdx + 1 >= totalBatches_) {
+            console.log('[LearnProgress] handleTypeAnswer: finished last round. Clearing learn_round');
+            localStorage.removeItem(`learn_round_${id}`);
             setScreen('session-complete');
             // Trigger gamification
             const acc = Math.round((newCorrect / actualBatchSize) * 100);
@@ -260,6 +267,8 @@ export default function StudySetLearn() {
               })
               .catch(err => console.error('[Gamification] Learn error:', err));
           } else {
+            console.log('[LearnProgress] handleTypeAnswer: saving learn_round =', currentBatchIdx + 1);
+            localStorage.setItem(`learn_round_${id}`, currentBatchIdx + 1);
             setScreen('batch-complete');
           }
         }
@@ -336,10 +345,14 @@ export default function StudySetLearn() {
     const nextBatchItems = sessionItems.slice(startIdx, startIdx + eb);
 
     if (nextBatchItems.length === 0) {
+      console.log('[LearnProgress] handleBatchCompleteContinue: nextBatchItems empty. Clearing learn_round');
+      localStorage.removeItem(`learn_round_${id}`);
       setScreen('session-complete');
       return;
     }
 
+    console.log('[LearnProgress] handleBatchCompleteContinue: saving learn_round =', nextBatchIdx);
+    localStorage.setItem(`learn_round_${id}`, nextBatchIdx);
     setBatchQueue(nextBatchItems);
     setCurrentBatchIdx(nextBatchIdx);
     setQueueIdx(0);
@@ -350,37 +363,26 @@ export default function StudySetLearn() {
     });
     setItemResults(new Map());
     setScreen('learning');
-  }, [currentBatchIdx, sessionItems, totalBatches_]);
+  }, [currentBatchIdx, sessionItems, totalBatches_, id]);
 
   const handleRestart = useCallback(async () => {
     setLoading(true);
     try {
+      console.log('[LearnProgress] handleRestart: clearing learn_round');
+      localStorage.removeItem(`learn_round_${id}`);
       await progressService.resetSetProgress(id);
-      const [setRes, cardsRes, progressRes] = await Promise.all([
+      const [setRes, cardsRes] = await Promise.all([
         setService.getById(id),
         cardService.getBySetId(id),
-        progressService.getCardSchedules(id),
       ]);
       const loadedSet = setRes?.data ?? setRes;
       const loadedCards = [...(cardsRes?.data ?? cardsRes ?? [])];
-      const schedules = progressRes?.data ?? progressRes ?? [];
-      const schedulesMap = new Map(schedules.map(s => [s.cardId, s]));
-      const unlearnedCards = loadedCards.filter(card => {
-        const prog = schedulesMap.get(card._id);
-        return !prog || (prog.correctReviews === 0 && prog.masteryLevel < 4);
-      });
-      const finalCards = unlearnedCards.length > 0 ? unlearnedCards : loadedCards;
 
+      setStudySet(loadedSet);
       setCards(loadedCards);
-      const items = buildItems(shuffleArray(finalCards), includeMC, includeTA);
+      const items = buildItems(shuffleArray(loadedCards), includeMC, includeTA);
       setSessionItems(items);
-      const eb = Math.ceil(items.length / Math.max(1, Math.ceil(items.length / BATCH_SIZE)));
-      setBatchQueue(items.slice(0, eb));
-      setBatchProgress(new Map([[0, { correct: 0 }]]));
-      setItemResults(new Map());
-      setCurrentBatchIdx(0);
-      setQueueIdx(0);
-      setScreen('learning');
+      setScreen('loading');
       setIsShuffled(true);
     } catch (err) {
       toast.error('Không thể thiết lập lại tiến trình.');
@@ -393,24 +395,11 @@ export default function StudySetLearn() {
   const handleShuffle = useCallback(async () => {
     setLoading(true);
     try {
-      const progressRes = await progressService.getCardSchedules(id);
-      const schedules = progressRes?.data ?? progressRes ?? [];
-      const schedulesMap = new Map(schedules.map(s => [s.cardId, s]));
-      const unlearnedCards = cards.filter(card => {
-        const prog = schedulesMap.get(card._id);
-        return !prog || (prog.correctReviews === 0 && prog.masteryLevel < 4);
-      });
-      const finalCards = unlearnedCards.length > 0 ? unlearnedCards : cards;
-
-      const items = buildItems(shuffleArray(finalCards), includeMC, includeTA);
-      const eb = Math.ceil(items.length / Math.max(1, Math.ceil(items.length / BATCH_SIZE)));
+      console.log('[LearnProgress] handleShuffle: clearing learn_round');
+      localStorage.removeItem(`learn_round_${id}`);
+      const items = buildItems(shuffleArray(cards), includeMC, includeTA);
       setSessionItems(items);
-      setBatchQueue(items.slice(0, eb));
-      setBatchProgress(new Map([[0, { correct: 0 }]]));
-      setItemResults(new Map());
-      setCurrentBatchIdx(0);
-      setQueueIdx(0);
-      setScreen('learning');
+      setScreen('loading');
       setIsShuffled(true);
     } catch (err) {
       console.error(err);
@@ -499,15 +488,11 @@ export default function StudySetLearn() {
         const loadedCards = [...(cardsRes?.data ?? cardsRes ?? [])];
         const schedules = progressRes?.data ?? progressRes ?? [];
         const schedulesMap = new Map(schedules.map(s => [s.cardId, s]));
-        const unlearnedCards = loadedCards.filter(card => {
-          const prog = schedulesMap.get(card._id);
-          return !prog || (prog.correctReviews === 0 && prog.masteryLevel < 4);
-        });
-        const finalCards = unlearnedCards.length > 0 ? unlearnedCards : loadedCards;
 
         setStudySet(loadedSet);
         setCards(loadedCards);
-        const items = buildItems(shuffleArray(finalCards), true, true);
+        setCardProgressMap(schedulesMap);
+        const items = buildItems(loadedCards, true, true);
         setSessionItems(items);
       } catch {
         toast.error('Không thể tải dữ liệu.');
@@ -520,14 +505,85 @@ export default function StudySetLearn() {
 
   useEffect(() => {
     if (sessionItems.length === 0 || screen !== 'loading') return;
-    const eb = Math.ceil(sessionItems.length / Math.max(1, Math.ceil(sessionItems.length / BATCH_SIZE)));
-    setBatchQueue(sessionItems.slice(0, eb));
-    setBatchProgress(new Map([[0, { correct: 0 }]]));
-    setItemResults(new Map());
-    setCurrentBatchIdx(0);
+
+    const totalItems = sessionItems.length;
+    const totalBatches = Math.max(1, Math.ceil(totalItems / BATCH_SIZE));
+    const effectiveSize = Math.ceil(totalItems / totalBatches);
+
+    const initialItemResults = new Map();
+    const initialBatchProgress = new Map();
+
+    const savedRoundStr = localStorage.getItem(`learn_round_${id}`);
+    const savedRound = savedRoundStr ? parseInt(savedRoundStr, 10) : -1;
+    console.log('[LearnProgress] Loaded savedRound from localStorage:', savedRound);
+
+    for (let batchIdx = 0; batchIdx < totalBatches; batchIdx++) {
+      const actualSize = getBatchSize(batchIdx, totalItems, totalBatches);
+      const batchStart = getBatchesOffset(batchIdx, totalItems, totalBatches);
+      const batchItems = sessionItems.slice(batchStart, batchStart + actualSize);
+
+      if (savedRound >= 0 && batchIdx < savedRound) {
+        batchItems.forEach(item => {
+          initialItemResults.set(item.itemId, true);
+        });
+        initialBatchProgress.set(batchIdx, { correct: actualSize });
+      } else {
+        let correctCount = 0;
+        batchItems.forEach(item => {
+          const prog = cardProgressMap.get(item._id);
+          const isMastered = prog && (prog.correctReviews > 0 || prog.masteryLevel >= 4);
+          if (isMastered) {
+            initialItemResults.set(item.itemId, true);
+            correctCount++;
+          }
+        });
+        initialBatchProgress.set(batchIdx, { correct: correctCount });
+      }
+    }
+
+    let startBatchIdx = 0;
+    if (savedRound >= 0 && savedRound < totalBatches) {
+      startBatchIdx = savedRound;
+    } else {
+      for (let batchIdx = 0; batchIdx < totalBatches; batchIdx++) {
+        const actualSize = getBatchSize(batchIdx, totalItems, totalBatches);
+        const bp = initialBatchProgress.get(batchIdx) || { correct: 0 };
+        if (bp.correct < actualSize) {
+          startBatchIdx = batchIdx;
+          break;
+        }
+        if (batchIdx === totalBatches - 1) {
+          startBatchIdx = totalBatches - 1;
+        }
+      }
+    }
+
+    const allCorrect = Array.from(initialBatchProgress.values()).every((bp, idx) => {
+      const actualSize = getBatchSize(idx, totalItems, totalBatches);
+      return bp.correct >= actualSize;
+    });
+
+    if (allCorrect) {
+      initialItemResults.clear();
+      for (let batchIdx = 0; batchIdx < totalBatches; batchIdx++) {
+        initialBatchProgress.set(batchIdx, { correct: 0 });
+      }
+      startBatchIdx = 0;
+      const firstBatchSize = getBatchSize(0, totalItems, totalBatches);
+      setBatchQueue(sessionItems.slice(0, firstBatchSize));
+    } else {
+      const actualSize = getBatchSize(startBatchIdx, totalItems, totalBatches);
+      const batchStart = getBatchesOffset(startBatchIdx, totalItems, totalBatches);
+      const batchItems = sessionItems.slice(batchStart, batchStart + actualSize);
+      setBatchQueue(batchItems.filter(item => initialItemResults.get(item.itemId) !== true));
+    }
+
+    setItemResults(initialItemResults);
+    setBatchProgress(initialBatchProgress);
+    setCurrentBatchIdx(startBatchIdx);
     setQueueIdx(0);
     setScreen('learning');
-  }, [sessionItems, screen]);
+  }, [id, sessionItems, screen, cardProgressMap]);
 
   useEffect(() => {
     if (currentItem?.mode === 'ta' && inputRef.current) {

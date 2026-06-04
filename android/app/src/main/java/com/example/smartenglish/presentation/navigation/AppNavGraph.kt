@@ -184,6 +184,9 @@ fun AppNavGraph(
                 onNavigateToSetDetail = { setId ->
                     navController.navigate(Screen.SetDetail.createRoute(setId))
                 },
+                onNavigateToStudyMode = { setId, mode ->
+                    navController.navigate(Screen.StudyMode.createRoute(setId, mode))
+                },
                 onLogout = onLogout,
                 innerPadding = innerPadding
             )

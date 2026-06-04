@@ -166,7 +166,8 @@ class HomeViewModel @Inject constructor(
                         dailyXpGoal = dailyXpGoal,
                         streak = user.streak.current,
                         dueToday = progressStats?.dueToday ?: 0,
-                        masteredCards = progressStats?.masteredCards ?: 0
+                        masteredCards = progressStats?.masteredCards ?: 0,
+                        last7DaysXp = progressStats?.last7DaysXp ?: emptyList()
                     )
 
                     _uiState.value = HomeUiState.Success(

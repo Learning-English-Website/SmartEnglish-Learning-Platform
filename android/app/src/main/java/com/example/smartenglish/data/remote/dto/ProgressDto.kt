@@ -8,6 +8,12 @@ import com.squareup.moshi.JsonClass
  * Khớp với getOverallStats() trong progress.service.js
  */
 @JsonClass(generateAdapter = true)
+data class DayXpDto(
+    @Json(name = "date") val date: String,
+    @Json(name = "xp") val xp: Int
+)
+
+@JsonClass(generateAdapter = true)
 data class ProgressStatsDto(
     @Json(name = "totalCardsStudied") val totalCardsStudied: Int = 0,
     @Json(name = "totalSessionsCompleted") val totalSessionsCompleted: Int = 0,
@@ -22,5 +28,6 @@ data class ProgressStatsDto(
     @Json(name = "xp") val xp: Int = 0,
     @Json(name = "xpToNextLevel") val xpToNextLevel: Int = 500,
     @Json(name = "dueToday") val dueToday: Int = 0,
-    @Json(name = "todayXp") val todayXp: Int = 0
+    @Json(name = "todayXp") val todayXp: Int = 0,
+    @Json(name = "last7DaysXp") val last7DaysXp: List<DayXpDto> = emptyList()
 )

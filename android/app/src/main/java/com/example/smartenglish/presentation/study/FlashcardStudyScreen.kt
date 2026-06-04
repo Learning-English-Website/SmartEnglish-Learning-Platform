@@ -4,6 +4,7 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
@@ -87,6 +88,9 @@ fun FlashcardStudyScreen(
     val gamificationResult by viewModel.gamificationResult.collectAsState()
     val context = LocalContext.current
     val audioPlayer = remember { AudioPlayer(context) }
+    val sharedPrefs = remember(setId) {
+        context.getSharedPreferences("learn_progress_prefs", android.content.Context.MODE_PRIVATE)
+    }
     DisposableEffect(Unit) {
         onDispose {
             audioPlayer.release()
@@ -314,9 +318,15 @@ fun FlashcardStudyScreen(
                         modifier = Modifier.padding(paddingValues)
                     )
                     StudyModeType.LEARN -> LearnModeView(
+                        setId = setId,
                         cards = state.cards,
                         onUpdateCardProgress = { cardId, correct ->
                             viewModel.onEvent(StudyEvent.UpdateCardStudyProgress(cardId, correct))
+                        },
+                        onResetProgress = {
+                            android.util.Log.d("LearnProgress", "onResetProgress: removing learn_round_${setId}")
+                            sharedPrefs.edit().remove("learn_round_${setId}").commit()
+                            viewModel.onEvent(StudyEvent.ResetProgress)
                         },
                         onFinishSession = { cardsStudied, correct, incorrect, isFinal ->
                             viewModel.onEvent(StudyEvent.FinishCustomSession(cardsStudied, correct, incorrect, isFinal))
@@ -353,22 +363,37 @@ fun FlashcardStudyScreen(
                                 currentIndex = testCurrentIndex,
                                 isAnswered = testAnswered,
                                 onAnswer = { answer ->
-                                    val q = testQuestions[testCurrentIndex]
-                                    val isCorrect = when (q.type) {
-                                        TestQuestionType.MULTIPLE_CHOICE -> answer == q.answer
-                                        TestQuestionType.TRUE_FALSE -> answer == (q.answer == "true")
-                                        TestQuestionType.TYPE_ANSWER -> (answer as String).trim().equals(q.answer.trim(), ignoreCase = true)
-                                    }
                                     testAnswers = testAnswers + (testCurrentIndex to answer)
-                                    testAnswered = true
-                                    val prev = testResults[q.cardId] ?: (0 to 0)
-                                    testResults = testResults + (q.cardId to Pair(prev.first + 1, prev.second + if (isCorrect) 1 else 0))
+                                    testAnswered = when (answer) {
+                                        is String -> answer.isNotBlank()
+                                        else -> true
+                                    }
                                 },
                                 onNext = {
                                     if (testCurrentIndex < testQuestions.size - 1) {
                                         testCurrentIndex++
                                         testAnswered = testAnswers.containsKey(testCurrentIndex)
                                     } else {
+                                        var resultsMap = emptyMap<String, Pair<Int, Int>>()
+                                        val correct = testQuestions.countIndexed { idx, q ->
+                                            val a = testAnswers[idx]
+                                            val isCorrect = when (q.type) {
+                                                TestQuestionType.MULTIPLE_CHOICE -> a == q.answer
+                                                TestQuestionType.TRUE_FALSE -> a == (q.answer == "true")
+                                                TestQuestionType.TYPE_ANSWER -> (a as? String)?.trim()?.equals(q.answer.trim(), ignoreCase = true) == true
+                                            }
+                                            val prev = resultsMap[q.cardId] ?: (0 to 0)
+                                            resultsMap = resultsMap + (q.cardId to Pair(prev.first + 1, prev.second + if (isCorrect) 1 else 0))
+                                            isCorrect
+                                        }
+                                        testResults = resultsMap
+                                        val incorrect = testQuestions.size - correct
+                                        viewModel.onEvent(StudyEvent.FinishCustomSession(
+                                            cardsStudied = testQuestions.size,
+                                            correctCount = correct,
+                                            incorrectCount = incorrect,
+                                            isFinal = true
+                                        ))
                                         testAllDone = true
                                     }
                                 },
@@ -862,13 +887,19 @@ private data class LearnItem(
 @OptIn(ExperimentalAnimationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 private fun LearnModeView(
+    setId: String,
     cards: List<Flashcard>,
     onUpdateCardProgress: (String, Boolean) -> Unit,
+    onResetProgress: () -> Unit,
     onFinishSession: (Int, Int, Int, Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val haptic = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val sharedPrefs = remember(setId) {
+        context.getSharedPreferences("learn_progress_prefs", android.content.Context.MODE_PRIVATE)
+    }
 
     // Configuration / Settings
     var includeMC by remember { mutableStateOf(true) }
@@ -898,6 +929,7 @@ private fun LearnModeView(
     fun initSession(shuffled: Boolean = false) {
         if (cards.isEmpty() || (!includeMC && !includeTA)) return
         val list = if (shuffled) cards.shuffled() else cards
+        
         val items = mutableListOf<LearnItem>()
         list.forEach { card ->
             if (includeMC) items.add(LearnItem(card, LearnModeStyle.MULTIPLE_CHOICE, "${card.id}:mc"))
@@ -908,13 +940,89 @@ private fun LearnModeView(
         val totalItems = items.size
         val totalBatches = kotlin.math.max(1, kotlin.math.ceil(totalItems.toFloat() / BATCH_SIZE).toInt())
         val effectiveSize = kotlin.math.ceil(totalItems.toFloat() / totalBatches).toInt()
-        val actualBatchSize = kotlin.math.min(effectiveSize, kotlin.math.max(0, totalItems))
+
+        val savedRound = if (shuffled) {
+            android.util.Log.d("LearnProgress", "initSession: shuffled is true. Clearing learn_round_${setId}")
+            sharedPrefs.edit().remove("learn_round_${setId}").commit()
+            -1
+        } else {
+            val r = sharedPrefs.getInt("learn_round_${setId}", -1)
+            android.util.Log.d("LearnProgress", "initSession: loaded learn_round_${setId} = $r")
+            r
+        }
         
-        batchQueue = items.take(actualBatchSize)
-        batchProgressCorrect = mapOf(0 to 0)
-        itemResults = emptyMap()
-        firstTryResults = emptyMap()
-        currentBatchIdx = 0
+        // Pre-populate results
+        val initialResults = mutableMapOf<String, Boolean>()
+        val initialProgress = mutableMapOf<Int, Int>()
+
+        for (batchIdx in 0 until totalBatches) {
+            val start = batchIdx * effectiveSize
+            val size = kotlin.math.min(effectiveSize, kotlin.math.max(0, totalItems - start))
+            val batchItems = items.subList(start, start + size)
+
+            if (savedRound >= 0 && batchIdx < savedRound) {
+                batchItems.forEach { item ->
+                    initialResults[item.itemId] = true
+                }
+                initialProgress[batchIdx] = size
+            } else {
+                var correctCount = 0
+                batchItems.forEach { item ->
+                    if (item.card.correctStreak > 0) {
+                        initialResults[item.itemId] = true
+                        correctCount++
+                    }
+                }
+                initialProgress[batchIdx] = correctCount
+            }
+        }
+
+        var startBatchIdx = 0
+        if (savedRound >= 0 && savedRound < totalBatches) {
+            startBatchIdx = savedRound
+        } else {
+            // Find first incomplete batch
+            for (batchIdx in 0 until totalBatches) {
+                val start = batchIdx * effectiveSize
+                val size = kotlin.math.min(effectiveSize, kotlin.math.max(0, totalItems - start))
+                val correctCount = initialProgress[batchIdx] ?: 0
+                if (correctCount < size) {
+                    startBatchIdx = batchIdx
+                    break
+                }
+                if (batchIdx == totalBatches - 1) {
+                    startBatchIdx = totalBatches - 1
+                }
+            }
+        }
+
+        // Check if all batches are completed
+        val allCorrect = initialProgress.all { (batchIdx, correct) ->
+            val start = batchIdx * effectiveSize
+            val size = kotlin.math.min(effectiveSize, kotlin.math.max(0, totalItems - start))
+            correct >= size
+        }
+
+        if (allCorrect) {
+            initialResults.clear()
+            for (batchIdx in 0 until totalBatches) {
+                initialProgress[batchIdx] = 0
+            }
+            startBatchIdx = 0
+            val start = 0
+            val size = kotlin.math.min(effectiveSize, kotlin.math.max(0, totalItems - start))
+            batchQueue = items.subList(0, size)
+        } else {
+            val start = startBatchIdx * effectiveSize
+            val size = kotlin.math.min(effectiveSize, kotlin.math.max(0, totalItems - start))
+            val batchItems = items.subList(start, start + size)
+            batchQueue = batchItems.filter { initialResults[it.itemId] != true }
+        }
+
+        itemResults = initialResults
+        firstTryResults = initialResults
+        batchProgressCorrect = initialProgress
+        currentBatchIdx = startBatchIdx
         queueIdx = 0
         screen = "learning"
         
@@ -1055,9 +1163,14 @@ private fun LearnModeView(
                         val isFinal = currentBatchIdx + 1 >= totalBatches
 
                         if (isFinal) {
+                            android.util.Log.d("LearnProgress", "handleNext: final batch. Clearing learn_round_${setId}")
+                            sharedPrefs.edit().remove("learn_round_${setId}").commit()
                             screen = "session-complete"
                             onFinishSession(batchStudied, batchCorrect, batchIncorrect, true)
                         } else {
+                            val nextRound = currentBatchIdx + 1
+                            android.util.Log.d("LearnProgress", "handleNext: saving learn_round_${setId} = $nextRound")
+                            sharedPrefs.edit().putInt("learn_round_${setId}", nextRound).commit()
                             screen = "batch-complete"
                             onFinishSession(batchStudied, batchCorrect, batchIncorrect, false)
                         }
@@ -1094,6 +1207,8 @@ private fun LearnModeView(
         val size = getBatchSize(nextBatchIdx)
         
         if (startIdx >= sessionItems.size) {
+            android.util.Log.d("LearnProgress", "handleBatchContinue: startIdx >= size. Clearing learn_round_${setId}")
+            sharedPrefs.edit().remove("learn_round_${setId}").commit()
             screen = "session-complete"
             val batchStart = getBatchesOffset(currentBatchIdx)
             val batchItems = sessionItems.subList(batchStart, batchStart + actualBatchSize)
@@ -1102,11 +1217,13 @@ private fun LearnModeView(
             val batchIncorrect = batchStudied - batchCorrect
             onFinishSession(batchStudied, batchCorrect, batchIncorrect, true)
         } else {
-            batchQueue = sessionItems.subList(startIdx, startIdx + size)
+            android.util.Log.d("LearnProgress", "handleBatchContinue: saving learn_round_${setId} = $nextBatchIdx")
+            sharedPrefs.edit().putInt("learn_round_${setId}", nextBatchIdx).commit()
+            val nextBatchItems = sessionItems.subList(startIdx, startIdx + size)
+            batchQueue = nextBatchItems.filter { itemResults[it.itemId] != true }
             currentBatchIdx = nextBatchIdx
             queueIdx = 0
-            batchProgressCorrect = batchProgressCorrect + (nextBatchIdx to 0)
-            itemResults = emptyMap()
+            // Keep batchProgressCorrect for nextBatchIdx as whatever was pre-populated
             screen = "learning"
             
             answered = false
@@ -1118,7 +1235,9 @@ private fun LearnModeView(
     }
 
     val handleRestart = {
-        initSession(shuffled = isShuffled)
+        android.util.Log.d("LearnProgress", "handleRestart: clearing learn_round_${setId}")
+        sharedPrefs.edit().remove("learn_round_${setId}").commit()
+        onResetProgress()
     }
 
     when (screen) {
@@ -1828,29 +1947,16 @@ private fun TestModeView(
             TestQuestionType.MULTIPLE_CHOICE -> {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     q.options.forEach { option ->
-                        val isCorrect = option == q.answer
                         val isSelected = selectedAnswer == option
-                        val bgColor = when {
-                            !isAnswered && isSelected -> QuizletBlue.copy(alpha = 0.12f)
-                            isAnswered && isCorrect -> QuizletGreen.copy(alpha = 0.1f)
-                            isAnswered && isSelected && !isCorrect -> QuizletCoral.copy(alpha = 0.1f)
-                            else -> CardBg
-                        }
-                        val borderColor = when {
-                            !isAnswered && isSelected -> QuizletBlue
-                            isAnswered && isCorrect -> QuizletGreen
-                            isAnswered && isSelected && !isCorrect -> QuizletCoral
-                            else -> Color.White.copy(alpha = 0.12f)
-                        }
+                        val bgColor = if (isSelected) QuizletBlue.copy(alpha = 0.12f) else CardBg
+                        val borderColor = if (isSelected) QuizletBlue else Color.White.copy(alpha = 0.12f)
                         OutlinedCard(
-                            modifier = Modifier.fillMaxWidth().clickable(enabled = !isAnswered) { onAnswer(option) },
+                            modifier = Modifier.fillMaxWidth().clickable { onAnswer(option) },
                             colors = CardDefaults.outlinedCardColors(containerColor = bgColor),
                             border = CardDefaults.outlinedCardBorder().copy(brush = SolidColor(borderColor))
                         ) {
                             Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Text(option, Modifier.weight(1f), color = Color.White)
-                                if (isAnswered && isCorrect) Icon(Icons.Default.Check, null, tint = QuizletGreen)
-                                if (isAnswered && isSelected && !isCorrect) Icon(Icons.Default.Close, null, tint = QuizletCoral)
                             }
                         }
                     }
@@ -1860,26 +1966,16 @@ private fun TestModeView(
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     listOf(true to "Đúng", false to "Sai").forEach { (value, label) ->
                         val isSelected = selectedAnswer == value
-                        val bgColor = when {
-                            !isAnswered && isSelected -> QuizletBlue.copy(alpha = 0.12f)
-                            isAnswered && value == (q.answer == "true") -> QuizletGreen.copy(alpha = 0.1f)
-                            isAnswered && isSelected && value != (q.answer == "true") -> QuizletCoral.copy(alpha = 0.1f)
-                            else -> CardBg
-                        }
-                        val borderColor = when {
-                            !isAnswered && isSelected -> QuizletBlue
-                            isAnswered && value == (q.answer == "true") -> QuizletGreen
-                            isAnswered && isSelected && value != (q.answer == "true") -> QuizletCoral
-                            else -> Color.White.copy(alpha = 0.12f)
-                        }
+                        val bgColor = if (isSelected) QuizletBlue.copy(alpha = 0.12f) else CardBg
+                        val borderColor = if (isSelected) QuizletBlue else Color.White.copy(alpha = 0.12f)
                         OutlinedCard(
-                            modifier = Modifier.weight(1f).clickable(enabled = !isAnswered) { onAnswer(value) },
+                            modifier = Modifier.weight(1f).clickable { onAnswer(value) },
                             colors = CardDefaults.outlinedCardColors(containerColor = bgColor),
                             border = BorderStroke(1.5.dp, borderColor)
                         ) {
                             Column(Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                                 Icon(if (value) Icons.Default.Check else Icons.Default.Close, null, modifier = Modifier.size(32.dp),
-                                    tint = if (!isAnswered) TextGray else if (value == (q.answer == "true")) QuizletGreen else QuizletCoral)
+                                    tint = if (isSelected) QuizletBlue else TextGray)
                                 Text(label, color = Color.White)
                             }
                         }
@@ -1887,10 +1983,13 @@ private fun TestModeView(
                 }
             }
             TestQuestionType.TYPE_ANSWER -> {
-                var typed by remember { mutableStateOf("") }
+                var typed by remember(currentIndex) { mutableStateOf((selectedAnswer as? String) ?: "") }
                 OutlinedTextField(
                     value = typed,
-                    onValueChange = { typed = it },
+                    onValueChange = {
+                        typed = it
+                        onAnswer(it)
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     label = { Text("Nhập đáp án...") },
                     singleLine = true,
@@ -1903,20 +2002,8 @@ private fun TestModeView(
                         focusedTextColor = Color.White,
                         unfocusedTextColor = Color.White,
                         cursorColor = IconCyan
-                    ),
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(onDone = {
-                        if (typed.isNotBlank()) onAnswer(typed)
-                    })
+                    )
                 )
-                Spacer(Modifier.height(12.dp))
-                Button(
-                    onClick = { if (typed.isNotBlank()) onAnswer(typed) },
-                    enabled = typed.isNotBlank(),
-                    modifier = Modifier.fillMaxWidth().height(56.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = QuizletBlue, contentColor = Color.White)
-                ) { Text("Kiểm tra", fontWeight = FontWeight.Bold) }
             }
         }
 
@@ -2159,7 +2246,7 @@ private fun MatchModeView(
             ) {
                 Column(
                     verticalArrangement = Arrangement.spacedBy(10.dp),
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f).fillMaxHeight()
                 ) {
                     terms.forEach { (id, text) ->
                         val isSelected = selected.contains(id)
@@ -2173,14 +2260,15 @@ private fun MatchModeView(
                             isMismatched = isMismatched,
                             isMatched = isMatched,
                             isDef = false,
-                            onClick = { onTileClick(id) }
+                            onClick = { onTileClick(id) },
+                            modifier = Modifier.weight(1f)
                         )
                     }
                 }
                 
                 Column(
                     verticalArrangement = Arrangement.spacedBy(10.dp),
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f).fillMaxHeight()
                 ) {
                     defs.forEach { (id, text) ->
                         val isSelected = selected.contains(id)
@@ -2194,7 +2282,8 @@ private fun MatchModeView(
                             isMismatched = isMismatched,
                             isMatched = isMatched,
                             isDef = true,
-                            onClick = { onTileClick(id) }
+                            onClick = { onTileClick(id) },
+                            modifier = Modifier.weight(1f)
                         )
                     }
                 }
@@ -2211,54 +2300,83 @@ private fun MatchTile(
     isMismatched: Boolean,
     isMatched: Boolean,
     isDef: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val alphaAnim by animateFloatAsState(
-        targetValue = if (isMatched) 0.3f else 1.0f,
-        animationSpec = tween(300),
+        targetValue = if (isMatched) 0.2f else 1.0f,
+        animationSpec = tween(400),
         label = "alpha"
     )
+    
+    val scaleAnim by animateFloatAsState(
+        targetValue = when {
+            isMismatched -> 0.95f
+            isSelected -> 1.05f
+            else -> 1.0f
+        },
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "scale"
+    )
 
-    val bgColor = when {
-        isMatched -> QuizletGreen.copy(alpha = 0.08f)
-        isMismatched -> QuizletCoral.copy(alpha = 0.1f)
-        isSelected -> QuizletBlue.copy(alpha = 0.12f)
-        else -> CardBg
+    val cardBgGradient = when {
+        isMatched -> Brush.verticalGradient(
+            colors = listOf(Color(0xFF00C853).copy(alpha = 0.08f), Color(0xFF00C853).copy(alpha = 0.02f))
+        )
+        isMismatched -> Brush.verticalGradient(
+            colors = listOf(Color(0xFFFF3B30).copy(alpha = 0.15f), Color(0xFFFF3B30).copy(alpha = 0.05f))
+        )
+        isSelected -> Brush.verticalGradient(
+            colors = listOf(Color(0xFF4255FF).copy(alpha = 0.25f), Color(0xFF38BDF8).copy(alpha = 0.1f))
+        )
+        else -> Brush.verticalGradient(
+            colors = listOf(Color(0xFF1E214A).copy(alpha = 0.7f), Color(0xFF161A3F).copy(alpha = 0.9f))
+        )
     }
+    
     val borderColor = when {
-        isMatched -> QuizletGreen
-        isMismatched -> QuizletCoral
-        isSelected -> IconCyan
-        else -> Color.White.copy(alpha = 0.12f)
+        isMatched -> Color(0xFF00C853)
+        isMismatched -> Color(0xFFFF3B30)
+        isSelected -> Color(0xFF38BDF8)
+        else -> Color(0xFF2E3272)
     }
 
-    Surface(
-        modifier = Modifier
+    val borderWidth = when {
+        isMatched || isMismatched || isSelected -> 2.dp
+        else -> 1.dp
+    }
+
+    Box(
+        modifier = modifier
             .fillMaxWidth()
-            .graphicsLayer { alpha = alphaAnim }
-            .shadow(
-                elevation = if (isSelected || isMismatched) 4.dp else 1.dp,
-                shape = RoundedCornerShape(16.dp)
-            )
+            .graphicsLayer {
+                alpha = alphaAnim
+                scaleX = scaleAnim
+                scaleY = scaleAnim
+            }
+            .clip(RoundedCornerShape(16.dp))
+            .background(cardBgGradient)
+            .border(borderWidth, borderColor, RoundedCornerShape(16.dp))
             .clickable(enabled = !isMatched && !isMismatched) { onClick() },
-        shape = RoundedCornerShape(16.dp),
-        color = bgColor,
-        border = BorderStroke(if (isSelected || isMismatched || isMatched) 2.dp else 1.5.dp, borderColor)
+        contentAlignment = Alignment.Center
     ) {
         Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 16.dp, horizontal = 12.dp),
+                .fillMaxSize()
+                .padding(horizontal = 12.dp, vertical = 8.dp),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 text = text,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
                 textAlign = TextAlign.Center,
-                maxLines = 3,
+                maxLines = 4,
                 overflow = TextOverflow.Ellipsis,
-                color = Color.White
+                color = if (isMatched) Color(0xFF00C853) else Color.White
             )
             
             if (isMatched) {
@@ -2268,8 +2386,8 @@ private fun MatchTile(
                     modifier = Modifier
                         .size(16.dp)
                         .align(Alignment.TopEnd)
-                        .offset(x = 4.dp, y = (-8).dp),
-                    tint = QuizletGreen
+                        .offset(x = 4.dp, y = (-2).dp),
+                    tint = Color(0xFF00C853)
                 )
             }
         }

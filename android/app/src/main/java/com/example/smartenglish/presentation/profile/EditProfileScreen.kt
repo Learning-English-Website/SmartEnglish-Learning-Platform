@@ -110,7 +110,7 @@ fun EditProfileScreen(
                 cachedUser = (uiState as EditProfileUiState.Success).user
             }
             is EditProfileUiState.SaveSuccess -> {
-                snackbarHostState.showSnackbar("Thông tin hồ sơ đã được cập nhật!")
+                android.widget.Toast.makeText(context, "Thông tin hồ sơ đã được cập nhật!", android.widget.Toast.LENGTH_SHORT).show()
                 onNavigateBack()
             }
             is EditProfileUiState.Error -> {

@@ -16,4 +16,5 @@ interface CardRepository {
     suspend fun getCardsForStudy(setId: String): List<Flashcard>
     suspend fun updateCardStudyProgress(id: String, correct: Boolean)
     suspend fun syncCards(setId: String)
+    suspend fun resetStudyProgressForSet(setId: String)
 }

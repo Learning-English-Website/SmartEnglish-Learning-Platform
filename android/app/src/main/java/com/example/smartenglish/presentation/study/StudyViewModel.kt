@@ -56,6 +56,7 @@ sealed class StudyEvent {
     data object FinishSession : StudyEvent()
     data class UpdateCardStudyProgress(val cardId: String, val correct: Boolean) : StudyEvent()
     data class FinishCustomSession(val cardsStudied: Int, val correctCount: Int, val incorrectCount: Int, val isFinal: Boolean) : StudyEvent()
+    data object ResetProgress : StudyEvent()
 }
 
 @HiltViewModel
@@ -167,6 +168,12 @@ class StudyViewModel @Inject constructor(
             }
             is StudyEvent.FinishCustomSession -> {
                 finishCustomSession(event.cardsStudied, event.correctCount, event.incorrectCount, event.isFinal)
+            }
+            StudyEvent.ResetProgress -> {
+                viewModelScope.launch {
+                    cardRepository.resetStudyProgressForSet(setId)
+                    loadData()
+                }
             }
         }
     }

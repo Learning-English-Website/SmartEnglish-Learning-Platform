@@ -16,6 +16,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -56,8 +57,17 @@ fun ProfileScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    LaunchedEffect(Unit) {
-        viewModel.loadProfile(isSilent = true)
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                viewModel.loadProfile(isSilent = true)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
     }
 
     LaunchedEffect(uiState) {
@@ -203,6 +213,143 @@ fun ProfileScreen(
                         )
 
                         Spacer(modifier = Modifier.height(28.dp))
+
+                        // Gamification Stats Row
+                        val totalXp = state.user.gamification.xp
+                        val level = state.user.gamification.level
+                        val xpCurrentLevel = totalXp % 500
+                        val progressFraction = xpCurrentLevel.toFloat() / 500f
+                        val progressPercent = (progressFraction * 100).toInt()
+                        val xpToNextLevel = 500 - xpCurrentLevel
+                        val nextLevel = level + 1
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            StatCard(
+                                emoji = "🔥",
+                                emojiBgColor = Color(0xFFFF9800).copy(alpha = 0.15f),
+                                value = "${state.user.streak.current}",
+                                label = "Chuỗi hiện tại",
+                                modifier = Modifier.weight(1f)
+                            )
+                            StatCard(
+                                emoji = "⭐",
+                                emojiBgColor = Color(0xFF8B5CF6).copy(alpha = 0.15f),
+                                value = "Level ${level}",
+                                label = "Cấp độ",
+                                modifier = Modifier.weight(1f)
+                            )
+                            StatCard(
+                                emoji = "⚡",
+                                emojiBgColor = Color(0xFF06B6D4).copy(alpha = 0.15f),
+                                value = "${totalXp}",
+                                label = "Tổng XP",
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // XP Progress Section Title
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "⚡ Tiến độ XP",
+                                color = Color.White,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        // Sleek, Mobile-Optimised XP Progress Card
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .border(1.dp, Color.White.copy(alpha = 0.05f), RoundedCornerShape(16.dp)),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = CardBg)
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                // Top Row: Level Tag and XP text
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(24.dp)
+                                                .background(Color(0xFF8B5CF6).copy(alpha = 0.2f), CircleShape),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(text = "⭐", fontSize = 12.sp)
+                                        }
+                                        Text(
+                                            text = "Cấp độ ${level}",
+                                            color = Color.White,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 14.sp
+                                        )
+                                    }
+                                    Text(
+                                        text = "${xpCurrentLevel} / 500 XP",
+                                        color = TextGray,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+
+                                // Thin & Premium purple progress bar
+                                LinearProgressIndicator(
+                                    progress = { progressFraction },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(6.dp)
+                                        .clip(RoundedCornerShape(3.dp)),
+                                    color = Color(0xFF8B5CF6),
+                                    trackColor = Color(0xFF1E214A)
+                                )
+
+                                // Bottom Row: Percentage progress and XP remaining footnote
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "${progressPercent}%",
+                                        color = Color(0xFF8B5CF6),
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = "Cần ${xpToNextLevel} XP để lên Level ${nextLevel}",
+                                        color = TextGray,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Normal
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(20.dp))
 
                         // Role & Member Cards
                         ProfileInfoCard(
@@ -529,6 +676,55 @@ private fun AdminActionCard(
                 imageVector = Icons.Default.ChevronRight,
                 contentDescription = null,
                 tint = TextGray
+            )
+        }
+    }
+}
+
+@Composable
+private fun StatCard(
+    emoji: String,
+    emojiBgColor: Color,
+    value: String,
+    label: String,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier
+            .border(1.dp, Color.White.copy(alpha = 0.05f), RoundedCornerShape(14.dp)),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = CardBg)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 10.dp, horizontal = 4.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(34.dp)
+                    .background(emojiBgColor, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(text = emoji, fontSize = 16.sp)
+            }
+
+            Text(
+                text = value,
+                color = Color.White,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
+
+            Text(
+                text = label,
+                color = TextGray,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Normal,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
         }
     }

@@ -539,6 +539,10 @@ class CardRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun resetStudyProgressForSet(setId: String) = withContext(Dispatchers.IO) {
+        cardDao.resetStudyProgressForSet(setId)
+    }
+
     private fun isValidObjectId(id: String): Boolean {
         return id.length == 24 && id.all { it.isDigit() || it in 'a'..'f' || it in 'A'..'F' }
     }
