@@ -3,6 +3,8 @@ package com.example.smartenglish.presentation.sets
 import com.example.smartenglish.domain.model.Flashcard
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.collectLatest
+import coil.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -51,6 +53,8 @@ fun SetDetailScreen(
     val state by viewModel.state.collectAsState()
     val isDownloaded by viewModel.isDownloaded.collectAsState()
     val isDownloading by viewModel.isDownloading.collectAsState()
+    val currentUserName by viewModel.currentUserName.collectAsState()
+    val currentUserAvatar by viewModel.currentUserAvatar.collectAsState()
     var showEditDialog by remember { mutableStateOf(false) }
     var showShareSheet by remember { mutableStateOf(false) }
     var showExportSheet by remember { mutableStateOf(false) }
@@ -269,27 +273,41 @@ fun SetDetailScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            // Avatar Box with Initials
-                            Box(
-                                modifier = Modifier
-                                    .size(28.dp)
-                                    .background(Color.White.copy(alpha = 0.08f), CircleShape)
-                                    .border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                val userName = set.userName ?: "Bạn"
-                                val initials = if (userName.isNotEmpty()) userName.take(1).uppercase() else "?"
-                                Text(
-                                    text = initials,
-                                    color = Color.White,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold
+                            val resolvedUserName = set.userName ?: currentUserName ?: "User"
+                            val resolvedUserAvatar = set.userAvatar ?: currentUserAvatar
+
+                            if (!resolvedUserAvatar.isNullOrBlank()) {
+                                AsyncImage(
+                                    model = resolvedUserAvatar,
+                                    contentDescription = "Tác giả",
+                                    modifier = Modifier
+                                        .size(28.dp)
+                                        .clip(CircleShape)
+                                        .border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape),
+                                    contentScale = ContentScale.Crop
                                 )
+                            } else {
+                                // Avatar Box with Initials
+                                Box(
+                                    modifier = Modifier
+                                        .size(28.dp)
+                                        .background(Color.White.copy(alpha = 0.08f), CircleShape)
+                                        .border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    val initials = if (resolvedUserName.isNotEmpty()) resolvedUserName.take(1).uppercase() else "?"
+                                    Text(
+                                        text = initials,
+                                        color = Color.White,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
                             }
 
                             // Creator Name
                             Text(
-                                text = set.userName ?: "bạn",
+                                text = resolvedUserName,
                                 color = Color.White,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Medium

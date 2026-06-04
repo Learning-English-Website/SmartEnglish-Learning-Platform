@@ -33,7 +33,7 @@ export function useAuth() {
       if (result.payload.role === 'admin') {
         navigate('/admin', { replace: true });
       } else {
-        const dest = (redirect && redirect !== 'null') ? redirect : '/';
+        const dest = (redirect && redirect !== 'null' && redirect !== '/') ? redirect : '/dashboard';
         navigate(dest, { replace: true });
       }
     } else {
@@ -61,7 +61,7 @@ export function useAuth() {
       if (result.payload.role === 'admin') {
         navigate('/admin', { replace: true });
       } else {
-        navigate('/', { replace: true });
+        navigate('/dashboard', { replace: true });
       }
       return true;
     } else {

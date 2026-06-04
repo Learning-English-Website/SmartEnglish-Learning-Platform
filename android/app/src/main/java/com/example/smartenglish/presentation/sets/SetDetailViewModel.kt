@@ -35,6 +35,7 @@ class SetDetailViewModel @Inject constructor(
     private val downloadRepository: DownloadRepository,
     private val syncManager: SyncManager,
     private val networkMonitor: NetworkMonitor,
+    private val userRepository: com.example.smartenglish.domain.repository.UserRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -50,10 +51,29 @@ class SetDetailViewModel @Inject constructor(
     private val _state = MutableStateFlow(SetDetailState())
     val state: StateFlow<SetDetailState> = _state.asStateFlow()
 
+    private val _currentUserName = MutableStateFlow<String?>(null)
+    val currentUserName = _currentUserName.asStateFlow()
+
+    private val _currentUserAvatar = MutableStateFlow<String?>(null)
+    val currentUserAvatar = _currentUserAvatar.asStateFlow()
+
     init {
         loadSet()
         fetchCards()
+        loadCurrentUser()
         observeNetworkChanges()
+    }
+
+    private fun loadCurrentUser() {
+        viewModelScope.launch {
+            when (val result = userRepository.getMe()) {
+                is ApiResult.Success -> {
+                    _currentUserName.value = result.data.username
+                    _currentUserAvatar.value = result.data.avatar
+                }
+                else -> {}
+            }
+        }
     }
 
     private fun observeNetworkChanges() {

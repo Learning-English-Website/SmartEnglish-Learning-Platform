@@ -35,6 +35,13 @@ data class FlashcardSetDto(
             is UserSimpleDto -> user.username
             else -> null
         }
+
+    val userAvatar: String?
+        get() = when (user) {
+            is Map<*, *> -> (user as Map<*, *>)["avatar"] as? String
+            is UserSimpleDto -> user.avatar
+            else -> null
+        }
 }
 
 @JsonClass(generateAdapter = true)

@@ -46,14 +46,26 @@ router.get('/google', (req, res, next) => {
 
 // Google OAuth callback – set cookies rồi redirect về frontend (KHÔNG truyền token qua URL)
 router.get('/google/callback', (req, res, next) => {
-  const redirectPath = '/';
+  let redirectPath = '/';
+  try {
+    const { state } = req.query;
+    if (state) {
+      const decoded = JSON.parse(Buffer.from(state, 'base64').toString('utf-8'));
+      if (decoded.redirect) {
+        redirectPath = decoded.redirect;
+      }
+    }
+  } catch (err) {
+    console.error('Failed to parse Google OAuth state:', err);
+  }
+
   passport.authenticate('google', { session: false, failureRedirect: `${process.env.CLIENT_URL}/login?error=google_failed` }, (err, authData) => {
     if (err || !authData) return res.redirect(`${process.env.CLIENT_URL}/login?error=google_failed`);
     const tokens = authData;
     const isProd = process.env.NODE_ENV === 'production';
     const sameSite = isProd ? 'none' : 'lax';
     res.cookie('accessToken', tokens.accessToken, { httpOnly: true, secure: isProd, sameSite, maxAge: 15 * 60 * 1000 });
-    res.cookie('refreshToken', tokens.refreshToken, { httpOnly: true, secure: isProd, sameSite, maxAge: 7 * 24 * 60 * 60 * 1000 });
+    res.cookie('refreshToken', tokens.refreshToken, { httpOnly: true, secure: isProd, sameSite, sameSite, maxAge: 7 * 24 * 60 * 60 * 1000 });
     res.redirect(`${process.env.CLIENT_URL}/oauth/callback?redirect=${encodeURIComponent(redirectPath)}`);
   })(req, res, next);
 });

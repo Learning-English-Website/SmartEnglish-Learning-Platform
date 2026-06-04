@@ -29,7 +29,7 @@ import com.example.smartenglish.data.local.entity.WordSetEntity
         PendingOperationEntity::class,
         DownloadedContentEntity::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
