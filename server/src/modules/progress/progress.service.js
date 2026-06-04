@@ -433,15 +433,16 @@ const getOverallStats = async (userId) => {
   const xp = totalXp % 500;
   const xpToNextLevel = 500;
 
-  // Retrieve today's XP from DailyQuest (Single Source of Truth)
+  // Retrieve today's XP from DailyQuest (Single Source of Truth) and weekly XP history
   let todayXp = 0;
+  const last7DaysXp = [];
   try {
+    const DailyQuest = require('../../models/dailyQuest.model');
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
     const tomorrowStart = new Date(todayStart);
     tomorrowStart.setDate(tomorrowStart.getDate() + 1);
 
-    const DailyQuest = require('../../models/dailyQuest.model');
     const xpQuest = await DailyQuest.findOne({
       user: userId,
       day: { $gte: todayStart, $lt: tomorrowStart },
@@ -450,8 +451,35 @@ const getOverallStats = async (userId) => {
     if (xpQuest) {
       todayXp = xpQuest.progress || 0;
     }
+
+    // Retrieve XP for the last 7 days (today and 6 previous days)
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      d.setHours(0, 0, 0, 0);
+
+      const dayStart = new Date(d);
+      const dayEnd = new Date(d);
+      dayEnd.setDate(dayEnd.getDate() + 1);
+
+      const dayQuest = await DailyQuest.findOne({
+        user: userId,
+        day: { $gte: dayStart, $lt: dayEnd },
+        type: 'xp'
+      });
+
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const dateVal = String(d.getDate()).padStart(2, '0');
+      const dateStr = `${year}-${month}-${dateVal}`;
+
+      last7DaysXp.push({
+        date: dateStr,
+        xp: dayQuest ? (dayQuest.progress || 0) : 0
+      });
+    }
   } catch (err) {
-    console.error('[ProgressService] Failed to retrieve today\'s XP:', err.message);
+    console.error('[ProgressService] Failed to retrieve today\'s XP or last 7 days XP:', err.message);
   }
 
   return {
@@ -466,6 +494,7 @@ const getOverallStats = async (userId) => {
     newCards,
     dueToday,       // Thêm mới: số thẻ cần ôn hôm nay
     todayXp,        // Thêm mới: XP tích lũy trong ngày
+    last7DaysXp,    // Thêm mới: XP 7 ngày gần nhất
     level,
     xp,
     xpToNextLevel,
