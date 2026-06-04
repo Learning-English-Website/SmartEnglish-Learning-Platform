@@ -272,6 +272,18 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun provideAdminApi(retrofit: Retrofit): AdminApi {
+        return retrofit.create(AdminApi::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideAdminRepository(adminApi: AdminApi, networkMonitor: com.example.smartenglish.util.NetworkMonitor): AdminRepository {
+        return AdminRepositoryImpl(adminApi, networkMonitor)
+    }
+
+    @Provides
+    @Singleton
     fun provideNetworkMonitor(@ApplicationContext context: android.content.Context): com.example.smartenglish.util.NetworkMonitor {
         return com.example.smartenglish.util.NetworkMonitor(context)
     }
