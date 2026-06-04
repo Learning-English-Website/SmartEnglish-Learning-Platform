@@ -166,16 +166,25 @@ class AuthRepositoryImpl @Inject constructor(
 
     override suspend fun resetPassword(email: String, otp: String, newPassword: String): ApiResult<Unit> {
         return try {
-            val response = authApi.resetPassword(ResetPasswordRequest(email, otp, newPassword))
+            Log.d("AuthRepository", "resetPassword called - email: $email, otp: $otp")
+            val request = ResetPasswordRequest(email, otp, newPassword)
+            Log.d("AuthRepository", "Request body: email=${request.email}, otp=${request.otp}")
+            val response = authApi.resetPassword(request)
+            Log.d("AuthRepository", "Response code: ${response.code()}")
+            Log.d("AuthRepository", "Response body: ${response.body()}")
+            Log.d("AuthRepository", "Response errorBody: ${response.errorBody()?.string()}")
             if (response.isSuccessful && response.body()?.success == true) {
+                Log.d("AuthRepository", "resetPassword SUCCESS")
                 ApiResult.Success(Unit)
             } else {
                 val rawError = response.body()?.error?.message
                     ?: response.errorBody()?.string()
                     ?: "Failed to reset password"
+                Log.e("AuthRepository", "resetPassword FAILED: $rawError")
                 ApiResult.Error(ErrorParser.parseErrorMessage(rawError))
             }
         } catch (e: Exception) {
+            Log.e("AuthRepository", "resetPassword EXCEPTION: ${e.message}", e)
             ApiResult.Error(e.message ?: "Network error")
         }
     }
