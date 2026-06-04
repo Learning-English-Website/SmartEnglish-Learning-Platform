@@ -21,6 +21,6 @@ data class ProgressStatsDto(
     @Json(name = "level") val level: Int = 1,
     @Json(name = "xp") val xp: Int = 0,
     @Json(name = "xpToNextLevel") val xpToNextLevel: Int = 500,
-    // dueToday không có sẵn trong /stats — tính thủ công hoặc để 0
-    @Json(name = "dueToday") val dueToday: Int = 0
+    @Json(name = "dueToday") val dueToday: Int = 0,
+    @Json(name = "todayXp") val todayXp: Int = 0
 )

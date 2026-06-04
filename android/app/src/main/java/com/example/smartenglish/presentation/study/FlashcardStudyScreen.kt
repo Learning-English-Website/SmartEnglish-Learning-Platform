@@ -318,8 +318,8 @@ fun FlashcardStudyScreen(
                         onUpdateCardProgress = { cardId, correct ->
                             viewModel.onEvent(StudyEvent.UpdateCardStudyProgress(cardId, correct))
                         },
-                        onFinishSession = { cardsStudied, correct, incorrect ->
-                            viewModel.onEvent(StudyEvent.FinishCustomSession(cardsStudied, correct, incorrect))
+                        onFinishSession = { cardsStudied, correct, incorrect, isFinal ->
+                            viewModel.onEvent(StudyEvent.FinishCustomSession(cardsStudied, correct, incorrect, isFinal))
                         },
                         modifier = Modifier.padding(paddingValues)
                     )
@@ -462,7 +462,9 @@ fun FlashcardStudyScreen(
                 onDismiss = {
                     viewModel.clearGamificationResult()
                     showGamification = false
-                    onNavigateBack()
+                    if (state.isFinished) {
+                        onNavigateBack()
+                    }
                 }
             )
         }
@@ -862,7 +864,7 @@ private data class LearnItem(
 private fun LearnModeView(
     cards: List<Flashcard>,
     onUpdateCardProgress: (String, Boolean) -> Unit,
-    onFinishSession: (Int, Int, Int) -> Unit,
+    onFinishSession: (Int, Int, Int, Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val haptic = LocalHapticFeedback.current
@@ -1045,15 +1047,19 @@ private fun LearnModeView(
                 } else {
                     val bpCorrect = batchProgressCorrect[currentBatchIdx] ?: 0
                     if (bpCorrect >= actualBatchSize) {
-                        if (currentBatchIdx + 1 >= totalBatches) {
+                        val batchStart = getBatchesOffset(currentBatchIdx)
+                        val batchItems = sessionItems.subList(batchStart, batchStart + actualBatchSize)
+                        val batchStudied = batchItems.size
+                        val batchCorrect = batchItems.count { firstTryResults[it.itemId] == true }
+                        val batchIncorrect = batchStudied - batchCorrect
+                        val isFinal = currentBatchIdx + 1 >= totalBatches
+
+                        if (isFinal) {
                             screen = "session-complete"
-                            // Report completed session stats to ViewModel
-                            val totalStudied = firstTryResults.size
-                            val totalCorrectCount = firstTryResults.values.count { it }
-                            val totalIncorrectCount = totalStudied - totalCorrectCount
-                            onFinishSession(totalStudied, totalCorrectCount, totalIncorrectCount)
+                            onFinishSession(batchStudied, batchCorrect, batchIncorrect, true)
                         } else {
                             screen = "batch-complete"
+                            onFinishSession(batchStudied, batchCorrect, batchIncorrect, false)
                         }
                     } else {
                         // Recreate queue with wrong ones at the end
@@ -1089,10 +1095,12 @@ private fun LearnModeView(
         
         if (startIdx >= sessionItems.size) {
             screen = "session-complete"
-            val totalStudied = firstTryResults.size
-            val totalCorrectCount = firstTryResults.values.count { it }
-            val totalIncorrectCount = totalStudied - totalCorrectCount
-            onFinishSession(totalStudied, totalCorrectCount, totalIncorrectCount)
+            val batchStart = getBatchesOffset(currentBatchIdx)
+            val batchItems = sessionItems.subList(batchStart, batchStart + actualBatchSize)
+            val batchStudied = batchItems.size
+            val batchCorrect = batchItems.count { firstTryResults[it.itemId] == true }
+            val batchIncorrect = batchStudied - batchCorrect
+            onFinishSession(batchStudied, batchCorrect, batchIncorrect, true)
         } else {
             batchQueue = sessionItems.subList(startIdx, startIdx + size)
             currentBatchIdx = nextBatchIdx

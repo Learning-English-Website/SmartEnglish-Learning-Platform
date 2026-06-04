@@ -313,7 +313,7 @@ fun EditProfileScreen(
                                         modifier = Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
-                                        Text("Trạng thái Premium", color = TextGray, fontSize = 14.sp)
+                                        Text("Plan", color = TextGray, fontSize = 14.sp)
                                         Text(
                                             text = u.premium.replaceFirstChar { it.uppercase() },
                                             color = IconCyan,

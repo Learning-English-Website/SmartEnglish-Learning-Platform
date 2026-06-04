@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import androidx.compose.ui.platform.LocalContext
 
 // Premium Dark Theme Colors
 private val DeepDarkNavy = Color(0xFF07091E)
@@ -211,11 +212,94 @@ fun ProfileScreen(
 
                         Spacer(modifier = Modifier.height(12.dp))
 
-                        ProfileInfoCard(
-                            icon = Icons.Default.Star,
-                            label = "Premium",
-                            value = state.user.premium.replaceFirstChar { it.uppercase() }
-                        )
+                        val context = LocalContext.current
+                        if (state.user.premium.lowercase() != "premium") {
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .border(1.dp, Color.White.copy(alpha = 0.05f), RoundedCornerShape(16.dp)),
+                                shape = RoundedCornerShape(16.dp),
+                                colors = CardDefaults.cardColors(containerColor = CardBg)
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(40.dp)
+                                                .background(IconBg, shape = RoundedCornerShape(10.dp)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Star,
+                                                contentDescription = null,
+                                                tint = IconCyan,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
+
+                                        Spacer(modifier = Modifier.width(16.dp))
+
+                                        Column {
+                                            Text(
+                                                text = "Plan",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = TextGray
+                                            )
+                                            Spacer(modifier = Modifier.height(2.dp))
+                                            Text(
+                                                text = state.user.premium.replaceFirstChar { it.uppercase() },
+                                                color = Color.White,
+                                                fontSize = 16.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
+
+                                    Button(
+                                        onClick = {
+                                            try {
+                                                val intent = android.content.Intent(
+                                                    android.content.Intent.ACTION_VIEW,
+                                                    android.net.Uri.parse("https://smart-english-learning-platform.vercel.app/premium")
+                                                )
+                                                context.startActivity(intent)
+                                            } catch (e: Exception) {
+                                                android.util.Log.e("ProfileScreen", "Failed to open premium link", e)
+                                            }
+                                        },
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = Color(0xFFFBBF24),
+                                            contentColor = Color.Black
+                                        ),
+                                        shape = RoundedCornerShape(10.dp),
+                                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                                        modifier = Modifier.height(34.dp)
+                                    ) {
+                                        Text(
+                                            text = "Nâng cấp",
+                                            color = Color.Black,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 12.sp
+                                        )
+                                    }
+                                }
+                            }
+                        } else {
+                            ProfileInfoCard(
+                                icon = Icons.Default.Star,
+                                label = "Plan",
+                                value = state.user.premium.replaceFirstChar { it.uppercase() }
+                            )
+                        }
 
                         state.user.createdAt?.let { date ->
                             Spacer(modifier = Modifier.height(12.dp))
@@ -321,7 +405,8 @@ fun ProfileScreen(
 private fun ProfileInfoCard(
     icon: ImageVector,
     label: String,
-    value: String
+    value: String,
+    action: (@Composable () -> Unit)? = null
 ) {
     Card(
         modifier = Modifier
@@ -338,35 +423,44 @@ private fun ProfileInfoCard(
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .background(IconBg, shape = RoundedCornerShape(10.dp)),
-                contentAlignment = Alignment.Center
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
             ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = IconCyan,
-                    modifier = Modifier.size(20.dp)
-                )
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .background(IconBg, shape = RoundedCornerShape(10.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = IconCyan,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(16.dp))
+
+                Column {
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextGray
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = value,
+                        color = Color.White,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
 
-            Spacer(modifier = Modifier.width(16.dp))
-
-            Column {
-                Text(
-                    text = label,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TextGray
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = value,
-                    color = Color.White,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
+            if (action != null) {
+                action()
             }
         }
     }

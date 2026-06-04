@@ -50,7 +50,7 @@ class CardEditorViewModel @Inject constructor(
     val state: StateFlow<CardEditorState> = _state.asStateFlow()
 
     init {
-        if (cardId != null) {
+        if (cardId != null && cardId != "new") {
             loadCard(cardId)
         } else {
             _state.update { it.copy(isNewCard = true) }

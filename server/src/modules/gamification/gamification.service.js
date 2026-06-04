@@ -322,6 +322,12 @@ const submitMatchScore = async (userId, setId, timeMs) => {
         level: xpResult.newLevel,
         levelUp: xpResult.levelUp,
       });
+
+      // Sync to Daily XP Quest
+      const questService = require('../quest/quest.service');
+      questService.updateProgress(userId, { type: 'xp', xpEarned: xpResult.xpGained }).catch(err =>
+        console.error('[Quest] Failed to update XP quest progress in match score:', err.message)
+      );
     }
     if (streakResult?.current > 1) {
       eventBus.emit('streak:kept', { userId, currentStreak: streakResult.current });
@@ -562,6 +568,21 @@ const triggerSessionComplete = async (userId, { accuracy = 0, cardsStudied = 1, 
     };
 
     newAchievements = await module.exports.checkAndUnlockAchievements(userId, context);
+
+    // Update daily quest progress for XP and activity type
+    if (xpResult && xpResult.xpGained > 0) {
+      try {
+        const questService = require('../quest/quest.service');
+        await questService.updateProgress(userId, { type: 'xp', xpEarned: xpResult.xpGained });
+        if (mode === 'learn') {
+          await questService.updateProgress(userId, { type: 'flashcards', amount: cardsStudied });
+        } else if (mode === 'test') {
+          await questService.updateProgress(userId, { type: 'reviews', amount: cardsStudied });
+        }
+      } catch (questErr) {
+        console.error('[Quest] Failed to update quest progress in triggerSessionComplete:', questErr.message);
+      }
+    }
 
     // Emit XP gained event (for leaderboard update + notifications)
     if (xpResult) {

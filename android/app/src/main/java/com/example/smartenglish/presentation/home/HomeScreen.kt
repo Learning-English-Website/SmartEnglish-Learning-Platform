@@ -23,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -70,6 +71,7 @@ fun HomeScreen(
     val pendingCount by viewModel.pendingCount.collectAsState()
     val isRefreshing = uiState is HomeUiState.Loading
     val pullToRefreshState = rememberPullToRefreshState()
+    var showGoalDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         viewModel.loadData(isSilent = true)
@@ -105,6 +107,16 @@ fun HomeScreen(
                     HomeSkeleton()
                 }
                 is HomeUiState.Success -> {
+                    if (showGoalDialog) {
+                        DailyGoalSettingsDialog(
+                            currentGoal = state.progress.dailyXpGoal,
+                            onDismiss = { showGoalDialog = false },
+                            onGoalSelected = { selectedGoal ->
+                                viewModel.updateDailyXpGoal(selectedGoal)
+                            }
+                        )
+                    }
+
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
@@ -130,6 +142,14 @@ fun HomeScreen(
                             avatarUrl = fullAvatarUrl,
                             onSearchClick = onNavigateToSearch,
                             onAvatarClick = onNavigateToProfile
+                        )
+
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        // Study Progress Dashboard Card
+                        ProgressDashboardCard(
+                            progressState = state.progress,
+                            onGoalClick = { showGoalDialog = true }
                         )
 
                         Spacer(modifier = Modifier.height(24.dp))
@@ -665,4 +685,261 @@ private fun OfflineHomeCard(
             }
         }
     }
+}
+
+// ── 4. STUDY PROGRESS DASHBOARD CARD (Premium Glassmorphic Style) ──────────────
+@Composable
+private fun ProgressDashboardCard(
+    progressState: HomeProgressState,
+    onGoalClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val progressFraction = if (progressState.dailyXpGoal > 0) {
+        (progressState.todayXp.toFloat() / progressState.dailyXpGoal.toFloat()).coerceIn(0f, 1f)
+    } else {
+        0f
+    }
+    val percentage = (progressFraction * 100).toInt()
+
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .border(
+                width = 1.dp,
+                brush = Brush.horizontalGradient(
+                    colors = listOf(
+                        Color.White.copy(alpha = 0.12f),
+                        Color.White.copy(alpha = 0.04f)
+                    )
+                ),
+                shape = RoundedCornerShape(24.dp)
+            ),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFF161A3F).copy(alpha = 0.65f)
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Mục tiêu hôm nay",
+                    color = Color.White,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
+
+                IconButton(
+                    onClick = onGoalClick,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Settings,
+                        contentDescription = "Cấu hình mục tiêu",
+                        tint = TextWhite.copy(alpha = 0.6f),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(20.dp)
+            ) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.size(85.dp)
+                ) {
+                    CircularProgressIndicator(
+                        progress = { 1f },
+                        modifier = Modifier.fillMaxSize(),
+                        color = Color.White.copy(alpha = 0.06f),
+                        strokeWidth = 8.dp,
+                        strokeCap = StrokeCap.Round
+                    )
+                    val progressColor = if (percentage >= 100) QuizletGreen else Color(0xFFFFB300)
+                    CircularProgressIndicator(
+                        progress = { progressFraction },
+                        modifier = Modifier.fillMaxSize(),
+                        color = progressColor,
+                        strokeWidth = 8.dp,
+                        strokeCap = StrokeCap.Round
+                    )
+
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = "${progressState.todayXp}",
+                            color = Color.White,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Black
+                        )
+                        Box(
+                            modifier = Modifier
+                                .width(32.dp)
+                                .height(1.dp)
+                                .background(Color.White.copy(alpha = 0.2f))
+                                .padding(vertical = 2.dp)
+                        )
+                        Text(
+                            text = "${progressState.dailyXpGoal} XP",
+                            color = TextGray,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+
+                Row(
+                    modifier = Modifier.weight(1f),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    MetricItem(
+                        icon = "🔥",
+                        value = "${progressState.streak}",
+                        label = "Ngày học"
+                    )
+
+                    MetricItem(
+                        icon = "⏰",
+                        value = "${progressState.dueToday}",
+                        label = "Cần ôn"
+                    )
+
+                    MetricItem(
+                        icon = "🏅",
+                        value = "${progressState.masteredCards}",
+                        label = "Đã thuộc"
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MetricItem(
+    icon: String,
+    value: String,
+    label: String
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(
+            text = icon,
+            fontSize = 24.sp,
+            modifier = Modifier.padding(bottom = 4.dp)
+        )
+        Text(
+            text = value,
+            color = Color.White,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Bold
+        )
+        Text(
+            text = label,
+            color = TextGray,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Normal
+        )
+    }
+}
+
+// ── 5. DAILY GOAL SETTINGS DIALOG ──────────────────────────────────────────────
+@Composable
+private fun DailyGoalSettingsDialog(
+    currentGoal: Int,
+    onDismiss: () -> Unit,
+    onGoalSelected: (Int) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Thiết lập mục tiêu hàng ngày",
+                color = Color.White,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = "Hãy chọn mục tiêu XP hàng ngày của bạn. Đạt mục tiêu giúp bạn duy trì streak học tập!",
+                    color = TextGray,
+                    fontSize = 14.sp
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                val options = listOf(
+                    20 to "Nhẹ nhàng (20 XP / ngày)",
+                    50 to "Vừa phải (50 XP / ngày)",
+                    100 to "Thử thách (100 XP / ngày)",
+                    150 to "Siêu cấp (150 XP / ngày)"
+                )
+
+                options.forEach { (xp, label) ->
+                    val isSelected = currentGoal == xp
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(
+                                if (isSelected) QuizletBlue.copy(alpha = 0.15f) else Color.Transparent
+                            )
+                            .border(
+                                width = 1.dp,
+                                color = if (isSelected) QuizletBlue else Color.White.copy(alpha = 0.08f),
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                            .clickable { onGoalSelected(xp) }
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = isSelected,
+                            onClick = { onGoalSelected(xp) },
+                            colors = RadioButtonDefaults.colors(
+                                selectedColor = QuizletBlue,
+                                unselectedColor = TextGray
+                            )
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = label,
+                            color = if (isSelected) Color.White else TextWhite.copy(alpha = 0.8f),
+                            fontSize = 14.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Đóng", color = QuizletBlue, fontWeight = FontWeight.Bold)
+            }
+        },
+        containerColor = Color(0xFF161A3F),
+        shape = RoundedCornerShape(24.dp)
+    )
 }

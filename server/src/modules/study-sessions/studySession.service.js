@@ -319,6 +319,13 @@ const completeSession = async (userId, sessionId, durationMs) => {
     questService.updateProgress(userId, { type: 'streak', amount: 1 }).catch(err =>
       console.error('[Quest] Failed to update streak progress:', err.message)
     );
+
+    // XP quest — sync XP earned from this session
+    if (xp && xp.xpGained > 0) {
+      questService.updateProgress(userId, { type: 'xp', xpEarned: xp.xpGained }).catch(err =>
+        console.error('[Quest] Failed to update XP quest progress:', err.message)
+      );
+    }
   } catch (questErr) {
     console.error('[Quest] Error updating progress:', questErr.message);
   }

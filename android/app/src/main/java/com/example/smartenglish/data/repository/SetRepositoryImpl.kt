@@ -12,6 +12,7 @@ import com.example.smartenglish.domain.model.toDomain
 import com.example.smartenglish.domain.repository.SetRepository
 import com.example.smartenglish.util.NetworkMonitor
 import com.example.smartenglish.util.ApiResult
+import com.example.smartenglish.util.ErrorParser
 import com.example.smartenglish.data.sync.SyncManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -117,9 +118,11 @@ class SetRepositoryImpl @Inject constructor(
                 if (localSet != null) {
                     ApiResult.Success(localSet.toDomain())
                 } else {
-                    val errorMessage = response.body()?.error?.message ?: "Failed to get set"
-                    Log.d(TAG, "getSetById: Error - $errorMessage")
-                    ApiResult.Error(errorMessage)
+                    val rawError = response.errorBody()?.string()
+                        ?: response.body()?.error?.message
+                        ?: "Failed to get set"
+                    Log.d(TAG, "getSetById: Error - $rawError")
+                    ApiResult.Error(ErrorParser.parseErrorMessage(rawError))
                 }
             }
         } catch (e: Exception) {
@@ -165,9 +168,11 @@ class SetRepositoryImpl @Inject constructor(
                     ApiResult.Error("No data received")
                 }
             } else {
-                val errorMessage = response.body()?.error?.message ?: "Failed to create set"
-                Log.d(TAG, "createSet: Error - $errorMessage")
-                ApiResult.Error(errorMessage)
+                val rawError = response.errorBody()?.string()
+                    ?: response.body()?.error?.message
+                    ?: "Failed to create set"
+                Log.d(TAG, "createSet: Error - $rawError")
+                ApiResult.Error(ErrorParser.parseErrorMessage(rawError))
             }
         } catch (e: Exception) {
             Log.e(TAG, "createSet: Exception - ${e.message}")
@@ -220,8 +225,10 @@ class SetRepositoryImpl @Inject constructor(
                     ApiResult.Error("No data received")
                 }
             } else {
-                val errorMessage = response.body()?.error?.message ?: "Failed to update set"
-                ApiResult.Error(errorMessage)
+                val rawError = response.errorBody()?.string()
+                    ?: response.body()?.error?.message
+                    ?: "Failed to update set"
+                ApiResult.Error(ErrorParser.parseErrorMessage(rawError))
             }
         } catch (e: Exception) {
             ApiResult.Error(e.message ?: "Network error")

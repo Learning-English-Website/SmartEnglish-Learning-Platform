@@ -13,6 +13,7 @@ import com.example.smartenglish.domain.model.SyncStatus
 import com.example.smartenglish.domain.model.toDomain
 import com.example.smartenglish.domain.repository.CardRepository
 import com.example.smartenglish.util.ApiResult
+import com.example.smartenglish.util.ErrorParser
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import com.example.smartenglish.util.NetworkMonitor
@@ -108,8 +109,10 @@ class CardRepositoryImpl @Inject constructor(
                 if (localCard != null) {
                     ApiResult.Success(localCard.toDomain())
                 } else {
-                    val errorMessage = response.body()?.error?.message ?: "Failed to get card"
-                    ApiResult.Error(errorMessage)
+                    val rawError = response.errorBody()?.string()
+                        ?: response.body()?.error?.message
+                        ?: "Failed to get card"
+                    ApiResult.Error(ErrorParser.parseErrorMessage(rawError))
                 }
             }
         } catch (e: Exception) {
@@ -170,8 +173,15 @@ class CardRepositoryImpl @Inject constructor(
                     ApiResult.Error("No data received")
                 }
             } else {
-                // If online call fails, fallback to local create and queue it to sync later
-                localCreateAndQueue(setId, front, back, pronunciation, example, note, collocation, relatedWords, imageUrl)
+                if (response.code() in 400..409) {
+                    val rawError = response.errorBody()?.string()
+                        ?: response.body()?.error?.message
+                        ?: "Failed to create card"
+                    ApiResult.Error(ErrorParser.parseErrorMessage(rawError))
+                } else {
+                    // If online call fails (e.g. 5xx server error), fallback to local create and queue it to sync later
+                    localCreateAndQueue(setId, front, back, pronunciation, example, note, collocation, relatedWords, imageUrl)
+                }
             }
         } catch (e: Exception) {
             // If online call throws network error, fallback to local create and queue it
@@ -314,8 +324,15 @@ class CardRepositoryImpl @Inject constructor(
                     ApiResult.Error("No data received")
                 }
             } else {
-                // If online call fails, fallback to local update and queue it to sync later
-                localUpdateAndQueue(id, front, back, pronunciation, example, note, collocation, relatedWords, imageUrl)
+                if (response.code() in 400..409) {
+                    val rawError = response.errorBody()?.string()
+                        ?: response.body()?.error?.message
+                        ?: "Failed to update card"
+                    ApiResult.Error(ErrorParser.parseErrorMessage(rawError))
+                } else {
+                    // If online call fails (e.g. 5xx server error), fallback to local update and queue it to sync later
+                    localUpdateAndQueue(id, front, back, pronunciation, example, note, collocation, relatedWords, imageUrl)
+                }
             }
         } catch (e: Exception) {
             // If online call throws network error, fallback to local update and queue it

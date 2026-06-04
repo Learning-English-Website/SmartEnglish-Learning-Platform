@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.example.smartenglish.data.local.preferences.GoalPreferences
 
 data class HomeStats(
     val streak: Int = 0,
@@ -39,7 +40,8 @@ sealed class HomeUiState {
     data class Success(
         val user: User,
         val stats: HomeStats,
-        val recentSets: List<FlashcardSet> = emptyList()
+        val recentSets: List<FlashcardSet> = emptyList(),
+        val progress: HomeProgressState = HomeProgressState()
     ) : HomeUiState()
     data class Error(val message: String) : HomeUiState()
 }
@@ -52,7 +54,8 @@ class HomeViewModel @Inject constructor(
     private val downloadRepository: DownloadRepository,
     private val networkMonitor: NetworkMonitor,
     private val syncManager: SyncManager,
-    private val syncScheduler: SyncScheduler
+    private val syncScheduler: SyncScheduler,
+    private val goalPreferences: GoalPreferences
 ) : ViewModel() {
 
     val isOnline: StateFlow<Boolean> = networkMonitor.isOnline
@@ -107,6 +110,13 @@ class HomeViewModel @Inject constructor(
                     gamification = Gamification(xp = 0, level = 1),
                     createdAt = null
                 )
+                val progressState = HomeProgressState(
+                    todayXp = 0,
+                    dailyXpGoal = goalPreferences.getDailyXpGoal(),
+                    streak = 0,
+                    dueToday = 0,
+                    masteredCards = 0
+                )
                 _uiState.value = HomeUiState.Success(
                     user = offlineUser,
                     stats = HomeStats(
@@ -117,7 +127,8 @@ class HomeViewModel @Inject constructor(
                         masteredCards = 0,
                         dueToday = 0
                     ),
-                    recentSets = sets.take(5)
+                    recentSets = sets.take(5),
+                    progress = progressState
                 )
                 return@launch
             }
@@ -147,6 +158,15 @@ class HomeViewModel @Inject constructor(
                         else -> null
                     }
 
+                    val dailyXpGoal = goalPreferences.getDailyXpGoal()
+                    val progressState = HomeProgressState(
+                        todayXp = progressStats?.todayXp ?: 0,
+                        dailyXpGoal = dailyXpGoal,
+                        streak = user.streak.current,
+                        dueToday = progressStats?.dueToday ?: 0,
+                        masteredCards = progressStats?.masteredCards ?: 0
+                    )
+
                     _uiState.value = HomeUiState.Success(
                         user = user,
                         stats = HomeStats(
@@ -157,7 +177,8 @@ class HomeViewModel @Inject constructor(
                             masteredCards = progressStats?.masteredCards ?: 0,
                             dueToday = progressStats?.dueToday ?: 0
                         ),
-                        recentSets = sets.take(5)
+                        recentSets = sets.take(5),
+                        progress = progressState
                     )
                 }
                 is ApiResult.Error -> {
@@ -174,6 +195,13 @@ class HomeViewModel @Inject constructor(
                             gamification = Gamification(xp = 0, level = 1),
                             createdAt = null
                         )
+                        val progressState = HomeProgressState(
+                            todayXp = 0,
+                            dailyXpGoal = goalPreferences.getDailyXpGoal(),
+                            streak = 0,
+                            dueToday = 0,
+                            masteredCards = 0
+                        )
                         _uiState.value = HomeUiState.Success(
                             user = offlineUser,
                             stats = HomeStats(
@@ -184,7 +212,8 @@ class HomeViewModel @Inject constructor(
                                 masteredCards = 0,
                                 dueToday = 0
                             ),
-                            recentSets = sets.take(5)
+                            recentSets = sets.take(5),
+                            progress = progressState
                         )
                     } else {
                         _uiState.value = HomeUiState.Error(userResult.message)
@@ -193,6 +222,16 @@ class HomeViewModel @Inject constructor(
                 is ApiResult.Loading -> _uiState.value = HomeUiState.Loading
                 is ApiResult.EmailVerificationRequired -> _uiState.value = HomeUiState.Error("Email verification required")
             }
+        }
+    }
+
+    fun updateDailyXpGoal(goal: Int) {
+        goalPreferences.setDailyXpGoal(goal)
+        val currentState = _uiState.value
+        if (currentState is HomeUiState.Success) {
+            _uiState.value = currentState.copy(
+                progress = currentState.progress.copy(dailyXpGoal = goal)
+            )
         }
     }
 

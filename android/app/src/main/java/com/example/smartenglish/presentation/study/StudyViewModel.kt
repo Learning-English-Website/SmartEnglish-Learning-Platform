@@ -55,7 +55,7 @@ sealed class StudyEvent {
     data object Restart : StudyEvent()
     data object FinishSession : StudyEvent()
     data class UpdateCardStudyProgress(val cardId: String, val correct: Boolean) : StudyEvent()
-    data class FinishCustomSession(val cardsStudied: Int, val correctCount: Int, val incorrectCount: Int) : StudyEvent()
+    data class FinishCustomSession(val cardsStudied: Int, val correctCount: Int, val incorrectCount: Int, val isFinal: Boolean) : StudyEvent()
 }
 
 @HiltViewModel
@@ -166,7 +166,7 @@ class StudyViewModel @Inject constructor(
                 }
             }
             is StudyEvent.FinishCustomSession -> {
-                finishCustomSession(event.cardsStudied, event.correctCount, event.incorrectCount)
+                finishCustomSession(event.cardsStudied, event.correctCount, event.incorrectCount, event.isFinal)
             }
         }
     }
@@ -255,7 +255,7 @@ class StudyViewModel @Inject constructor(
         }
     }
 
-    private fun finishCustomSession(cardsStudied: Int, correctCount: Int, incorrectCount: Int) {
+    private fun finishCustomSession(cardsStudied: Int, correctCount: Int, incorrectCount: Int, isFinal: Boolean) {
         viewModelScope.launch {
             val sessionId = _state.value.sessionId
             if (sessionId != null) {
@@ -267,12 +267,18 @@ class StudyViewModel @Inject constructor(
                     incorrectCount = incorrectCount,
                     duration = duration
                 )
+                if (isFinal) {
+                    studyRepository.completeStudySession(sessionId)
+                }
             }
             // Trigger gamification
             val accuracy = if (cardsStudied > 0) (correctCount * 100) / cardsStudied else 0
             val gamResult = gamificationRepository.triggerLearnComplete(accuracy, cardsStudied)
             if (gamResult is ApiResult.Success) {
                 _gamificationResult.value = gamResult.data
+            }
+            if (isFinal) {
+                _state.update { it.copy(isFinished = true) }
             }
         }
     }

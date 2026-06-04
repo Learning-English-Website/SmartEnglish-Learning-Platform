@@ -10,6 +10,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Assignment
+import androidx.compose.material.icons.automirrored.filled.Launch
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -20,6 +21,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 
@@ -330,31 +334,244 @@ fun CardEditorScreen(
                             )
                         }
 
-                        state.error?.let {
-                            Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .border(1.dp, QuizletCoral.copy(alpha = 0.3f), RoundedCornerShape(16.dp)),
-                                colors = CardDefaults.cardColors(containerColor = QuizletCoral.copy(alpha = 0.1f)),
-                                shape = RoundedCornerShape(16.dp)
+                        state.error?.let { errorMsg ->
+                            val isLimitError = errorMsg.contains("Premium", ignoreCase = true) || errorMsg.contains("giới hạn", ignoreCase = true)
+                            androidx.compose.ui.window.Dialog(
+                                onDismissRequest = { viewModel.onEvent(CardEditorEvent.ClearError) }
                             ) {
-                                Row(
-                                    modifier = Modifier.padding(16.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .wrapContentHeight()
+                                        .padding(horizontal = 8.dp),
+                                    shape = RoundedCornerShape(28.dp),
+                                    border = BorderStroke(
+                                        width = 1.5.dp,
+                                        brush = if (isLimitError) {
+                                            Brush.linearGradient(listOf(Color(0xFFFFE259).copy(alpha = 0.5f), Color(0xFFFFA751).copy(alpha = 0.1f)))
+                                        } else {
+                                            Brush.linearGradient(listOf(QuizletCoral.copy(alpha = 0.5f), Color.Transparent))
+                                        }
+                                    ),
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = Color(0xFF131538)
+                                    ),
+                                    elevation = CardDefaults.cardElevation(defaultElevation = 16.dp)
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Warning,
-                                        contentDescription = "Error",
-                                        tint = QuizletCoral,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                    Text(
-                                        text = it,
-                                        color = QuizletCoral,
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.Medium
-                                    )
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(24.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.spacedBy(20.dp)
+                                    ) {
+                                        if (isLimitError) {
+                                            // Glowing Premium Badge
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(80.dp)
+                                                    .background(
+                                                        brush = Brush.radialGradient(
+                                                            colors = listOf(Color(0xFFFFE259).copy(alpha = 0.15f), Color.Transparent),
+                                                            radius = 120f
+                                                        ),
+                                                        shape = CircleShape
+                                                    ),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(56.dp)
+                                                        .background(
+                                                            brush = Brush.verticalGradient(listOf(Color(0xFF282B57), Color(0xFF181A3F))),
+                                                            shape = CircleShape
+                                                        )
+                                                        .border(
+                                                            width = 1.5.dp,
+                                                            brush = Brush.verticalGradient(listOf(Color(0xFFFFE259), Color(0xFFFFA751))),
+                                                            shape = CircleShape
+                                                        ),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Star,
+                                                        contentDescription = null,
+                                                        tint = Color(0xFFFFE259),
+                                                        modifier = Modifier.size(28.dp)
+                                                    )
+                                                }
+                                            }
+
+                                            Column(
+                                                horizontalAlignment = Alignment.CenterHorizontally,
+                                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                                            ) {
+                                                Text(
+                                                    text = "Giới Hạn Tài Khoản",
+                                                    color = Color.White,
+                                                    fontWeight = FontWeight.ExtraBold,
+                                                    fontSize = 22.sp,
+                                                    letterSpacing = 0.5.sp
+                                                )
+                                                Text(
+                                                    text = "Mở khóa toàn bộ giới hạn học tập",
+                                                    color = Color(0xFF6EE7B7),
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    fontSize = 13.sp
+                                                )
+                                            }
+
+                                            Text(
+                                                text = errorMsg,
+                                                color = TextWhite,
+                                                fontSize = 15.sp,
+                                                lineHeight = 22.sp,
+                                                textAlign = TextAlign.Center,
+                                                modifier = Modifier.padding(horizontal = 8.dp)
+                                            )
+
+                                            Spacer(modifier = Modifier.height(4.dp))
+
+                                            // Gradient Premium Button
+                                            Button(
+                                                onClick = {
+                                                    try {
+                                                        val intent = android.content.Intent(
+                                                            android.content.Intent.ACTION_VIEW,
+                                                            android.net.Uri.parse("https://smart-english-learning-platform.vercel.app/premium")
+                                                        )
+                                                        context.startActivity(intent)
+                                                    } catch (e: Exception) {
+                                                        android.util.Log.e("CardEditor", "Failed to open premium link", e)
+                                                    }
+                                                    viewModel.onEvent(CardEditorEvent.ClearError)
+                                                },
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .height(52.dp),
+                                                colors = ButtonDefaults.buttonColors(
+                                                    containerColor = Color.Transparent,
+                                                    contentColor = Color(0xFF0F112A)
+                                                ),
+                                                contentPadding = PaddingValues(),
+                                                shape = RoundedCornerShape(16.dp)
+                                            ) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .fillMaxSize()
+                                                        .background(
+                                                            brush = Brush.horizontalGradient(
+                                                                colors = listOf(Color(0xFFFFE259), Color(0xFFFFA751))
+                                                                )
+                                                            ),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Row(
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        horizontalArrangement = Arrangement.Center
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = Icons.AutoMirrored.Filled.Launch,
+                                                            contentDescription = null,
+                                                            modifier = Modifier.size(18.dp),
+                                                            tint = Color(0xFF0F112A)
+                                                        )
+                                                        Spacer(modifier = Modifier.width(8.dp))
+                                                        Text(
+                                                            text = "Nâng cấp Premium ngay",
+                                                            fontWeight = FontWeight.Bold,
+                                                            fontSize = 15.sp
+                                                        )
+                                                    }
+                                                }
+                                            }
+
+                                            TextButton(
+                                                onClick = { viewModel.onEvent(CardEditorEvent.ClearError) },
+                                                modifier = Modifier.fillMaxWidth()
+                                            ) {
+                                                Text(
+                                                    text = "Đóng",
+                                                    color = TextGray,
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 14.sp
+                                                )
+                                            }
+
+                                        } else {
+                                            // Standard Error Badge
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(72.dp)
+                                                    .background(
+                                                        brush = Brush.radialGradient(
+                                                            colors = listOf(QuizletCoral.copy(alpha = 0.15f), Color.Transparent),
+                                                            radius = 110f
+                                                        ),
+                                                        shape = CircleShape
+                                                    ),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(48.dp)
+                                                        .background(
+                                                            brush = Brush.verticalGradient(listOf(Color(0xFF282B57), Color(0xFF181A3F))),
+                                                            shape = CircleShape
+                                                        )
+                                                        .border(
+                                                            width = 1.5.dp,
+                                                            color = QuizletCoral,
+                                                            shape = CircleShape
+                                                        ),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Warning,
+                                                        contentDescription = null,
+                                                        tint = QuizletCoral,
+                                                        modifier = Modifier.size(24.dp)
+                                                    )
+                                                }
+                                            }
+
+                                            Text(
+                                                text = "Lỗi Lưu Thuật Ngữ",
+                                                color = Color.White,
+                                                fontWeight = FontWeight.ExtraBold,
+                                                fontSize = 20.sp
+                                            )
+
+                                            Text(
+                                                text = errorMsg,
+                                                color = TextWhite,
+                                                fontSize = 15.sp,
+                                                lineHeight = 22.sp,
+                                                textAlign = TextAlign.Center,
+                                                modifier = Modifier.padding(horizontal = 8.dp)
+                                            )
+
+                                            Spacer(modifier = Modifier.height(4.dp))
+
+                                            Button(
+                                                onClick = { viewModel.onEvent(CardEditorEvent.ClearError) },
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .height(50.dp),
+                                                colors = ButtonDefaults.buttonColors(
+                                                    containerColor = QuizletBlue,
+                                                    contentColor = Color.White
+                                                ),
+                                                shape = RoundedCornerShape(14.dp)
+                                            ) {
+                                                Text(
+                                                    text = "Đóng",
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 15.sp
+                                                )
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }

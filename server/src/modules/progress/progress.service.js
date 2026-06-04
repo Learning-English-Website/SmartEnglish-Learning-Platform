@@ -403,6 +403,27 @@ const getOverallStats = async (userId) => {
   const xp = totalXp % 500;
   const xpToNextLevel = 500;
 
+  // Retrieve today's XP from DailyQuest (Single Source of Truth)
+  let todayXp = 0;
+  try {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const tomorrowStart = new Date(todayStart);
+    tomorrowStart.setDate(tomorrowStart.getDate() + 1);
+
+    const DailyQuest = require('../../models/dailyQuest.model');
+    const xpQuest = await DailyQuest.findOne({
+      user: userId,
+      day: { $gte: todayStart, $lt: tomorrowStart },
+      type: 'xp'
+    });
+    if (xpQuest) {
+      todayXp = xpQuest.progress || 0;
+    }
+  } catch (err) {
+    console.error('[ProgressService] Failed to retrieve today\'s XP:', err.message);
+  }
+
   return {
     totalCardsStudied: allProgress.reduce((sum, p) => sum + p.totalReviews, 0),
     totalSessionsCompleted: sessions.length,
@@ -414,6 +435,7 @@ const getOverallStats = async (userId) => {
     learningCards,
     newCards,
     dueToday,       // Thêm mới: số thẻ cần ôn hôm nay
+    todayXp,        // Thêm mới: XP tích lũy trong ngày
     level,
     xp,
     xpToNextLevel,
