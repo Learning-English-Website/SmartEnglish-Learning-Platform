@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 
 // Premium Dark Theme Colors
@@ -41,6 +42,14 @@ fun CardEditorScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val isDark = true
+    val context = LocalContext.current
+
+    LaunchedEffect(state.saveSuccess) {
+        if (state.saveSuccess) {
+            android.widget.Toast.makeText(context, "Lưu thuật ngữ thành công!", android.widget.Toast.LENGTH_SHORT).show()
+            onNavigateBack()
+        }
+    }
 
     // Dynamic colors based on system theme
     val bgColor1 = if (isDark) DeepDarkNavy else Color(0xFFF8FAFC)

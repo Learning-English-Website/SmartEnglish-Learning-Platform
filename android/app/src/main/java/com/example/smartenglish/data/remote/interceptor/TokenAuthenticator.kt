@@ -24,7 +24,9 @@ class TokenAuthenticator @Inject constructor(
 ) : Authenticator {
 
     companion object {
-        private const val BASE_URL = "http://192.168.1.3:5000/api/"
+        private const val BASE_URL = "https://smartenglish-api-1iby.onrender.com/api/"
+        private var lastRefreshFailureTime = 0L
+        private const val COOLDOWN_MS = 5000L
     }
 
     private val isRefreshing = AtomicBoolean(false)
@@ -50,6 +52,11 @@ class TokenAuthenticator @Inject constructor(
 
     override fun authenticate(route: Route?, response: Response): Request? {
         if (response.code != 401) return null
+
+        val now = System.currentTimeMillis()
+        if (now - lastRefreshFailureTime < COOLDOWN_MS) {
+            return null
+        }
 
         val currentHeader = response.request.header("Authorization")
         val currentToken = tokenManager.getAccessToken()
@@ -91,6 +98,7 @@ class TokenAuthenticator @Inject constructor(
 
                     if (newAccessToken != null && newRefreshToken != null) {
                         tokenManager.saveTokens(newAccessToken, newRefreshToken)
+                        lastRefreshFailureTime = 0L
                         return@runBlocking response.request
                             .newBuilder()
                             .removeHeader("Authorization")
@@ -104,10 +112,12 @@ class TokenAuthenticator @Inject constructor(
                 if (refreshResponse.code() in 400..403) {
                     tokenManager.clearTokens()
                 }
+                lastRefreshFailureTime = System.currentTimeMillis()
                 null
             } catch (e: Exception) {
                 // DO NOT clear user tokens on network timeouts or transient socket/connection errors.
                 // This prevents logging the user out during temporary network drops!
+                lastRefreshFailureTime = System.currentTimeMillis()
                 null
             }
         }

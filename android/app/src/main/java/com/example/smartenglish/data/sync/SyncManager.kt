@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
@@ -33,6 +34,8 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import javax.inject.Named
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 
 @Singleton
 class SyncManager @Inject constructor(
@@ -49,6 +52,7 @@ class SyncManager @Inject constructor(
     @Named("IO") private val dispatcher: CoroutineDispatcher = Dispatchers.IO
 ) {
     private val syncMutex = Mutex()
+    private val syncRequests = Channel<Unit>(Channel.CONFLATED)
 
     private val mediaBaseDir: File by lazy {
         File(applicationContext.filesDir, "offline_media").also { it.mkdirs() }
@@ -71,6 +75,19 @@ class SyncManager @Inject constructor(
     val pendingCount: StateFlow<Int> = _pendingCount.asStateFlow()
 
     init {
+        // Consumer loop for debounced synchronization requests
+        kotlinx.coroutines.CoroutineScope(dispatcher).launch {
+            for (request in syncRequests) {
+                delay(1000) // Debounce rapid writes
+                // Conflate all pending requests received during the delay
+                while (syncRequests.tryReceive().isSuccess) { /* no-op */ }
+                
+                if (networkMonitor.isOnline.value) {
+                    processPendingOperations()
+                }
+            }
+        }
+
         kotlinx.coroutines.CoroutineScope(dispatcher).launch {
             // Khôi phục mốc thời gian đồng bộ từ DB nếu SharedPreferences trống
             try {
@@ -85,9 +102,11 @@ class SyncManager @Inject constructor(
                 }
             } catch (_: Exception) {}
 
-            // Đồng bộ ngay khi khởi động nếu đang online
+            // Đồng bộ ngay khi khởi động nếu đang online (Thêm jitter ngẫu nhiên 0.2s - 3s)
             if (networkMonitor.isOnline.value) {
-                processPendingOperations()
+                val jitterMs = kotlin.random.Random.nextLong(200, 3000)
+                delay(jitterMs)
+                triggerSync()
             }
 
             // Đồng bộ tự động ngay khi thiết bị chuyển từ mất mạng sang có mạng
@@ -95,11 +114,18 @@ class SyncManager @Inject constructor(
             networkMonitor.isOnline.collect { online ->
                 if (online && wasOffline) {
                     Log.d(TAG, "Network restored. Auto-syncing pending operations...")
-                    processPendingOperations()
+                    // Thêm jitter ngẫu nhiên từ 1s đến 8s để tránh thundering herd làm sập server
+                    val jitterMs = kotlin.random.Random.nextLong(1000, 8000)
+                    delay(jitterMs)
+                    triggerSync()
                 }
                 wasOffline = !online
             }
         }
+    }
+
+    fun triggerSync() {
+        syncRequests.trySend(Unit)
     }
 
     suspend fun refreshPendingCount() {
@@ -149,13 +175,14 @@ class SyncManager @Inject constructor(
     }
 
     suspend fun processPendingOperations(): Result<Int> = withContext(dispatcher) {
-        if (!syncMutex.tryLock()) {
-            Log.d(TAG, "processPendingOperations: Already syncing, ignoring duplicate call")
-            return@withContext Result.success(0)
-        }
-        try {
+        syncMutex.withLock {
             if (!networkMonitor.isOnline.value) {
                 return@withContext Result.failure(Exception("No network"))
+            }
+
+            // Quick early exit if the queue has already been cleared
+            if (pendingOperationDao.getAllPending().isEmpty()) {
+                return@withContext Result.success(0)
             }
 
             _syncState.value = SyncState.Syncing
@@ -194,8 +221,6 @@ class SyncManager @Inject constructor(
 
             _syncState.value = if (isSuccess) SyncState.Success else SyncState.PartialSuccess(failCount)
             Result.success(successCount)
-        } finally {
-            syncMutex.unlock()
         }
     }
 
@@ -641,9 +666,7 @@ class SyncManager @Inject constructor(
 
         // Tự động đồng bộ ngay lập tức nếu thiết bị đang trực tuyến
         if (networkMonitor.isOnline.value) {
-            kotlinx.coroutines.CoroutineScope(dispatcher).launch {
-                processPendingOperations()
-            }
+            triggerSync()
         }
     }
 

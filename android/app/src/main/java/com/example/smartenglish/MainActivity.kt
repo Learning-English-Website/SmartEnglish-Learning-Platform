@@ -81,9 +81,15 @@ class MainActivity : ComponentActivity() {
                         startDestination = startDestination,
                         onLoginSuccess = {
                             isLoggedIn = true
+                            navController.navigate(Screen.Home.route) {
+                                popUpTo(0) { inclusive = true }
+                            }
                         },
                         onLogout = {
                             isLoggedIn = false
+                            navController.navigate(Screen.Login.route) {
+                                popUpTo(0) { inclusive = true }
+                            }
                         },
                         innerPadding = innerPadding,
                         modifier = Modifier.fillMaxSize()

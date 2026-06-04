@@ -167,7 +167,7 @@ fun ProfileScreen(
                             val email = state.user.email
                             val fullAvatarUrl = if (!avatarUrl.isNullOrBlank()) {
                                 if (avatarUrl.startsWith("/")) {
-                                    "http://192.168.1.3:5000$avatarUrl"
+                                    "https://smartenglish-api-1iby.onrender.com$avatarUrl"
                                 } else {
                                     avatarUrl
                                 }

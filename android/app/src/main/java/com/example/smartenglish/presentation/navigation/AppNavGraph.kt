@@ -228,7 +228,8 @@ fun AppNavGraph(
             EditProfileScreen(
                 onNavigateBack = {
                     navController.popBackStack()
-                }
+                },
+                onLogout = onLogout
             )
         }
 

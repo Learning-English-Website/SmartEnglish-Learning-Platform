@@ -13,6 +13,7 @@ import com.example.smartenglish.domain.model.toDomain
 import com.example.smartenglish.domain.repository.AuthRepository
 import com.example.smartenglish.util.ApiResult
 import com.example.smartenglish.util.TokenManager
+import com.example.smartenglish.util.ErrorParser
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -38,10 +39,10 @@ class AuthRepositoryImpl @Inject constructor(
                     ApiResult.Error("Login failed: No user data received")
                 }
             } else {
-                val errorMessage = response.body()?.error?.message
+                val rawError = response.body()?.error?.message
                     ?: response.errorBody()?.string()
                     ?: "Login failed"
-                ApiResult.Error(errorMessage)
+                ApiResult.Error(ErrorParser.parseErrorMessage(rawError))
             }
         } catch (e: Exception) {
             ApiResult.Error(e.message ?: "Network error")
@@ -63,10 +64,10 @@ class AuthRepositoryImpl @Inject constructor(
                     ApiResult.Error("Registration successful, but no user data received")
                 }
             } else {
-                val errorMessage = response.body()?.error?.message
+                val rawError = response.body()?.error?.message
                     ?: response.errorBody()?.string()
                     ?: "Registration failed"
-                ApiResult.Error(errorMessage)
+                ApiResult.Error(ErrorParser.parseErrorMessage(rawError))
             }
         } catch (e: Exception) {
             ApiResult.Error(e.message ?: "Network error")
@@ -84,10 +85,10 @@ class AuthRepositoryImpl @Inject constructor(
                     ApiResult.Error("Failed to get user: No data received")
                 }
             } else {
-                val errorMessage = response.body()?.error?.message
+                val rawError = response.body()?.error?.message
                     ?: response.errorBody()?.string()
                     ?: "Failed to get user"
-                ApiResult.Error(errorMessage)
+                ApiResult.Error(ErrorParser.parseErrorMessage(rawError))
             }
         } catch (e: Exception) {
             ApiResult.Error(e.message ?: "Network error")
@@ -101,10 +102,10 @@ class AuthRepositoryImpl @Inject constructor(
                 val message = response.body()?.data?.message ?: "Email sent successfully"
                 ApiResult.Success(Unit)
             } else {
-                val errorMessage = response.body()?.error?.message
+                val rawError = response.body()?.error?.message
                     ?: response.errorBody()?.string()
                     ?: "Failed to send reset email"
-                ApiResult.Error(errorMessage)
+                ApiResult.Error(ErrorParser.parseErrorMessage(rawError))
             }
         } catch (e: Exception) {
             ApiResult.Error(e.message ?: "Network error")
@@ -125,11 +126,11 @@ class AuthRepositoryImpl @Inject constructor(
                 Log.d("AuthRepository", "OTP verification SUCCESS")
                 ApiResult.Success(Unit)
             } else {
-                val errorMessage = response.body()?.error?.message
+                val rawError = response.body()?.error?.message
                     ?: response.errorBody()?.string()
                     ?: "Invalid OTP"
-                Log.e("AuthRepository", "OTP verification FAILED: $errorMessage")
-                ApiResult.Error(errorMessage)
+                Log.e("AuthRepository", "OTP verification FAILED: $rawError")
+                ApiResult.Error(ErrorParser.parseErrorMessage(rawError))
             }
         } catch (e: Exception) {
             Log.e("AuthRepository", "OTP verification EXCEPTION: ${e.message}", e)
@@ -145,11 +146,11 @@ class AuthRepositoryImpl @Inject constructor(
                 Log.d("AuthRepository", "Reset OTP verification SUCCESS")
                 ApiResult.Success(Unit)
             } else {
-                val errorMessage = response.body()?.error?.message
+                val rawError = response.body()?.error?.message
                     ?: response.errorBody()?.string()
                     ?: "Invalid OTP"
-                Log.e("AuthRepository", "Reset OTP verification FAILED: $errorMessage")
-                ApiResult.Error(errorMessage)
+                Log.e("AuthRepository", "Reset OTP verification FAILED: $rawError")
+                ApiResult.Error(ErrorParser.parseErrorMessage(rawError))
             }
         } catch (e: Exception) {
             Log.e("AuthRepository", "Reset OTP verification EXCEPTION: ${e.message}", e)
@@ -163,10 +164,10 @@ class AuthRepositoryImpl @Inject constructor(
             if (response.isSuccessful && response.body()?.success == true) {
                 ApiResult.Success(Unit)
             } else {
-                val errorMessage = response.body()?.error?.message
+                val rawError = response.body()?.error?.message
                     ?: response.errorBody()?.string()
                     ?: "Failed to reset password"
-                ApiResult.Error(errorMessage)
+                ApiResult.Error(ErrorParser.parseErrorMessage(rawError))
             }
         } catch (e: Exception) {
             ApiResult.Error(e.message ?: "Network error")
@@ -187,10 +188,10 @@ class AuthRepositoryImpl @Inject constructor(
                     ApiResult.Error("Google auth failed: No user data received")
                 }
             } else {
-                val errorMessage = response.body()?.error?.message
+                val rawError = response.body()?.error?.message
                     ?: response.errorBody()?.string()
                     ?: "Google auth failed"
-                ApiResult.Error(errorMessage)
+                ApiResult.Error(ErrorParser.parseErrorMessage(rawError))
             }
         } catch (e: Exception) {
             ApiResult.Error(e.message ?: "Network error")

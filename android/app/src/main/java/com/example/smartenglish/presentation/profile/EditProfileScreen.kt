@@ -52,6 +52,7 @@ private const val DEFAULT_AVATAR_URL = "https://images.unsplash.com/photo-156434
 @Composable
 fun EditProfileScreen(
     onNavigateBack: () -> Unit,
+    onLogout: () -> Unit,
     viewModel: EditProfileViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -113,7 +114,12 @@ fun EditProfileScreen(
                 onNavigateBack()
             }
             is EditProfileUiState.Error -> {
-                snackbarHostState.showSnackbar((uiState as EditProfileUiState.Error).message)
+                val errMsg = (uiState as EditProfileUiState.Error).message
+                if (errMsg.contains("token", ignoreCase = true) || errMsg.contains("401")) {
+                    onLogout()
+                } else {
+                    snackbarHostState.showSnackbar(errMsg)
+                }
             }
             else -> {}
         }
@@ -188,7 +194,7 @@ fun EditProfileScreen(
                             val email = user?.email ?: "User"
                             val fullAvatarUrl = if (!avatarUrl.isNullOrBlank()) {
                                 if (avatarUrl.startsWith("/")) {
-                                    "http://192.168.1.3:5000$avatarUrl"
+                                    "https://smartenglish-api-1iby.onrender.com$avatarUrl"
                                 } else {
                                     avatarUrl
                                 }

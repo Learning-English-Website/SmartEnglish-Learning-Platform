@@ -38,6 +38,9 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalContext
+import com.example.smartenglish.util.AudioPlayer
+import java.io.File
 import androidx.compose.ui.unit.sp
 import com.example.smartenglish.domain.model.Flashcard
 import kotlinx.coroutines.delay
@@ -82,6 +85,13 @@ fun FlashcardStudyScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val gamificationResult by viewModel.gamificationResult.collectAsState()
+    val context = LocalContext.current
+    val audioPlayer = remember { AudioPlayer(context) }
+    DisposableEffect(Unit) {
+        onDispose {
+            audioPlayer.release()
+        }
+    }
     var currentMode by remember {
         mutableStateOf(
             when (initialMode?.lowercase()) {
@@ -294,6 +304,12 @@ fun FlashcardStudyScreen(
                             } else {
                                 viewModel.onEvent(StudyEvent.NextCard)
                             }
+                        },
+                        onPlayAudio = { card ->
+                            val localFile = File(context.filesDir, "offline_media/${card.setId}").listFiles()
+                                ?.find { it.name.startsWith("audio_${card.id}") }
+                            val path = localFile?.absolutePath ?: card.pronunciation
+                            audioPlayer.playPronunciation(card.front, path)
                         },
                         modifier = Modifier.padding(paddingValues)
                     )
@@ -516,6 +532,7 @@ private fun FlashcardsModeView(
     onFlip: () -> Unit,
     onPrev: () -> Unit,
     onNext: () -> Unit,
+    onPlayAudio: (Flashcard) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val haptic = LocalHapticFeedback.current
@@ -639,7 +656,7 @@ private fun FlashcardsModeView(
                         )
 
                         IconButton(
-                            onClick = { /* Audio Pronounce placeholder */ },
+                            onClick = { onPlayAudio(cards[currentIndex]) },
                             modifier = Modifier
                                 .align(Alignment.End)
                                 .background(IconCyan.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
@@ -731,7 +748,7 @@ private fun FlashcardsModeView(
                         }
 
                         IconButton(
-                            onClick = { /* Audio Pronounce placeholder */ },
+                            onClick = { onPlayAudio(cards[currentIndex]) },
                             modifier = Modifier
                                 .align(Alignment.End)
                                 .background(QuizletGreen.copy(alpha = 0.08f), RoundedCornerShape(12.dp))

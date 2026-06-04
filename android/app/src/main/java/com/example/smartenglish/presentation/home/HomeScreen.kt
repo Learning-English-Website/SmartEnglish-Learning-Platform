@@ -117,7 +117,7 @@ fun HomeScreen(
                         val email = state.user.email
                         val fullAvatarUrl = if (!avatarUrl.isNullOrBlank()) {
                             if (avatarUrl.startsWith("/")) {
-                                "http://192.168.1.3:5000$avatarUrl"
+                                "https://smartenglish-api-1iby.onrender.com$avatarUrl"
                             } else {
                                 avatarUrl
                             }
@@ -506,16 +506,18 @@ private fun RecentSetsSection(
             )
         } else {
             sets.forEach { set ->
-                val isOwnSet = set.userId == currentUserId
-                val authorName = if (isOwnSet) "bạn" else (set.userName ?: "bạn")
+                key(set.id) {
+                    val isOwnSet = set.userId == currentUserId
+                    val authorName = if (isOwnSet) "bạn" else (set.userName ?: "bạn")
 
-                RecentSetRowItem(
-                    title = set.title,
-                    cardCount = set.cardCount,
-                    authorName = authorName,
-                    onClick = { onSetDetail(set.id) }
-                )
-                Spacer(modifier = Modifier.height(12.dp))
+                    RecentSetRowItem(
+                        title = set.title,
+                        cardCount = set.cardCount,
+                        authorName = authorName,
+                        onClick = { onSetDetail(set.id) }
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
             }
         }
     }

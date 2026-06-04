@@ -8,6 +8,7 @@ import com.example.smartenglish.domain.model.toDomain
 import com.example.smartenglish.domain.repository.UserRepository
 import com.example.smartenglish.util.ApiResult
 import com.example.smartenglish.util.NetworkMonitor
+import com.example.smartenglish.util.ErrorParser
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -37,10 +38,10 @@ class UserRepositoryImpl @Inject constructor(
                     ApiResult.Error("Failed to get user: No data received")
                 }
             } else {
-                val errorMessage = response.body()?.error?.message
+                val rawError = response.body()?.error?.message
                     ?: response.errorBody()?.string()
                     ?: "Failed to get user"
-                ApiResult.Error(errorMessage)
+                ApiResult.Error(ErrorParser.parseErrorMessage(rawError))
             }
         } catch (e: Exception) {
             ApiResult.Error(e.message ?: "Network error")
@@ -61,10 +62,10 @@ class UserRepositoryImpl @Inject constructor(
                     ApiResult.Error("Failed to update profile: No data received")
                 }
             } else {
-                val errorMessage = response.body()?.error?.message
+                val rawError = response.body()?.error?.message
                     ?: response.errorBody()?.string()
                     ?: "Failed to update profile"
-                ApiResult.Error(errorMessage)
+                ApiResult.Error(ErrorParser.parseErrorMessage(rawError))
             }
         } catch (e: Exception) {
             ApiResult.Error(e.message ?: "Network error")
