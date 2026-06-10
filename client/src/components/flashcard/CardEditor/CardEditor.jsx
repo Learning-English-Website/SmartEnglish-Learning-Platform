@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { FiSave, FiX, FiVolume2, FiZap, FiSearch, FiImage, FiUpload } from 'react-icons/fi';
-import { lookupWord, searchWords, fetchRelatedWords, fetchCollocations } from '../../../api/dictionaryService';
+import { lookupWord, searchWords, fetchRelatedWords, fetchCollocations, translateEnToVi } from '../../../api/dictionaryService';
 import ImagePicker from '../ImagePicker/ImagePicker';
 import ImageUploader from '../../media/ImageUploader';
 import './CardEditor.css';
@@ -86,16 +86,43 @@ export default function CardEditor({ card, onSave, onCancel, loading = false, in
         fetchRelatedWords(term).catch(() => ''),
         fetchCollocations(term).catch(() => ''),
       ]);
+
+      // Find first available example sentence in dictionary meanings/definitions
+      let firstExample = '';
+      if (dictData?.meanings) {
+        for (const m of dictData.meanings) {
+          for (const d of m.definitions) {
+            if (d.example) {
+              firstExample = d.example;
+              break;
+            }
+          }
+          if (firstExample) break;
+        }
+      }
+
+      // Get English definition and translate to Vietnamese
+      const definitionEn = dictData?.meanings?.[0]?.definitions?.[0]?.definition || '';
+      let definitionVi = '';
+      if (definitionEn) {
+        definitionVi = await translateEnToVi(definitionEn);
+      } else {
+        // Fallback: translate the word itself
+        definitionVi = await translateEnToVi(term);
+      }
+
       setForm((prev) => ({
         ...prev,
-        pronunciation: prev.pronunciation || dictData?.phonetic || prev.pronunciation,
-        back:          prev.back          || dictData?.meanings?.[0]?.definitions?.[0]?.definition || prev.back,
-        example:       prev.example       || dictData?.meanings?.[0]?.definitions?.[0]?.example   || prev.example,
-        relatedWords:  prev.relatedWords  || related       || prev.relatedWords,
-        collocation:   prev.collocation   || collocations  || prev.collocation,
+        pronunciation: prev.pronunciation || dictData?.phonetic || '',
+        back:          prev.back          || definitionVi       || '',
+        example:       prev.example       || firstExample       || '',
+        relatedWords:  prev.relatedWords  || related            || '',
+        collocation:   prev.collocation   || collocations       || '',
       }));
       // store audio for playback
       if (dictData?.audio && !dictData_ref.current) dictData_ref.current = dictData;
+    } catch (err) {
+      console.error('[Auto-fill] Error:', err);
     } finally {
       setAutoFilling(false);
     }

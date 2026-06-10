@@ -188,3 +188,27 @@ export async function fetchCollocations(word, max = 6) {
   }
 }
 
+/**
+ * Translate English text to Vietnamese using free Google Translate API.
+ *
+ * @param {string} text
+ * @returns {Promise<string>} Translated text or empty string on error
+ */
+export async function translateEnToVi(text) {
+  if (!text?.trim()) return '';
+  try {
+    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=vi&dt=t&q=${encodeURIComponent(text.trim())}`;
+    const resp = await fetch(url);
+    if (!resp.ok) return '';
+    const data = await resp.json();
+    // Google Translate returns: [[[translatedText, originalText, ...]]]
+    if (data && data[0] && data[0][0] && data[0][0][0]) {
+      return data[0][0][0];
+    }
+    return '';
+  } catch (err) {
+    console.error('[Translation API] Error:', err);
+    return '';
+  }
+}
+

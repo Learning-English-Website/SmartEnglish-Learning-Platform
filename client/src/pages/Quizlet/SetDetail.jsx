@@ -35,6 +35,7 @@ import { setService } from '../../api/setService';
 import { cardService } from '../../api/cardService';
 import { noteService } from '../../api/noteService';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
+import { progressService } from '../../services/progressService';
 import CardEditor from '../../components/flashcard/CardEditor/CardEditor';
 import BulkAddModal from '../../components/flashcard/BulkAddModal/BulkAddModal';
 import ImportModal from '../../components/flashcard/ImportModal/ImportModal';
@@ -59,6 +60,7 @@ export default function SetDetail() {
 
   const [set, setSet] = useState(null);
   const [cards, setCards] = useState([]);
+  const [schedules, setSchedules] = useState([]);
   const [loading, setLoading] = useState(true);
   const [cardsLoading, setCardsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -126,12 +128,20 @@ export default function SetDetail() {
 
   const fetchCards = useCallback(() => {
     setCardsLoading(true);
-    cardService.getBySetId(id)
-      .then((res) => {
-        const data = res?.data ?? res;
-        setCards(Array.isArray(data) ? data : []);
+    Promise.all([
+      cardService.getBySetId(id),
+      progressService.getCardSchedules(id).catch(() => ({ data: [] }))
+    ])
+      .then(([cardsRes, schedRes]) => {
+        const cardsData = cardsRes?.data ?? cardsRes;
+        const schedData = schedRes?.data ?? schedRes;
+        setCards(Array.isArray(cardsData) ? cardsData : []);
+        setSchedules(Array.isArray(schedData) ? schedData : []);
       })
-      .catch(() => setCards([]))
+      .catch(() => {
+        setCards([]);
+        setSchedules([]);
+      })
       .finally(() => setCardsLoading(false));
   }, [id]);
 
@@ -363,10 +373,18 @@ export default function SetDetail() {
 
   /* ── Learning Groups ─────────────────────────────────────────────────── */
   const learningGroups = useMemo(() => {
-    const learning = cards.filter(c => !c.mastered);
-    const mastered = cards.filter(c => c.mastered);
+    const learning = [];
+    const mastered = [];
+    for (const card of cards) {
+      const prog = schedules.find(s => String(s.cardId || s.card) === String(card._id));
+      if (prog && prog.correctReviews > 0) {
+        mastered.push(card);
+      } else {
+        learning.push(card);
+      }
+    }
     return { learning, mastered };
-  }, [cards]);
+  }, [cards, schedules]);
 
   /* ── Render ──────────────────────────────────────────────────────────── */
   if (authLoading || loading) return (

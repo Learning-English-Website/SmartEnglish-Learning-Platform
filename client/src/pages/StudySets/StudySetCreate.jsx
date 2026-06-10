@@ -7,12 +7,23 @@ import {
 import { toast } from 'react-hot-toast';
 import { setService } from '../../api/setService';
 import { cardService } from '../../api/cardService';
+import CardEditor from '../../components/flashcard/CardEditor/CardEditor';
 import './StudySetCreate.css';
 
 let cardIdCounter = Date.now();
 
 function makeCard() {
-  return { id: cardIdCounter++, front: '', back: '' };
+  return {
+    id:            cardIdCounter++,
+    front:         '',
+    back:          '',
+    pronunciation: '',
+    example:       '',
+    note:          '',
+    collocation:   '',
+    relatedWords:  '',
+    imageUrl:      '',
+  };
 }
 
 const DRAFT_KEY = 'study-sets-draft';
@@ -69,8 +80,9 @@ export default function StudySetCreate() {
   }, []);
 
   /* ── Card mutations ──────────────────────────────────────────────────── */
-  const updateCard = useCallback((id, field, value) => {
-    setCards((prev) => prev.map((c) => (c.id === id ? { ...c, [field]: value } : c)));
+  /* ── Card mutations ──────────────────────────────────────────────────── */
+  const updateCardData = useCallback((id, data) => {
+    setCards((prev) => prev.map((c) => (c.id === id ? { ...c, ...data } : c)));
   }, []);
 
   const addCard = useCallback(() => {
@@ -103,7 +115,19 @@ export default function StudySetCreate() {
       const newId = created?._id ?? created?.id;
 
       if (validCards.length > 0 && newId) {
-        await cardService.bulkCreate(newId, validCards.map((c) => ({ front: c.front.trim(), back: c.back.trim() })));
+        await cardService.bulkCreate(
+          newId,
+          validCards.map((c) => ({
+            front:         c.front.trim(),
+            back:          c.back.trim(),
+            pronunciation: c.pronunciation?.trim() || null,
+            example:       c.example?.trim()       || null,
+            note:          c.note?.trim()           || null,
+            collocation:   c.collocation?.trim()    || null,
+            relatedWords:  c.relatedWords?.trim()   || null,
+            imageUrl:      c.imageUrl              || null,
+          })),
+        );
       }
 
       localStorage.removeItem(DRAFT_KEY);
@@ -174,23 +198,20 @@ export default function StudySetCreate() {
 
         <div className="ssc-cards-list">
           {cards.map((card, idx) => (
-            <div key={card.id} className="ssc-card" ref={idx === cards.length - 1 ? lastCardRef : null}>
-              <div className="ssc-card-header">
-                <span className="ssc-card-num">{idx + 1}</span>
+            <div key={card.id} className="ssc-card" ref={idx === cards.length - 1 ? lastCardRef : null} style={{ padding: '0 0 16px 0', border: '1.5px solid var(--border-subtle, #e2e8f0)', borderRadius: '16px', overflow: 'hidden', marginBottom: '24px' }}>
+              <div className="ssc-card-header" style={{ padding: '12px 20px', background: 'var(--bg-card-header, #f8fafc)', borderBottom: '1px solid var(--border-subtle, #e2e8f0)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span className="ssc-card-num" style={{ fontWeight: 'bold' }}>{idx + 1}</span>
                 <div className="ssc-card-header-actions">
-                  <button className="ssc-card-drag-handle" title="Kéo để sắp xếp"><span style={{ fontSize: '1rem', opacity: 0.4, letterSpacing: '-2px' }}>≡</span></button>
-                  <button className="ssc-card-icon-btn ssc-card-icon-btn--delete" onClick={() => deleteCard(card.id)} title="Xóa thẻ"><Trash2 size={14} /></button>
+                  <button className="ssc-card-icon-btn ssc-card-icon-btn--delete" onClick={() => deleteCard(card.id)} title="Xóa thẻ" style={{ border: 'none', background: 'none', color: '#ef4444', cursor: 'pointer' }}><Trash2 size={14} /></button>
                 </div>
               </div>
-              <div className="ssc-card-fields">
-                <div className="ssc-card-field">
-                  <span className="ssc-card-field-label">Thuật ngữ</span>
-                  <textarea className="ssc-card-textarea" placeholder="Nhập thuật ngữ..." value={card.front} onChange={(e) => updateCard(card.id, 'front', e.target.value)} />
-                </div>
-                <div className="ssc-card-field">
-                  <span className="ssc-card-field-label">Định nghĩa</span>
-                  <textarea className="ssc-card-textarea" placeholder="Nhập định nghĩa..." value={card.back} onChange={(e) => updateCard(card.id, 'back', e.target.value)} />
-                </div>
+              <div style={{ padding: '20px' }}>
+                <CardEditor
+                  card={card}
+                  onSave={(data) => updateCardData(card.id, data)}
+                  onCancel={() => {}}
+                  inlineMode
+                />
               </div>
             </div>
           ))}

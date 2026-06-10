@@ -19,6 +19,7 @@ const APP_URL = import.meta.env.VITE_APP_URL || window.location.origin;
  */
 export default function ShareModal({ show, setId, setTitle, isPublic, onHide, onPublicChanged }) {
   const [copied, setCopied] = useState(false);
+    const [copiedDeepLink, setCopiedDeepLink] = useState(false);
   const [currentIsPublic, setCurrentIsPublic] = useState(isPublic);
   const [makingPublic, setMakingPublic] = useState(false);
 
@@ -29,10 +30,12 @@ export default function ShareModal({ show, setId, setTitle, isPublic, onHide, on
   useEffect(() => {
     if (!show) {
       setCopied(false);
+      setCopiedDeepLink(false);
     }
   }, [show]);
 
   const shareUrl = `${APP_URL}/flashcards/sets/${setId}`;
+  const deepLinkUrl = `smartenglish://set/${setId}`;
 
   const handleMakePublic = async () => {
     setMakingPublic(true);
@@ -59,8 +62,20 @@ export default function ShareModal({ show, setId, setTitle, isPublic, onHide, on
     }
   };
 
+  const handleCopyDeepLink = async () => {
+    try {
+      await navigator.clipboard.writeText(deepLinkUrl);
+      setCopiedDeepLink(true);
+      toast.success('Mobile deep link copied!');
+      setTimeout(() => setCopiedDeepLink(false), 2000);
+    } catch {
+      toast.error('Failed to copy deep link');
+    }
+  };
+
   const handleClose = () => {
     setCopied(false);
+    setCopiedDeepLink(false);
     onHide();
   };
 
@@ -104,9 +119,9 @@ export default function ShareModal({ show, setId, setTitle, isPublic, onHide, on
           </div>
         ) : (
           <div className="share-link-section">
-            <p className="share-link-label">Share this public set</p>
+            <p className="share-link-label">Share this public set (Web)</p>
 
-            <InputGroup className="share-link-input-group">
+            <InputGroup className="share-link-input-group mb-3">
               <Form.Control
                 type="text"
                 value={shareUrl}
@@ -130,20 +145,34 @@ export default function ShareModal({ show, setId, setTitle, isPublic, onHide, on
               </Button>
             </InputGroup>
 
-            <div className="share-link-actions">
-              <Button
-                variant="outline-primary"
-                size="sm"
-                onClick={handleCopy}
-                disabled={copied}
-              >
-                <FiCopy size={14} className="me-1" />
-                {copied ? 'Copied!' : 'Copy to clipboard'}
-              </Button>
-            </div>
+            <p className="share-link-label">Open in Mobile App (Deep Link)</p>
 
-            <div className="share-info">
-              <small>Anyone with this link can view and study this set.</small>
+            <InputGroup className="share-link-input-group">
+              <Form.Control
+                type="text"
+                value={deepLinkUrl}
+                readOnly
+                className="share-link-input"
+              />
+              <Button
+                variant={copiedDeepLink ? 'success' : 'outline-secondary'}
+                onClick={handleCopyDeepLink}
+                className="share-copy-btn"
+              >
+                {copiedDeepLink ? (
+                  <>
+                    <FiCheck className="me-1" /> Copied
+                  </>
+                ) : (
+                  <>
+                    <FiCopy className="me-1" /> Copy
+                  </>
+                )}
+              </Button>
+            </InputGroup>
+
+            <div className="share-info mt-3">
+              <small>Anyone with these links can view and study this set.</small>
             </div>
           </div>
         )}

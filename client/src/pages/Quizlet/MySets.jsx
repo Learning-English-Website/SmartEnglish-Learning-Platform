@@ -16,7 +16,6 @@ export default function MySets() {
   const navigate = useNavigate();
 
   const [allSets, setAllSets] = useState([]);
-  const [publicSets, setPublicSets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -27,32 +26,18 @@ export default function MySets() {
   const [selectedFolderId, setSelectedFolderId] = useState(null);
   const [deleteFolderTarget, setDeleteFolderTarget] = useState(null);
 
-  // Bookmarks
-  const [bookmarks, setBookmarks] = useState([]);
-  const [showBookmarks, setShowBookmarks] = useState(false);
-  const [bookmarksLoading, setBookmarksLoading] = useState(false);
-  const [bookmarkedSetIds, setBookmarkedSetIds] = useState(new Set());
-
   const fetchAll = useCallback(async () => {
     setLoading(true);
     setError(null);
 
     try {
-      const [mySetsResult, publicSetsResult] = await Promise.all([
-        setService.getMySets(),
-        setService.getPublicSets({ page: 1, pageSize: 6 }),
-      ]);
-
+      const mySetsResult = await setService.getMySets();
       const mySetsData = mySetsResult?.data ?? (Array.isArray(mySetsResult) ? mySetsResult : []);
-      const publicSetsData = publicSetsResult?.data ?? (Array.isArray(publicSetsResult) ? publicSetsResult : []);
-
       setAllSets(mySetsData);
-      setPublicSets(publicSetsData);
     } catch (err) {
       console.error(err);
-      setError('Khong the tai danh sach. Vui long thu lai.');
+      setError('Không thể tải danh sách. Vui lòng thử lại.');
       setAllSets([]);
-      setPublicSets([]);
     } finally {
       setLoading(false);
     }
@@ -74,48 +59,6 @@ export default function MySets() {
       })
       .catch(() => setFolders([]));
   }, []);
-
-  // Fetch bookmarks
-  useEffect(() => {
-    const fetchBookmarks = async () => {
-      setBookmarksLoading(true);
-      try {
-        const res = await shareService.getBookmarks();
-        const data = res?.data ?? res;
-        const bookmarkList = Array.isArray(data) ? data : [];
-        setBookmarks(bookmarkList);
-        setBookmarkedSetIds(new Set(bookmarkList.map((s) => s._id)));
-      } catch {
-        setBookmarks([]);
-      } finally {
-        setBookmarksLoading(false);
-      }
-    };
-    fetchBookmarks();
-  }, []);
-
-  const handleToggleBookmark = async (setId) => {
-    try {
-      if (bookmarkedSetIds.has(setId)) {
-        await shareService.unbookmark(setId);
-        setBookmarkedSetIds((prev) => {
-          const next = new Set(prev);
-          next.delete(setId);
-          return next;
-        });
-        setBookmarks((prev) => prev.filter((s) => s._id !== setId));
-        toast.success('Removed from bookmarks');
-      } else {
-        await shareService.bookmark(setId);
-        setBookmarkedSetIds((prev) => new Set(prev).add(setId));
-        const setData = allSets.find((s) => s._id === setId);
-        if (setData) setBookmarks((prev) => [...prev, setData]);
-        toast.success('Added to bookmarks');
-      }
-    } catch {
-      toast.error('Failed to update bookmark');
-    }
-  };
 
   const filteredSets = useMemo(() => {
     if (!selectedFolderId) {
@@ -241,15 +184,6 @@ export default function MySets() {
             </button>
 
             <button
-              className={`btn-glassline-outline my-sets-btn-bookmarks ${showBookmarks ? 'active' : ''}`}
-              onClick={() => setShowBookmarks((v) => !v)}
-              id="bookmarks-btn"
-            >
-              <FiBookmark size={16} />
-              Bookmarks {bookmarks.length > 0 && `(${bookmarks.length})`}
-            </button>
-
-            <button
               className="btn-glassline-primary my-sets-btn-create"
               onClick={() => navigate('/flashcards/sets/create')}
               id="create-set-btn"
@@ -264,32 +198,14 @@ export default function MySets() {
           <aside className="my-sets-sidebar">
             <FolderTree
               folders={folders}
-              selectedFolderId={showBookmarks ? '__bookmarks__' : selectedFolderId}
+              selectedFolderId={selectedFolderId}
               onSelectFolder={(id) => {
-                if (id === '__bookmarks__') {
-                  setShowBookmarks(true);
-                } else {
-                  setShowBookmarks(false);
-                  setSelectedFolderId(id);
-                }
+                setSelectedFolderId(id);
               }}
               onCreateFolder={handleCreateFolder}
               onRenameFolder={handleRenameFolder}
               onDeleteFolder={(id) => setDeleteFolderTarget(id)}
             />
-            <div className="my-sets-sidebar-bookmarks">
-              <button
-                className={`my-sets-sidebar-bookmark-btn ${showBookmarks ? 'active' : ''}`}
-                onClick={() => {
-                  setShowBookmarks((v) => !v);
-                  if (!showBookmarks) setSelectedFolderId(null);
-                }}
-              >
-                <FiBookmark size={14} />
-                Bookmarks
-                {bookmarks.length > 0 && <span className="my-sets-sidebar-badge">{bookmarks.length}</span>}
-              </button>
-            </div>
           </aside>
 
           <main className="my-sets-main">
@@ -304,92 +220,32 @@ export default function MySets() {
               </div>
             ) : (
               <>
-                {/* Bookmarks Section */}
-                {showBookmarks && (
-                  <div className="my-sets-bookmarks">
-                    <div className="my-sets-section-header">
-                      <FiBookmark size={18} className="my-sets-title-icon" />
-                      <h2>Bookmarked Sets</h2>
-                      <span className="my-sets-section-badge">{bookmarks.length} sets</span>
-                    </div>
-
-                    {bookmarksLoading ? (
-                      <LoadingSpinner text="Loading bookmarks..." />
-                    ) : bookmarks.length === 0 ? (
-                      <div className="my-sets-empty">
-                        <div className="my-sets-empty-icon">🔖</div>
-                        <p>No bookmarked sets yet.</p>
-                      </div>
-                    ) : (
-                      <div className="my-sets-grid">
-                        {bookmarks.map((set) => (
-                          <SetCard
-                            key={set._id}
-                            set={set}
-                            showActions={false}
-                            linkUrl={`/shared/${set.shareCode || set._id}`}
-                            isBookmarked={true}
-                            onToggleBookmark={() => handleToggleBookmark(set._id)}
-                          />
-                        ))}
-                      </div>
-                    )}
+                {filteredSets.length === 0 && (
+                  <div className="my-sets-empty">
+                    <div className="my-sets-empty-icon">📚</div>
+                    <h2>Ban chua co flashcard set nao</h2>
+                    <p>Tao set dau tien de bat dau hoc!</p>
+                    <button
+                      className="btn-glassline-primary"
+                      onClick={() => navigate('/flashcards/sets/create')}
+                    >
+                      <FiPlus size={16} /> Tao Set Dau Tien
+                    </button>
                   </div>
                 )}
 
-                {/* My Sets Section */}
-                {!showBookmarks && (
-                  <>
-                    {filteredSets.length === 0 && (
-                      <div className="my-sets-empty">
-                        <div className="my-sets-empty-icon">📚</div>
-                        <h2>Ban chua co flashcard set nao</h2>
-                        <p>Tao set dau tien de bat dau hoc!</p>
-                        <button
-                          className="btn-glassline-primary"
-                          onClick={() => navigate('/flashcards/sets/create')}
-                        >
-                          <FiPlus size={16} /> Tao Set Dau Tien
-                        </button>
-                      </div>
-                    )}
-
-                    {filteredSets.length > 0 && (
-                      <div className="my-sets-grid">
-                        {filteredSets.map((set) => (
-                          <SetCard
-                            key={set._id}
-                            set={set}
-                            onEdit={() => navigate(`/flashcards/sets/${set._id}/edit`)}
-                            onDelete={() => setDeleteTarget({ id: set._id, title: set.title })}
-                            isBookmarked={bookmarkedSetIds.has(set._id)}
-                            onToggleBookmark={() => handleToggleBookmark(set._id)}
-                          />
-                        ))}
-                      </div>
-                    )}
-
-                    {publicSets.length > 0 && (
-                      <div className="my-sets-community">
-                        <div className="my-sets-section-header">
-                          <FiGlobe size={18} className="my-sets-title-icon" />
-                          <h2>Discover Community Sets</h2>
-                          <span className="my-sets-section-badge">{publicSets.length} sets</span>
-                        </div>
-
-                        <div className="my-sets-grid">
-                          {publicSets.map((set) => (
-                            <SetCard
-                              key={set._id}
-                              set={set}
-                              showActions={false}
-                              linkUrl={`/community/sets/${set._id}`}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </>
+                {filteredSets.length > 0 && (
+                  <div className="my-sets-grid">
+                    {filteredSets.map((set) => (
+                      <SetCard
+                        key={set._id}
+                        set={set}
+                        onClick={() => navigate(`/study-sets/${set._id}`)}
+                        onEdit={() => navigate(`/flashcards/sets/${set._id}/edit`)}
+                        onDelete={() => setDeleteTarget({ id: set._id, title: set.title })}
+                      />
+                    ))}
+                  </div>
                 )}
               </>
             )}
@@ -401,9 +257,9 @@ export default function MySets() {
         show={!!deleteTarget}
         onHide={() => setDeleteTarget(null)}
         onConfirm={handleDelete}
-        title="Xoa Flashcard Set"
-        message={`Ban co chac muon xoa "${deleteTarget?.title}"? Hanh dong nay khong the hoan tac.`}
-        confirmText="Xoa"
+        title="Xóa Flashcard Set"
+        message={`Bạn có chắc muốn xóa "${deleteTarget?.title}"? Hành động này không thể hoàn tác.`}
+        confirmText="Xóa"
         confirmVariant="danger"
         loading={deleting}
       />
@@ -412,9 +268,9 @@ export default function MySets() {
         show={!!deleteFolderTarget}
         onHide={() => setDeleteFolderTarget(null)}
         onConfirm={handleDeleteFolder}
-        title="Xoa Folder"
-        message="Ban co chac muon xoa folder nay? Cac folder con ben trong se duoc chuyen ra ngoai."
-        confirmText="Xoa"
+        title="Xóa Thư Mục"
+        message="Bạn có chắc muốn xóa thư mục này? Các thư mục con bên trong sẽ được di chuyển ra ngoài."
+        confirmText="Xóa"
         confirmVariant="danger"
         loading={deleting}
       />

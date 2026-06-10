@@ -123,76 +123,8 @@ export default function DuolingoHomePage() {
         </Container>
       </div>
 
-      {/* Features Grid */}
-      <Container className="memoris-features-container">
-        <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: '-100px' }}
-        >
-          <Row className="g-4 justify-content-center">
-            <Col md={4}>
-              <motion.div variants={itemVariants} className="premium-feature-card">
-                <div className="icon-wrapper icon-orange">
-                  <Zap size={24} fill="currentColor" />
-                </div>
-                <h3>Tốc độ &amp; Thú vị</h3>
-                <p>Bài học siêu ngắn, sinh động giúp việc tiếp thu tiếng Anh nhẹ nhàng như chơi game giải trí.</p>
-              </motion.div>
-            </Col>
-
-            <Col md={4}>
-              <motion.div variants={itemVariants} className="premium-feature-card">
-                <div className="icon-wrapper icon-purple">
-                  <Trophy size={24} fill="currentColor" />
-                </div>
-                <h3>Thi đua &amp; Danh hiệu</h3>
-                <p>Tích lũy XP, duy trì chuỗi Streak rực lửa và tranh tài trên bảng xếp hạng cùng bạn bè quốc tế.</p>
-              </motion.div>
-            </Col>
-
-            <Col md={4}>
-              <motion.div variants={itemVariants} className="premium-feature-card">
-                <div className="icon-wrapper icon-red">
-                  <Heart size={24} fill="currentColor" />
-                </div>
-                <h3>Cơ chế Giữ Tim</h3>
-                <p>Rèn luyện thói quen học cẩn thận. Bạn sẽ mất Tim khi làm sai, và có thể ôn tập để nạp lại đầy Tim.</p>
-              </motion.div>
-            </Col>
-          </Row>
-        </motion.div>
-
-        {/* CTA Card Section */}
-        <Row className="cta-premium-row justify-content-center">
-          <Col lg={11}>
-            <motion.div
-              initial={{ opacity: 0, y: 50 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.8 }}
-              className="cta-glass-card"
-            >
-              <div className="cta-left">
-                <h2>Khám phá 5 khóa học nền tảng</h2>
-                <p>Học Tiếng Anh giao tiếp cơ bản, Tiếng Anh du lịch, Tiếng Anh công sở, hay Văn hóa thành ngữ đặc sắc.</p>
-              </div>
-              <div className="cta-right">
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.98 }}
-                  className="btn-premium btn-cta-action"
-                  onClick={() => navigate('/duolingo/courses')}
-                >
-                  <span>Khám phá Khóa học</span>
-                  <ArrowRight size={18} />
-                </motion.button>
-              </div>
-            </motion.div>
-          </Col>
-        </Row>
-      </Container>
+      {/* Simplified, compact bottom layout */}
+      <div style={{ height: '32px' }} />
     </div>
   );
 }

@@ -1,9 +1,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { FiUpload, FiImage, FiX, FiFolder } from 'react-icons/fi';
+import axiosClient from '../../api/axiosClient';
 import './ImageUploader.css';
-
-// eslint-disable-next-line no-undef
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 /**
  * ImageUploader — Upload ảnh từ máy tính lên server.
@@ -43,21 +41,20 @@ export default function ImageUploader({ onUpload, onClear, currentUrl }) {
       const formData = new FormData();
       formData.append('image', file);
 
-      const resp = await fetch(`${API_URL}/api/media/upload`, {
-        method: 'POST',
-        body: formData,
+      const data = await axiosClient.post('/media/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
       });
 
-      if (!resp.ok) {
-        const data = await resp.json().catch(() => ({}));
-        throw new Error(data.message || `Lỗi server: ${resp.status}`);
+      if (!data || !data.url) {
+        throw new Error('Không nhận được URL ảnh từ máy chủ');
       }
 
-      const data = await resp.json();
       onUpload(data.url);
     } catch (err) {
       console.error('[ImageUploader] Upload failed:', err);
-      setError(err.message || 'Upload thất bại. Thử lại.');
+      setError(err.response?.data?.message || err.message || 'Upload thất bại. Thử lại.');
     } finally {
       setUploading(false);
     }

@@ -109,7 +109,15 @@ export default function DashboardLayout({ children }) {
         </div>
 
         {/* Center: Search */}
-        <form className="q-topbar-search" onSubmit={(e) => e.preventDefault()}>
+        <form
+          className="q-topbar-search"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (topNavSearch.trim()) {
+              navigate(`/explore?q=${encodeURIComponent(topNavSearch.trim())}`);
+            }
+          }}
+        >
           <Search size={14} className="q-search-icon" />
           <input
             type="text"
@@ -237,8 +245,8 @@ export default function DashboardLayout({ children }) {
               </NavLink>
 
               <NavLink
-                to="/library?tab=notifications"
-                className="q-nav-item"
+                to="/notifications"
+                className={`q-nav-item ${isActive('/notifications') ? 'active' : ''}`}
                 onClick={closeMobileSidebar}
               >
                 <Bell size={17} />

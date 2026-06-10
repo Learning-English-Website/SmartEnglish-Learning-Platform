@@ -1,14 +1,31 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Search, BookOpen, Globe, Lock, Brain } from 'lucide-react';
 import { setService } from '../../api/setService';
 import './ExploreSets.css';
 
 export default function ExploreSets() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const queryParam = searchParams.get('q') || '';
+
   const [sets, setSets] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(queryParam);
   const [filteredSets, setFilteredSets] = useState([]);
+
+  useEffect(() => {
+    setSearchQuery(queryParam);
+  }, [queryParam]);
+
+  const handleSearchChange = (e) => {
+    const val = e.target.value;
+    setSearchQuery(val);
+    if (val.trim()) {
+      setSearchParams({ q: val });
+    } else {
+      setSearchParams({});
+    }
+  };
 
   useEffect(() => {
     const fetchSets = async () => {
@@ -56,7 +73,7 @@ export default function ExploreSets() {
           type="text"
           placeholder="Tìm kiếm học phần..."
           value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
+          onChange={handleSearchChange}
           className="explore-search-input"
         />
       </div>

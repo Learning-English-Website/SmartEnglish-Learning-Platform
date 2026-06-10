@@ -13,6 +13,7 @@ import { useSelector } from 'react-redux';
 import { selectIsAuthenticated, selectAuthLoading } from '../../store/slices/authSlice';
 import { setService } from '../../api/setService';
 import { cardService } from '../../api/cardService';
+import { progressService } from '../../services/progressService';
 import { TestMode, MatchMode } from '../../components/study';
 import './StudyPage.css';
 
@@ -155,6 +156,9 @@ export default function StudyPage() {
       next.delete(currentCard._id);
       return next;
     });
+    progressService.updateCardProgress(currentCard._id, 3).catch(err => {
+      console.error('Failed to update progress:', err);
+    });
     if (currentIdx < totalCards - 1) {
       setTimeout(goNext, 300);
     } else {
@@ -169,6 +173,9 @@ export default function StudyPage() {
       const next = new Set(prev);
       next.delete(currentCard._id);
       return next;
+    });
+    progressService.updateCardProgress(currentCard._id, 0).catch(err => {
+      console.error('Failed to update progress:', err);
     });
     if (currentIdx < totalCards - 1) {
       setTimeout(goNext, 300);
@@ -599,7 +606,47 @@ export default function StudyPage() {
           </button>
         </div>
 
-
+        {/* Action Buttons for SM-2 Spaced Repetition */}
+        <div className="ql-flashcard-actions" style={{ display: 'flex', justifyContent: 'center', gap: '16px', marginTop: '24px' }}>
+          <button
+            className="ql-action-btn ql-action-btn--incorrect"
+            onClick={handleIncorrect}
+            style={{
+              padding: '12px 28px',
+              borderRadius: '24px',
+              border: '2px solid #ef4444',
+              background: '#fef2f2',
+              color: '#ef4444',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              transition: 'all 0.2s',
+            }}
+          >
+            Chưa thuộc (⚡)
+          </button>
+          <button
+            className="ql-action-btn ql-action-btn--correct"
+            onClick={handleCorrect}
+            style={{
+              padding: '12px 28px',
+              borderRadius: '24px',
+              border: '2px solid #22c55e',
+              background: '#f0fdf4',
+              color: '#22c55e',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              transition: 'all 0.2s',
+            }}
+          >
+            Đã thuộc (✓)
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -38,6 +38,7 @@ const StudySetDetail = lazy(() => import('./pages/StudySets/StudySetDetail'));
 const StudySetLearn = lazy(() => import('./pages/StudySets/StudySetLearn'));
 const LearnPage = lazy(() => import('./pages/LearnPage/LearnPage'));
 const ExploreSetsPage = lazy(() => import('./pages/Quizlet/ExploreSets'));
+const NotificationsPage = lazy(() => import('./pages/Notifications/NotificationsPage'));
 const ProPage = lazy(() => import('./pages/Pro/ProPage'));
 const SuccessPage = lazy(() => import('./pages/Pro/SuccessPage'));
 const CancelPage = lazy(() => import('./pages/Pro/CancelPage'));
@@ -122,6 +123,8 @@ const router = createBrowserRouter([
       { path: '/study-sets/:id', element: withSuspense(<StudySetDetail />) },
       { path: '/folders/:id/:slug', element: withSuspense(<FolderPage />) },
       { path: '/premium', element: withSuspense(<ProPage />) },
+      { path: '/explore', element: withSuspense(<ExploreSetsPage />) },
+      { path: '/notifications', element: withSuspense(<NotificationsPage />) },
     ],
   },
 

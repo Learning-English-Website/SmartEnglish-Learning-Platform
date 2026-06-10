@@ -24,6 +24,9 @@ const allowedOrigins = [
   'https://127.0.0.1:5173',
   'https://127.0.0.1:5174',
   'https://127.0.0.1:5175',
+  'https://smart-english-learning-platform.vercel.app',
+  'https://memoris.site',
+  'https://www.memoris.site',
 ].filter(Boolean);
 
 app.use(cors({

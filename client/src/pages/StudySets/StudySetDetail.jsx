@@ -4,11 +4,14 @@ import { useAuthContext } from '../../context/AuthContext';
 import {
   ChevronLeft, Globe, Lock, Share2, Edit2,
   BookOpen, Brain, ClipboardCheck, Box, Zap, Link2,
-  Plus, Star, Volume2, MoreHorizontal, X, Save
+  Plus, Star, Volume2, MoreHorizontal, X, Save, Trash2
 } from 'lucide-react';
 import { setService } from '../../api/setService';
 import { cardService } from '../../api/cardService';
 import { toast } from 'react-hot-toast';
+import CardEditor from '../../components/flashcard/CardEditor/CardEditor';
+import ShareModal from '../../components/common/ShareModal/ShareModal';
+import { ConfirmModal } from '../../components/common/Modal/Modal';
 import './StudySetDetail.css';
 
 const LEARNING_MODES = [
@@ -32,15 +35,22 @@ export default function StudySetDetail() {
 
   // Modal state
   const [showAddCardModal, setShowAddCardModal] = useState(false);
-  const [newCardFront, setNewCardFront] = useState('');
-  const [newCardBack, setNewCardBack] = useState('');
   const [addingCard, setAddingCard] = useState(false);
 
   // Edit card state
   const [editingCard, setEditingCard] = useState(null);
-  const [editCardFront, setEditCardFront] = useState('');
-  const [editCardBack, setEditCardBack] = useState('');
   const [updatingCard, setUpdatingCard] = useState(false);
+
+  // Set deletion state
+  const [showDeleteSetConfirm, setShowDeleteSetConfirm] = useState(false);
+  const [deletingSet, setDeletingSet] = useState(false);
+
+  // Card deletion state
+  const [cardToDelete, setCardToDelete] = useState(null);
+  const [deletingCard, setDeletingCard] = useState(false);
+
+  // Share modal state
+  const [showShareModal, setShowShareModal] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -75,18 +85,12 @@ export default function StudySetDetail() {
   const authorInitial = authorName[0]?.toUpperCase() || 'U';
 
   // Handle add card
-  const handleAddCard = async () => {
-    if (!newCardFront.trim() || !newCardBack.trim()) {
-      toast.error('Vui lòng nhập đủ thông tin thuật ngữ');
-      return;
-    }
+  const handleAddCardSubmit = async (data) => {
     setAddingCard(true);
     try {
-      const res = await cardService.create(id, { front: newCardFront.trim(), back: newCardBack.trim() });
+      const res = await cardService.create(id, data);
       const newCard = res?.data ?? res;
       setCards(prev => [...prev, newCard]);
-      setNewCardFront('');
-      setNewCardBack('');
       setShowAddCardModal(false);
       toast.success('Đã thêm thuật ngữ');
     } catch {
@@ -97,21 +101,15 @@ export default function StudySetDetail() {
   };
 
   // Handle edit card
-  const handleEditCard = (card) => {
+  const handleEditCardSelect = (card) => {
     setEditingCard(card._id);
-    setEditCardFront(card.front);
-    setEditCardBack(card.back);
   };
 
-  const handleUpdateCard = async () => {
-    if (!editCardFront.trim() || !editCardBack.trim()) {
-      toast.error('Vui lòng nhập đủ thông tin thuật ngữ');
-      return;
-    }
+  const handleUpdateCardSubmit = async (data) => {
     setUpdatingCard(true);
     try {
-      await cardService.update(editingCard, { front: editCardFront.trim(), back: editCardBack.trim() });
-      setCards(prev => prev.map(c => c._id === editingCard ? { ...c, front: editCardFront.trim(), back: editCardBack.trim() } : c));
+      await cardService.update(editingCard, data);
+      setCards(prev => prev.map(c => c._id === editingCard ? { ...c, ...data } : c));
       setEditingCard(null);
       toast.success('Đã cập nhật thuật ngữ');
     } catch {
@@ -122,14 +120,37 @@ export default function StudySetDetail() {
   };
 
   // Handle delete card
-  const handleDeleteCard = async (cardId) => {
-    if (!confirm('Bạn có chắc muốn xóa thuật ngữ này?')) return;
+  const handleDeleteCardClick = (cardId) => {
+    setCardToDelete(cardId);
+  };
+
+  const handleConfirmDeleteCard = async () => {
+    if (!cardToDelete) return;
+    setDeletingCard(true);
     try {
-      await cardService.delete(cardId);
-      setCards(prev => prev.filter(c => c._id !== cardId));
+      await cardService.delete(cardToDelete);
+      setCards(prev => prev.filter(c => c._id !== cardToDelete));
       toast.success('Đã xóa thuật ngữ');
+      setCardToDelete(null);
     } catch {
       toast.error('Không thể xóa thuật ngữ');
+    } finally {
+      setDeletingCard(false);
+    }
+  };
+
+  // Handle delete set
+  const handleConfirmDeleteSet = async () => {
+    setDeletingSet(true);
+    try {
+      await setService.delete(id);
+      toast.success('Đã xóa học phần');
+      navigate('/library');
+    } catch {
+      toast.error('Không thể xóa học phần');
+    } finally {
+      setDeletingSet(false);
+      setShowDeleteSetConfirm(false);
     }
   };
 
@@ -184,9 +205,9 @@ export default function StudySetDetail() {
           </div>
           <div className="sd2-set-header-actions">
             <button className="sd2-action-btn sd2-action-btn--primary" onClick={() => navigate(`/study-sets/${id}/learn`)}><Brain size={14} />Học</button>
-            <button className="sd2-action-btn sd2-action-btn--outline"><Edit2 size={14} />Sửa</button>
-            <button className="sd2-action-btn sd2-action-btn--outline"><Share2 size={14} />Chia sẻ</button>
-            <button className="sd2-action-btn sd2-action-btn--icon"><MoreHorizontal size={15} /></button>
+            <button className="sd2-action-btn sd2-action-btn--outline" onClick={() => navigate(`/flashcards/sets/${id}/edit`)}><Edit2 size={14} />Sửa</button>
+            <button className="sd2-action-btn sd2-action-btn--outline" onClick={() => setShowShareModal(true)}><Share2 size={14} />Chia sẻ</button>
+            <button className="sd2-action-btn sd2-action-btn--icon" onClick={() => setShowDeleteSetConfirm(true)} title="Xóa học phần"><Trash2 size={15} /></button>
           </div>
         </div>
       </div>
@@ -277,8 +298,8 @@ export default function StudySetDetail() {
                 <div className="sd2-term-actions">
                   <button className="sd2-term-btn" title="Yêu thích"><Star size={14} /></button>
                   <button className="sd2-term-btn" title="Phát âm"><Volume2 size={14} /></button>
-                  <button className="sd2-term-btn" title="Sửa" onClick={() => handleEditCard(card)}><Edit2 size={13} /></button>
-                  <button className="sd2-term-btn sd2-term-btn--delete" title="Xóa" onClick={() => handleDeleteCard(card._id)}><MoreHorizontal size={13} /></button>
+                  <button className="sd2-term-btn" title="Sửa" onClick={() => handleEditCardSelect(card)}><Edit2 size={13} /></button>
+                  <button className="sd2-term-btn sd2-term-btn--delete" title="Xóa" onClick={() => handleDeleteCardClick(card._id)}><Trash2 size={13} /></button>
                 </div>
               </div>
             ))}
@@ -289,42 +310,20 @@ export default function StudySetDetail() {
       {/* Add Card Modal */}
       {showAddCardModal && (
         <div className="modal-overlay" onClick={() => setShowAddCardModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '650px', width: '90%' }}>
+            <div className="modal-header" style={{ borderBottom: 'none', paddingBottom: 0 }}>
               <h3>Thêm thuật ngữ mới</h3>
               <button className="modal-close" onClick={() => setShowAddCardModal(false)}>
                 <X size={18} />
               </button>
             </div>
-            <div className="modal-body">
-              <div className="modal-field">
-                <label>Thuật ngữ (tiếng Anh)</label>
-                <input
-                  type="text"
-                  value={newCardFront}
-                  onChange={(e) => setNewCardFront(e.target.value)}
-                  placeholder="Nhập thuật ngữ..."
-                  autoFocus
-                />
-              </div>
-              <div className="modal-field">
-                <label>Định nghĩa (tiếng Việt)</label>
-                <input
-                  type="text"
-                  value={newCardBack}
-                  onChange={(e) => setNewCardBack(e.target.value)}
-                  placeholder="Nhập định nghĩa..."
-                />
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button className="modal-btn modal-btn--cancel" onClick={() => setShowAddCardModal(false)}>
-                Hủy
-              </button>
-              <button className="modal-btn modal-btn--primary" onClick={handleAddCard} disabled={addingCard}>
-                <Plus size={14} />
-                {addingCard ? 'Đang thêm...' : 'Thêm'}
-              </button>
+            <div style={{ padding: '20px' }}>
+              <CardEditor
+                card={null}
+                onSave={handleAddCardSubmit}
+                onCancel={() => setShowAddCardModal(false)}
+                loading={addingCard}
+              />
             </div>
           </div>
         </div>
@@ -333,46 +332,58 @@ export default function StudySetDetail() {
       {/* Edit Card Modal */}
       {editingCard && (
         <div className="modal-overlay" onClick={() => setEditingCard(null)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '650px', width: '90%' }}>
+            <div className="modal-header" style={{ borderBottom: 'none', paddingBottom: 0 }}>
               <h3>Sửa thuật ngữ</h3>
               <button className="modal-close" onClick={() => setEditingCard(null)}>
                 <X size={18} />
               </button>
             </div>
-            <div className="modal-body">
-              <div className="modal-field">
-                <label>Thuật ngữ (tiếng Anh)</label>
-                <input
-                  type="text"
-                  value={editCardFront}
-                  onChange={(e) => setEditCardFront(e.target.value)}
-                  placeholder="Nhập thuật ngữ..."
-                  autoFocus
-                />
-              </div>
-              <div className="modal-field">
-                <label>Định nghĩa (tiếng Việt)</label>
-                <input
-                  type="text"
-                  value={editCardBack}
-                  onChange={(e) => setEditCardBack(e.target.value)}
-                  placeholder="Nhập định nghĩa..."
-                />
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button className="modal-btn modal-btn--cancel" onClick={() => setEditingCard(null)}>
-                Hủy
-              </button>
-              <button className="modal-btn modal-btn--primary" onClick={handleUpdateCard} disabled={updatingCard}>
-                <Save size={14} />
-                {updatingCard ? 'Đang lưu...' : 'Lưu'}
-              </button>
+            <div style={{ padding: '20px' }}>
+              <CardEditor
+                card={cards.find(c => c._id === editingCard)}
+                onSave={handleUpdateCardSubmit}
+                onCancel={() => setEditingCard(null)}
+                loading={updatingCard}
+              />
             </div>
           </div>
         </div>
       )}
+
+      {/* Delete Set Confirm Modal */}
+      <ConfirmModal
+        show={showDeleteSetConfirm}
+        onHide={() => setShowDeleteSetConfirm(false)}
+        onConfirm={handleConfirmDeleteSet}
+        title="Xóa học phần"
+        message={`Bạn có chắc chắn muốn xóa học phần "${studySet?.title}"? Hành động này không thể hoàn tác.`}
+        confirmText="Xóa"
+        confirmVariant="danger"
+        loading={deletingSet}
+      />
+
+      {/* Delete Card Confirm Modal */}
+      <ConfirmModal
+        show={!!cardToDelete}
+        onHide={() => setCardToDelete(null)}
+        onConfirm={handleConfirmDeleteCard}
+        title="Xóa thuật ngữ"
+        message="Bạn có chắc chắn muốn xóa thuật ngữ này khỏi học phần?"
+        confirmText="Xóa"
+        confirmVariant="danger"
+        loading={deletingCard}
+      />
+
+      {/* Share Modal */}
+      <ShareModal
+        show={showShareModal}
+        setId={id}
+        setTitle={studySet?.title}
+        isPublic={studySet?.isPublic}
+        onHide={() => setShowShareModal(false)}
+        onPublicChanged={(isNewPublic) => setStudySet(prev => ({ ...prev, isPublic: isNewPublic }))}
+      />
     </div>
   );
 }

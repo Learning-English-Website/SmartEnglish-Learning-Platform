@@ -4,7 +4,7 @@ import { BookOpen, Folder, Users, FileText, Sparkles, Plus, Clock } from 'lucide
 import { useAuth } from '../../hooks/useAuth';
 import { setService } from '../../api/setService';
 import { folderService } from '../../api/folderService';
-import { FilterDropdown } from '../../components/common';
+import { FilterDropdown, ConfirmModal } from '../../components/common';
 import SetCard from '../../components/common/SetCard/SetCard';
 import './LibraryPage.css';
 
@@ -25,6 +25,10 @@ export default function LibraryPage() {
   const [sets, setSets] = useState([]);
   const [folders, setFolders] = useState([]);
   const [error, setError] = useState(null);
+
+  // Deletion state
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   const isOwnProfile = !username || user?.username === username;
 
@@ -65,13 +69,21 @@ export default function LibraryPage() {
 
   const handleEditSet = (set) => navigate(`/flashcards/sets/${set._id}/edit`);
 
-  const handleDeleteSet = async (set) => {
-    if (!window.confirm(`Xóa học phần "${set.title}"?`)) return;
+  const handleDeleteSet = (set) => {
+    setDeleteTarget(set);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
     try {
-      await setService.delete(set._id);
-      setSets((prev) => prev.filter((s) => s._id !== set._id));
+      await setService.delete(deleteTarget._id);
+      setSets((prev) => prev.filter((s) => s._id !== deleteTarget._id));
+      setDeleteTarget(null);
     } catch (err) {
       console.error('Delete failed:', err);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -235,6 +247,17 @@ export default function LibraryPage() {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        show={!!deleteTarget}
+        onHide={() => setDeleteTarget(null)}
+        onConfirm={handleConfirmDelete}
+        title="Xóa học phần"
+        message={`Bạn có chắc chắn muốn xóa học phần "${deleteTarget?.title}"? Hành động này không thể hoàn tác.`}
+        confirmText="Xóa"
+        confirmVariant="danger"
+        loading={deleting}
+      />
     </div>
   );
 }
