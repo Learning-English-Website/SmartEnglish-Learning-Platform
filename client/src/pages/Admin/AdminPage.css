@@ -1,7 +1,7 @@
 /* ── Admin Page Shell ─────────────────────────────────────────────────────── */
 
 .admin-page {
-  max-width: 1200px;
+  width: 100%;
   animation: fadeInAdmin 0.4s ease-out;
 }
 
