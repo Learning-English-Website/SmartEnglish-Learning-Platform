@@ -2,7 +2,8 @@ import { NavLink, useLocation } from 'react-router-dom';
 import {
   BookOpen, Layers, FileText, Target, LayoutDashboard,
   Settings, LogOut, ChevronLeft, ChevronRight,
-  BookMarked, FolderOpen, Users, Grid3X3, Library
+  BookMarked, FolderOpen, Users, Grid3X3, Library,
+  MessageSquare, MessageCircle, CreditCard
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useState } from 'react';
@@ -24,6 +25,9 @@ const QUIZLET_ITEMS = [
 
 const SYSTEM_ITEMS = [
   { path: '/admin/users', label: 'Người dùng', icon: <Users size={18} /> },
+  { path: '/admin/orders', label: 'Đơn hàng', icon: <CreditCard size={18} /> },
+  { path: '/admin/feedback', label: 'Phản hồi & Báo lỗi', icon: <MessageSquare size={18} /> },
+  { path: '/admin/support-chat', label: 'Trò chuyện hỗ trợ', icon: <MessageCircle size={18} /> },
 ];
 
 const SECTION_LABELS = {
@@ -35,6 +39,7 @@ const SECTION_LABELS = {
 export default function AdminSidebar({ collapsed, onToggle }) {
   const { user, logout } = useAuth();
   const location = useLocation();
+  const isCskh = user?.role === 'cskh';
 
   return (
     <aside className={`admin-sidebar ${collapsed ? 'collapsed' : ''}`}>
@@ -55,40 +60,48 @@ export default function AdminSidebar({ collapsed, onToggle }) {
       {/* Nav */}
       <nav className="admin-sidebar-nav">
         {/* Content Management */}
-        <div className="admin-sidebar-section-label">
-          {!collapsed && <span>{SECTION_LABELS.content}</span>}
-        </div>
-        {CONTENT_ITEMS.map(item => (
-          <NavLink
-            key={item.path}
-            to={item.path}
-            className={({ isActive }) =>
-              `admin-sidebar-item ${isActive || location.pathname === item.path ? 'active' : ''}`
-            }
-            title={collapsed ? item.label : undefined}
-          >
-            <span className="admin-sidebar-item-icon">{item.icon}</span>
-            {!collapsed && <span className="admin-sidebar-item-label">{item.label}</span>}
-          </NavLink>
-        ))}
+        {!isCskh && (
+          <>
+            <div className="admin-sidebar-section-label">
+              {!collapsed && <span>{SECTION_LABELS.content}</span>}
+            </div>
+            {CONTENT_ITEMS.map(item => (
+              <NavLink
+                key={item.path}
+                to={item.path}
+                className={({ isActive }) =>
+                  `admin-sidebar-item ${isActive || location.pathname === item.path ? 'active' : ''}`
+                }
+                title={collapsed ? item.label : undefined}
+              >
+                <span className="admin-sidebar-item-icon">{item.icon}</span>
+                {!collapsed && <span className="admin-sidebar-item-label">{item.label}</span>}
+              </NavLink>
+            ))}
+          </>
+        )}
 
         {/* Quizlet */}
-        <div className="admin-sidebar-section-label">
-          {!collapsed && <span>{SECTION_LABELS.quizlet}</span>}
-        </div>
-        {QUIZLET_ITEMS.map(item => (
-          <NavLink
-            key={item.path}
-            to={item.path}
-            className={({ isActive }) =>
-              `admin-sidebar-item ${isActive || location.pathname === item.path ? 'active' : ''}`
-            }
-            title={collapsed ? item.label : undefined}
-          >
-            <span className="admin-sidebar-item-icon">{item.icon}</span>
-            {!collapsed && <span className="admin-sidebar-item-label">{item.label}</span>}
-          </NavLink>
-        ))}
+        {!isCskh && (
+          <>
+            <div className="admin-sidebar-section-label">
+              {!collapsed && <span>{SECTION_LABELS.quizlet}</span>}
+            </div>
+            {QUIZLET_ITEMS.map(item => (
+              <NavLink
+                key={item.path}
+                to={item.path}
+                className={({ isActive }) =>
+                  `admin-sidebar-item ${isActive || location.pathname === item.path ? 'active' : ''}`
+                }
+                title={collapsed ? item.label : undefined}
+              >
+                <span className="admin-sidebar-item-icon">{item.icon}</span>
+                {!collapsed && <span className="admin-sidebar-item-label">{item.label}</span>}
+              </NavLink>
+            ))}
+          </>
+        )}
 
         {/* System */}
         <div className="admin-sidebar-section-label">
@@ -121,7 +134,7 @@ export default function AdminSidebar({ collapsed, onToggle }) {
           {!collapsed && (
             <div className="admin-sidebar-user-info">
               <span className="admin-sidebar-username">{user?.username || 'Admin'}</span>
-              <span className="admin-sidebar-role">Quản trị viên</span>
+              <span className="admin-sidebar-role">{isCskh ? 'Chăm sóc khách hàng' : 'Quản trị viên'}</span>
             </div>
           )}
         </div>

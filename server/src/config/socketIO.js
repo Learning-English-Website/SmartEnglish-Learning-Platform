@@ -46,21 +46,28 @@ const initSocketIO = (httpServer) => {
 
       const decoded = verifyAccessToken(token);
       socket.userId = decoded.sub;
+      socket.userRole = decoded.role;
       next();
     } catch (err) {
       console.warn('[Socket.IO] Auth failed, continuing as guest:', err.message);
       socket.userId = null;
+      socket.userRole = null;
       next();
     }
   });
 
   // ── Connection handler ───────────────────────────────────────────────────────
   io.on('connection', (socket) => {
-    console.log(`[Socket.IO] Client connected: ${socket.id}, userId: ${socket.userId}, rooms: ${Array.from(socket.rooms).join(',')}`);
+    console.log(`[Socket.IO] Client connected: ${socket.id}, userId: ${socket.userId}, role: ${socket.userRole}, rooms: ${Array.from(socket.rooms).join(',')}`);
 
     // Join user-specific private room
     if (socket.userId) {
       socket.join(`user:${socket.userId}`);
+
+      if (socket.userRole === 'admin' || socket.userRole === 'cskh') {
+        socket.join('cskh-agents');
+        console.log(`[Socket.IO] Agent ${socket.userId} joined room cskh-agents`);
+      }
 
       // Notify others (if implementing presence/friends list later)
       socket.broadcast.emit('user:online', { userId: socket.userId });

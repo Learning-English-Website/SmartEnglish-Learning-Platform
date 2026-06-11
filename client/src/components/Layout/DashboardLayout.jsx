@@ -10,6 +10,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { folderService } from '../../api/folderService';
 import { useDarkMode } from '../../context/DarkModeContext';
 import NotificationBell from '../notifications/NotificationBell';
+import SupportChatWidget from '../common/SupportChatWidget/SupportChatWidget';
 import './DashboardLayout.css';
 
 export default function DashboardLayout({ children }) {
@@ -384,6 +385,7 @@ export default function DashboardLayout({ children }) {
           {children}
         </main>
       </div>
+      <SupportChatWidget />
     </div>
   );
 }

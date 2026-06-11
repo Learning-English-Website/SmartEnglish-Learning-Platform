@@ -1,0 +1,317 @@
+.support-widget-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 1000;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+.support-trigger-btn {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: white;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.4);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.support-trigger-btn:hover {
+  transform: scale(1.08) rotate(5deg);
+  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.5);
+}
+
+.support-trigger-btn:active {
+  transform: scale(0.95);
+}
+
+.support-chat-card {
+  position: absolute;
+  bottom: 72px;
+  right: 0;
+  width: 360px;
+  height: 500px;
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--border-subtle, rgba(0, 0, 0, 0.08));
+  border-radius: 16px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  color: var(--text-body, #1f2937);
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.support-card-header {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: white;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.support-card-header-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.support-avatar-circle {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 0.9rem;
+}
+
+.support-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10b981;
+  border: 1.5px solid white;
+  position: absolute;
+  bottom: 0;
+  right: 0;
+}
+
+.support-card-close-btn {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.8);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.support-card-close-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.support-card-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border-subtle, rgba(0, 0, 0, 0.08));
+  background: var(--bg-page, #f9fafb);
+}
+
+.support-tab-btn {
+  flex: 1;
+  padding: 12px;
+  border: none;
+  background: none;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-muted, #6b7280);
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s;
+}
+
+.support-tab-btn:hover {
+  color: #2563eb;
+}
+
+.support-tab-btn.active {
+  color: #2563eb;
+}
+
+.support-tab-btn.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #2563eb;
+}
+
+/* Chat Tab Layout */
+.support-chat-tab-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-card, #ffffff);
+}
+
+.support-message-list {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.support-chat-msg-row {
+  display: flex;
+  width: 100%;
+}
+
+.support-chat-msg-row.sent {
+  justify-content: flex-end;
+}
+
+.support-chat-msg-row.received {
+  justify-content: flex-start;
+}
+
+.support-bubble {
+  max-width: 75%;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 0.88rem;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.support-chat-msg-row.sent .support-bubble {
+  background: #2563eb;
+  color: white;
+  border-top-right-radius: 2px;
+}
+
+.support-chat-msg-row.received .support-bubble {
+  background: var(--bg-hover, #f3f4f6);
+  color: var(--text-body, #1f2937);
+  border-top-left-radius: 2px;
+  border: 1px solid var(--border-subtle, rgba(0,0,0,0.04));
+}
+
+.support-chat-footer {
+  padding: 12px;
+  border-top: 1px solid var(--border-subtle, rgba(0, 0, 0, 0.08));
+  display: flex;
+  gap: 8px;
+  background: var(--bg-card, #ffffff);
+}
+
+.support-chat-input {
+  flex: 1;
+  border: 1px solid var(--border-subtle, rgba(0, 0, 0, 0.12));
+  border-radius: 20px;
+  padding: 8px 16px;
+  font-size: 0.85rem;
+  outline: none;
+  background: var(--bg-page, #f9fafb);
+  color: var(--text-body, #1f2937);
+  transition: all 0.2s;
+}
+
+.support-chat-input:focus {
+  border-color: #2563eb;
+  background: var(--bg-card, #ffffff);
+}
+
+.support-chat-send-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #2563eb;
+  color: white;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.support-chat-send-btn:hover {
+  background: #1d4ed8;
+}
+
+.support-chat-send-btn:disabled {
+  background: var(--border-subtle, #e5e7eb);
+  color: var(--text-muted, #9ca3af);
+  cursor: not-allowed;
+}
+
+/* Feedback Tab Layout */
+.support-feedback-tab-panel {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: var(--bg-card, #ffffff);
+}
+
+.support-fb-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.support-fb-field label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted, #4b5563);
+}
+
+.support-fb-input {
+  width: 100%;
+  border: 1px solid var(--border-subtle, rgba(0, 0, 0, 0.12));
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 0.85rem;
+  outline: none;
+  background: var(--bg-page, #f9fafb);
+  color: var(--text-body, #1f2937);
+  transition: all 0.2s;
+}
+
+.support-fb-input:focus {
+  border-color: #2563eb;
+  background: var(--bg-card, #ffffff);
+}
+
+.support-fb-submit-btn {
+  margin-top: auto;
+  background: #2563eb;
+  color: white;
+  border: none;
+  padding: 10px;
+  border-radius: 8px;
+  font-weight: bold;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.support-fb-submit-btn:hover {
+  background: #1d4ed8;
+}
+
+.support-fb-submit-btn:disabled {
+  background: var(--border-subtle, #e5e7eb);
+  color: var(--text-muted, #9ca3af);
+  cursor: not-allowed;
+}

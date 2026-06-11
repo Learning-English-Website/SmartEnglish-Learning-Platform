@@ -67,5 +67,17 @@ export const adminService = {
   getUser: (id) => axiosClient.get(`${BASE}/users/${id}`),
   updateUser: (id, data) => axiosClient.put(`${BASE}/users/${id}`, data),
   updateUserRole: (id, role) => axiosClient.put(`${BASE}/users/${id}/role`, { role }),
+  updateUserPremium: (id, premiumType, durationDays) => axiosClient.put(`${BASE}/users/${id}/premium`, { premiumType, durationDays }),
   deleteUser: (id) => axiosClient.delete(`${BASE}/users/${id}`),
+
+  // Orders
+  getOrders: (params) => axiosClient.get(`${BASE}/orders`, { params }),
+  verifyOrderPayment: (orderId) => axiosClient.post(`${BASE}/orders/${orderId}/verify`),
+  updateOrderStatusManually: (orderId, status) => axiosClient.put(`${BASE}/orders/${orderId}/status`, { status }),
+
+  // Feedback
+  getFeedbacks: (params) => axiosClient.get('/feedback/admin', { params }),
+  getFeedbackDetail: (id) => axiosClient.get(`/feedback/admin/${id}`),
+  replyFeedback: (id, data) => axiosClient.put(`/feedback/admin/${id}`, data),
+  submitFeedback: (data) => axiosClient.post('/feedback', data),
 };

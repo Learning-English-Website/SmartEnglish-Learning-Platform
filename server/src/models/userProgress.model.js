@@ -24,7 +24,7 @@ const userProgressSchema = new Schema(
     isPro: { type: Boolean, default: false },
     proActivatedAt: { type: Date, default: null },
     proExpiresAt: { type: Date, default: null },
-    proMethod: { type: String, enum: ['momo', 'payos', null], default: null },
+    proMethod: { type: String, enum: ['momo', 'payos', 'manual', null], default: null },
     
     // Legacy Stripe (for migration)
     stripeCustomerId: { type: String, default: null },

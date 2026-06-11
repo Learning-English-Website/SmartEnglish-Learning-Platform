@@ -4,7 +4,7 @@ const bcrypt = require('bcryptjs');
 const { Schema } = mongoose;
 
 // ── Enums ──────────────────────────────────────────────────────────────────────
-const ROLE_ENUM = ['admin', 'student', 'teacher'];
+const ROLE_ENUM = ['admin', 'student', 'teacher', 'cskh'];
 const PREMIUM_ENUM = ['free', 'trial', 'premium'];
 
 // ── User Schema ────────────────────────────────────────────────────────────────

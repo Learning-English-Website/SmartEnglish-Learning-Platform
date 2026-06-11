@@ -53,6 +53,9 @@ const AdminFlashcardSetsPage = lazy(() => import('./pages/Admin/AdminFlashcardSe
 const AdminFoldersPage = lazy(() => import('./pages/Admin/AdminFoldersPage'));
 const AdminCommunitySetsPage = lazy(() => import('./pages/Admin/AdminCommunitySetsPage'));
 const AdminUsersPage = lazy(() => import('./pages/Admin/AdminUsersPage'));
+const AdminFeedbackPage = lazy(() => import('./pages/Admin/AdminFeedbackPage'));
+const AdminSupportChatPage = lazy(() => import('./pages/Admin/AdminSupportChatPage'));
+const AdminOrdersPage = lazy(() => import('./pages/Admin/AdminOrdersPage'));
 
 const withSuspense = (element) => (
   <Suspense fallback={<LoadingSpinner fullScreen text="Loading..." />}>
@@ -164,6 +167,9 @@ const router = createBrowserRouter([
       { path: '/admin/folders', element: withSuspense(<AdminFoldersPage />) },
       { path: '/admin/community', element: withSuspense(<AdminCommunitySetsPage />) },
       { path: '/admin/users', element: withSuspense(<AdminUsersPage />) },
+      { path: '/admin/feedback', element: withSuspense(<AdminFeedbackPage />) },
+      { path: '/admin/support-chat', element: withSuspense(<AdminSupportChatPage />) },
+      { path: '/admin/orders', element: withSuspense(<AdminOrdersPage />) },
     ],
   },
 ]);

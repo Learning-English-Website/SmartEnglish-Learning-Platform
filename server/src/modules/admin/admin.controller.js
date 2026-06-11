@@ -535,21 +535,207 @@ const updateUser = async (req, res) => {
 
 const updateUserRole = async (req, res) => {
   const { role } = req.body;
-  if (!['admin', 'student', 'teacher'].includes(role)) {
+  if (!['admin', 'student', 'teacher', 'cskh'].includes(role)) {
     throw new AppError('Invalid role', 400);
   }
-  const user = await User.findByIdAndUpdate(req.params.id, { role }, { new: true }).select('-password');
+
+  const targetUser = await User.findById(req.params.id);
+  if (!targetUser) throw new AppError('User not found', 404);
+
+  // Chặn CSKH gán quyền admin cho người khác hoặc đổi vai trò của một admin hiện tại
+  if (req.user.role === 'cskh') {
+    if (role === 'admin') {
+      throw new AppError('CSKH does not have permission to assign Admin role', 403);
+    }
+    if (targetUser.role === 'admin') {
+      throw new AppError('CSKH cannot change the role of an Admin', 403);
+    }
+  }
+
+  targetUser.role = role;
+  await targetUser.save();
+
+  res.json(ApiResponse.success(targetUser.toPublicProfile ? targetUser.toPublicProfile() : targetUser, 'User role updated'));
+};
+
+const updateUserPremium = async (req, res) => {
+  const { premiumType, durationDays } = req.body;
+  const userId = req.params.id;
+
+  if (!['free', 'trial', 'premium'].includes(premiumType)) {
+    throw new AppError('Invalid premium type', 400);
+  }
+
+  const user = await User.findById(userId);
   if (!user) throw new AppError('User not found', 404);
-  res.json(ApiResponse.success(user, 'User role updated'));
+
+  if (req.user.role === 'cskh' && user.role === 'admin') {
+    throw new AppError('CSKH cannot modify Admin account status', 403);
+  }
+
+  user.premium = premiumType;
+  await user.save();
+
+  const UserProgress = require('../../models/userProgress.model');
+
+  let isPro = false;
+  let proActivatedAt = null;
+  let proExpiresAt = null;
+  let proMethod = null;
+
+  if (premiumType === 'premium') {
+    isPro = true;
+    proActivatedAt = new Date();
+    proMethod = 'manual';
+
+    const days = typeof durationDays === 'number' ? durationDays : 30;
+    if (days !== -1) {
+      proExpiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+    } else {
+      proExpiresAt = null;
+    }
+  } else if (premiumType === 'trial') {
+    isPro = true;
+    proActivatedAt = new Date();
+    proMethod = 'manual';
+    proExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  } else {
+    isPro = false;
+    proActivatedAt = null;
+    proExpiresAt = null;
+    proMethod = null;
+  }
+
+  const progress = await UserProgress.findOneAndUpdate(
+    { user: userId },
+    { isPro, proActivatedAt, proExpiresAt, proMethod },
+    { upsert: true, new: true }
+  );
+
+  res.json(ApiResponse.success({ user, progress }, 'User premium status updated successfully'));
 };
 
 const deleteUser = async (req, res) => {
   if (req.params.id === req.user._id.toString()) {
     throw new AppError('Cannot delete yourself', 400);
   }
-  const user = await User.findByIdAndDelete(req.params.id);
+  const user = await User.findById(req.params.id);
   if (!user) throw new AppError('User not found', 404);
+  
+  if (user.role === 'admin' && req.user.role !== 'admin') {
+    throw new AppError('Only Admins can delete Admin accounts', 403);
+  }
+
+  await User.findByIdAndDelete(req.params.id);
   res.json(ApiResponse.success(null, 'User deleted'));
+};
+
+const getOrders = async (req, res) => {
+  const Order = require('../../models/order.model');
+  const { search, status, method, page = 1, limit = 10 } = req.query;
+  const filter = {};
+
+  if (status) filter.status = status;
+  if (method) filter.method = method;
+
+  if (search) {
+    const matchedUsers = await User.find({
+      $or: [
+        { username: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } }
+      ]
+    }).select('_id');
+
+    const userIds = matchedUsers.map(u => u._id);
+
+    filter.$or = [
+      { orderId: { $regex: search, $options: 'i' } },
+      { transId: { $regex: search, $options: 'i' } },
+      { user: { $in: userIds } }
+    ];
+  }
+
+  const skip = (Number(page) - 1) * Number(limit);
+  const [orders, total] = await Promise.all([
+    Order.find(filter)
+      .populate('user', 'username email avatar')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(Number(limit))
+      .lean(),
+    Order.countDocuments(filter),
+  ]);
+
+  res.json(ApiResponse.success({
+    orders,
+    total,
+    page: Number(page),
+    pages: Math.ceil(total / Number(limit))
+  }, 'Orders fetched successfully'));
+};
+
+const verifyOrderPayment = async (req, res) => {
+  const { orderId } = req.params;
+  const paymentService = require('../payment/payment.service');
+  const result = await paymentService.verifyPayment(orderId);
+  res.json(ApiResponse.success(result, 'Order payment verification completed'));
+};
+
+const updateOrderStatusManually = async (req, res) => {
+  const { orderId } = req.params;
+  const { status } = req.body;
+  const Order = require('../../models/order.model');
+
+  if (!['pending', 'completed', 'failed', 'refunded'].includes(status)) {
+    throw new AppError('Invalid status', 400);
+  }
+
+  const order = await Order.findOne({ orderId }).populate('user');
+  if (!order) {
+    throw new AppError('Order not found', 404);
+  }
+
+  if (order.status === status) {
+    return res.json(ApiResponse.success(order, `Order is already ${status}`));
+  }
+
+  order.status = status;
+  if (status === 'completed') {
+    order.paidAt = new Date();
+    if (!order.transId) {
+      order.transId = 'MANUAL_' + Date.now();
+    }
+  }
+  await order.save();
+
+  if (status === 'completed') {
+    const UserProgress = require('../../models/userProgress.model');
+    await UserProgress.findOneAndUpdate(
+      { user: order.user._id },
+      {
+        isPro: true,
+        proActivatedAt: new Date(),
+        proExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        proMethod: 'manual',
+      },
+      { upsert: true }
+    );
+    await User.findByIdAndUpdate(order.user._id, { premium: 'premium' });
+  } else if (status === 'refunded' || status === 'failed') {
+    const UserProgress = require('../../models/userProgress.model');
+    await UserProgress.findOneAndUpdate(
+      { user: order.user._id },
+      {
+        isPro: false,
+        proActivatedAt: null,
+        proExpiresAt: null,
+        proMethod: null,
+      }
+    );
+    await User.findByIdAndUpdate(order.user._id, { premium: 'free' });
+  }
+
+  res.json(ApiResponse.success(order, 'Order status updated manually'));
 };
 
 module.exports = {
@@ -564,4 +750,5 @@ module.exports = {
   getAllFolders, getFolder, deleteFolder,
   getCommunitySets, deleteCommunitySet,
   getUsers, getUser, updateUser, updateUserRole, deleteUser,
+  updateUserPremium, getOrders, verifyOrderPayment, updateOrderStatusManually
 };

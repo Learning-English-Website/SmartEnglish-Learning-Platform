@@ -1,14 +1,16 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Users, Search, Trash2, Shield, ChevronLeft, ChevronRight, X, Check } from 'lucide-react';
+import { Users, Search, Trash2, Shield, ChevronLeft, ChevronRight, X, Check, Star } from 'lucide-react';
 import { adminService } from '../../services/adminService';
+import { useAuth } from '../../hooks/useAuth';
 import toast from 'react-hot-toast';
 import './AdminPage.css';
 
-const ROLES = ['admin', 'student', 'teacher'];
+const ROLES = ['admin', 'student', 'teacher', 'cskh'];
 const ROLE_COLORS = {
   admin: { bg: 'rgba(102, 126, 234, 0.1)', color: '#667eea', border: 'rgba(102, 126, 234, 0.2)' },
   student: { bg: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', border: 'rgba(59, 130, 246, 0.2)' },
   teacher: { bg: 'rgba(34, 197, 94, 0.1)', color: '#22c55e', border: 'rgba(34, 197, 94, 0.2)' },
+  cskh: { bg: 'rgba(236, 72, 153, 0.1)', color: '#ec4899', border: 'rgba(236, 72, 153, 0.2)' },
 };
 const PREMIUM_COLORS = {
   premium: { bg: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', border: 'rgba(245, 158, 11, 0.2)' },
@@ -91,6 +93,7 @@ function DeleteModal({ isOpen, onClose, onConfirm, user }) {
 }
 
 function RoleModal({ isOpen, onClose, user, onSave }) {
+  const { user: currentUser } = useAuth();
   const [selectedRole, setSelectedRole] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -108,6 +111,10 @@ function RoleModal({ isOpen, onClose, user, onSave }) {
     onClose();
   };
 
+  const filteredRoles = currentUser?.role === 'cskh'
+    ? ROLES.filter(r => r !== 'admin')
+    : ROLES;
+
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="modal-content" style={{ maxWidth: 420 }}>
@@ -120,7 +127,7 @@ function RoleModal({ isOpen, onClose, user, onSave }) {
             Chọn vai trò mới cho <strong style={{ color: 'var(--text-heading)' }}>{user.username || user.email}</strong>:
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {ROLES.map(role => {
+            {filteredRoles.map(role => {
               const s = ROLE_COLORS[role];
               const isSelected = selectedRole === role;
               return (
@@ -156,7 +163,112 @@ function RoleModal({ isOpen, onClose, user, onSave }) {
   );
 }
 
+function PremiumModal({ isOpen, onClose, user, onSave }) {
+  const [premiumType, setPremiumType] = useState('free');
+  const [durationDays, setDurationDays] = useState(30);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      setPremiumType(user.premium || 'free');
+      setDurationDays(30);
+    }
+  }, [user]);
+
+  if (!isOpen || !user) return null;
+
+  const handleSave = async () => {
+    setSaving(true);
+    await onSave(user._id, premiumType, Number(durationDays));
+    setSaving(false);
+    onClose();
+  };
+
+  return (
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal-content" style={{ maxWidth: 420 }}>
+        <div className="modal-header">
+          <h3>Quản lý Premium</h3>
+          <button className="modal-close" onClick={onClose}><X size={16} /></button>
+        </div>
+        <div className="modal-body">
+          <p style={{ marginBottom: '1.25rem', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+            Thiết lập gói Premium cho học viên: <strong style={{ color: 'var(--text-heading)' }}>{user.username || user.email}</strong>
+          </p>
+
+          <div style={{ marginBottom: '1.25rem' }}>
+            <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '0.5rem', fontSize: '0.85rem' }}>Loại gói</label>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              {['free', 'trial', 'premium'].map(type => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => setPremiumType(type)}
+                  style={{
+                    flex: 1, padding: '10px', borderRadius: '8px',
+                    border: `2px solid ${premiumType === type ? '#f59e0b' : 'var(--border-subtle)'}`,
+                    background: premiumType === type ? 'rgba(245, 158, 11, 0.1)' : 'var(--bg-page)',
+                    color: premiumType === type ? '#f59e0b' : 'var(--text-body)',
+                    fontWeight: 'bold', textTransform: 'uppercase', fontSize: '0.75rem', cursor: 'pointer',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  {type === 'premium' ? 'Premium' : type === 'trial' ? 'Trial (7d)' : 'Free'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {premiumType === 'premium' && (
+            <div style={{ marginBottom: '1.25rem' }}>
+              <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '0.5rem', fontSize: '0.85rem' }}>Thời hạn Premium (ngày)</label>
+              <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '0.75rem' }}>
+                {[30, 90, 365, -1].map(days => (
+                  <button
+                    key={days}
+                    type="button"
+                    onClick={() => setDurationDays(days)}
+                    style={{
+                      flex: 1, padding: '8px 6px', borderRadius: '6px',
+                      border: `1px solid ${durationDays === days ? '#f59e0b' : 'var(--border-subtle)'}`,
+                      background: durationDays === days ? 'rgba(245, 158, 11, 0.05)' : 'var(--bg-page)',
+                      color: durationDays === days ? '#f59e0b' : 'var(--text-muted)',
+                      fontSize: '0.75rem', cursor: 'pointer', fontWeight: 600,
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    {days === -1 ? 'Vĩnh viễn' : `${days} ngày`}
+                  </button>
+                ))}
+              </div>
+
+              {durationDays !== -1 && (
+                <input
+                  type="number"
+                  className="form-control-admin"
+                  value={durationDays}
+                  onChange={e => setDurationDays(Math.max(1, Number(e.target.value)))}
+                  placeholder="Nhập số ngày..."
+                  min="1"
+                  style={{ width: '100%' }}
+                />
+              )}
+            </div>
+          )}
+        </div>
+        <div className="modal-footer">
+          <button className="btn-secondary-admin" onClick={onClose}>Hủy</button>
+          <button className="btn-primary-admin" style={{ background: '#f59e0b', borderColor: '#f59e0b' }} disabled={saving} onClick={handleSave}>
+            {saving ? 'Đang cập nhật...' : 'Xác nhận'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminUsersPage() {
+  const { user: currentUser } = useAuth();
   const [users, setUsers] = useState([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -166,6 +278,7 @@ export default function AdminUsersPage() {
   const [roleFilter, setRoleFilter] = useState('');
   const [deleteUser, setDeleteUser] = useState(null);
   const [roleUser, setRoleUser] = useState(null);
+  const [premiumUser, setPremiumUser] = useState(null);
 
   const loadUsers = useCallback(async (params = {}) => {
     setLoading(true);
@@ -220,6 +333,16 @@ export default function AdminUsersPage() {
       loadUsers();
     } catch (err) {
       toast.error(err.response?.data?.error?.message || 'Cập nhật thất bại');
+    }
+  };
+
+  const handleChangePremium = async (userId, premiumType, durationDays) => {
+    try {
+      await adminService.updateUserPremium(userId, premiumType, durationDays);
+      toast.success('Đã cập nhật gói Premium');
+      loadUsers();
+    } catch (err) {
+      toast.error(err.response?.data?.error?.message || 'Cập nhật Premium thất bại');
     }
   };
 
@@ -332,7 +455,16 @@ export default function AdminUsersPage() {
                     </td>
                     <td className="admin-td-muted" style={{ maxWidth: 180 }}>{u.email}</td>
                     <td>
-                      <RoleBadge role={u.role} onClick={() => setRoleUser(u)} />
+                      <RoleBadge
+                        role={u.role}
+                        onClick={() => {
+                          if (u.role === 'admin' && currentUser?.role === 'cskh') {
+                            toast.error('Bạn không có quyền chỉnh sửa tài khoản Admin');
+                            return;
+                          }
+                          setRoleUser(u);
+                        }}
+                      />
                     </td>
                     <td><PremiumBadge premium={u.premium} /></td>
                     <td>
@@ -346,12 +478,48 @@ export default function AdminUsersPage() {
                     <td style={{ color: 'var(--text-body)', fontWeight: 600, fontSize: '0.85rem' }}>{u.gamification?.level ?? 1}</td>
                     <td style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>{formatDate(u.createdAt)}</td>
                     <td className="admin-td-actions">
-                      <button className="btn-action" onClick={() => setRoleUser(u)} title="Đổi vai trò">
+                      <button
+                        className="btn-action"
+                        onClick={() => {
+                          if (u.role === 'admin' && currentUser?.role === 'cskh') {
+                            toast.error('Bạn không có quyền chỉnh sửa tài khoản Admin');
+                            return;
+                          }
+                          setRoleUser(u);
+                        }}
+                        title="Đổi vai trò"
+                        style={{
+                          opacity: (u.role === 'admin' && currentUser?.role === 'cskh') ? 0.5 : 1,
+                          cursor: (u.role === 'admin' && currentUser?.role === 'cskh') ? 'not-allowed' : 'pointer'
+                        }}
+                      >
                         <Shield size={14} />
                       </button>
-                      <button className="btn-action danger" onClick={() => setDeleteUser(u)} title="Xóa">
-                        <Trash2 size={14} />
+
+                      <button
+                        className="btn-action"
+                        onClick={() => {
+                          if (u.role === 'admin' && currentUser?.role === 'cskh') {
+                            toast.error('Bạn không có quyền chỉnh sửa tài khoản Admin');
+                            return;
+                          }
+                          setPremiumUser(u);
+                        }}
+                        title="Quản lý Premium"
+                        style={{
+                          color: '#f59e0b',
+                          opacity: (u.role === 'admin' && currentUser?.role === 'cskh') ? 0.5 : 1,
+                          cursor: (u.role === 'admin' && currentUser?.role === 'cskh') ? 'not-allowed' : 'pointer'
+                        }}
+                      >
+                        <Star size={14} />
                       </button>
+
+                      {currentUser?.role !== 'cskh' && (
+                        <button className="btn-action danger" onClick={() => setDeleteUser(u)} title="Xóa">
+                          <Trash2 size={14} />
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -398,6 +566,7 @@ export default function AdminUsersPage() {
       {/* Modals */}
       <DeleteModal isOpen={!!deleteUser} onClose={() => setDeleteUser(null)} onConfirm={handleDelete} user={deleteUser} />
       <RoleModal isOpen={!!roleUser} onClose={() => setRoleUser(null)} user={roleUser} onSave={handleChangeRole} />
+      <PremiumModal isOpen={!!premiumUser} onClose={() => setPremiumUser(null)} user={premiumUser} onSave={handleChangePremium} />
     </div>
   );
 }
