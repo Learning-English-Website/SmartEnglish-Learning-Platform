@@ -26,6 +26,9 @@ export default function AppNavbar({ darkMode, onToggleDark }) {
               <Nav.Link as={NavLink} to="/flashcards" end>Flashcards</Nav.Link>
               <Nav.Link as={NavLink} to="/flashcards/browse">Browse</Nav.Link>
               <Nav.Link as={NavLink} to="/duolingo">Practice</Nav.Link>
+              {user?.role === 'teacher' && (
+                <Nav.Link as={NavLink} to="/teacher/studio" className="text-primary fw-bold">Studio Soạn Bài</Nav.Link>
+              )}
             </Nav>
           )}
 
@@ -56,6 +59,16 @@ export default function AppNavbar({ darkMode, onToggleDark }) {
                   <span className="username-text d-none d-md-inline">{user?.username}</span>
                 </Dropdown.Toggle>
                 <Dropdown.Menu className="dropdown-menu-custom">
+                  {user?.role === 'teacher' && (
+                    <Dropdown.Item as={Link} to="/teacher/studio">
+                      <FiSettings className="me-2 text-primary" /> Teacher Studio
+                    </Dropdown.Item>
+                  )}
+                  {user?.role === 'admin' && (
+                    <Dropdown.Item as={Link} to="/admin">
+                      <FiSettings className="me-2 text-danger" /> Admin Panel
+                    </Dropdown.Item>
+                  )}
                   <Dropdown.Item as={Link} to="/profile">
                     <FiUser className="me-2" /> Profile
                   </Dropdown.Item>

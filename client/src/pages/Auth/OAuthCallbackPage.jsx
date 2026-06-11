@@ -29,6 +29,8 @@ export default function OAuthCallbackPage() {
         if (loadUser.fulfilled.match(result) && result.payload) {
           const dest = result.payload.role === 'admin'
             ? '/admin'
+            : result.payload.role === 'teacher'
+            ? '/teacher/studio'
             : (redirect && redirect !== 'null' && redirect !== '/' ? redirect : '/dashboard');
           navigate(dest, { replace: true });
         } else {

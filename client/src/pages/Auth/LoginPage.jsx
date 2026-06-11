@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Form, Button } from 'react-bootstrap';
 import { FiMail, FiLock, FiEye, FiEyeOff } from 'react-icons/fi';
@@ -9,7 +9,20 @@ import './Auth.css';
 export default function LoginPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { login, loading } = useAuth();
+  const { isAuthenticated, user, login, loading } = useAuth();
+
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      if (user.role === 'admin') {
+        navigate('/admin', { replace: true });
+      } else if (user.role === 'teacher') {
+        navigate('/teacher/studio', { replace: true });
+      } else {
+        const redirect = searchParams.get('redirect') || '/dashboard';
+        navigate(redirect, { replace: true });
+      }
+    }
+  }, [isAuthenticated, user, navigate, searchParams]);
 
   const handleGoogleLogin = () => {
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';

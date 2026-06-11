@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Plus, Edit2, Trash2, ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import { adminService } from '../../services/adminService';
 import toast from 'react-hot-toast';
+import ImageUploader from '../../components/media/ImageUploader';
 
 const LEVELS = ['beginner', 'intermediate', 'advanced'];
 
@@ -296,8 +297,13 @@ export default function AdminCoursesPage() {
             </div>
           </div>
           <div className="form-group">
-            <label>URL hình ảnh</label>
-            <input className="form-control-admin" value={form.thumbnailUrl} onChange={e => setForm(f => ({ ...f, thumbnailUrl: e.target.value }))} placeholder="https://..." />
+            <label>URL hình ảnh (Thumbnail)</label>
+            <input className="form-control-admin" value={form.thumbnailUrl} onChange={e => setForm(f => ({ ...f, thumbnailUrl: e.target.value }))} placeholder="https://..." style={{ marginBottom: '8px' }} />
+            <ImageUploader 
+              currentUrl={form.thumbnailUrl}
+              onUpload={(url) => setForm(f => ({ ...f, thumbnailUrl: url }))}
+              onClear={() => setForm(f => ({ ...f, thumbnailUrl: '' }))}
+            />
           </div>
           <div className="form-group">
             <label className="admin-checkbox-label">

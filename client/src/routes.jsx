@@ -7,6 +7,8 @@ import PublicSetLayout from './components/PublicSetLayout/PublicSetLayout';
 import ProtectedRoute from './components/ProtectedRoute/ProtectedRoute';
 import AdminRoute from './components/AdminRoute/AdminRoute';
 import AdminLayout from './components/AdminLayout/AdminLayout';
+import TeacherRoute from './components/TeacherRoute/TeacherRoute';
+import TeacherLayout from './components/TeacherLayout/TeacherLayout';
 import LoadingSpinner from './components/common/LoadingSpinner/LoadingSpinner';
 
 // ── Lazy-loaded pages ─────────────────────────────────────────────────────────
@@ -56,6 +58,8 @@ const AdminUsersPage = lazy(() => import('./pages/Admin/AdminUsersPage'));
 const AdminFeedbackPage = lazy(() => import('./pages/Admin/AdminFeedbackPage'));
 const AdminSupportChatPage = lazy(() => import('./pages/Admin/AdminSupportChatPage'));
 const AdminOrdersPage = lazy(() => import('./pages/Admin/AdminOrdersPage'));
+const DuolingoStudio = lazy(() => import('./pages/Teacher/DuolingoStudio'));
+const DailyChallengePlanner = lazy(() => import('./pages/Teacher/DailyChallengePlanner.jsx'));
 
 const withSuspense = (element) => (
   <Suspense fallback={<LoadingSpinner fullScreen text="Loading..." />}>
@@ -170,6 +174,22 @@ const router = createBrowserRouter([
       { path: '/admin/feedback', element: withSuspense(<AdminFeedbackPage />) },
       { path: '/admin/support-chat', element: withSuspense(<AdminSupportChatPage />) },
       { path: '/admin/orders', element: withSuspense(<AdminOrdersPage />) },
+    ],
+  },
+
+  // Teacher routes (separate layout, teacher & admin allowed)
+  {
+    element: (
+      <TeacherRoute>
+        <TeacherLayout>
+          <Outlet />
+        </TeacherLayout>
+      </TeacherRoute>
+    ),
+    children: [
+      { path: '/teacher/studio', element: withSuspense(<DuolingoStudio />) },
+      { path: '/teacher/studio/:courseId', element: withSuspense(<DuolingoStudio />) },
+      { path: '/teacher/daily-challenge', element: withSuspense(<DailyChallengePlanner />) },
     ],
   },
 ]);

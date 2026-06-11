@@ -34,6 +34,8 @@ export function useAuth() {
         navigate('/admin', { replace: true });
       } else if (result.payload.role === 'cskh') {
         navigate('/admin/users', { replace: true });
+      } else if (result.payload.role === 'teacher') {
+        navigate('/teacher/studio', { replace: true });
       } else {
         const dest = (redirect && redirect !== 'null' && redirect !== '/') ? redirect : '/dashboard';
         navigate(dest, { replace: true });
@@ -64,6 +66,8 @@ export function useAuth() {
         navigate('/admin', { replace: true });
       } else if (result.payload.role === 'cskh') {
         navigate('/admin/users', { replace: true });
+      } else if (result.payload.role === 'teacher') {
+        navigate('/teacher/studio', { replace: true });
       } else {
         navigate('/dashboard', { replace: true });
       }
