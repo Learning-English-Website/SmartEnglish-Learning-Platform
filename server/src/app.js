@@ -90,6 +90,7 @@ app.use('/api/payment', require('./modules/payment/payment.routes'));
 app.use('/api/quests', require('./modules/quest/quest.routes'));
 app.use('/api/notifications', require('./modules/notification/notification.routes'));
 app.use('/api/admin', require('./modules/admin/admin.routes'));
+app.use('/api/teacher', require('./modules/teacher/teacher.routes'));
 app.use('/api/feedback', require('./modules/feedback/feedback.routes'));
 app.use('/api/support-chat', require('./modules/support-chat/supportChat.routes'));
 
