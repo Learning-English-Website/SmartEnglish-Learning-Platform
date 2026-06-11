@@ -312,7 +312,7 @@ export default function AdminOrdersPage() {
                   <tr key={o._id}>
                     <td className="admin-td-num">{(page - 1) * PAGE_SIZE + i + 1}</td>
                     <td>
-                      <div className="admin-td-title" style={{ maxWidth: 160, fontWeight: 700, fontFamily: 'monospace' }} title="Click để copy" onClick={() => {
+                      <div className="admin-td-title" style={{ maxWidth: 160, fontWeight: 700, fontFamily: 'monospace', cursor: 'pointer' }} title="Click để copy" onClick={() => {
                         navigator.clipboard.writeText(o.orderId);
                         toast.success('Đã copy mã đơn hàng');
                       }}>

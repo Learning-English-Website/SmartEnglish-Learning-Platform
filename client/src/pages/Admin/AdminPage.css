@@ -160,6 +160,11 @@
   font-weight: 600;
   color: var(--text-heading);
   max-width: 250px;
+  display: inline-block;
+  vertical-align: middle;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .admin-td-mono {
