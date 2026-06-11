@@ -105,3 +105,41 @@
     font-size: 0.7rem;
   }
 }
+
+/* ── CSKH Mode Badge Style ──────────────────────────────────────────────── */
+
+.admin-topbar-badge.cskh-mode {
+  background: linear-gradient(135deg, rgba(236, 72, 153, 0.08) 0%, rgba(244, 63, 94, 0.08) 100%);
+  border-color: rgba(236, 72, 153, 0.2);
+  color: #ec4899;
+  box-shadow: 0 4px 12px rgba(236, 72, 153, 0.05);
+}
+
+.admin-topbar-badge.cskh-mode:hover {
+  border-color: rgba(236, 72, 153, 0.4);
+  box-shadow: 0 4px 16px rgba(236, 72, 153, 0.12);
+}
+
+.admin-topbar-badge.cskh-mode .admin-topbar-dot {
+  background: #ec4899;
+  box-shadow: 0 0 10px #ec4899;
+  animation: pulse-dot-cskh 2s infinite;
+}
+
+@keyframes pulse-dot-cskh {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(236, 72, 153, 0.7);
+  }
+  
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 6px rgba(236, 72, 153, 0);
+  }
+  
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(236, 72, 153, 0);
+  }
+}
+

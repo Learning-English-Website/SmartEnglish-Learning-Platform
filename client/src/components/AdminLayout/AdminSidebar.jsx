@@ -49,7 +49,7 @@ export default function AdminSidebar({ collapsed, onToggle }) {
         {!collapsed && (
           <div className="admin-sidebar-logo-text">
             <span className="admin-logo-title">SmartEnglish</span>
-            <span className="admin-logo-sub">Admin Panel</span>
+            <span className="admin-logo-sub">{isCskh ? 'Support Panel' : 'Admin Panel'}</span>
           </div>
         )}
         <button className="admin-sidebar-toggle" onClick={onToggle} title={collapsed ? 'Mở rộng' : 'Thu gọn'}>

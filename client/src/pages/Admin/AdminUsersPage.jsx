@@ -44,6 +44,18 @@ function PremiumBadge({ premium }) {
   );
 }
 
+function VerifiedBadge({ isVerified }) {
+  return isVerified ? (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 10px', borderRadius: '8px', fontSize: '0.7rem', fontWeight: 700, background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.15)', textTransform: 'uppercase', letterSpacing: '0.2px' }}>
+      <Check size={11} strokeWidth={3} /> Active
+    </span>
+  ) : (
+    <span style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 10px', borderRadius: '8px', fontSize: '0.7rem', fontWeight: 700, background: 'rgba(148, 163, 184, 0.1)', color: '#94a3b8', border: '1px solid rgba(148, 163, 184, 0.15)', textTransform: 'uppercase', letterSpacing: '0.2px' }}>
+      Pending
+    </span>
+  );
+}
+
 function Modal({ isOpen, onClose, title, children }) {
   if (!isOpen) return null;
   return (
@@ -271,6 +283,8 @@ export default function AdminUsersPage() {
   const { user: currentUser } = useAuth();
   const [users, setUsers] = useState([]);
   const [total, setTotal] = useState(0);
+  const [premiumCount, setPremiumCount] = useState(0);
+  const [verifiedCount, setVerifiedCount] = useState(0);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -292,6 +306,8 @@ export default function AdminUsersPage() {
       const d = res.data;
       setUsers(d.users || []);
       setTotal(d.total || 0);
+      setPremiumCount(d.premiumUsers || 0);
+      setVerifiedCount(d.verifiedUsers || 0);
       setPage(d.page || 1);
     } catch {
       toast.error('Không thể tải danh sách người dùng');
@@ -376,10 +392,40 @@ export default function AdminUsersPage() {
 
   return (
     <div className="admin-page">
-      <div className="admin-page-header">
-        <div>
-          <h2>Quản lý Người dùng</h2>
-          <p>{total} người dùng</p>
+      <div className="admin-page-header" style={{ marginBottom: '1.25rem' }}>
+        <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-muted)' }}>
+          Xem danh sách học viên, quản lý tài khoản và thiết lập kích hoạt gói Premium thủ công.
+        </p>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="admin-stats-grid">
+        <div className="admin-stat-card">
+          <div className="admin-stat-icon-wrap blue">
+            <Users size={20} strokeWidth={2.5} />
+          </div>
+          <div className="admin-stat-info">
+            <span className="admin-stat-label">Tổng học viên</span>
+            <h3 className="admin-stat-value">{total}</h3>
+          </div>
+        </div>
+        <div className="admin-stat-card">
+          <div className="admin-stat-icon-wrap amber">
+            <Star size={20} strokeWidth={2.5} />
+          </div>
+          <div className="admin-stat-info">
+            <span className="admin-stat-label">Học viên Premium</span>
+            <h3 className="admin-stat-value">{premiumCount}</h3>
+          </div>
+        </div>
+        <div className="admin-stat-card">
+          <div className="admin-stat-icon-wrap green">
+            <Check size={20} strokeWidth={2.5} />
+          </div>
+          <div className="admin-stat-info">
+            <span className="admin-stat-label">Đã xác minh</span>
+            <h3 className="admin-stat-value">{verifiedCount}</h3>
+          </div>
         </div>
       </div>
 
@@ -457,7 +503,7 @@ export default function AdminUsersPage() {
                     <td>
                       <RoleBadge
                         role={u.role}
-                        onClick={() => {
+                        onClick={currentUser?.role === 'cskh' ? undefined : () => {
                           if (u.role === 'admin' && currentUser?.role === 'cskh') {
                             toast.error('Bạn không có quyền chỉnh sửa tài khoản Admin');
                             return;
@@ -467,34 +513,20 @@ export default function AdminUsersPage() {
                       />
                     </td>
                     <td><PremiumBadge premium={u.premium} /></td>
-                    <td>
-                      {u.isVerified ? (
-                        <span style={{ color: '#10b981', fontSize: '1.1rem' }} title="Đã xác minh"><Check size={16} /></span>
-                      ) : (
-                        <span style={{ color: 'var(--text-muted)', opacity: 0.3, fontSize: '1.1rem' }}>—</span>
-                      )}
-                    </td>
+                    <td><VerifiedBadge isVerified={u.isVerified} /></td>
                     <td style={{ color: 'var(--text-body)', fontWeight: 600, fontSize: '0.85rem' }}>{u.gamification?.xp ?? 0}</td>
                     <td style={{ color: 'var(--text-body)', fontWeight: 600, fontSize: '0.85rem' }}>{u.gamification?.level ?? 1}</td>
                     <td style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>{formatDate(u.createdAt)}</td>
                     <td className="admin-td-actions">
-                      <button
-                        className="btn-action"
-                        onClick={() => {
-                          if (u.role === 'admin' && currentUser?.role === 'cskh') {
-                            toast.error('Bạn không có quyền chỉnh sửa tài khoản Admin');
-                            return;
-                          }
-                          setRoleUser(u);
-                        }}
-                        title="Đổi vai trò"
-                        style={{
-                          opacity: (u.role === 'admin' && currentUser?.role === 'cskh') ? 0.5 : 1,
-                          cursor: (u.role === 'admin' && currentUser?.role === 'cskh') ? 'not-allowed' : 'pointer'
-                        }}
-                      >
-                        <Shield size={14} />
-                      </button>
+                      {currentUser?.role !== 'cskh' && (
+                        <button
+                          className="btn-action"
+                          onClick={() => setRoleUser(u)}
+                          title="Đổi vai trò"
+                        >
+                          <Shield size={14} />
+                        </button>
+                      )}
 
                       <button
                         className="btn-action"
@@ -565,7 +597,9 @@ export default function AdminUsersPage() {
 
       {/* Modals */}
       <DeleteModal isOpen={!!deleteUser} onClose={() => setDeleteUser(null)} onConfirm={handleDelete} user={deleteUser} />
-      <RoleModal isOpen={!!roleUser} onClose={() => setRoleUser(null)} user={roleUser} onSave={handleChangeRole} />
+      {currentUser?.role !== 'cskh' && (
+        <RoleModal isOpen={!!roleUser} onClose={() => setRoleUser(null)} user={roleUser} onSave={handleChangeRole} />
+      )}
       <PremiumModal isOpen={!!premiumUser} onClose={() => setPremiumUser(null)} user={premiumUser} onSave={handleChangePremium} />
     </div>
   );

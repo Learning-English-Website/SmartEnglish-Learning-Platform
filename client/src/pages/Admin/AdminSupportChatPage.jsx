@@ -186,10 +186,9 @@ export default function AdminSupportChatPage() {
   return (
     <div className="admin-page" style={{ height: 'calc(100vh - 120px)', display: 'flex', flexDirection: 'column' }}>
       <div className="admin-page-header" style={{ marginBottom: '1rem', flexShrink: 0 }}>
-        <div>
-          <h2>Trò chuyện Hỗ trợ trực tuyến</h2>
-          <p>Tương tác realtime với học sinh qua WebSockets</p>
-        </div>
+        <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-muted)' }}>
+          Hỗ trợ trực tuyến thời gian thực (realtime) qua kết nối WebSockets.
+        </p>
       </div>
 
       <div style={{ flex: 1, display: 'flex', gap: '20px', overflow: 'hidden' }}>

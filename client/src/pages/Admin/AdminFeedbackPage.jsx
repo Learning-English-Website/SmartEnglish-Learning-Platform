@@ -235,10 +235,40 @@ export default function AdminFeedbackPage() {
 
   return (
     <div className="admin-page">
-      <div className="admin-page-header">
-        <div>
-          <h2>Quản lý Phản hồi &amp; Báo lỗi</h2>
-          <p>{total} phản hồi từ người dùng</p>
+      <div className="admin-page-header" style={{ marginBottom: '1.25rem' }}>
+        <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-muted)' }}>
+          Tiếp nhận góp ý, báo cáo lỗi từ học viên và gửi câu trả lời hướng dẫn khắc phục.
+        </p>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="admin-stats-grid">
+        <div className="admin-stat-card">
+          <div className="admin-stat-icon-wrap blue">
+            <MessageSquare size={20} strokeWidth={2.5} />
+          </div>
+          <div className="admin-stat-info">
+            <span className="admin-stat-label">Tổng phản hồi</span>
+            <h3 className="admin-stat-value">{total}</h3>
+          </div>
+        </div>
+        <div className="admin-stat-card">
+          <div className="admin-stat-icon-wrap amber">
+            <AlertCircle size={20} strokeWidth={2.5} />
+          </div>
+          <div className="admin-stat-info">
+            <span className="admin-stat-label">Kênh tiếp nhận</span>
+            <h3 className="admin-stat-value" style={{ fontSize: '1.1rem', fontWeight: 800, marginTop: '5px' }}>WIDGET BÁO LỖI</h3>
+          </div>
+        </div>
+        <div className="admin-stat-card">
+          <div className="admin-stat-icon-wrap green">
+            <Check size={20} strokeWidth={2.5} />
+          </div>
+          <div className="admin-stat-info">
+            <span className="admin-stat-label">Hệ thống</span>
+            <h3 className="admin-stat-value" style={{ fontSize: '1.1rem', fontWeight: 800, marginTop: '5px', color: '#10b981' }}>ONLINE</h3>
+          </div>
         </div>
       </div>
 

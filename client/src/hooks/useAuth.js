@@ -32,6 +32,8 @@ export function useAuth() {
       toast.success(`Welcome back, ${result.payload.username}! 👋`);
       if (result.payload.role === 'admin') {
         navigate('/admin', { replace: true });
+      } else if (result.payload.role === 'cskh') {
+        navigate('/admin/users', { replace: true });
       } else {
         const dest = (redirect && redirect !== 'null' && redirect !== '/') ? redirect : '/dashboard';
         navigate(dest, { replace: true });
@@ -60,6 +62,8 @@ export function useAuth() {
       toast.success('Email verified! Account activated.');
       if (result.payload.role === 'admin') {
         navigate('/admin', { replace: true });
+      } else if (result.payload.role === 'cskh') {
+        navigate('/admin/users', { replace: true });
       } else {
         navigate('/dashboard', { replace: true });
       }

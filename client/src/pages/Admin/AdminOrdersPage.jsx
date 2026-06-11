@@ -198,10 +198,40 @@ export default function AdminOrdersPage() {
 
   return (
     <div className="admin-page">
-      <div className="admin-page-header">
-        <div>
-          <h2>Quản lý Đơn hàng &amp; Giao dịch</h2>
-          <p>{total} đơn hàng thanh toán</p>
+      <div className="admin-page-header" style={{ marginBottom: '1.25rem' }}>
+        <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-muted)' }}>
+          Tra cứu thông tin đơn hàng, đồng bộ trạng thái giao dịch từ gateway và phê duyệt đơn hàng thủ công.
+        </p>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="admin-stats-grid">
+        <div className="admin-stat-card">
+          <div className="admin-stat-icon-wrap blue">
+            <CreditCard size={20} strokeWidth={2.5} />
+          </div>
+          <div className="admin-stat-info">
+            <span className="admin-stat-label">Tổng đơn hàng</span>
+            <h3 className="admin-stat-value">{total}</h3>
+          </div>
+        </div>
+        <div className="admin-stat-card">
+          <div className="admin-stat-icon-wrap amber">
+            <ShieldCheck size={20} strokeWidth={2.5} />
+          </div>
+          <div className="admin-stat-info">
+            <span className="admin-stat-label">Cổng kết nối</span>
+            <h3 className="admin-stat-value" style={{ fontSize: '1.1rem', fontWeight: 800, marginTop: '5px' }}>MOMO / PAYOS</h3>
+          </div>
+        </div>
+        <div className="admin-stat-card">
+          <div className="admin-stat-icon-wrap green">
+            <Check size={20} strokeWidth={2.5} />
+          </div>
+          <div className="admin-stat-info">
+            <span className="admin-stat-label">Trạng thái cổng</span>
+            <h3 className="admin-stat-value" style={{ fontSize: '1.1rem', fontWeight: 800, marginTop: '5px', color: '#10b981' }}>HOẠT ĐỘNG</h3>
+          </div>
         </div>
       </div>
 
