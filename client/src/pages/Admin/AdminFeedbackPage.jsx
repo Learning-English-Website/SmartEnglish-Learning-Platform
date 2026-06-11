@@ -115,12 +115,18 @@ function FeedbackModal({ isOpen, onClose, feedbackId, onSave }) {
               <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '1rem' }}>
                 <h5 style={{ marginBottom: '0.75rem', fontSize: '0.9rem', color: 'var(--text-heading)' }}>Học viên gửi</h5>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--bg-page)', padding: '8px 12px', borderRadius: '8px' }}>
-                  <div style={{ width: 32, height: 32, borderRadius: '50%', overflow: 'hidden', background: 'rgba(99,102,241,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    {feedback.user?.avatar ? (
-                      <img src={feedback.user.avatar} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    ) : (
-                      feedback.user?.username?.charAt(0).toUpperCase() || 'U'
+                  <div style={{ width: 32, height: 32, borderRadius: '50%', overflow: 'hidden', background: 'rgba(99,102,241,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+                    {feedback.user?.avatar && (
+                      <img 
+                        src={feedback.user.avatar} 
+                        alt="avatar" 
+                        onError={(e) => { e.target.style.display = 'none'; }} 
+                        style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', inset: 0, zIndex: 2 }} 
+                      />
                     )}
+                    <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#6366f1', zIndex: 1 }}>
+                      {feedback.user?.username?.charAt(0).toUpperCase() || 'U'}
+                    </span>
                   </div>
                   <div>
                     <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>{feedback.user?.username}</div>
@@ -349,12 +355,18 @@ export default function AdminFeedbackPage() {
                     <td className="admin-td-num">{(page - 1) * PAGE_SIZE + i + 1}</td>
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <div style={{ width: 30, height: 30, borderRadius: '50%', overflow: 'hidden', background: 'rgba(99,102,241,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          {f.user?.avatar ? (
-                            <img src={f.user.avatar} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          ) : (
-                            <MessageSquare size={14} style={{ color: '#6366f1' }} />
+                        <div style={{ width: 30, height: 30, borderRadius: '50%', overflow: 'hidden', background: 'rgba(99,102,241,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+                          {f.user?.avatar && (
+                            <img 
+                              src={f.user.avatar} 
+                              alt="avatar" 
+                              onError={(e) => { e.target.style.display = 'none'; }} 
+                              style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', inset: 0, zIndex: 2 }} 
+                            />
                           )}
+                          <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#6366f1', zIndex: 1 }}>
+                            {f.user?.username?.charAt(0).toUpperCase() || 'U'}
+                          </span>
                         </div>
                         <span className="admin-td-title" style={{ maxWidth: 120 }}>{f.user?.username || '—'}</span>
                       </div>

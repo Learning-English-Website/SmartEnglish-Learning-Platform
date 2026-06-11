@@ -56,6 +56,28 @@ function VerifiedBadge({ isVerified }) {
   );
 }
 
+function UserAvatar({ avatar, username }) {
+  const [imgFailed, setImgFailed] = useState(false);
+  
+  if (avatar && !imgFailed) {
+    return (
+      <img 
+        src={avatar} 
+        alt={username} 
+        onError={() => setImgFailed(true)} 
+        style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+      />
+    );
+  }
+  
+  const initial = username ? username.charAt(0).toUpperCase() : 'U';
+  return (
+    <span style={{ fontSize: '0.9rem', fontWeight: 'bold', color: '#6366f1' }}>
+      {initial}
+    </span>
+  );
+}
+
 function Modal({ isOpen, onClose, title, children }) {
   if (!isOpen) return null;
   return (
@@ -490,11 +512,7 @@ export default function AdminUsersPage() {
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                         <div style={{ width: 34, height: 34, borderRadius: '50%', overflow: 'hidden', background: 'rgba(99,102,241,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                          {u.avatar ? (
-                            <img src={u.avatar} alt={u.username} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          ) : (
-                            <Users size={16} style={{ color: '#6366f1' }} />
-                          )}
+                          <UserAvatar avatar={u.avatar} username={u.username} />
                         </div>
                         <span className="admin-td-title" style={{ maxWidth: 140 }}>{u.username || '—'}</span>
                       </div>

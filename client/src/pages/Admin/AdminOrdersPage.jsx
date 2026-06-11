@@ -321,12 +321,18 @@ export default function AdminOrdersPage() {
                     </td>
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <div style={{ width: 30, height: 30, borderRadius: '50%', overflow: 'hidden', background: 'rgba(99,102,241,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          {o.user?.avatar ? (
-                            <img src={o.user.avatar} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          ) : (
-                            o.user?.username?.charAt(0).toUpperCase() || 'U'
+                        <div style={{ width: 30, height: 30, borderRadius: '50%', overflow: 'hidden', background: 'rgba(99,102,241,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+                          {o.user?.avatar && (
+                            <img 
+                              src={o.user.avatar} 
+                              alt="avatar" 
+                              onError={(e) => { e.target.style.display = 'none'; }} 
+                              style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', inset: 0, zIndex: 2 }} 
+                            />
                           )}
+                          <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#6366f1', zIndex: 1 }}>
+                            {o.user?.username?.charAt(0).toUpperCase() || 'U'}
+                          </span>
                         </div>
                         <div>
                           <span className="admin-td-title" style={{ display: 'block', maxWidth: 120 }}>{o.user?.username || '—'}</span>
