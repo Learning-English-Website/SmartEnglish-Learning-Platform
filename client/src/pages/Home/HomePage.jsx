@@ -22,9 +22,29 @@ export default function HomePage() {
           </p>
           <div className="hero-buttons">
             {isAuthenticated ? (
-              <Button as={Link} to="/dashboard" className="btn-hero-primary">
-                Go to Dashboard <FiArrowRight />
-              </Button>
+              user?.role === 'teacher' ? (
+                <>
+                  <Button as={Link} to="/teacher/studio" className="btn-hero-primary">
+                    Vào trang Soạn bài (Studio) <FiArrowRight />
+                  </Button>
+                  <Button as={Link} to="/dashboard" className="btn-hero-secondary">
+                    Bảng điều khiển học tập
+                  </Button>
+                </>
+              ) : user?.role === 'admin' ? (
+                <>
+                  <Button as={Link} to="/admin" className="btn-hero-primary">
+                    Vào trang Admin <FiArrowRight />
+                  </Button>
+                  <Button as={Link} to="/dashboard" className="btn-hero-secondary">
+                    Bảng điều khiển học tập
+                  </Button>
+                </>
+              ) : (
+                <Button as={Link} to="/dashboard" className="btn-hero-primary">
+                  Go to Dashboard <FiArrowRight />
+                </Button>
+              )
             ) : (
               <>
                 <Button as={Link} to="/register" className="btn-hero-primary">

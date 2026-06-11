@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Plus, Edit2, Trash2, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { adminService } from '../../services/adminService';
 import toast from 'react-hot-toast';
+import ImageUploader from '../../components/media/ImageUploader';
 
 const CHALLENGE_TYPES = ['SELECT', 'ASSIST', 'TYPE', 'TRANSLATE', 'COMPLETE', 'ORDER', 'MATCH', 'FILL', 'LISTEN'];
 
@@ -69,7 +70,7 @@ export default function AdminChallengesPage() {
     pairs: '',
     sentence: '', blankIndex: '',
     hint: '',
-    options: [{ text: '', correct: false }],
+    options: [{ text: '', correct: false, imageSrc: '' }, { text: '', correct: false, imageSrc: '' }, { text: '', correct: false, imageSrc: '' }, { text: '', correct: false, imageSrc: '' }],
     order: 0,
   });
 
@@ -103,7 +104,7 @@ export default function AdminChallengesPage() {
       imageSrc: '', audioSrc: '',
       wordBank: '', correctOrder: '',
       pairs: '', sentence: '', blankIndex: '', hint: '',
-      options: [{ text: '', correct: false }, { text: '', correct: false }, { text: '', correct: false }, { text: '', correct: false }],
+      options: [{ text: '', correct: false, imageSrc: '' }, { text: '', correct: false, imageSrc: '' }, { text: '', correct: false, imageSrc: '' }, { text: '', correct: false, imageSrc: '' }],
       order: 0,
     });
     setShowModal(true);
@@ -130,8 +131,8 @@ export default function AdminChallengesPage() {
         blankIndex: ch.blankIndex?.toString() || '',
         hint: ch.hint || '',
         options: (ch.options && ch.options.length > 0)
-          ? ch.options.map(o => ({ text: o.text || '', correct: o.correct || false }))
-          : [{ text: '', correct: false }, { text: '', correct: false }, { text: '', correct: false }, { text: '', correct: false }],
+          ? ch.options.map(o => ({ text: o.text || '', correct: o.correct || false, imageSrc: o.imageSrc || '' }))
+          : [{ text: '', correct: false, imageSrc: '' }, { text: '', correct: false, imageSrc: '' }, { text: '', correct: false, imageSrc: '' }, { text: '', correct: false, imageSrc: '' }],
         order: ch.order || 0,
       });
       setShowModal(true);
@@ -177,7 +178,11 @@ export default function AdminChallengesPage() {
       }
       if (form.type === 'LISTEN') payload.hint = form.hint;
       if (['SELECT', 'ASSIST', 'FILL'].includes(form.type)) {
-        payload.options = form.options.filter(o => o.text.trim()).map(o => ({ text: o.text, correct: o.correct }));
+        payload.options = form.options.filter(o => o.text.trim()).map(o => ({ 
+          text: o.text, 
+          correct: o.correct,
+          imageSrc: o.imageSrc || null
+        }));
       }
       if (editItem) { await adminService.updateChallenge(editItem._id, payload); toast.success('Cập nhật thành công'); }
       else { await adminService.createChallenge(payload); toast.success('Tạo Challenge thành công'); }
@@ -333,10 +338,17 @@ export default function AdminChallengesPage() {
             </div>
           </div>
           <div className="form-row">
-            <div className="form-group">
-              <label>URL hình ảnh</label>
-              <input className="form-control-admin" value={form.imageSrc} onChange={e => setForm(f => ({ ...f, imageSrc: e.target.value }))} placeholder="https://..." />
-            </div>
+            {!['SELECT', 'MATCH', 'ORDER', 'LISTEN'].includes(form.type) && (
+              <div className="form-group">
+                <label>URL hình ảnh</label>
+                <input className="form-control-admin" value={form.imageSrc} onChange={e => setForm(f => ({ ...f, imageSrc: e.target.value }))} placeholder="https://..." style={{ marginBottom: '8px' }} />
+                <ImageUploader
+                  currentUrl={form.imageSrc}
+                  onUpload={(url) => setForm(f => ({ ...f, imageSrc: url }))}
+                  onClear={() => setForm(f => ({ ...f, imageSrc: '' }))}
+                />
+              </div>
+            )}
             <div className="form-group">
               <label>URL audio</label>
               <input className="form-control-admin" value={form.audioSrc} onChange={e => setForm(f => ({ ...f, audioSrc: e.target.value }))} placeholder="https://..." />
@@ -404,19 +416,39 @@ export default function AdminChallengesPage() {
                     <h4>Tùy chọn đáp án (chỉ chọn 1 đáp án đúng)</h4>
                   </div>
                   {form.options.map((opt, idx) => (
-                    <div key={idx} className="option-item">
-                      <input className="form-control-admin option-text" value={opt.text} onChange={e => updateOption(idx, 'text', e.target.value)} placeholder={`Tùy chọn ${idx + 1}`} />
-                      <label className="option-correct">
-                        <input type="checkbox" checked={opt.correct} onChange={e => updateOption(idx, 'correct', e.target.checked)} />
-                        Đúng
-                      </label>
-                      {form.options.length > 2 && (
-                        <button className="btn-action danger" onClick={() => setForm(f => ({ ...f, options: f.options.filter((_, i) => i !== idx) }))}><X size={12} /></button>
+                    <div key={idx} className="option-item-wrapper" style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '10px', marginBottom: '10px', background: '#f8fafc' }}>
+                      <div className="option-item" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <input className="form-control-admin option-text" value={opt.text} onChange={e => updateOption(idx, 'text', e.target.value)} placeholder={`Tùy chọn ${idx + 1}`} style={{ flex: 1 }} />
+                        <label className="option-correct" style={{ whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px', margin: 0 }}>
+                          <input type="checkbox" checked={opt.correct} onChange={e => updateOption(idx, 'correct', e.target.checked)} />
+                          Đúng
+                        </label>
+                        {form.options.length > 2 && (
+                          <button className="btn-action danger" onClick={() => setForm(f => ({ ...f, options: f.options.filter((_, i) => i !== idx) }))}><X size={12} /></button>
+                        )}
+                      </div>
+                      {form.type === 'SELECT' && (
+                        <div className="option-image-section" style={{ marginTop: '8px', borderTop: '1px dashed #cbd5e1', paddingTop: '8px' }}>
+                          <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b', display: 'block', marginBottom: '4px' }}>Hình ảnh tùy chọn {idx + 1}</label>
+                          <input 
+                            type="text" 
+                            className="form-control-admin" 
+                            value={opt.imageSrc || ''} 
+                            onChange={e => updateOption(idx, 'imageSrc', e.target.value)} 
+                            placeholder="https://... (URL hoặc tải ảnh lên ở dưới)" 
+                            style={{ marginBottom: '6px', fontSize: '0.8rem' }}
+                          />
+                          <ImageUploader 
+                            currentUrl={opt.imageSrc || ''}
+                            onUpload={(url) => updateOption(idx, 'imageSrc', url)}
+                            onClear={() => updateOption(idx, 'imageSrc', '')}
+                          />
+                        </div>
                       )}
                     </div>
                   ))}
                   {form.options.length < 6 && (
-                    <button className="btn-secondary-admin" style={{ marginTop: 8, fontSize: '0.8rem', padding: '5px 12px' }} onClick={() => setForm(f => ({ ...f, options: [...f.options, { text: '', correct: false }] }))}>
+                    <button className="btn-secondary-admin" style={{ marginTop: 8, fontSize: '0.8rem', padding: '5px 12px' }} onClick={() => setForm(f => ({ ...f, options: [...f.options, { text: '', correct: false, imageSrc: '' }] }))}>
                       <Plus size={12} /> Thêm tùy chọn
                     </button>
                   )}

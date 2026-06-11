@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../../hooks/useAuth';
 import { selectAuthLoading } from '../../store/slices/authSlice';
 import { updateProfile } from '../../store/slices/authSlice';
+import ImageUploader from '../../components/media/ImageUploader';
 import './ProfilePage.css';
 
 export default function EditProfilePage() {
@@ -99,7 +100,7 @@ export default function EditProfilePage() {
             {/* Avatar URL */}
             <Form.Group className="mb-4">
               <Form.Label className="form-label-custom">Avatar URL (optional)</Form.Label>
-              <div className="input-wrapper-dark">
+              <div className="input-wrapper-dark" style={{ marginBottom: '10px' }}>
                 <FiLink className="input-icon-dark" />
                 <Form.Control
                   type="url"
@@ -111,11 +112,11 @@ export default function EditProfilePage() {
                   className="auth-input-dark padded"
                 />
               </div>
-              {formData.avatar && (
-                <div className="avatar-preview">
-                  <img src={formData.avatar} alt="Preview" onError={(e) => e.target.style.display = 'none'} />
-                </div>
-              )}
+              <ImageUploader 
+                currentUrl={formData.avatar}
+                onUpload={(url) => setFormData(p => ({ ...p, avatar: url }))}
+                onClear={() => setFormData(p => ({ ...p, avatar: '' }))}
+              />
             </Form.Group>
 
             {/* Email reminders */}

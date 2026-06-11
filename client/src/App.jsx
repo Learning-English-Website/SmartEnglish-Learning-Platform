@@ -7,7 +7,6 @@ import { GamificationProvider } from './context/GamificationContext';
 import { SocketProvider } from './context/SocketContext';
 import ErrorBoundary from './components/ErrorBoundary/ErrorBoundary';
 import AppInitializer from './components/AppInitializer/AppInitializer';
-import NotificationBell from './components/notifications/NotificationBell';
 import router from './routes';
 
 function ToasterWithTheme() {
@@ -42,7 +41,6 @@ export default function App() {
             <SocketProvider>
               <AppInitializer>
                 <RouterProvider router={router} />
-                <NotificationBell />
                 <ToasterWithTheme />
               </AppInitializer>
             </SocketProvider>

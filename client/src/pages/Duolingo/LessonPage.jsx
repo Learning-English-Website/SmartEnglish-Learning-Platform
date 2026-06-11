@@ -575,11 +575,12 @@ export default function LessonPage() {
   }, [lessonId, loadLesson, loadHearts]);
 
   const handleOptionSelect = useCallback(
-    async (optionId) => {
-      if (status !== 'idle' || !currentChallenge) return;
-      setSelectedOption(optionId);
+    async (option) => {
+      if (status !== 'idle' || !currentChallenge || !option) return;
+      setSelectedOption(option.text);
 
       try {
+        const optionId = option._id || option.text;
         const result = await duolingoService.submitAnswer(currentChallenge._id, optionId, null);
 
         if (result.data?.isCorrect) {
@@ -773,7 +774,7 @@ export default function LessonPage() {
       if (num >= 1 && num <= 9) {
         const options = currentChallenge?.options;
         if (options && options[num - 1]) {
-          handleOptionSelect(options[num - 1].text);
+          handleOptionSelect(options[num - 1]);
         }
       }
       if (e.key === 'Enter') {
@@ -1106,7 +1107,23 @@ export default function LessonPage() {
                 )}
 
                 {!isListeningChallenge && (
-                  <p className="question-text" aria-live="polite">{currentChallenge?.question}</p>
+                  <>
+                    <p className="question-text" aria-live="polite">{currentChallenge?.question}</p>
+                    {currentChallenge?.sentence && (
+                      <div className="listening-sentence-card" style={{ marginTop: '1rem', width: '100%', maxWidth: 'none' }}>
+                        {(() => {
+                          const parts = currentChallenge.sentence.split('___');
+                          return (
+                            <p className="listening-sentence-text" style={{ textAlign: 'center' }}>
+                              {parts[0]}
+                              <span className="listening-blank">___</span>
+                              {parts[1] || ''}
+                            </p>
+                          );
+                        })()}
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
 
@@ -1547,7 +1564,7 @@ export default function LessonPage() {
                         <motion.button
                           key={option.text}
                           className={`option-card ${isSelected ? 'selected' : ''} ${showCorrect ? 'correct' : ''} ${showWrong ? 'wrong' : ''}`}
-                          onClick={() => handleOptionSelect(option.text)}
+                          onClick={() => handleOptionSelect(option)}
                           disabled={status !== 'idle'}
                           initial={{ opacity: 0, y: 20 }}
                           animate={{ opacity: 1, y: 0 }}

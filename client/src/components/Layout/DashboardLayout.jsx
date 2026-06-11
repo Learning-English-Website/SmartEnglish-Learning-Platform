@@ -188,6 +188,18 @@ export default function DashboardLayout({ children }) {
                   </div>
                 </div>
                 <div className="q-ud-divider" />
+                {user?.role === 'teacher' && (
+                  <Link to="/teacher/studio" className="q-ud-item text-primary fw-bold" onClick={() => setShowUserMenu(false)}>
+                    <Settings size={14} />
+                    Studio Soạn Bài
+                  </Link>
+                )}
+                {user?.role === 'admin' && (
+                  <Link to="/admin" className="q-ud-item text-danger fw-bold" onClick={() => setShowUserMenu(false)}>
+                    <Settings size={14} />
+                    Trang Admin
+                  </Link>
+                )}
                 <Link to="/profile" className="q-ud-item" onClick={() => setShowUserMenu(false)}>
                   <User size={14} />
                   Hồ sơ &amp; Cài đặt
@@ -227,6 +239,26 @@ export default function DashboardLayout({ children }) {
 
             {/* Section 1: Navigation */}
             <div className="q-sidebar-section">
+              {user?.role === 'teacher' && (
+                <NavLink
+                  to="/teacher/studio"
+                  className="q-nav-item text-primary fw-bold"
+                  onClick={closeMobileSidebar}
+                >
+                  <Settings size={17} />
+                  <span>Studio Soạn Bài</span>
+                </NavLink>
+              )}
+              {user?.role === 'admin' && (
+                <NavLink
+                  to="/admin"
+                  className="q-nav-item text-danger fw-bold"
+                  onClick={closeMobileSidebar}
+                >
+                  <Settings size={17} />
+                  <span>Trang Admin</span>
+                </NavLink>
+              )}
               <NavLink
                 to="/dashboard"
                 className={`q-nav-item ${isActive('/dashboard') && location.pathname === '/dashboard' ? 'active' : ''}`}

@@ -738,6 +738,114 @@ const updateOrderStatusManually = async (req, res) => {
   res.json(ApiResponse.success(order, 'Order status updated manually'));
 };
 
+// ── Course Outline Tree ────────────────────────────────────────────────────────
+const getCourseTree = async (req, res) => {
+  const { courseId } = req.params;
+  const course = await Course.findById(courseId);
+  if (!course) throw new AppError('Course not found', 404);
+
+  const units = await Unit.find({ course: courseId }).sort({ order: 1 }).lean();
+  const unitIds = units.map(u => u._id);
+
+  const lessons = await Lesson.find({ unit: { $in: unitIds } }).sort({ order: 1 }).lean();
+  const lessonIds = lessons.map(l => l._id);
+
+  const challenges = await Challenge.find({ lesson: { $in: lessonIds } })
+    .select('_id type question order lesson')
+    .sort({ order: 1 })
+    .lean();
+
+  const lessonMap = {};
+  lessons.forEach(l => {
+    lessonMap[l._id] = { ...l, challenges: [] };
+  });
+  challenges.forEach(ch => {
+    if (lessonMap[ch.lesson]) {
+      lessonMap[ch.lesson].challenges.push(ch);
+    }
+  });
+
+  const unitMap = {};
+  units.forEach(u => {
+    unitMap[u._id] = { ...u, lessons: [] };
+  });
+  Object.values(lessonMap).forEach(l => {
+    if (unitMap[l.unit]) {
+      unitMap[l.unit].lessons.push(l);
+    }
+  });
+
+  const tree = Object.values(unitMap);
+  res.json(ApiResponse.success({ course, tree }, 'Course tree fetched'));
+};
+
+// ── Bulk Reordering ────────────────────────────────────────────────────────────
+const reorderUnits = async (req, res) => {
+  const { courseId } = req.params;
+  const { unitIds } = req.body;
+
+  if (!Array.isArray(unitIds)) {
+    throw new AppError('unitIds must be an array', 400);
+  }
+
+  const bulkOps = unitIds.map((id, index) => ({
+    updateOne: {
+      filter: { _id: id, course: courseId },
+      update: { $set: { order: index } }
+    }
+  }));
+
+  if (bulkOps.length > 0) {
+    await Unit.bulkWrite(bulkOps);
+  }
+
+  res.json(ApiResponse.success(null, 'Units reordered'));
+};
+
+const reorderLessons = async (req, res) => {
+  const { unitId } = req.params;
+  const { lessonIds } = req.body;
+
+  if (!Array.isArray(lessonIds)) {
+    throw new AppError('lessonIds must be an array', 400);
+  }
+
+  const bulkOps = lessonIds.map((id, index) => ({
+    updateOne: {
+      filter: { _id: id, unit: unitId },
+      update: { $set: { order: index } }
+    }
+  }));
+
+  if (bulkOps.length > 0) {
+    await Lesson.bulkWrite(bulkOps);
+  }
+
+  res.json(ApiResponse.success(null, 'Lessons reordered'));
+};
+
+const reorderChallenges = async (req, res) => {
+  const { lessonId } = req.params;
+  const { challengeIds } = req.body;
+
+  if (!Array.isArray(challengeIds)) {
+    throw new AppError('challengeIds must be an array', 400);
+  }
+
+  const bulkOps = challengeIds.map((id, index) => ({
+    updateOne: {
+      filter: { _id: id, lesson: lessonId },
+      update: { $set: { order: index } }
+    }
+  }));
+
+  if (bulkOps.length > 0) {
+    await Challenge.bulkWrite(bulkOps);
+  }
+
+  res.json(ApiResponse.success(null, 'Challenges reordered'));
+};
+
 module.exports = {
   adminOnly,
   getCourses, getCourse, createCourse, updateCourse, deleteCourse,
@@ -750,5 +858,6 @@ module.exports = {
   getAllFolders, getFolder, deleteFolder,
   getCommunitySets, deleteCommunitySet,
   getUsers, getUser, updateUser, updateUserRole, deleteUser,
-  updateUserPremium, getOrders, verifyOrderPayment, updateOrderStatusManually
+  updateUserPremium, getOrders, verifyOrderPayment, updateOrderStatusManually,
+  getCourseTree, reorderUnits, reorderLessons, reorderChallenges,
 };
