@@ -12,6 +12,7 @@ const dailyChallengeService = require('../quest/dailyChallenge.service');
 const eventBus = require('../../shared/events/eventBus');
 const { getDateKey } = require('../../shared/utils/dateKey');
 const { AppError } = require('../../shared/errors/AppError');
+const mongoose = require('mongoose');
 
 const POINTS_PER_CORRECT = 10;
 const MAX_HEARTS = 5;
@@ -86,11 +87,11 @@ class DuolingoService {
       // Embedded: { text, correct } → frontend sends option.text, backend matches o.text
       // ChallengeOption: { _id, text, correct } → frontend sends option._id, backend matches o._id
       let options;
-      if (challenge.options && challenge.options.length > 0) {
-        options = challenge.options;
-      } else {
-        const challengeOptions = await ChallengeOption.find({ challenge: challenge._id });
+      const challengeOptions = await ChallengeOption.find({ challenge: challenge._id });
+      if (challengeOptions && challengeOptions.length > 0) {
         options = challengeOptions.map(opt => opt.toObject());
+      } else {
+        options = challenge.options || [];
       }
       return {
         ...challenge.toObject(),
@@ -182,7 +183,17 @@ class DuolingoService {
       // SELECT / ASSIST: multiple choice
       // Options may be embedded in challenge.options or stored in ChallengeOption collection
       let isOptionCorrect = false;
-      if (challenge.options && challenge.options.length > 0) {
+      const challengeOptionsCount = await ChallengeOption.countDocuments({ challenge: challengeId });
+      if (challengeOptionsCount > 0) {
+        // Separate ChallengeOption collection
+        let option;
+        if (mongoose.Types.ObjectId.isValid(selectedOptionId)) {
+          option = await ChallengeOption.findById(selectedOptionId);
+        } else {
+          option = await ChallengeOption.findOne({ challenge: challengeId, text: selectedOptionId });
+        }
+        isOptionCorrect = option?.correct || false;
+      } else if (challenge.options && challenge.options.length > 0) {
         // Embedded options (seeder format) - match by _id or by text
         const selected = challenge.options.find(
           (o) =>
@@ -190,10 +201,6 @@ class DuolingoService {
             o.text === selectedOptionId
         );
         isOptionCorrect = selected?.correct || false;
-      } else {
-        // Separate ChallengeOption collection
-        const option = await ChallengeOption.findById(selectedOptionId);
-        isOptionCorrect = option?.correct || false;
       }
       isCorrect = isOptionCorrect;
     }
