@@ -928,3 +928,40 @@
   margin: 0;
   padding: 0;
 }
+
+/* Sidebar Badges for Student notifications */
+.q-nav-item-badge {
+  background: #ef4444;
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 9999px;
+  min-width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.4);
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.q-nav-item-badge-collapsed {
+  position: absolute;
+  top: -5px;
+  right: -6px;
+  background: #ef4444;
+  color: white;
+  font-size: 0.58rem;
+  font-weight: 700;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.4);
+  border: 1.5px solid var(--q-sidebar-bg, #ffffff);
+}
+

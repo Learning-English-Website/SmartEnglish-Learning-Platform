@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { adminService } from '../../services/adminService';
-import { MessageSquare, Search, ChevronLeft, ChevronRight, X, Check, AlertCircle } from 'lucide-react';
+import { MessageSquare, Search, ChevronLeft, ChevronRight, X, Check, AlertCircle, Paperclip } from 'lucide-react';
 import toast from 'react-hot-toast';
 import './AdminPage.css';
 
@@ -17,10 +17,37 @@ const STATUSES = {
   resolved: { label: 'Đã giải quyết', color: '#10b981', bg: 'rgba(16, 185, 129, 0.1)', border: 'rgba(16, 185, 129, 0.2)' }
 };
 
-function Badge({ value, config }) {
+const getFullUrl = (url) => {
+  if (!url) return '';
+  if (url.startsWith('http')) return url;
+  const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+  const normalizedBase = baseUrl.endsWith('/api') ? baseUrl.slice(0, -4) : baseUrl;
+  return `${normalizedBase}${url}`;
+};
+
+function Badge({ value, config, onClick }) {
   const s = config[value] || { label: value, color: '#94a3b8', bg: 'rgba(148, 163, 184, 0.1)', border: 'rgba(148, 163, 184, 0.2)' };
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 10px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 700, background: s.bg, color: s.color, border: `1px solid ${s.border}`, textTransform: 'uppercase', letterSpacing: '0.2px' }}>
+    <span 
+      onClick={onClick}
+      onMouseEnter={onClick ? (e) => { e.currentTarget.style.transform = 'scale(1.05)'; } : undefined}
+      onMouseLeave={onClick ? (e) => { e.currentTarget.style.transform = 'scale(1)'; } : undefined}
+      style={{ 
+        display: 'inline-flex', 
+        alignItems: 'center', 
+        padding: '4px 10px', 
+        borderRadius: '8px', 
+        fontSize: '0.75rem', 
+        fontWeight: 700, 
+        background: s.bg, 
+        color: s.color, 
+        border: `1px solid ${s.border}`, 
+        textTransform: 'uppercase', 
+        letterSpacing: '0.2px',
+        cursor: onClick ? 'pointer' : 'default',
+        transition: 'transform 0.15s ease'
+      }}
+    >
       {s.label}
     </span>
   );
@@ -104,8 +131,8 @@ function FeedbackModal({ isOpen, onClose, feedbackId, onSave }) {
                   <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '0.5rem', fontSize: '0.85rem' }}>Ảnh đính kèm ({feedback.attachments.length})</label>
                   <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                     {feedback.attachments.map((url, idx) => (
-                      <a key={idx} href={url} target="_blank" rel="noopener noreferrer" style={{ display: 'block', width: '120px', height: '120px', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--border-subtle)' }}>
-                        <img src={url} alt={`attachment-${idx}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <a key={idx} href={getFullUrl(url)} target="_blank" rel="noopener noreferrer" style={{ display: 'block', width: '120px', height: '120px', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--border-subtle)' }}>
+                        <img src={getFullUrl(url)} alt={`attachment-${idx}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                       </a>
                     ))}
                   </div>
@@ -118,7 +145,7 @@ function FeedbackModal({ isOpen, onClose, feedbackId, onSave }) {
                   <div style={{ width: 32, height: 32, borderRadius: '50%', overflow: 'hidden', background: 'rgba(99,102,241,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
                     {feedback.user?.avatar && (
                       <img 
-                        src={feedback.user.avatar} 
+                        src={getFullUrl(feedback.user.avatar)} 
                         alt="avatar" 
                         onError={(e) => { e.target.style.display = 'none'; }} 
                         style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', inset: 0, zIndex: 2 }} 
@@ -179,6 +206,79 @@ function FeedbackModal({ isOpen, onClose, feedbackId, onSave }) {
   );
 }
 
+function FeedbackStatusModal({ isOpen, onClose, feedback, onSave }) {
+  const [selectedStatus, setSelectedStatus] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (feedback) setSelectedStatus(feedback.status || 'pending');
+  }, [feedback]);
+
+  if (!isOpen || !feedback) return null;
+
+  const handleSave = async () => {
+    if (!selectedStatus || selectedStatus === feedback.status) { onClose(); return; }
+    setSaving(true);
+    try {
+      await onSave(feedback._id, { status: selectedStatus });
+      toast.success('Đã cập nhật trạng thái phản hồi');
+    } catch (err) {
+      console.error(err);
+      toast.error('Cập nhật trạng thái thất bại');
+    } finally {
+      setSaving(false);
+      onClose();
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal-content" style={{ maxWidth: 420 }}>
+        <div className="modal-header">
+          <h3>Đổi trạng thái</h3>
+          <button className="modal-close" onClick={onClose}><X size={16} /></button>
+        </div>
+        <div className="modal-body">
+          <p style={{ marginBottom: '1rem', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+            Chọn trạng thái mới cho phản hồi của <strong style={{ color: 'var(--text-heading)' }}>{feedback.user?.username || 'học viên'}</strong>:
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            {['pending', 'in_progress', 'resolved'].map(statusKey => {
+              const s = STATUSES[statusKey];
+              const isSelected = selectedStatus === statusKey;
+              return (
+                <button
+                  key={statusKey}
+                  onClick={() => setSelectedStatus(statusKey)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '12px',
+                    padding: '14px 18px', borderRadius: '12px',
+                    border: `2px solid ${isSelected ? s.color : 'var(--border-subtle)'}`,
+                    background: isSelected ? s.bg : 'var(--bg-page)',
+                    color: isSelected ? s.color : 'var(--text-body)',
+                    cursor: 'pointer', fontWeight: 700, fontSize: '0.9rem',
+                    transition: 'all 0.2s', textTransform: 'uppercase',
+                    letterSpacing: '0.3px',
+                  }}
+                >
+                  {isSelected && <Check size={16} style={{ marginRight: '8px' }} />}
+                  {s.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        <div className="modal-footer">
+          <button className="btn-secondary-admin" onClick={onClose}>Hủy</button>
+          <button className="btn-primary-admin" disabled={saving || selectedStatus === feedback.status} onClick={handleSave}>
+            {saving ? 'Đang lưu...' : 'Lưu trạng thái'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminFeedbackPage() {
   const [feedbacks, setFeedbacks] = useState([]);
   const [total, setTotal] = useState(0);
@@ -189,6 +289,7 @@ export default function AdminFeedbackPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [selectedFeedbackId, setSelectedFeedbackId] = useState(null);
+  const [statusFeedback, setStatusFeedback] = useState(null);
 
   const loadFeedbacks = useCallback(async () => {
     setLoading(true);
@@ -358,7 +459,7 @@ export default function AdminFeedbackPage() {
                         <div style={{ width: 30, height: 30, borderRadius: '50%', overflow: 'hidden', background: 'rgba(99,102,241,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
                           {f.user?.avatar && (
                             <img 
-                              src={f.user.avatar} 
+                              src={getFullUrl(f.user.avatar)} 
                               alt="avatar" 
                               onError={(e) => { e.target.style.display = 'none'; }} 
                               style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', inset: 0, zIndex: 2 }} 
@@ -373,11 +474,20 @@ export default function AdminFeedbackPage() {
                     </td>
                     <td><Badge value={f.category} config={CATEGORIES} /></td>
                     <td>
-                      <div className="admin-td-title" style={{ maxWidth: 220, fontWeight: 500 }} title={f.title}>
-                        {f.title}
+                      <div className="admin-td-title" style={{ maxWidth: 220, fontWeight: 500, display: 'flex', alignItems: 'center', gap: '6px' }} title={f.title}>
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.title}</span>
+                        {f.attachments && f.attachments.length > 0 && (
+                          <Paperclip size={13} style={{ color: '#6366f1', flexShrink: 0 }} title={`Có đính kèm ${f.attachments.length} ảnh`} />
+                        )}
                       </div>
                     </td>
-                    <td><Badge value={f.status} config={STATUSES} /></td>
+                    <td>
+                      <Badge 
+                        value={f.status} 
+                        config={STATUSES} 
+                        onClick={() => setStatusFeedback(f)} 
+                      />
+                    </td>
                     <td className="admin-td-muted">{new Date(f.createdAt).toLocaleDateString('vi-VN')}</td>
                     <td className="admin-td-muted">{f.repliedBy?.username || '—'}</td>
                     <td className="admin-td-actions">
@@ -431,6 +541,13 @@ export default function AdminFeedbackPage() {
         isOpen={!!selectedFeedbackId}
         onClose={() => setSelectedFeedbackId(null)}
         feedbackId={selectedFeedbackId}
+        onSave={handleSaveReply}
+      />
+
+      <FeedbackStatusModal
+        isOpen={!!statusFeedback}
+        onClose={() => setStatusFeedback(null)}
+        feedback={statusFeedback}
         onSave={handleSaveReply}
       />
     </div>
