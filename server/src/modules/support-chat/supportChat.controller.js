@@ -40,9 +40,9 @@ class SupportChatController {
   // Student: Send message
   sendStudentMessage = asyncHandler(async (req, res) => {
     const studentId = req.userId;
-    const { text } = req.body;
-    if (!text || !text.trim()) {
-      throw new AppError('Message text is required', 400);
+    const { text, image } = req.body;
+    if ((!text || !text.trim()) && !image) {
+      throw new AppError('Message text or image is required', 400);
     }
 
     let session = await SupportSession.findOne({ student: studentId });
@@ -50,7 +50,8 @@ class SupportChatController {
       session = await SupportSession.create({ student: studentId });
     }
 
-    session.lastMessage = text.trim();
+    const trimmedText = text ? text.trim() : '';
+    session.lastMessage = trimmedText || '[Hình ảnh]';
     session.lastMessageAt = new Date();
     session.unreadCount += 1;
     session.status = 'open'; // Re-open if closed
@@ -59,7 +60,8 @@ class SupportChatController {
     const message = await SupportMessage.create({
       session: session._id,
       sender: studentId,
-      text: text.trim()
+      text: trimmedText || undefined,
+      image: image || undefined
     });
 
     const populatedMessage = await SupportMessage.findById(message._id)
@@ -80,10 +82,10 @@ class SupportChatController {
   sendCSKHMessage = asyncHandler(async (req, res) => {
     const cskhId = req.userId;
     const { studentId } = req.params;
-    const { text } = req.body;
+    const { text, image } = req.body;
 
-    if (!text || !text.trim()) {
-      throw new AppError('Message text is required', 400);
+    if ((!text || !text.trim()) && !image) {
+      throw new AppError('Message text or image is required', 400);
     }
 
     let session = await SupportSession.findOne({ student: studentId });
@@ -93,7 +95,8 @@ class SupportChatController {
       session.cskh = cskhId; // Auto-assign to current replier if not already assigned
     }
 
-    session.lastMessage = text.trim();
+    const trimmedText = text ? text.trim() : '';
+    session.lastMessage = trimmedText || '[Hình ảnh]';
     session.lastMessageAt = new Date();
     session.unreadCount = 0; // CSKH has read the messages
     session.status = 'open';
@@ -102,7 +105,8 @@ class SupportChatController {
     const message = await SupportMessage.create({
       session: session._id,
       sender: cskhId,
-      text: text.trim()
+      text: trimmedText || undefined,
+      image: image || undefined
     });
 
     const populatedMessage = await SupportMessage.findById(message._id)
@@ -153,6 +157,13 @@ class SupportChatController {
       .populate('student', 'username email avatar premium')
       .populate('cskh', 'username email avatar')
       .lean();
+
+    // Broadcast session update to other CSKH agents so their unread indicators stay in sync
+    try {
+      getIO().to('cskh-agents').emit('support:session:updated', populatedSession);
+    } catch (err) {
+      console.warn('[Socket.IO] Support session read status emit failed:', err.message);
+    }
 
     res.json(ApiResponse.success({ session: populatedSession, messages }, 'Messages fetched'));
   });

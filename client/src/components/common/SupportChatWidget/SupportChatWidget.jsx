@@ -19,6 +19,27 @@ export default function SupportChatWidget() {
   const [messages, setMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [cskhIsTyping, setCskhIsTyping] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  const typingTimeoutRef = useRef(null);
+  const isTypingRef = useRef(false);
+
+  useEffect(() => {
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Track widget open state for global notification dedup (see SocketContext)
+  useEffect(() => {
+    window.__supportChatWidgetOpen = isOpen && activeTab === 'chat';
+    return () => {
+      window.__supportChatWidgetOpen = false;
+    };
+  }, [isOpen, activeTab]);
 
   // Feedback states
   const [fbTitle, setFbTitle] = useState('');
@@ -47,8 +68,8 @@ export default function SupportChatWidget() {
     setLoadingHistory(true);
     try {
       const res = await axiosClient.get('/support-chat/messages');
-      setSession(res.data.data.session);
-      setMessages(res.data.data.messages || []);
+      setSession(res.data.session);
+      setMessages(res.data.messages || []);
     } catch (err) {
       console.error('Failed to load chat history:', err);
     } finally {
@@ -59,34 +80,45 @@ export default function SupportChatWidget() {
   useEffect(() => {
     if (isOpen && activeTab === 'chat') {
       loadChatHistory();
+      setUnreadCount(0);
     }
   }, [isOpen, activeTab, loadChatHistory]);
 
   // Socket listener for new messages
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || !socket) return;
 
-    const handleNewMessage = (msg) => {
-      // Check if message belongs to this student session
-      if (session && msg.session === session._id) {
-        setMessages(prev => {
-          // Prevent duplicates
-          if (prev.some(m => m._id === msg._id)) return prev;
-          return [...prev, msg];
-        });
-      } else {
-        // Fallback: reload history if session isn't loaded yet
-        loadChatHistory();
+    const handleNewMessage = (payload) => {
+      // Support raw message or { message, session } payload formats
+      const msg = payload && payload.message ? payload.message : payload;
+      if (!msg || !msg._id || !msg.sender) return;
+
+      setMessages(prev => {
+        if (prev.some(m => m._id === msg._id)) return prev;
+        return [...prev, msg];
+      });
+
+      const isMe = msg.sender === user?._id || (msg.sender?._id === user?._id);
+      if (!isMe) {
+        if (!isOpen || activeTab !== 'chat') {
+          setUnreadCount(prev => prev + 1);
+          toast(`Tin nhắn mới từ Hỗ trợ viên: ${msg.text}`, { icon: '💬', id: msg._id });
+        }
       }
     };
 
-    const socketInst = socketRef.current;
-    socketInst?.on('support:message:receive', handleNewMessage);
+    const handleTypingStatus = (payload) => {
+      setCskhIsTyping(payload.isTyping);
+    };
+
+    socket.on('support:message:receive', handleNewMessage);
+    socket.on('support:typing:receive', handleTypingStatus);
 
     return () => {
-      socketInst?.off('support:message:receive', handleNewMessage);
+      socket.off('support:message:receive', handleNewMessage);
+      socket.off('support:typing:receive', handleTypingStatus);
     };
-  }, [isAuthenticated, session, socketRef, loadChatHistory]);
+  }, [isAuthenticated, socket, isOpen, activeTab, user]);
 
   // Send message
   const handleSendMessage = async (e) => {
@@ -96,14 +128,74 @@ export default function SupportChatWidget() {
     const textToSend = chatInput.trim();
     setChatInput('');
 
+    // Stop typing status immediately
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+    if (isTypingRef.current && socketRef.current) {
+      isTypingRef.current = false;
+      socketRef.current.emit('support:typing:send', { isTyping: false });
+    }
+
     try {
       const res = await axiosClient.post('/support-chat/messages', { text: textToSend });
       setMessages(prev => {
-        if (prev.some(m => m._id === res.data.data._id)) return prev;
-        return [...prev, res.data.data];
+        if (prev.some(m => m._id === res.data._id)) return prev;
+        return [...prev, res.data];
       });
     } catch {
       toast.error('Không thể gửi tin nhắn. Thử lại sau.');
+    }
+  };
+
+  const handleChatInputChange = (e) => {
+    const val = e.target.value;
+    setChatInput(val);
+
+    if (!socketRef.current) return;
+
+    if (!isTypingRef.current) {
+      isTypingRef.current = true;
+      socketRef.current.emit('support:typing:send', { isTyping: true });
+    }
+
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    typingTimeoutRef.current = setTimeout(() => {
+      isTypingRef.current = false;
+      socketRef.current.emit('support:typing:send', { isTyping: false });
+    }, 2500);
+  };
+
+  // Image Upload handler for Live Chat
+  const handleChatImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Ảnh không được vượt quá 5MB');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('image', file);
+
+    const loadingToastId = toast.loading('Đang gửi ảnh...');
+    try {
+      const res = await axiosClient.post('/media/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      
+      const messageRes = await axiosClient.post('/support-chat/messages', { image: res.url });
+      setMessages(prev => {
+        if (prev.some(m => m._id === messageRes.data._id)) return prev;
+        return [...prev, messageRes.data];
+      });
+      toast.success('Gửi ảnh thành công', { id: loadingToastId });
+    } catch {
+      toast.error('Gửi ảnh thất bại', { id: loadingToastId });
     }
   };
 
@@ -125,7 +217,7 @@ export default function SupportChatWidget() {
       const res = await axiosClient.post('/media/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      setFbAttachments(prev => [...prev, res.data.url]);
+      setFbAttachments(prev => [...prev, res.url]);
       toast.success('Tải ảnh lên thành công');
     } catch {
       toast.error('Tải ảnh lên thất bại');
@@ -186,8 +278,30 @@ export default function SupportChatWidget() {
         className="support-trigger-btn"
         onClick={() => setIsOpen(prev => !prev)}
         title="Trợ giúp & Hỗ trợ"
+        style={{ position: 'relative' }}
       >
         {isOpen ? <X size={24} /> : <MessageCircle size={24} />}
+        {unreadCount > 0 && !isOpen && (
+          <div className="support-badge-unread" style={{
+            position: 'absolute',
+            top: -6,
+            right: -6,
+            background: '#ef4444',
+            color: 'white',
+            borderRadius: '50%',
+            minWidth: 20,
+            height: 20,
+            fontSize: '0.75rem',
+            fontWeight: 'bold',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 2px 6px rgba(239, 68, 68, 0.4)',
+            border: '2px solid var(--bg-card, #ffffff)'
+          }}>
+            {unreadCount}
+          </div>
+        )}
       </button>
 
       {/* Chat Card */}
@@ -239,29 +353,62 @@ export default function SupportChatWidget() {
                 ) : (
                   <>
                     {messages.map((msg) => {
-                      const isMe = msg.sender === user._id || (msg.sender?._id === user._id);
+                      if (!msg || !msg.sender) return null;
+                      const isMe = msg.sender === user?._id || (msg.sender?._id === user?._id);
                       return (
                         <div key={msg._id} className={`support-chat-msg-row ${isMe ? 'sent' : 'received'}`}>
-                          <div className="support-bubble">
-                            {msg.text}
+                          <div className="support-bubble" style={{ padding: msg.image ? '4px' : '10px 14px', maxWidth: '75%', wordBreak: 'break-word' }}>
+                            {msg.image && (
+                              <a href={getFullUrl(msg.image)} target="_blank" rel="noopener noreferrer" title="Click để xem ảnh lớn">
+                                <img 
+                                  src={getFullUrl(msg.image)} 
+                                  alt="attachment" 
+                                  style={{ maxWidth: '100%', maxHeight: '180px', borderRadius: '8px', display: 'block', cursor: 'zoom-in' }} 
+                                />
+                              </a>
+                            )}
+                            {msg.text && (
+                              <div style={{ padding: msg.image ? '8px 10px 4px' : '0' }}>{msg.text}</div>
+                            )}
                           </div>
                         </div>
                       );
                     })}
+                    {cskhIsTyping && (
+                      <div className="support-chat-msg-row received">
+                        <div className="support-bubble typing-bubble" style={{ display: 'flex', alignItems: 'center', minHeight: 38 }}>
+                          <div className="typing-indicator-dots">
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </>
                 )}
                 <div ref={messageEndRef} />
               </div>
 
               {/* Chat Input */}
-              <form className="support-chat-footer" onSubmit={handleSendMessage}>
+              <form className="support-chat-footer" onSubmit={handleSendMessage} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <label className="support-chat-upload-btn" title="Gửi hình ảnh" style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', color: 'var(--text-muted, #94a3b8)', padding: '6px' }}>
+                  <ImageIcon size={18} />
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleChatImageUpload}
+                    style={{ display: 'none' }}
+                  />
+                </label>
                 <input
                   type="text"
                   className="support-chat-input"
                   placeholder="Nhập tin nhắn..."
                   value={chatInput}
-                  onChange={e => setChatInput(e.target.value)}
+                  onChange={handleChatInputChange}
                   disabled={loadingHistory}
+                  style={{ flex: 1 }}
                 />
                 <button 
                   type="submit" 
