@@ -382,11 +382,13 @@ const getFlashcardSet = async (req, res) => {
   const set = await FlashcardSet.findById(req.params.id)
     .populate('user', 'username avatar email')
     .populate('tags', 'name color')
-    .populate({
-      path: 'cards',
-      options: { sort: { order: 1 } },
-    });
+    .lean();
+    
   if (!set) throw new AppError('Flashcard set not found', 404);
+  
+  const cards = await Flashcard.find({ set: set._id }).sort({ order: 1 }).lean();
+  set.cards = cards;
+  
   res.json(ApiResponse.success(set, 'Flashcard set fetched'));
 };
 
@@ -615,6 +617,31 @@ const updateUserPremium = async (req, res) => {
   res.json(ApiResponse.success({ user, progress }, 'User premium status updated successfully'));
 };
 
+const updateUserStatus = async (req, res) => {
+  const { status } = req.body;
+  const userId = req.params.id;
+
+  if (!['active', 'locked'].includes(status)) {
+    throw new AppError('Invalid status', 400);
+  }
+
+  const user = await User.findById(userId);
+  if (!user) throw new AppError('User not found', 404);
+
+  if (req.user.role === 'cskh' && user.role === 'admin') {
+    throw new AppError('CSKH cannot modify Admin account status', 403);
+  }
+
+  if (user._id.toString() === req.user._id.toString() && status === 'locked') {
+    throw new AppError('Cannot lock your own account', 400);
+  }
+
+  user.status = status;
+  await user.save();
+
+  res.json(ApiResponse.success(user.toPublicProfile ? user.toPublicProfile() : user, 'User status updated successfully'));
+};
+
 const deleteUser = async (req, res) => {
   if (req.params.id === req.user._id.toString()) {
     throw new AppError('Cannot delete yourself', 400);
@@ -656,7 +683,7 @@ const getOrders = async (req, res) => {
   }
 
   const skip = (Number(page) - 1) * Number(limit);
-  const [orders, total] = await Promise.all([
+  const [orders, total, revenueResult] = await Promise.all([
     Order.find(filter)
       .populate('user', 'username email avatar')
       .sort({ createdAt: -1 })
@@ -664,11 +691,18 @@ const getOrders = async (req, res) => {
       .limit(Number(limit))
       .lean(),
     Order.countDocuments(filter),
+    Order.aggregate([
+      { $match: { status: 'completed' } },
+      { $group: { _id: null, total: { $sum: '$amount' } } }
+    ])
   ]);
+
+  const totalRevenue = revenueResult.length > 0 ? revenueResult[0].total : 0;
 
   res.json(ApiResponse.success({
     orders,
     total,
+    totalRevenue,
     page: Number(page),
     pages: Math.ceil(total / Number(limit))
   }, 'Orders fetched successfully'));
@@ -857,7 +891,7 @@ module.exports = {
   getFlashcardSets, getFlashcardSet, deleteFlashcardSet,
   getAllFolders, getFolder, deleteFolder,
   getCommunitySets, deleteCommunitySet,
-  getUsers, getUser, updateUser, updateUserRole, deleteUser,
+  getUsers, getUser, updateUser, updateUserRole, updateUserStatus, deleteUser,
   updateUserPremium, getOrders, verifyOrderPayment, updateOrderStatusManually,
   getCourseTree, reorderUnits, reorderLessons, reorderChallenges,
 };

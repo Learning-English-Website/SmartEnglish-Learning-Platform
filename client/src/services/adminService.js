@@ -67,6 +67,7 @@ export const adminService = {
   getUser: (id) => axiosClient.get(`${BASE}/users/${id}`),
   updateUser: (id, data) => axiosClient.put(`${BASE}/users/${id}`, data),
   updateUserRole: (id, role) => axiosClient.put(`${BASE}/users/${id}/role`, { role }),
+  updateUserStatus: (id, status) => axiosClient.put(`${BASE}/users/${id}/status`, { status }),
   updateUserPremium: (id, premiumType, durationDays) => axiosClient.put(`${BASE}/users/${id}/premium`, { premiumType, durationDays }),
   deleteUser: (id) => axiosClient.delete(`${BASE}/users/${id}`),
 

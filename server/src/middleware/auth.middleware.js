@@ -30,6 +30,10 @@ const authenticate = async (req, res, next) => {
       return next(new AppError('User no longer exists', 401));
     }
 
+    if (user.status === 'locked') {
+      return next(new AppError('Tài khoản của bạn đã bị tạm khóa bởi Quản trị viên.', 403));
+    }
+
     req.user = user;
     req.userId = user._id;
     next();

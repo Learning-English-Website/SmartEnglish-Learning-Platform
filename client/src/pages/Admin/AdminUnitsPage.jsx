@@ -216,7 +216,7 @@ export default function AdminUnitsPage() {
               </tbody>
             </table>
           </div>
-          {pages > 1 && (
+          {total > 0 && (
             <div className="admin-pagination">
               <button
                 className="admin-pagination-btn"

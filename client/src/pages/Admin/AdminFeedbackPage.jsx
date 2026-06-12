@@ -501,7 +501,7 @@ export default function AdminFeedbackPage() {
             </table>
           </div>
 
-          {totalPages > 1 && (
+          {total > 0 && (
             <div className="admin-pagination">
               <button
                 className="admin-pagination-btn"
