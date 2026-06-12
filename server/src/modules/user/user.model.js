@@ -39,6 +39,11 @@ const UserSchema = new Schema(
       enum: ROLE_ENUM,
       default: 'student',
     },
+    status: {
+      type: String,
+      enum: ['active', 'locked'],
+      default: 'active',
+    },
     avatar: {
       type: String,
       default: null,
@@ -122,6 +127,7 @@ UserSchema.methods.toPublicProfile = function () {
     email: this.email,
     username: this.username,
     role: this.role,
+    status: this.status,
     avatar: this.avatar,
     premium: this.premium,
     isVerified: this.isVerified,

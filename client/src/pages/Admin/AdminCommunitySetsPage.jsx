@@ -241,7 +241,7 @@ export default function AdminCommunitySetsPage() {
             </table>
           </div>
 
-          {pages > 1 && (
+          {total > 0 && (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem 0', flexWrap: 'wrap', gap: '0.5rem', marginTop: '1rem' }}>
               <p style={{ fontSize: '0.825rem', color: 'var(--text-muted)', margin: 0 }}>
                 Hiển thị {startItem}–{endItem} trong {total} sets

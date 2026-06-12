@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { adminService } from '../../services/adminService';
-import { CreditCard, Search, ChevronLeft, ChevronRight, X, Check, RefreshCw, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { CreditCard, Search, ChevronLeft, ChevronRight, X, Check, RefreshCw, AlertTriangle, ShieldCheck, DollarSign } from 'lucide-react';
 import toast from 'react-hot-toast';
 import './AdminPage.css';
 
@@ -116,6 +116,7 @@ function EditStatusModal({ isOpen, onClose, order, onConfirm }) {
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState([]);
   const [total, setTotal] = useState(0);
+  const [totalRevenue, setTotalRevenue] = useState(0);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [searchInput, setSearchInput] = useState('');
@@ -137,6 +138,7 @@ export default function AdminOrdersPage() {
       });
       setOrders(res.data.orders || []);
       setTotal(res.data.total || 0);
+      setTotalRevenue(res.data.totalRevenue || 0);
       setPage(res.data.page || 1);
     } catch {
       toast.error('Không thể tải danh sách giao dịch');
@@ -206,6 +208,15 @@ export default function AdminOrdersPage() {
 
       {/* Stats Cards */}
       <div className="admin-stats-grid">
+        <div className="admin-stat-card">
+          <div className="admin-stat-icon-wrap" style={{ background: 'rgba(139, 92, 246, 0.1)', color: '#8b5cf6' }}>
+            <DollarSign size={20} strokeWidth={2.5} />
+          </div>
+          <div className="admin-stat-info">
+            <span className="admin-stat-label">Tổng doanh thu</span>
+            <h3 className="admin-stat-value" style={{ color: '#8b5cf6' }}>{formatPrice(totalRevenue)}</h3>
+          </div>
+        </div>
         <div className="admin-stat-card">
           <div className="admin-stat-icon-wrap blue">
             <CreditCard size={20} strokeWidth={2.5} />
@@ -370,7 +381,7 @@ export default function AdminOrdersPage() {
             </table>
           </div>
 
-          {totalPages > 1 && (
+          {total > 0 && (
             <div className="admin-pagination">
               <button
                 className="admin-pagination-btn"

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Users, Search, Trash2, Shield, ChevronLeft, ChevronRight, X, Check, Star } from 'lucide-react';
+import { Users, Search, Trash2, Shield, ChevronLeft, ChevronRight, X, Check, Star, Lock, Unlock } from 'lucide-react';
 import { adminService } from '../../services/adminService';
 import { useAuth } from '../../hooks/useAuth';
 import toast from 'react-hot-toast';
@@ -52,6 +52,21 @@ function VerifiedBadge({ isVerified }) {
   ) : (
     <span style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 10px', borderRadius: '8px', fontSize: '0.7rem', fontWeight: 700, background: 'rgba(148, 163, 184, 0.1)', color: '#94a3b8', border: '1px solid rgba(148, 163, 184, 0.15)', textTransform: 'uppercase', letterSpacing: '0.2px' }}>
       Pending
+    </span>
+  );
+}
+
+function StatusBadge({ status }) {
+  if (status === 'locked') {
+    return (
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 10px', borderRadius: '8px', fontSize: '0.7rem', fontWeight: 700, background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.15)', textTransform: 'uppercase', letterSpacing: '0.2px' }}>
+        <Lock size={11} strokeWidth={3} /> Đang khóa
+      </span>
+    );
+  }
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 10px', borderRadius: '8px', fontSize: '0.7rem', fontWeight: 700, background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.15)', textTransform: 'uppercase', letterSpacing: '0.2px' }}>
+      Hoạt động
     </span>
   );
 }
@@ -384,6 +399,17 @@ export default function AdminUsersPage() {
     }
   };
 
+  const handleToggleStatus = async (user) => {
+    try {
+      const newStatus = user.status === 'locked' ? 'active' : 'locked';
+      await adminService.updateUserStatus(user._id, newStatus);
+      toast.success(`Đã ${newStatus === 'locked' ? 'khóa' : 'mở khóa'} tài khoản`);
+      loadUsers();
+    } catch (err) {
+      toast.error(err.response?.data?.error?.message || 'Cập nhật trạng thái thất bại');
+    }
+  };
+
   const formatDate = (dateStr) => {
     if (!dateStr) return '—';
     const d = new Date(dateStr);
@@ -498,6 +524,7 @@ export default function AdminUsersPage() {
                   <th>Email</th>
                   <th>Vai trò</th>
                   <th>Premium</th>
+                  <th>Trạng thái</th>
                   <th>Verified</th>
                   <th>XP</th>
                   <th>Level</th>
@@ -531,6 +558,7 @@ export default function AdminUsersPage() {
                       />
                     </td>
                     <td><PremiumBadge premium={u.premium} /></td>
+                    <td><StatusBadge status={u.status} /></td>
                     <td><VerifiedBadge isVerified={u.isVerified} /></td>
                     <td style={{ color: 'var(--text-body)', fontWeight: 600, fontSize: '0.85rem' }}>{u.gamification?.xp ?? 0}</td>
                     <td style={{ color: 'var(--text-body)', fontWeight: 600, fontSize: '0.85rem' }}>{u.gamification?.level ?? 1}</td>
@@ -565,6 +593,29 @@ export default function AdminUsersPage() {
                         <Star size={14} />
                       </button>
 
+                      <button
+                        className="btn-action"
+                        onClick={() => {
+                          if (currentUser?.role === 'cskh' && u.role === 'admin') {
+                            toast.error('Bạn không có quyền chỉnh sửa tài khoản Admin');
+                            return;
+                          }
+                          if (u._id === currentUser?._id) {
+                            toast.error('Không thể khóa tài khoản của chính mình');
+                            return;
+                          }
+                          handleToggleStatus(u);
+                        }}
+                        title={u.status === 'locked' ? 'Mở khóa' : 'Khóa tài khoản'}
+                        style={{
+                          color: u.status === 'locked' ? '#10b981' : '#ef4444',
+                          opacity: (u.role === 'admin' && currentUser?.role === 'cskh') || u._id === currentUser?._id ? 0.5 : 1,
+                          cursor: (u.role === 'admin' && currentUser?.role === 'cskh') || u._id === currentUser?._id ? 'not-allowed' : 'pointer'
+                        }}
+                      >
+                        {u.status === 'locked' ? <Unlock size={14} /> : <Lock size={14} />}
+                      </button>
+
                       {currentUser?.role !== 'cskh' && (
                         <button className="btn-action danger" onClick={() => setDeleteUser(u)} title="Xóa">
                           <Trash2 size={14} />
@@ -577,7 +628,7 @@ export default function AdminUsersPage() {
             </table>
           </div>
 
-          {totalPages > 1 && (
+          {total > 0 && (
             <div className="admin-pagination">
               <button
                 className="admin-pagination-btn"

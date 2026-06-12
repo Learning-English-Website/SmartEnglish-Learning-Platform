@@ -36,6 +36,7 @@ router.get('/users', adminOrCskh, adminController.getUsers);
 router.get('/users/:id', adminOrCskh, adminController.getUser);
 router.put('/users/:id', adminOnly, adminController.updateUser);
 router.put('/users/:id/role', adminOnly, adminController.updateUserRole);
+router.put('/users/:id/status', adminOnly, adminController.updateUserStatus);
 router.put('/users/:id/premium', adminOrCskh, adminController.updateUserPremium);
 router.delete('/users/:id', adminOnly, adminController.deleteUser);
 

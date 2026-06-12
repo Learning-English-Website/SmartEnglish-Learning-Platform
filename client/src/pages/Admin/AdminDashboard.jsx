@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { BookOpen, Layers, FileText, Target, BookMarked, FolderOpen, Users, Settings } from 'lucide-react';
+import { BookOpen, Layers, FileText, Target, BookMarked, FolderOpen, Users, Settings, DollarSign, CreditCard } from 'lucide-react';
 import { adminService } from '../../services/adminService';
 import './AdminDashboard.css';
 
@@ -7,6 +7,9 @@ export default function AdminDashboard() {
   const [duoStats, setDuoStats] = useState(null);
   const [quizletStats, setQuizletStats] = useState(null);
   const [userCount, setUserCount] = useState(null);
+  const [premiumUserCount, setPremiumUserCount] = useState(null);
+  const [orderCount, setOrderCount] = useState(null);
+  const [revenue, setRevenue] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -15,24 +18,35 @@ export default function AdminDashboard() {
       adminService.getFlashcardSets({ limit: 1 }),
       adminService.getAllFolders({ limit: 1 }),
       adminService.getUsers({ limit: 1 }),
-    ]).then(([duo, flashcards, folders, users]) => {
+      adminService.getOrders({ limit: 1 }),
+    ]).then(([duo, flashcards, folders, users, orders]) => {
       setDuoStats(duo.data || {});
       setQuizletStats({
         sets: flashcards.data?.total || 0,
         folders: folders.data?.total || 0,
       });
       setUserCount(users.data?.total || 0);
+      setPremiumUserCount(users.data?.premiumUsers || 0);
+      setOrderCount(orders.data?.total || 0);
+      setRevenue(orders.data?.totalRevenue || 0);
     }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
+  const formatPrice = (amount) => {
+    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+  };
+
   const cards = [
+    { label: 'Tổng doanh thu', value: revenue !== null ? formatPrice(revenue) : '—', icon: <DollarSign size={22} />, color: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.1)', key: 'revenue' },
+    { label: 'Tổng đơn hàng', value: orderCount, icon: <CreditCard size={22} />, color: '#0ea5e9', bg: 'rgba(14, 165, 233, 0.1)', key: 'orders' },
+    { label: 'Học viên Premium', value: premiumUserCount, icon: <Users size={22} />, color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.1)', key: 'premiumUsers' },
+    { label: 'Tổng người dùng', value: userCount, icon: <Users size={22} />, color: '#64748b', bg: '#f8fafc', key: 'users' },
     { label: 'Khóa học', value: duoStats?.courses, icon: <BookOpen size={22} />, color: '#3b82f6', bg: '#eff6ff', key: 'courses' },
     { label: 'Units', value: duoStats?.units, icon: <Layers size={22} />, color: '#22c55e', bg: '#f0fdf4', key: 'units' },
     { label: 'Lessons', value: duoStats?.lessons, icon: <FileText size={22} />, color: '#f97316', bg: '#fff7ed', key: 'lessons' },
     { label: 'Challenges', value: duoStats?.challenges, icon: <Target size={22} />, color: '#a855f7', bg: '#fdf4ff', key: 'challenges' },
     { label: 'Flashcard Sets', value: quizletStats?.sets, icon: <BookMarked size={22} />, color: '#0ea5e9', bg: '#f0f9ff', key: 'sets' },
     { label: 'Folders', value: quizletStats?.folders, icon: <FolderOpen size={22} />, color: '#f59e0b', bg: '#fffbeb', key: 'folders' },
-    { label: 'Users', value: userCount, icon: <Users size={22} />, color: '#64748b', bg: '#f8fafc', key: 'users' },
   ];
 
   return (

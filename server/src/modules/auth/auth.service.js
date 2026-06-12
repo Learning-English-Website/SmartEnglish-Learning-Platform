@@ -95,6 +95,10 @@ class AuthService {
       throw new AppError('Invalid email or password', 401);
     }
 
+    if (user.status === 'locked') {
+      throw new AppError('Tài khoản của bạn đã bị tạm khóa bởi Quản trị viên.', 403);
+    }
+
     const isMatch = await user.comparePassword(password);
     if (!isMatch) throw new AppError('Invalid email or password', 401);
     if (!user.isVerified) {
@@ -214,6 +218,9 @@ class AuthService {
 
     let user = await User.findOne({ email });
     if (user) {
+      if (user.status === 'locked') {
+        throw new AppError('Tài khoản của bạn đã bị tạm khóa bởi Quản trị viên.', 403);
+      }
       if (!user.oauth) user.oauth = {};
       if (!user.oauth.googleId) {
         user.oauth.googleId = payload.sub;
@@ -275,6 +282,9 @@ class AuthService {
 
     const user = await User.findById(userId);
     if (!user) throw new AppError('User not found', 401);
+    if (user.status === 'locked') {
+      throw new AppError('Tài khoản của bạn đã bị tạm khóa bởi Quản trị viên.', 403);
+    }
 
     const newAccessToken = generateAccessToken(user);
     const newRefreshToken = generateRefreshToken(user);

@@ -130,19 +130,16 @@ export default function AdminFlashcardSetsPage() {
       </div>
 
       <div className="admin-filter-bar">
-        <form onSubmit={handleSearch} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, maxWidth: 400 }}>
-          <div style={{ position: 'relative', flex: 1 }}>
-            <Search size={15} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
-            <input
-              type="text"
-              value={searchInput}
-              onChange={e => setSearchInput(e.target.value)}
-              placeholder="Tìm kiếm theo tiêu đề, mô tả..."
-              style={{ paddingLeft: 40, width: '100%', boxSizing: 'border-box' }}
-            />
-          </div>
-          <button type="submit" className="btn-primary-admin" style={{ padding: '10px 16px' }}>Tìm</button>
-        </form>
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+          <Search size={15} style={{ position: 'absolute', left: 14, color: 'var(--text-muted)', pointerEvents: 'none' }} />
+          <input
+            type="text"
+            placeholder="Tìm kiếm theo tiêu đề, mô tả..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            style={{ paddingLeft: 40, minWidth: 280 }}
+          />
+        </div>
       </div>
 
       {sets.length === 0 ? (
@@ -175,7 +172,7 @@ export default function AdminFlashcardSetsPage() {
                     <td className="admin-td-num">{(page - 1) * 10 + i + 1}</td>
                     <td className="admin-td-title">{s.title || '—'}</td>
                     <td className="admin-td-muted" title={s.description}>{s.description || '—'}</td>
-                    <td className="admin-td-muted">{s.owner?.username || s.owner?.email || '—'}</td>
+                    <td className="admin-td-muted">{s.user?.username || s.user?.email || '—'}</td>
                     <td style={{ textAlign: 'center', fontWeight: 600, color: 'var(--text-heading)' }}>{s.cardCount ?? s.cards?.length ?? 0}</td>
                     <td><span className="admin-badge" style={{ fontSize: '0.7rem' }}>{s.language || '—'}</span></td>
                     <td>
@@ -201,7 +198,7 @@ export default function AdminFlashcardSetsPage() {
             </table>
           </div>
 
-          {pages > 1 && (
+          {total > 0 && (
             <div className="admin-pagination">
               <button
                 className="admin-pagination-btn"
@@ -258,7 +255,7 @@ export default function AdminFlashcardSetsPage() {
                 </div>
                 <div className="form-group">
                   <label>Chủ sở hữu</label>
-                  <div style={{ padding: '10px 16px', background: 'var(--bg-page)', borderRadius: 10, fontWeight: 600, color: 'var(--text-heading)', border: '1px solid var(--border-subtle)' }}>{viewItem.owner?.username || viewItem.owner?.email || '—'}</div>
+                  <div style={{ padding: '10px 16px', background: 'var(--bg-page)', borderRadius: 10, fontWeight: 600, color: 'var(--text-heading)', border: '1px solid var(--border-subtle)' }}>{viewItem.user?.username || viewItem.user?.email || '—'}</div>
                 </div>
               </div>
               <div className="form-row">
