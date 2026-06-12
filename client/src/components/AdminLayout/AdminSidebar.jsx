@@ -6,7 +6,9 @@ import {
   MessageSquare, MessageCircle, CreditCard
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSocket } from '../../context/SocketContext';
+import axiosClient from '../../api/axiosClient';
 import './AdminSidebar.css';
 
 const CONTENT_ITEMS = [
@@ -40,6 +42,103 @@ export default function AdminSidebar({ collapsed, onToggle }) {
   const { user, logout } = useAuth();
   const location = useLocation();
   const isCskh = user?.role === 'cskh';
+  const { socket } = useSocket();
+
+  const [sessions, setSessions] = useState([]);
+  const [supportUnreadCount, setSupportUnreadCount] = useState(0);
+  const [pendingFeedbackCount, setPendingFeedbackCount] = useState(0);
+
+  // Load support sessions and pending feedback count on mount
+  useEffect(() => {
+    const isAgentOrAdmin = user?.role === 'admin' || user?.role === 'cskh';
+    if (!isAgentOrAdmin) return;
+
+    const fetchSessions = async () => {
+      try {
+        const res = await axiosClient.get('/support-chat/admin/sessions');
+        setSessions(res.data || []);
+      } catch (err) {
+        console.error('Failed to load support sessions in sidebar:', err);
+      }
+    };
+
+    const fetchPendingFeedback = async () => {
+      try {
+        const res = await axiosClient.get('/feedback/admin?status=pending&limit=1');
+        setPendingFeedbackCount(res.data?.total || 0);
+      } catch (err) {
+        console.error('Failed to load pending feedbacks in sidebar:', err);
+      }
+    };
+
+    fetchSessions();
+    fetchPendingFeedback();
+  }, [user]);
+
+  // Sync unread counts and pending feedbacks in real-time
+  useEffect(() => {
+    const isAgentOrAdmin = user?.role === 'admin' || user?.role === 'cskh';
+    if (!isAgentOrAdmin || !socket) return;
+
+    const handleNewMessage = (payload) => {
+      if (!payload || !payload.session) return;
+      const { session: updatedSession } = payload;
+      setSessions(prev => {
+        const index = prev.findIndex(s => s._id === updatedSession._id);
+        let newSessions = [...prev];
+        if (index !== -1) {
+          newSessions[index] = updatedSession;
+        } else if (updatedSession.status === 'open') {
+          newSessions.push(updatedSession);
+        }
+        return newSessions;
+      });
+    };
+
+    const handleSessionUpdated = (updatedSession) => {
+      if (!updatedSession) return;
+      setSessions(prev => {
+        if (updatedSession.status === 'closed') {
+          return prev.filter(s => s._id !== updatedSession._id);
+        }
+        const index = prev.findIndex(s => s._id === updatedSession._id);
+        let newSessions = [...prev];
+        if (index !== -1) {
+          newSessions[index] = updatedSession;
+        } else {
+          newSessions.push(updatedSession);
+        }
+        return newSessions;
+      });
+    };
+
+    const handleFeedbackChange = async () => {
+      try {
+        const res = await axiosClient.get('/feedback/admin?status=pending&limit=1');
+        setPendingFeedbackCount(res.data?.total || 0);
+      } catch (err) {
+        console.error('Failed to sync pending feedback count:', err);
+      }
+    };
+
+    socket.on('support:message:receive', handleNewMessage);
+    socket.on('support:session:updated', handleSessionUpdated);
+    socket.on('feedback:new', handleFeedbackChange);
+    socket.on('feedback:updated', handleFeedbackChange);
+
+    return () => {
+      socket.off('support:message:receive', handleNewMessage);
+      socket.off('support:session:updated', handleSessionUpdated);
+      socket.off('feedback:new', handleFeedbackChange);
+      socket.off('feedback:updated', handleFeedbackChange);
+    };
+  }, [socket, user]);
+
+  // Compute total unread count whenever sessions change
+  useEffect(() => {
+    const count = sessions.reduce((sum, s) => sum + (s.unreadCount || 0), 0);
+    setSupportUnreadCount(count);
+  }, [sessions]);
 
   return (
     <aside className={`admin-sidebar ${collapsed ? 'collapsed' : ''}`}>
@@ -107,19 +206,37 @@ export default function AdminSidebar({ collapsed, onToggle }) {
         <div className="admin-sidebar-section-label">
           {!collapsed && <span>{SECTION_LABELS.system}</span>}
         </div>
-        {SYSTEM_ITEMS.map(item => (
-          <NavLink
-            key={item.path}
-            to={item.path}
-            className={({ isActive }) =>
-              `admin-sidebar-item ${isActive || location.pathname === item.path ? 'active' : ''}`
-            }
-            title={collapsed ? item.label : undefined}
-          >
-            <span className="admin-sidebar-item-icon">{item.icon}</span>
-            {!collapsed && <span className="admin-sidebar-item-label">{item.label}</span>}
-          </NavLink>
-        ))}
+        {SYSTEM_ITEMS.map(item => {
+          const isSupport = item.path === '/admin/support-chat';
+          const isFeedback = item.path === '/admin/feedback';
+
+          let badgeCount = 0;
+          if (isSupport) badgeCount = supportUnreadCount;
+          else if (isFeedback) badgeCount = pendingFeedbackCount;
+
+          const hasBadge = badgeCount > 0;
+          const isActive = location.pathname === item.path;
+          return (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              className={({ isActive: linkActive }) =>
+                `admin-sidebar-item ${linkActive || location.pathname === item.path ? 'active' : ''}`
+              }
+              title={collapsed ? (hasBadge ? `${item.label} (${badgeCount})` : item.label) : undefined}
+            >
+              <span className="admin-sidebar-item-icon" style={{ position: 'relative' }}>
+                {item.icon}
+                {hasBadge && (
+                  <span className="admin-sidebar-badge-collapsed">
+                    {badgeCount}
+                  </span>
+                )}
+              </span>
+              {!collapsed && <span className="admin-sidebar-item-label">{item.label}</span>}
+            </NavLink>
+          );
+        })}
       </nav>
 
       {/* Bottom: user + logout */}

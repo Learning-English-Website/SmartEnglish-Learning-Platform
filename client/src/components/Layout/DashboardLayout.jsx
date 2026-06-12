@@ -9,6 +9,7 @@ import {
 import { useAuth } from '../../hooks/useAuth';
 import { folderService } from '../../api/folderService';
 import { useDarkMode } from '../../context/DarkModeContext';
+import { useSocket } from '../../context/SocketContext';
 import NotificationBell from '../notifications/NotificationBell';
 import SupportChatWidget from '../common/SupportChatWidget/SupportChatWidget';
 import './DashboardLayout.css';
@@ -28,6 +29,7 @@ export default function DashboardLayout({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const { unreadCount } = useSocket();
   const userMenuRef = useRef(null);
 
   const fetchFolders = useCallback(async () => {
@@ -282,7 +284,14 @@ export default function DashboardLayout({ children }) {
                 className={`q-nav-item ${isActive('/notifications') ? 'active' : ''}`}
                 onClick={closeMobileSidebar}
               >
-                <Bell size={17} />
+                <div className="q-nav-item-icon-wrap" style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Bell size={17} />
+                  {unreadCount > 0 && (
+                    <div className="q-nav-item-badge-collapsed">
+                      {unreadCount}
+                    </div>
+                  )}
+                </div>
                 <span>Thông báo</span>
               </NavLink>
             </div>

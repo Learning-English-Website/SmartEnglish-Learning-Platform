@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSocket } from '../../context/SocketContext';
 import { useAuth } from '../../hooks/useAuth';
 import axiosClient from '../../api/axiosClient';
-import { MessageSquare, Send, Check, ShieldAlert, Award, UserCheck, XCircle, User } from 'lucide-react';
+import { MessageSquare, Send, Check, ShieldAlert, Award, UserCheck, XCircle, User, Image as ImageIcon } from 'lucide-react';
 import toast from 'react-hot-toast';
 import './AdminPage.css';
 
@@ -16,8 +16,36 @@ export default function AdminSupportChatPage() {
   const [chatInput, setChatInput] = useState('');
   const [loadingSessions, setLoadingSessions] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
+  const [typingStudents, setTypingStudents] = useState({});
+
+  const typingTimeoutRef = useRef(null);
+  const isTypingRef = useRef(false);
 
   const messageEndRef = useRef(null);
+
+  // Clear typing state on session change
+  useEffect(() => {
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+    isTypingRef.current = false;
+  }, [selectedSession]);
+
+  // Track active session for global notification dedup (see SocketContext)
+  useEffect(() => {
+    window.__activeSupportStudentId = selectedSession?.student?._id || null;
+    return () => {
+      window.__activeSupportStudentId = null;
+    };
+  }, [selectedSession]);
+
+  useEffect(() => {
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Scroll to bottom helper
   const scrollToBottom = () => {
@@ -33,7 +61,7 @@ export default function AdminSupportChatPage() {
     setLoadingSessions(true);
     try {
       const res = await axiosClient.get('/support-chat/admin/sessions');
-      setSessions(res.data.data || []);
+      setSessions(res.data || []);
     } catch {
       toast.error('Không thể tải danh sách cuộc trò chuyện');
     } finally {
@@ -51,7 +79,7 @@ export default function AdminSupportChatPage() {
     setLoadingMessages(true);
     try {
       const res = await axiosClient.get(`/support-chat/admin/sessions/${session.student._id}/messages`);
-      setMessages(res.data.data.messages || []);
+      setMessages(res.data.messages || []);
       // Refresh session data (resets unreadCount)
       setSessions(prev =>
         prev.map(s => s._id === session._id ? { ...s, unreadCount: 0 } : s)
@@ -65,12 +93,13 @@ export default function AdminSupportChatPage() {
 
   // Socket listener
   useEffect(() => {
-    const socketInst = socketRef.current;
-    if (!socketInst) return;
+    if (!socket) return;
 
     // Listen for new support messages
     const handleNewMessage = (payload) => {
+      if (!payload || !payload.session || !payload.message) return;
       const { message, session: updatedSession } = payload;
+      if (!message || !message._id || !message.sender) return;
       
       // 1. Update session list in left panel
       setSessions(prev => {
@@ -90,11 +119,19 @@ export default function AdminSupportChatPage() {
         return newSessions.sort((a, b) => new Date(b.lastMessageAt) - new Date(a.lastMessageAt));
       });
 
+      const isMe = message.sender === currentUser?._id || message.sender?._id === currentUser?._id;
+
       // 2. If this message belongs to the currently selected session, append it
       if (selectedSession && message.session === selectedSession._id) {
         setMessages(prev => {
           if (prev.some(m => m._id === message._id)) return prev;
           return [...prev, message];
+        });
+      } else if (!isMe) {
+        // Show toast notification if we are not looking at this chat session
+        toast(`Tin nhắn mới từ ${updatedSession.student?.username || 'học viên'}: ${message.text}`, {
+          icon: '💬',
+          id: message._id
         });
       }
     };
@@ -127,14 +164,26 @@ export default function AdminSupportChatPage() {
       }
     };
 
-    socketInst.on('support:message:receive', handleNewMessage);
-    socketInst.on('support:session:updated', handleSessionUpdated);
+    const handleTypingStatus = (payload) => {
+      const { studentId, isTyping } = payload;
+      if (studentId) {
+        setTypingStudents(prev => ({
+          ...prev,
+          [studentId]: isTyping
+        }));
+      }
+    };
+
+    socket.on('support:message:receive', handleNewMessage);
+    socket.on('support:session:updated', handleSessionUpdated);
+    socket.on('support:typing:receive', handleTypingStatus);
 
     return () => {
-      socketInst.off('support:message:receive', handleNewMessage);
-      socketInst.off('support:session:updated', handleSessionUpdated);
+      socket.off('support:message:receive', handleNewMessage);
+      socket.off('support:session:updated', handleSessionUpdated);
+      socket.off('support:typing:receive', handleTypingStatus);
     };
-  }, [selectedSession, socketRef]);
+  }, [selectedSession, socket, currentUser]);
 
   // Send message
   const handleSendMessage = async (e) => {
@@ -144,17 +193,47 @@ export default function AdminSupportChatPage() {
     const textToSend = chatInput.trim();
     setChatInput('');
 
+    // Stop typing status immediately
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+    if (isTypingRef.current && socketRef.current) {
+      isTypingRef.current = false;
+      socketRef.current.emit('support:typing:send', { studentId: selectedSession.student._id, isTyping: false });
+    }
+
     try {
       const res = await axiosClient.post(`/support-chat/admin/sessions/${selectedSession.student._id}/messages`, {
         text: textToSend
       });
       setMessages(prev => {
-        if (prev.some(m => m._id === res.data.data._id)) return prev;
-        return [...prev, res.data.data];
+        if (prev.some(m => m._id === res.data._id)) return prev;
+        return [...prev, res.data];
       });
     } catch {
       toast.error('Không thể gửi tin nhắn. Thử lại sau.');
     }
+  };
+
+  const handleChatInputChange = (e) => {
+    const val = e.target.value;
+    setChatInput(val);
+
+    if (!socketRef.current || !selectedSession) return;
+
+    if (!isTypingRef.current) {
+      isTypingRef.current = true;
+      socketRef.current.emit('support:typing:send', { studentId: selectedSession.student._id, isTyping: true });
+    }
+
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    typingTimeoutRef.current = setTimeout(() => {
+      isTypingRef.current = false;
+      socketRef.current.emit('support:typing:send', { studentId: selectedSession.student._id, isTyping: false });
+    }, 2500);
   };
 
   // Assign session
@@ -162,7 +241,7 @@ export default function AdminSupportChatPage() {
     if (!selectedSession) return;
     try {
       const res = await axiosClient.put(`/support-chat/admin/sessions/${selectedSession.student._id}/assign`);
-      setSelectedSession(res.data.data);
+      setSelectedSession(res.data);
       toast.success('Đã nhận hỗ trợ cuộc trò chuyện này');
     } catch {
       toast.error('Gán hỗ trợ thất bại');
@@ -180,6 +259,46 @@ export default function AdminSupportChatPage() {
       loadSessions();
     } catch {
       toast.error('Đóng cuộc trò chuyện thất bại');
+    }
+  };
+
+  const getFullUrl = (url) => {
+    if (!url) return '';
+    if (url.startsWith('http')) return url;
+    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+    const normalizedBase = baseUrl.endsWith('/api') ? baseUrl.slice(0, -4) : baseUrl;
+    return `${normalizedBase}${url}`;
+  };
+
+  const handleChatImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedSession) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Ảnh không được vượt quá 5MB');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('image', file);
+
+    const loadingToastId = toast.loading('Đang gửi ảnh...');
+    try {
+      const res = await axiosClient.post('/media/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      
+      const messageRes = await axiosClient.post(`/support-chat/admin/sessions/${selectedSession.student._id}/messages`, {
+        image: res.url
+      });
+      
+      setMessages(prev => {
+        if (prev.some(m => m._id === messageRes.data._id)) return prev;
+        return [...prev, messageRes.data];
+      });
+      toast.success('Gửi ảnh thành công', { id: loadingToastId });
+    } catch {
+      toast.error('Gửi ảnh thất bại', { id: loadingToastId });
     }
   };
 
@@ -244,10 +363,12 @@ export default function AdminSupportChatPage() {
                             )}
                           </div>
                           <p style={{
-                            fontSize: '0.75rem', color: isSelected ? 'var(--text-body)' : 'var(--text-muted)',
-                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: '2px'
+                            margin: 0, fontSize: '0.75rem', color: isSelected ? 'rgba(255,255,255,0.8)' : 'var(--text-muted)',
+                            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                            fontStyle: typingStudents[s.student?._id] ? 'italic' : 'normal',
+                            fontWeight: typingStudents[s.student?._id] ? 700 : 'normal'
                           }}>
-                            {s.lastMessage || 'Bắt đầu chat...'}
+                            {typingStudents[s.student?._id] ? 'Đang soạn tin nhắn...' : (s.lastMessage || 'Bắt đầu chat...')}
                           </p>
                         </div>
                       </div>
@@ -360,11 +481,12 @@ export default function AdminSupportChatPage() {
                 ) : (
                   <>
                     {messages.map(msg => {
-                      const isMe = msg.sender === currentUser._id || msg.sender?._id === currentUser._id;
+                      if (!msg || !msg.sender) return null;
+                      const isMe = msg.sender === currentUser?._id || msg.sender?._id === currentUser?._id;
                       return (
                         <div key={msg._id} style={{ display: 'flex', justifyContent: isMe ? 'flex-end' : 'flex-start' }}>
                           <div style={{
-                            maxWidth: '70%', padding: '10px 14px', borderRadius: '12px',
+                            maxWidth: '70%', padding: msg.image ? '4px' : '10px 14px', borderRadius: '12px',
                             borderTopRightRadius: isMe ? '2px' : '12px',
                             borderTopLeftRadius: !isMe ? '2px' : '12px',
                             background: isMe ? 'var(--color-primary, #2563eb)' : 'var(--bg-card, #ffffff)',
@@ -373,18 +495,55 @@ export default function AdminSupportChatPage() {
                             boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
                             border: isMe ? 'none' : '1px solid var(--border-subtle)'
                           }}>
-                            {msg.text}
+                            {msg.image && (
+                              <a href={getFullUrl(msg.image)} target="_blank" rel="noopener noreferrer" title="Click để xem ảnh lớn">
+                                <img 
+                                  src={getFullUrl(msg.image)} 
+                                  alt="attachment" 
+                                  style={{ maxWidth: '100%', maxHeight: '220px', borderRadius: '8px', display: 'block', cursor: 'zoom-in' }} 
+                                />
+                              </a>
+                            )}
+                            {msg.text && (
+                              <div style={{ padding: msg.image ? '8px 10px 4px' : '0' }}>{msg.text}</div>
+                            )}
                           </div>
                         </div>
                       );
                     })}
+                    {typingStudents[selectedSession.student._id] && (
+                      <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+                        <div className="typing-bubble" style={{
+                          padding: '10px 14px', borderRadius: '12px',
+                          borderTopLeftRadius: '2px',
+                          background: 'var(--bg-card, #ffffff)',
+                          border: '1px solid var(--border-subtle)',
+                          display: 'flex', alignItems: 'center', minHeight: 38
+                        }}>
+                          <div className="typing-indicator-dots">
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </>
                 )}
                 <div ref={messageEndRef} />
               </div>
 
               {/* Input box */}
-              <form onSubmit={handleSendMessage} style={{ padding: '16px', borderTop: '1px solid var(--border-subtle)', display: 'flex', gap: '10px', background: 'var(--bg-card)' }}>
+              <form onSubmit={handleSendMessage} style={{ padding: '16px', borderTop: '1px solid var(--border-subtle)', display: 'flex', gap: '10px', background: 'var(--bg-card)', alignItems: 'center' }}>
+                <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', color: 'var(--text-muted, #94a3b8)', padding: '6px' }} title="Gửi hình ảnh">
+                  <ImageIcon size={20} />
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleChatImageUpload}
+                    style={{ display: 'none' }}
+                  />
+                </label>
                 <input
                   type="text"
                   className="form-control-admin"
@@ -394,7 +553,7 @@ export default function AdminSupportChatPage() {
                       : "Nhấp 'Nhận hỗ trợ' hoặc gõ tin nhắn để bắt đầu tư vấn..."
                   }
                   value={chatInput}
-                  onChange={e => setChatInput(e.target.value)}
+                  onChange={handleChatInputChange}
                   style={{ flex: 1, borderRadius: '24px' }}
                 />
                 <button

@@ -20,6 +20,13 @@ class FeedbackController {
       status: 'pending'
     });
 
+    try {
+      const { broadcastToRoom } = require('../../config/socketIO');
+      broadcastToRoom('cskh-agents', 'feedback:new', feedback);
+    } catch (err) {
+      console.error('Socket broadcast error in createFeedback:', err);
+    }
+
     res.status(201).json(ApiResponse.success(feedback, 'Feedback submitted successfully'));
   });
 
@@ -87,6 +94,9 @@ class FeedbackController {
       throw new AppError('Feedback not found', 404);
     }
 
+    const isNewReply = cskhReply !== undefined && cskhReply.trim() !== '' && cskhReply !== feedback.cskhReply;
+    const isStatusChanged = status !== undefined && status !== feedback.status;
+
     if (status) {
       if (!['pending', 'in_progress', 'resolved'].includes(status)) {
         throw new AppError('Invalid status value', 400);
@@ -103,6 +113,42 @@ class FeedbackController {
     }
 
     await feedback.save();
+
+    try {
+      const { broadcastToRoom } = require('../../config/socketIO');
+      broadcastToRoom('cskh-agents', 'feedback:updated', feedback);
+    } catch (err) {
+      console.error('Socket broadcast error in replyFeedback:', err);
+    }
+
+    // Trigger notification if a new reply was written or status was changed to resolved
+    if (isNewReply) {
+      try {
+        const notificationService = require('../notification/notification.service');
+        await notificationService.createNotification({
+          userId: feedback.user,
+          type: 'system',
+          title: 'Phản hồi góp ý & báo lỗi',
+          body: `Hỗ trợ viên đã trả lời góp ý "${feedback.title}": "${cskhReply.trim()}"`,
+          actionUrl: '/notifications'
+        });
+      } catch (err) {
+        console.error('[Feedback] Failed to create notification for student:', err.message);
+      }
+    } else if (isStatusChanged && status === 'resolved') {
+      try {
+        const notificationService = require('../notification/notification.service');
+        await notificationService.createNotification({
+          userId: feedback.user,
+          type: 'system',
+          title: 'Phản hồi góp ý & báo lỗi',
+          body: `Góp ý/báo lỗi "${feedback.title}" của bạn đã được giải quyết.`,
+          actionUrl: '/notifications'
+        });
+      } catch (err) {
+        console.error('[Feedback] Failed to create notification for student:', err.message);
+      }
+    }
     
     await feedback.populate('user', 'username email avatar');
     await feedback.populate('repliedBy', 'username email');
