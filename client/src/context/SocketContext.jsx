@@ -3,6 +3,7 @@ import { io } from 'socket.io-client';
 import { useSelector } from 'react-redux';
 import { selectAuth } from '../store/slices/authSlice';
 import { useGamification } from './GamificationContext';
+import { notificationService } from '../services/notificationService';
 import toast from 'react-hot-toast';
 
 const SocketContext = createContext(null);
@@ -19,6 +20,7 @@ const SOCKET_URL = (() => {
  */
 export function SocketProvider({ children }) {
   const socketRef = useRef(null);
+  const [socketState, setSocketState] = useState(null); // reactive mirror of socketRef
   const [isConnected, setIsConnected] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifications, setNotifications] = useState([]);
@@ -35,20 +37,21 @@ export function SocketProvider({ children }) {
   }, []);
 
   const connect = useCallback(() => {
-    if (!auth.isAuthenticated || !auth.user) return;
+    if (!auth.isAuthenticated) return;
     if (socketRef.current?.connected) return;
 
     const socket = io(SOCKET_URL, {
       withCredentials: true,
-      transports: ['websocket', 'polling'],
+      transports: ['polling', 'websocket'],
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionAttempts: 5,
     });
 
     socket.on('connect', () => {
-      console.log('[Socket] Connected:', socket.id, 'userId:', socket.userId);
+      console.log('[Socket] Connected:', socket.id);
       setIsConnected(true);
+      setSocketState(socket); // ← notify consumers that socket is ready
       window.dispatchEvent(new CustomEvent('socket:connected'));
     });
 
@@ -187,26 +190,41 @@ export function SocketProvider({ children }) {
       });
     });
 
+    socket.on('auth:status', (data) => {
+      console.log('[Socket] auth:status:', data);
+    });
+
     socketRef.current = socket;
-  }, [auth.isAuthenticated, auth.user, triggerRewards]);
+  }, [auth.isAuthenticated, triggerRewards]);
 
   const disconnect = useCallback(() => {
     if (socketRef.current) {
       socketRef.current.disconnect();
       socketRef.current = null;
+      setSocketState(null);
       setIsConnected(false);
     }
   }, []);
 
   // Auto-connect when authenticated, disconnect when logged out
   useEffect(() => {
-    if (auth.isAuthenticated && auth.user) {
+    if (auth.isAuthenticated) {
       connect();
+      // Fetch initial unread notifications count
+      const fetchUnreadCount = async () => {
+        try {
+          const res = await notificationService.getUnreadCount();
+          setUnreadCount(res.data?.unreadCount || 0);
+        } catch (err) {
+          console.error('[Socket] Failed to fetch unread count on connect:', err);
+        }
+      };
+      fetchUnreadCount();
     } else {
       disconnect();
     }
     return () => disconnect();
-  }, [auth.isAuthenticated, auth.user, connect, disconnect]);
+  }, [auth.isAuthenticated, connect, disconnect]);
 
   const markNotificationRead = useCallback((id) => {
     setUnreadCount(prev => Math.max(0, prev - 1));
@@ -229,7 +247,7 @@ export function SocketProvider({ children }) {
 
   return (
     <SocketContext.Provider value={{
-      socket: socketRef.current,
+      socket: socketState,  // ← reactive: consumers re-render when socket connects
       socketRef,
       isConnected,
       unreadCount,

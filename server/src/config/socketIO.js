@@ -71,6 +71,12 @@ const initSocketIO = (httpServer) => {
 
       // Notify others (if implementing presence/friends list later)
       socket.broadcast.emit('user:online', { userId: socket.userId });
+
+      // Tell client that auth succeeded
+      socket.emit('auth:status', { isAuthenticated: true, userId: socket.userId, role: socket.userRole });
+    } else {
+      // Tell client that auth failed (guest connection)
+      socket.emit('auth:status', { isAuthenticated: false });
     }
 
     // ── Client → Server events ───────────────────────────────────────────────
@@ -148,6 +154,26 @@ const initSocketIO = (httpServer) => {
     socket.on('leaderboard:request', async () => {
       // Will be handled by emitting leaderboard:update back
       socket.emit('leaderboard:request_ack', { received: true });
+    });
+
+    // Support typing status
+    socket.on('support:typing:send', (payload) => {
+      const { isTyping, studentId } = payload || {};
+      
+      if (socket.userRole === 'admin' || socket.userRole === 'cskh') {
+        if (studentId) {
+          socket.to(`user:${studentId}`).emit('support:typing:receive', {
+            isTyping
+          });
+        }
+      } else {
+        if (socket.userId) {
+          socket.to('cskh-agents').emit('support:typing:receive', {
+            studentId: socket.userId,
+            isTyping
+          });
+        }
+      }
     });
 
     // Disconnect
