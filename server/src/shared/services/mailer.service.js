@@ -37,7 +37,7 @@ class MailerService {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            from: process.env.SMTP_FROM || 'onboarding@resend.dev',
+            from: process.env.SMTP_FROM || 'Memoris <no-reply@memoris.site>',
             to: [to],
             subject: subject,
             text: text,

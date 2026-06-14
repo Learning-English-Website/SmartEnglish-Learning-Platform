@@ -14,6 +14,7 @@ const envSchema = Joi.object({
   SMTP_USER: Joi.string().optional(),
   SMTP_PASS: Joi.string().optional(),
   SMTP_FROM: Joi.string().optional(),
+  RESEND_API_KEY: Joi.string().optional(),
   CLIENT_URL: Joi.string().default('http://localhost:5173'),
 }).unknown();
 
