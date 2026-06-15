@@ -334,6 +334,9 @@ const deleteChallengeOption = async (req, res) => {
 // ── Admin Stats ──────────────────────────────────────────────────────────────
 
 const getStats = async (req, res) => {
+  const Order = require('../../models/order.model');
+  const range = parseInt(req.query.range) || 7;
+
   const [courses, units, lessons, challenges] = await Promise.all([
     Course.countDocuments(),
     Unit.countDocuments(),
@@ -341,11 +344,59 @@ const getStats = async (req, res) => {
     Challenge.countDocuments(),
   ]);
 
+  // Roles distribution
+  const roles = await User.aggregate([
+    { $group: { _id: "$role", count: { $sum: 1 } } }
+  ]);
+
+  // Challenge types distribution
+  const challengesByType = await Challenge.aggregate([
+    { $group: { _id: "$type", count: { $sum: 1 } } }
+  ]);
+
+  // Activity over selected range (User registrations, Orders, and Revenue)
+  const promises = [];
+  for (let i = range - 1; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    d.setHours(0, 0, 0, 0);
+    const start = d;
+    const end = new Date(d);
+    end.setHours(23, 59, 59, 999);
+
+    promises.push(
+      Promise.all([
+        User.countDocuments({ createdAt: { $gte: start, $lte: end } }),
+        Order.aggregate([
+          { $match: { createdAt: { $gte: start, $lte: end } } },
+          { $group: {
+              _id: null,
+              count: { $sum: 1 },
+              revenue: { $sum: { $cond: [ { $eq: ["$status", "completed"] }, "$amount", 0 ] } }
+            }
+          }
+        ]).then(r => r[0] || { count: 0, revenue: 0 })
+      ]).then(([regs, orderStats]) => {
+        return {
+          dateLabel: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+          registrations: regs,
+          orders: orderStats.count,
+          revenue: orderStats.revenue
+        };
+      })
+    );
+  }
+
+  const activity7Days = await Promise.all(promises);
+
   res.json(ApiResponse.success({
     courses,
     units,
     lessons,
     challenges,
+    roles,
+    challengesByType,
+    activity7Days
   }, 'Admin stats fetched'));
 };
 

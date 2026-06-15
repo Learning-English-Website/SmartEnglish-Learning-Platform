@@ -3,40 +3,14 @@ import {
   BookOpen, Layers, FileText, Target, LayoutDashboard,
   Settings, LogOut, ChevronLeft, ChevronRight,
   BookMarked, FolderOpen, Users, Grid3X3, Library,
-  MessageSquare, MessageCircle, CreditCard
+  MessageSquare, MessageCircle, CreditCard, Home,
+  ChevronDown, Maximize, Lock, User
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useState, useEffect } from 'react';
 import { useSocket } from '../../context/SocketContext';
 import axiosClient from '../../api/axiosClient';
 import './AdminSidebar.css';
-
-const CONTENT_ITEMS = [
-  { path: '/admin/dashboard', label: 'Tổng quan', icon: <LayoutDashboard size={18} /> },
-  { path: '/admin/courses', label: 'Khóa học', icon: <BookOpen size={18} /> },
-  { path: '/admin/units', label: 'Units', icon: <Layers size={18} /> },
-  { path: '/admin/lessons', label: 'Lessons', icon: <FileText size={18} /> },
-  { path: '/admin/challenges', label: 'Challenges', icon: <Target size={18} /> },
-];
-
-const QUIZLET_ITEMS = [
-  { path: '/admin/flashcards', label: 'Flashcard Sets', icon: <BookMarked size={18} /> },
-  { path: '/admin/folders', label: 'Folders', icon: <FolderOpen size={18} /> },
-  { path: '/admin/community', label: 'Cộng đồng', icon: <Grid3X3 size={18} /> },
-];
-
-const SYSTEM_ITEMS = [
-  { path: '/admin/users', label: 'Người dùng', icon: <Users size={18} /> },
-  { path: '/admin/orders', label: 'Đơn hàng', icon: <CreditCard size={18} /> },
-  { path: '/admin/feedback', label: 'Phản hồi & Báo lỗi', icon: <MessageSquare size={18} /> },
-  { path: '/admin/support-chat', label: 'Trò chuyện hỗ trợ', icon: <MessageCircle size={18} /> },
-];
-
-const SECTION_LABELS = {
-  content: 'Quản lý nội dung',
-  quizlet: 'Quizlet',
-  system: 'Hệ thống',
-};
 
 export default function AdminSidebar({ collapsed, onToggle }) {
   const { user, logout } = useAuth();
@@ -47,6 +21,39 @@ export default function AdminSidebar({ collapsed, onToggle }) {
   const [sessions, setSessions] = useState([]);
   const [supportUnreadCount, setSupportUnreadCount] = useState(0);
   const [pendingFeedbackCount, setPendingFeedbackCount] = useState(0);
+
+  // Collapsible menus state
+  const [openMenus, setOpenMenus] = useState({
+    home: true,
+    content: false,
+    quizlet: false,
+    system: false
+  });
+
+  const toggleMenu = (menuKey) => {
+    if (collapsed) {
+      // If collapsed, expand the sidebar first
+      onToggle();
+    }
+    setOpenMenus(prev => ({
+      ...prev,
+      [menuKey]: !prev[menuKey]
+    }));
+  };
+
+  // Automatically expand active menu on mount / route change
+  useEffect(() => {
+    const path = location.pathname;
+    if (path.includes('/admin/dashboard') || path === '/admin') {
+      setOpenMenus(prev => ({ ...prev, home: true }));
+    } else if (['/admin/courses', '/admin/units', '/admin/lessons', '/admin/challenges'].some(p => path.startsWith(p))) {
+      setOpenMenus(prev => ({ ...prev, content: true }));
+    } else if (['/admin/flashcards', '/admin/folders', '/admin/community'].some(p => path.startsWith(p))) {
+      setOpenMenus(prev => ({ ...prev, quizlet: true }));
+    } else if (['/admin/users', '/admin/orders', '/admin/feedback', '/admin/support-chat'].some(p => path.startsWith(p))) {
+      setOpenMenus(prev => ({ ...prev, system: true }));
+    }
+  }, [location.pathname]);
 
   // Load support sessions and pending feedback count on mount
   useEffect(() => {
@@ -140,128 +147,182 @@ export default function AdminSidebar({ collapsed, onToggle }) {
     setSupportUnreadCount(count);
   }, [sessions]);
 
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch((err) => {
+        console.error(`Error attempting to enable fullscreen: ${err.message}`);
+      });
+    } else {
+      document.exitFullscreen();
+    }
+  };
+
   return (
     <aside className={`admin-sidebar ${collapsed ? 'collapsed' : ''}`}>
-      {/* Logo */}
+      {/* Gentelella Logo Header */}
       <div className="admin-sidebar-logo">
-        <div className="admin-sidebar-logo-icon"><Settings size={20} color="#fff" /></div>
-        {!collapsed && (
-          <div className="admin-sidebar-logo-text">
-            <span className="admin-logo-title">SmartEnglish</span>
-            <span className="admin-logo-sub">{isCskh ? 'Support Panel' : 'Admin Panel'}</span>
-          </div>
-        )}
-        <button className="admin-sidebar-toggle" onClick={onToggle} title={collapsed ? 'Mở rộng' : 'Thu gọn'}>
-          {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
-        </button>
+        <div className="admin-logo-icon">
+          <span className="gentelella-logo-paw">🐾</span>
+        </div>
+        {!collapsed && <span className="gentelella-logo-text">Memoris</span>}
       </div>
 
-      {/* Nav */}
-      <nav className="admin-sidebar-nav">
-        {/* Content Management */}
-        {!isCskh && (
-          <>
-            <div className="admin-sidebar-section-label">
-              {!collapsed && <span>{SECTION_LABELS.content}</span>}
-            </div>
-            {CONTENT_ITEMS.map(item => (
-              <NavLink
-                key={item.path}
-                to={item.path}
-                className={({ isActive }) =>
-                  `admin-sidebar-item ${isActive || location.pathname === item.path ? 'active' : ''}`
-                }
-                title={collapsed ? item.label : undefined}
-              >
-                <span className="admin-sidebar-item-icon">{item.icon}</span>
-                {!collapsed && <span className="admin-sidebar-item-label">{item.label}</span>}
-              </NavLink>
-            ))}
-          </>
-        )}
-
-        {/* Quizlet */}
-        {!isCskh && (
-          <>
-            <div className="admin-sidebar-section-label">
-              {!collapsed && <span>{SECTION_LABELS.quizlet}</span>}
-            </div>
-            {QUIZLET_ITEMS.map(item => (
-              <NavLink
-                key={item.path}
-                to={item.path}
-                className={({ isActive }) =>
-                  `admin-sidebar-item ${isActive || location.pathname === item.path ? 'active' : ''}`
-                }
-                title={collapsed ? item.label : undefined}
-              >
-                <span className="admin-sidebar-item-icon">{item.icon}</span>
-                {!collapsed && <span className="admin-sidebar-item-label">{item.label}</span>}
-              </NavLink>
-            ))}
-          </>
-        )}
-
-        {/* System */}
-        <div className="admin-sidebar-section-label">
-          {!collapsed && <span>{SECTION_LABELS.system}</span>}
-        </div>
-        {SYSTEM_ITEMS.map(item => {
-          const isSupport = item.path === '/admin/support-chat';
-          const isFeedback = item.path === '/admin/feedback';
-
-          let badgeCount = 0;
-          if (isSupport) badgeCount = supportUnreadCount;
-          else if (isFeedback) badgeCount = pendingFeedbackCount;
-
-          const hasBadge = badgeCount > 0;
-          const isActive = location.pathname === item.path;
-          return (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              className={({ isActive: linkActive }) =>
-                `admin-sidebar-item ${linkActive || location.pathname === item.path ? 'active' : ''}`
-              }
-              title={collapsed ? (hasBadge ? `${item.label} (${badgeCount})` : item.label) : undefined}
-            >
-              <span className="admin-sidebar-item-icon" style={{ position: 'relative' }}>
-                {item.icon}
-                {hasBadge && (
-                  <span className="admin-sidebar-badge-collapsed">
-                    {badgeCount}
-                  </span>
-                )}
-              </span>
-              {!collapsed && <span className="admin-sidebar-item-label">{item.label}</span>}
-            </NavLink>
-          );
-        })}
-      </nav>
-
-      {/* Bottom: user + logout */}
-      <div className="admin-sidebar-bottom">
-        <div className="admin-sidebar-user">
-          <div className="admin-sidebar-avatar">
-            {user?.avatar
-              ? <img src={user.avatar} alt={user.username} />
-              : (user?.username?.charAt(0)?.toUpperCase() || 'A')
-            }
-          </div>
-          {!collapsed && (
-            <div className="admin-sidebar-user-info">
-              <span className="admin-sidebar-username">{user?.username || 'Admin'}</span>
-              <span className="admin-sidebar-role">{isCskh ? 'Chăm sóc khách hàng' : 'Quản trị viên'}</span>
+      {/* Welcome Section */}
+      <div className="admin-sidebar-welcome">
+        <div className="admin-welcome-avatar">
+          {user?.avatar ? (
+            <img src={user.avatar} alt={user.username} />
+          ) : (
+            <div className="admin-avatar-fallback">
+              {user?.username?.charAt(0).toUpperCase() || 'A'}
             </div>
           )}
         </div>
-        <NavLink to="/dashboard" className="admin-sidebar-item admin-sidebar-back" title="Về trang chính">
-          <span className="admin-sidebar-item-icon"><LayoutDashboard size={18} /></span>
-          {!collapsed && <span className="admin-sidebar-item-label">Về trang chính</span>}
-        </NavLink>
-        <button className="admin-sidebar-item admin-sidebar-logout" onClick={logout} title="Đăng xuất">
-          <span className="admin-sidebar-item-icon"><LogOut size={18} /></span>
-          {!collapsed && <span className="admin-sidebar-item-label">Đăng xuất</span>}
+        {!collapsed && (
+          <div className="admin-sidebar-welcome-info">
+            <span className="admin-welcome-greet">Chào mừng,</span>
+            <h2 className="admin-welcome-name">{user?.username || 'Quản trị viên'}</h2>
+          </div>
+        )}
+      </div>
+
+      {/* Main Navigation */}
+      <nav className="admin-sidebar-nav">
+        <div className="admin-sidebar-section-label">
+          {!collapsed && <span>Tổng quan</span>}
+        </div>
+
+        {/* Home Dropdown Menu */}
+        <div className={`admin-sidebar-menu-group ${openMenus.home ? 'is-open' : ''}`}>
+          <button 
+            className={`admin-sidebar-menu-header ${location.pathname === '/admin/dashboard' || location.pathname === '/admin' ? 'active-parent' : ''}`} 
+            onClick={() => toggleMenu('home')}
+          >
+            <span className="menu-header-icon"><Home size={16} /></span>
+            {!collapsed && <span className="menu-header-label">Trang chủ</span>}
+            {!collapsed && <ChevronDown size={12} className="menu-header-chevron" />}
+          </button>
+          <div className="admin-sidebar-submenu">
+            <NavLink 
+              to="/admin/dashboard" 
+              className={({ isActive }) => `admin-sidebar-submenu-item ${isActive || location.pathname === '/admin' ? 'active' : ''}`}
+            >
+              {!collapsed && <span className="submenu-dot">•</span>}
+              <span className="submenu-label">Bảng điều khiển</span>
+            </NavLink>
+          </div>
+        </div>
+
+        {/* Content Management Dropdown */}
+        {!isCskh && (
+          <div className={`admin-sidebar-menu-group ${openMenus.content ? 'is-open' : ''}`}>
+            <button 
+              className={`admin-sidebar-menu-header ${['/admin/courses', '/admin/units', '/admin/lessons', '/admin/challenges'].some(p => location.pathname.startsWith(p)) ? 'active-parent' : ''}`} 
+              onClick={() => toggleMenu('content')}
+            >
+              <span className="menu-header-icon"><BookOpen size={16} /></span>
+              {!collapsed && <span className="menu-header-label">Quản lý Nội dung</span>}
+              {!collapsed && <ChevronDown size={12} className="menu-header-chevron" />}
+            </button>
+            <div className="admin-sidebar-submenu">
+              <NavLink to="/admin/courses" className="admin-sidebar-submenu-item">
+                {!collapsed && <span className="submenu-dot">•</span>}
+                <span className="submenu-label">Khóa học</span>
+              </NavLink>
+              <NavLink to="/admin/units" className="admin-sidebar-submenu-item">
+                {!collapsed && <span className="submenu-dot">•</span>}
+                <span className="submenu-label">Chương học</span>
+              </NavLink>
+              <NavLink to="/admin/lessons" className="admin-sidebar-submenu-item">
+                {!collapsed && <span className="submenu-dot">•</span>}
+                <span className="submenu-label">Bài học</span>
+              </NavLink>
+              <NavLink to="/admin/challenges" className="admin-sidebar-submenu-item">
+                {!collapsed && <span className="submenu-dot">•</span>}
+                <span className="submenu-label">Thử thách</span>
+              </NavLink>
+            </div>
+          </div>
+        )}
+
+        {/* Quizlet Dropdown */}
+        {!isCskh && (
+          <div className={`admin-sidebar-menu-group ${openMenus.quizlet ? 'is-open' : ''}`}>
+            <button 
+              className={`admin-sidebar-menu-header ${['/admin/flashcards', '/admin/folders', '/admin/community'].some(p => location.pathname.startsWith(p)) ? 'active-parent' : ''}`} 
+              onClick={() => toggleMenu('quizlet')}
+            >
+              <span className="menu-header-icon"><BookMarked size={16} /></span>
+              {!collapsed && <span className="menu-header-label">Phân hệ Quizlet</span>}
+              {!collapsed && <ChevronDown size={12} className="menu-header-chevron" />}
+            </button>
+            <div className="admin-sidebar-submenu">
+              <NavLink to="/admin/flashcards" className="admin-sidebar-submenu-item">
+                {!collapsed && <span className="submenu-dot">•</span>}
+                <span className="submenu-label">Bộ thẻ học</span>
+              </NavLink>
+              <NavLink to="/admin/folders" className="admin-sidebar-submenu-item">
+                {!collapsed && <span className="submenu-dot">•</span>}
+                <span className="submenu-label">Thư mục</span>
+              </NavLink>
+              <NavLink to="/admin/community" className="admin-sidebar-submenu-item">
+                {!collapsed && <span className="submenu-dot">•</span>}
+                <span className="submenu-label">Cộng đồng</span>
+              </NavLink>
+            </div>
+          </div>
+        )}
+
+        {/* System Management Dropdown */}
+        <div className={`admin-sidebar-menu-group ${openMenus.system ? 'is-open' : ''}`}>
+          <button 
+            className={`admin-sidebar-menu-header ${['/admin/users', '/admin/orders', '/admin/feedback', '/admin/support-chat'].some(p => location.pathname.startsWith(p)) ? 'active-parent' : ''}`} 
+            onClick={() => toggleMenu('system')}
+          >
+            <span className="menu-header-icon"><Settings size={16} /></span>
+            {!collapsed && <span className="menu-header-label">Quản lý Hệ thống</span>}
+            {!collapsed && <ChevronDown size={12} className="menu-header-chevron" />}
+          </button>
+          <div className="admin-sidebar-submenu">
+            <NavLink to="/admin/users" className="admin-sidebar-submenu-item">
+              {!collapsed && <span className="submenu-dot">•</span>}
+              <span className="submenu-label">Người dùng</span>
+            </NavLink>
+            <NavLink to="/admin/orders" className="admin-sidebar-submenu-item">
+              {!collapsed && <span className="submenu-dot">•</span>}
+              <span className="submenu-label">Đơn hàng</span>
+            </NavLink>
+            <NavLink to="/admin/feedback" className="admin-sidebar-submenu-item" style={{ position: 'relative' }}>
+              {!collapsed && <span className="submenu-dot">•</span>}
+              <span className="submenu-label">Phản hồi & Lỗi</span>
+              {pendingFeedbackCount > 0 && (
+                <span className="sidebar-badge-count">{pendingFeedbackCount}</span>
+              )}
+            </NavLink>
+            <NavLink to="/admin/support-chat" className="admin-sidebar-submenu-item" style={{ position: 'relative' }}>
+              {!collapsed && <span className="submenu-dot">•</span>}
+              <span className="submenu-label">Hỗ trợ Chat</span>
+              {supportUnreadCount > 0 && (
+                <span className="sidebar-badge-count info-badge">{supportUnreadCount}</span>
+              )}
+            </NavLink>
+          </div>
+        </div>
+      </nav>
+
+      {/* Gentelella Footer Buttons */}
+      <div className="admin-sidebar-footer">
+        <a href="/profile" className="footer-action-btn" title="Cài đặt Profile">
+          <User size={15} />
+        </a>
+        <button className="footer-action-btn" onClick={toggleFullscreen} title="Toàn màn hình">
+          <Maximize size={15} />
+        </button>
+        <a href="/dashboard" className="footer-action-btn" title="Về trang chính">
+          <Home size={15} />
+        </a>
+        <button className="footer-action-btn logout-btn" onClick={logout} title="Đăng xuất">
+          <LogOut size={15} />
         </button>
       </div>
     </aside>

@@ -1,145 +1,211 @@
+/* ── Admin Topbar: Gentelella Alela! Theme ────────────────────────────────── */
+
 .admin-topbar {
-  height: 70px;
-  background: var(--bg-elevated);
-  border-bottom: 1px solid var(--border-subtle);
+  height: 57px;
+  background: #F7F7F7; /* Gentelella top bar light background */
+  border-bottom: 1px solid #D9DEE4;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 32px;
+  padding: 0 16px;
   flex-shrink: 0;
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.02);
-  z-index: 50;
+  z-index: 90;
   position: relative;
-  transition: all 0.3s;
+  box-sizing: border-box;
 }
 
-[data-theme="dark"] .admin-topbar {
-  background: rgba(21, 25, 34, 0.8);
-  backdrop-filter: blur(16px);
-  border-bottom-color: rgba(255, 255, 255, 0.05);
-}
-
-.admin-topbar-left {
+/* Toggle Menu Button */
+.admin-topbar-toggle-btn {
+  background: transparent;
+  border: none;
+  color: #2A3F54;
+  cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 16px;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
 }
 
-.admin-topbar-title {
-  font-size: 1.25rem;
-  font-weight: 750;
-  color: var(--text-heading);
-  letter-spacing: -0.5px;
-  margin: 0;
-  background: linear-gradient(135deg, var(--text-heading) 30%, var(--text-muted) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+.admin-topbar-toggle-btn:hover {
+  background-color: #EDEDED;
 }
 
+/* Right Side Elements */
 .admin-topbar-right {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 24px;
 }
 
-.admin-topbar-badge {
+/* Mail/Notification icon */
+.admin-topbar-notification {
+  color: #2A3F54;
+  text-decoration: none;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  transition: background-color 0.2s;
+}
+
+.admin-topbar-notification:hover {
+  background-color: #EDEDED;
+}
+
+.notification-badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  background: #1ABB9C; /* Emerald green badge like Gentelella reference */
+  color: white;
+  font-size: 0.65rem;
+  font-weight: 700;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 0 2px #F7F7F7;
+}
+
+/* User Account Area */
+.admin-topbar-user {
+  position: relative;
+}
+
+.admin-user-trigger {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 14px;
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(139, 92, 246, 0.08) 100%);
-  border: 1px solid rgba(99, 102, 241, 0.2);
-  border-radius: 30px;
-  font-size: 0.75rem;
-  font-weight: 650;
-  color: #6366f1;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.05);
-  transition: all 0.3s;
+  background: transparent;
+  border: none;
+  color: #5A738E;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 6px 12px;
+  border-radius: 4px;
+  transition: all 0.2s;
 }
 
-.admin-topbar-badge:hover {
-  border-color: rgba(99, 102, 241, 0.4);
-  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.12);
+.admin-user-trigger:hover {
+  background-color: #EDEDED;
+  color: #2A3F54;
 }
 
-.admin-topbar-dot {
-  width: 8px;
-  height: 8px;
+.admin-user-avatar {
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
-  background: #10b981;
-  box-shadow: 0 0 10px #10b981;
-  animation: pulse-dot 2s infinite;
+  overflow: hidden;
+  background: #EAEAEA;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #D9DEE4;
 }
 
-@keyframes pulse-dot {
-  0% {
-    transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
-  }
-  
-  70% {
-    transform: scale(1);
-    box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
-  }
-  
-  100% {
-    transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
-  }
+.admin-user-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
-@media (max-width: 640px) {
-  .admin-topbar {
-    padding: 0 16px;
-    height: 60px;
-  }
-  
-  .admin-topbar-title {
-    font-size: 1.1rem;
-  }
-  
-  .admin-topbar-badge {
-    padding: 4px 10px;
-    font-size: 0.7rem;
-  }
+.admin-avatar-fallback-small {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #2A3F54;
 }
 
-/* ── CSKH Mode Badge Style ──────────────────────────────────────────────── */
-
-.admin-topbar-badge.cskh-mode {
-  background: linear-gradient(135deg, rgba(236, 72, 153, 0.08) 0%, rgba(244, 63, 94, 0.08) 100%);
-  border-color: rgba(236, 72, 153, 0.2);
-  color: #ec4899;
-  box-shadow: 0 4px 12px rgba(236, 72, 153, 0.05);
+.admin-user-name {
+  max-width: 100px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.admin-topbar-badge.cskh-mode:hover {
-  border-color: rgba(236, 72, 153, 0.4);
-  box-shadow: 0 4px 16px rgba(236, 72, 153, 0.12);
+.admin-user-chevron {
+  color: #73879C;
+  transition: transform 0.2s;
 }
 
-.admin-topbar-badge.cskh-mode .admin-topbar-dot {
-  background: #ec4899;
-  box-shadow: 0 0 10px #ec4899;
-  animation: pulse-dot-cskh 2s infinite;
+.admin-user-chevron.rotate {
+  transform: rotate(180deg);
 }
 
-@keyframes pulse-dot-cskh {
-  0% {
-    transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgba(236, 72, 153, 0.7);
+/* Dropdown Menu */
+.admin-user-dropdown-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 8px;
+  width: 160px;
+  background: #FFFFFF;
+  border: 1px solid #D9DEE4;
+  border-radius: 4px;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  padding: 4px 0;
+  animation: dropdownFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transform-origin: top right;
+  z-index: 1000;
+}
+
+@keyframes dropdownFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-5px);
   }
-  
-  70% {
-    transform: scale(1);
-    box-shadow: 0 0 0 6px rgba(236, 72, 153, 0);
-  }
-  
-  100% {
-    transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgba(236, 72, 153, 0);
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
   }
 }
 
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  color: #5A738E;
+  font-size: 0.825rem;
+  text-decoration: none;
+  background: transparent;
+  border: none;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.dropdown-item:hover {
+  background-color: #F9F9F9;
+  color: #2A3F54;
+}
+
+.dropdown-item-icon {
+  color: #73879C;
+}
+
+.dropdown-divider {
+  height: 1px;
+  background-color: #E6E9ED;
+  margin: 4px 0;
+}
+
+.dropdown-item.logout-btn:hover {
+  background-color: #FDF2F2;
+}
+
+.text-danger {
+  color: #E74C3C !important;
+}

@@ -303,22 +303,22 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 20px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, #6366f1 0%, #7c3aed 100%);
+  padding: 9px 18px;
+  border-radius: 4px;
+  background: #1ABB9C; /* Gentelella Emerald Green */
   color: #ffffff;
-  border: none;
-  font-size: 0.875rem;
+  border: 1px solid #16a085;
+  font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.25s;
+  transition: all 0.2s ease;
   text-decoration: none;
-  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.25);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .btn-primary-admin:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(99, 102, 241, 0.35);
+  background: #16a085;
+  border-color: #148f77;
   color: #ffffff;
 }
 
@@ -336,22 +336,21 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 20px;
-  border-radius: 10px;
-  background: var(--bg-elevated);
-  color: var(--text-body);
-  border: 1px solid var(--border-subtle);
-  font-size: 0.875rem;
+  padding: 9px 18px;
+  border-radius: 4px;
+  background: #FFFFFF;
+  color: #5A738E;
+  border: 1px solid #D9DEE4;
+  font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.02);
+  transition: all 0.2s ease;
 }
 
 .btn-secondary-admin:hover {
-  background: rgba(99, 102, 241, 0.05);
-  border-color: rgba(99, 102, 241, 0.25);
-  color: #6366f1;
+  background: #EDEDED;
+  border-color: #C2C2C2;
+  color: #2A3F54;
 }
 
 .btn-danger-admin {
@@ -534,9 +533,8 @@
 }
 
 .form-control-admin:focus {
-  border-color: #6366f1;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
-  background: var(--bg-elevated);
+  border-color: #1ABB9C;
+  box-shadow: 0 0 0 3px rgba(26, 187, 156, 0.15);
 }
 
 .form-control-admin::placeholder {
@@ -590,6 +588,7 @@
   margin-top: 1.5rem;
   border-top: 1px dashed var(--border-subtle);
   padding-top: 1.25rem;
+  transition: all 0.25s ease-in-out;
 }
 
 .options-editor-header {
@@ -614,10 +613,10 @@
   gap: 0.75rem;
   margin-bottom: 0.75rem;
   padding: 10px 12px;
-  border-radius: 12px;
-  background: rgba(99, 102, 241, 0.02);
-  border: 1px solid rgba(99, 102, 241, 0.05);
-  transition: all 0.2s;
+  border-radius: 4px;
+  background: rgba(26, 187, 156, 0.02);
+  border: 1px solid rgba(26, 187, 156, 0.08);
+  transition: all 0.2s ease-in-out;
 }
 
 .option-item:focus-within {
@@ -699,15 +698,20 @@
 
 .admin-page-loading {
   text-align: center;
-  padding: 6rem 2rem;
+  min-height: 665px; /* Matches the table min-height */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   color: var(--text-muted);
+  box-sizing: border-box;
 }
 
 .admin-spinner {
   width: 44px;
   height: 44px;
-  border: 3px solid rgba(99, 102, 241, 0.1);
-  border-top-color: #6366f1;
+  border: 3px solid rgba(26, 187, 156, 0.1);
+  border-top-color: #1ABB9C;
   border-radius: 50%;
   animation: admin-spin 0.6s cubic-bezier(0.5, 0.1, 0.5, 0.9) infinite;
   margin: 0 auto 1.25rem;
@@ -790,10 +794,10 @@
 }
 
 .admin-pagination-btn.active {
-  background: linear-gradient(135deg, #6366f1 0%, #7c3aed 100%);
+  background: #1ABB9C;
   color: #ffffff;
   border-color: transparent;
-  box-shadow: 0 4px 10px rgba(99, 102, 241, 0.2);
+  box-shadow: 0 2px 6px rgba(26, 187, 156, 0.2);
 }
 
 .admin-pagination-btn:disabled {

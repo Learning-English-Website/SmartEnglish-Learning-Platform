@@ -11,7 +11,7 @@ export default function AdminLayout({ children }) {
     <div className={`admin-layout ${collapsed ? 'sidebar-collapsed' : ''}`}>
       <AdminSidebar collapsed={collapsed} onToggle={() => setCollapsed(v => !v)} />
       <div className="admin-layout-main">
-        <AdminTopbar />
+        <AdminTopbar collapsed={collapsed} onToggle={() => setCollapsed(v => !v)} />
         <main className="admin-layout-content">
           {children}
         </main>
@@ -19,3 +19,4 @@ export default function AdminLayout({ children }) {
     </div>
   );
 }
+

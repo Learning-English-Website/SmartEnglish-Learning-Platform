@@ -4,7 +4,7 @@ const BASE = '/admin';
 
 export const adminService = {
   // Stats
-  getStats: () => axiosClient.get(`${BASE}/stats`),
+  getStats: (params) => axiosClient.get(`${BASE}/stats`, { params }),
 
   // Courses
   getCourses: (params) => axiosClient.get(`${BASE}/courses`, { params }),
