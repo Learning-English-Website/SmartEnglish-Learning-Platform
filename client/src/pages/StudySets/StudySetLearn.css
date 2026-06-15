@@ -43,11 +43,13 @@
 
 /* Base Page */
 .ql2-page {
-  min-height: 100vh;
+  height: 100vh;
   background: linear-gradient(135deg, var(--ql2-surface-2) 0%, var(--ql2-surface) 100%);
   font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
   position: relative;
-  overflow-x: hidden;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Floating Decorations */
@@ -410,14 +412,17 @@
 .ql2-main {
   display: flex;
   justify-content: center;
+  align-items: center;
+  flex: 1;
   padding: 32px 24px;
   position: relative;
   z-index: 1;
+  overflow: hidden;
 }
 
 .ql2-card-wrapper {
   width: 100%;
-  max-width: 680px;
+  max-width: 900px;
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -1274,7 +1279,7 @@
 /* ── Premium Split Learn Layout ───────────────────────────────────────────── */
 
 .ql2-card-wrapper {
-  max-width: 960px !important; /* Scaled to 960px wide! */
+  max-width: 900px !important; /* Scaled to 900px wide! */
   width: 100%;
   transition: max-width 0.3s ease;
 }

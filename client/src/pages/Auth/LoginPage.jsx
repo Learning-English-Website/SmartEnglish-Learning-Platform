@@ -84,9 +84,10 @@ export default function LoginPage() {
   return (
     <div className="auth-page">
       <div className="auth-card">
-        {/* Header */}
         <div className="auth-header">
-          <div className="auth-logo">🧠</div>
+          <div className="auth-logo">
+            <img src="/uploads/logo_app.png" alt="Logo" style={{ height: '48px', objectFit: 'contain' }} />
+          </div>
           <h1 className="auth-title">Chào mừng quay trở lại</h1>
           <p className="auth-subtitle">Đăng nhập để tiếp tục học tập</p>
         </div>

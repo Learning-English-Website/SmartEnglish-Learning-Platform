@@ -28,7 +28,7 @@ export default function BulkAddModal({ show, onHide, onConfirm, loading = false 
       .filter(Boolean);
 
     if (lines.length === 0) {
-      setParseError('Chưa có dữ liệu nào để parse.');
+      setParseError('Chưa có dữ liệu nào để xử lý.');
       return;
     }
 
@@ -48,7 +48,7 @@ export default function BulkAddModal({ show, onHide, onConfirm, loading = false 
     });
 
     if (result.length === 0) {
-      setParseError(`Không parse được dòng nào. Định dạng: "term ${SEPARATOR} definition"`);
+      setParseError(`Không phân tích được dòng nào. Định dạng chuẩn: "Từ tiếng Anh ${SEPARATOR} Nghĩa tiếng Việt"`);
       return;
     }
 
@@ -76,7 +76,7 @@ export default function BulkAddModal({ show, onHide, onConfirm, loading = false 
     <BsModal show={show} onHide={handleClose} centered size="lg" className="bulk-modal">
       <BsModal.Header closeButton className="bulk-modal-header">
         <BsModal.Title className="bulk-modal-title">
-          Add Multiple Cards
+          Thêm nhiều thẻ cùng lúc
         </BsModal.Title>
       </BsModal.Header>
 
@@ -86,7 +86,7 @@ export default function BulkAddModal({ show, onHide, onConfirm, loading = false 
             {/* Instructions */}
             <div className="bulk-instructions">
               <p>Nhập mỗi thẻ trên một dòng theo định dạng:</p>
-              <code className="bulk-format">term {SEPARATOR} definition</code>
+              <code className="bulk-format">Từ tiếng Anh {SEPARATOR} Nghĩa tiếng Việt</code>
               <p className="bulk-example-label">Ví dụ:</p>
               <pre className="bulk-example">
 {`Hello | Xin chào
@@ -112,7 +112,7 @@ Thank you | Cảm ơn`}
             {/* Preview Table */}
             <div className="bulk-preview-header">
               <p className="bulk-preview-count">
-                ✅ <strong>{parsed.length}</strong> cards sẽ được tạo
+                ✅ <strong>{parsed.length}</strong> thẻ sẽ được tạo
               </p>
               {parseError && <p className="bulk-parse-error">{parseError}</p>}
             </div>
@@ -122,8 +122,8 @@ Thank you | Cảm ơn`}
                 <thead>
                   <tr>
                     <th>#</th>
-                    <th>TERM</th>
-                    <th>DEFINITION</th>
+                    <th>TỪ TIẾNG ANH</th>
+                    <th>NGHĨA TIẾNG VIỆT</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -143,12 +143,12 @@ Thank you | Cảm ơn`}
 
       <BsModal.Footer className="bulk-modal-footer">
         <Button variant="outline-secondary" onClick={handleClose} disabled={loading}>
-          Cancel
+          Hủy
         </Button>
 
         {!previewing ? (
           <button className="bulk-btn bulk-btn--preview" onClick={parseLines}>
-            <FiEye size={14} /> Preview ({text.split('\n').filter(l => l.trim()).length} lines)
+            <FiEye size={14} /> Xem trước ({text.split('\n').filter(l => l.trim()).length} dòng)
           </button>
         ) : (
           <>
@@ -157,7 +157,7 @@ Thank you | Cảm ơn`}
               onClick={() => setPreviewing(false)}
               disabled={loading}
             >
-              ← Edit
+              ← Sửa
             </button>
             <button
               className="bulk-btn bulk-btn--confirm"
@@ -166,7 +166,7 @@ Thank you | Cảm ơn`}
             >
               {loading
                 ? <span className="spinner-border spinner-border-sm" />
-                : <><FiUpload size={14} /> Add {parsed.length} Cards</>
+                : <><FiUpload size={14} /> Thêm {parsed.length} Thẻ</>
               }
             </button>
           </>

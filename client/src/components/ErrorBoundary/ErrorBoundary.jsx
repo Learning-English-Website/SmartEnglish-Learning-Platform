@@ -57,10 +57,10 @@ export default class ErrorBoundary extends Component {
                 marginBottom: 8,
               }}
             >
-              Something went wrong
+              Đã xảy ra lỗi
             </h1>
             <p style={{ color: 'var(--text-muted)', marginBottom: 24 }}>
-              We encountered an unexpected error. Please try refreshing the page.
+              Chúng tôi đã gặp sự cố không mong muốn. Vui lòng tải lại trang.
             </p>
             <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
               <Button
@@ -78,7 +78,7 @@ export default class ErrorBoundary extends Component {
                 }}
               >
                 <FiRefreshCw size={16} />
-                Back to Home
+                Quay lại Trang chủ
               </Button>
             </div>
           </Container>

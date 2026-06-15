@@ -7,17 +7,17 @@ export default function Footer() {
     <footer className="memoris-footer">
       <Container>
         <div className="footer-content">
-          <div className="footer-brand">
-            <span>🧠</span>
+          <div className="footer-brand d-flex align-items-center">
+            <img src="/uploads/logo_app.png" alt="Memoris Logo" style={{ height: '24px', marginRight: '8px', objectFit: 'contain' }} />
             <span className="footer-brand-name">Memoris</span>
           </div>
-          <p className="footer-tagline">Learn smarter, remember longer.</p>
+          <p className="footer-tagline">Học thông minh hơn, nhớ lâu hơn.</p>
           <div className="footer-links">
-            <Link to="/">Home</Link>
-            <Link to="/dashboard">Dashboard</Link>
-            <Link to="/quizlet">Flashcards</Link>
+            <Link to="/">Trang chủ</Link>
+            <Link to="/dashboard">Bảng điều khiển</Link>
+            <Link to="/quizlet">Thẻ ghi nhớ</Link>
           </div>
-          <p className="footer-copy">© {new Date().getFullYear()} Memoris. All rights reserved.</p>
+          <p className="footer-copy">© {new Date().getFullYear()} Memoris. Mọi quyền được bảo lưu.</p>
         </div>
       </Container>
     </footer>

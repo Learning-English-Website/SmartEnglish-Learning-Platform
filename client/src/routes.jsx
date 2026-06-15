@@ -38,7 +38,8 @@ const FolderPage = lazy(() => import('./pages/Quizlet/FolderPage'));
 const StudySetCreate = lazy(() => import('./pages/StudySets/StudySetCreate'));
 const StudySetDetail = lazy(() => import('./pages/StudySets/StudySetDetail'));
 const StudySetLearn = lazy(() => import('./pages/StudySets/StudySetLearn'));
-const LearnPage = lazy(() => import('./pages/LearnPage/LearnPage'));
+const LearnNewPage = lazy(() => import('./pages/StudySets/LearnNewPage'));
+const ReviewPage = lazy(() => import('./pages/StudySets/ReviewPage'));
 const ExploreSetsPage = lazy(() => import('./pages/Quizlet/ExploreSets'));
 const NotificationsPage = lazy(() => import('./pages/Notifications/NotificationsPage'));
 const ProPage = lazy(() => import('./pages/Pro/ProPage'));
@@ -148,6 +149,8 @@ const router = createBrowserRouter([
       { path: '/study-sets/:id/test', element: withSuspense(<StudyPage />) },
       { path: '/study-sets/:id/match', element: withSuspense(<StudyPage />) },
       { path: '/study-sets/:id/learn', element: withSuspense(<StudySetLearn />) },
+      { path: '/flashcards/learn-new', element: withSuspense(<LearnNewPage />) },
+      { path: '/flashcards/review', element: withSuspense(<ReviewPage />) },
     ],
   },
 

@@ -36,11 +36,11 @@ export default function Modal({
   );
 }
 
-export function ConfirmModal({ show, onHide, onConfirm, title = 'Confirm', message, confirmText = 'Confirm', confirmVariant = 'danger', loading = false }) {
+export function ConfirmModal({ show, onHide, onConfirm, title = 'Xác nhận', message, confirmText = 'Xác nhận', confirmVariant = 'danger', loading = false }) {
   return (
     <Modal show={show} onHide={onHide} title={title} size="sm" footer={
       <>
-        <Button variant="outline-secondary" onClick={onHide} disabled={loading}>Cancel</Button>
+        <Button variant="outline-secondary" onClick={onHide} disabled={loading}>Hủy</Button>
         <Button variant={confirmVariant} onClick={onConfirm} disabled={loading}>
           {loading ? <span className="spinner-border spinner-border-sm" /> : confirmText}
         </Button>

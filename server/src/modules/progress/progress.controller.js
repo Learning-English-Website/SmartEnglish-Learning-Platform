@@ -18,14 +18,14 @@ const updateCardProgress = asyncHandler(async (req, res) => {
   console.log('[Progress Controller] updateCardProgress:', { userId: req.userId, cardId: req.params.cardId, body: req.body });
   const { quality } = req.body;
 
-  if (quality === undefined || quality < 0 || quality > 3) {
+  if (quality === undefined || ![0, 3, 4, 5].includes(Number(quality))) {
     return res.status(400).json({
       success: false,
-      error: { code: 'INVALID_QUALITY', message: 'Quality must be between 0 and 3' }
+      error: { code: 'INVALID_QUALITY', message: 'Quality must be one of [0, 3, 4, 5]' }
     });
   }
 
-  const progress = await progressService.updateCardProgress(req.userId, req.params.cardId, quality);
+  const progress = await progressService.updateCardProgress(req.userId, req.params.cardId, Number(quality));
   res.json({ success: true, data: progress });
 });
 
@@ -111,6 +111,61 @@ const getLearningForecast = asyncHandler(async (req, res) => {
   res.json({ success: true, data: forecast });
 });
 
+
+/**
+ * Safe, idempotent complete learning
+ * PUT /api/progress/cards/:cardId/complete-learning
+ */
+const completeLearning = asyncHandler(async (req, res) => {
+  const progress = await progressService.completeLearning(req.userId, req.params.cardId);
+  res.json({ success: true, data: progress });
+});
+
+/**
+ * Get new cards for study (excluding cards already in LEARNING/REVIEW)
+ * GET /api/progress/new-cards
+ */
+const getNewCards = asyncHandler(async (req, res) => {
+  const { setId, limit } = req.query;
+  const cards = await progressService.getNewCards(req.userId, setId, limit);
+  res.json({ success: true, data: cards });
+});
+
+/**
+ * Get due cards for spaced repetition review
+ * GET /api/progress/due-cards
+ */
+const getDueCards = asyncHandler(async (req, res) => {
+  const { setId } = req.query;
+  const cards = await progressService.getDueCards(req.userId, setId);
+  res.json({ success: true, data: cards });
+});
+
+/**
+ * Update flashcardStatus for a card
+ * PUT /api/progress/cards/:cardId/flashcard-status
+ */
+const updateFlashcardStatus = asyncHandler(async (req, res) => {
+  const { status } = req.body;
+  if (!status) {
+    return res.status(400).json({
+      success: false,
+      error: { code: 'MISSING_STATUS', message: 'Status is required' }
+    });
+  }
+  const progress = await progressService.updateFlashcardStatus(req.userId, req.params.cardId, status);
+  res.json({ success: true, data: progress });
+});
+
+/**
+ * Reset flashcardStatus to NEW for all cards in a set
+ * POST /api/progress/sets/:setId/reset-flashcards
+ */
+const resetSetFlashcardProgress = asyncHandler(async (req, res) => {
+  const result = await progressService.resetSetFlashcardProgress(req.userId, req.params.setId);
+  res.json({ success: true, data: result });
+});
+
 module.exports = {
   getCardProgress,
   updateCardProgress,
@@ -122,4 +177,9 @@ module.exports = {
   getOverallStats,
   getStudyCalendar,
   getLearningForecast,
+  completeLearning,
+  getNewCards,
+  getDueCards,
+  updateFlashcardStatus,
+  resetSetFlashcardProgress,
 };

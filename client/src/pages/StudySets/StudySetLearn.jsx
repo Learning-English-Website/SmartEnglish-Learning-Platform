@@ -135,6 +135,9 @@ export default function StudySetLearn() {
   const [studySet, setStudySet] = useState(null);
   const [cards, setCards] = useState([]);
   const [cardProgressMap, setCardProgressMap] = useState(new Map());
+  const [cardStreaks, setCardStreaks] = useState(new Map());
+  const cardStreaksRef = useRef(new Map());
+  const completedCardIdsRef = useRef(new Set());
   const [loading, setLoading] = useState(true);
   const [sessionItems, setSessionItems] = useState([]);
   const [currentBatchIdx, setCurrentBatchIdx] = useState(0);
@@ -160,6 +163,7 @@ export default function StudySetLearn() {
 
   const inputRef = useRef(null);
   const audioRef = useRef(null);
+  const answeredRef = useRef(false);
 
   const currentItem = batchQueue[queueIdx] || null;
   const totalItems = sessionItems.length;
@@ -187,26 +191,36 @@ export default function StudySetLearn() {
   }, [soundEnabled]);
 
   const handleAnswer = useCallback((opt) => {
-    if (answered || !currentItem) return;
+    if (answeredRef.current || !currentItem) return;
     setSelectedOption(opt.id);
+    answeredRef.current = true;
     setAnswered(true);
     const correct_ = opt.id === currentItem._id;
     setIsCorrect(correct_);
     setItemResults(prev => new Map(prev).set(currentItem.itemId, correct_));
 
-    // Save progress to server
-    progressService.updateCardProgress(currentItem._id, correct_ ? 3 : 0).catch(err => {
-      console.error('[LearnProgress] Failed to save card progress:', err);
-    });
-
     if (correct_) {
       playCorrectSound();
-      setBatchProgress(prev => {
-        const next = new Map(prev);
-        const bp = next.get(currentBatchIdx) || { correct: 0 };
+    }
+
+    const currentStreak = cardStreaksRef.current.get(currentItem._id) || 0;
+    const newStreak = correct_ ? currentStreak + 1 : 0;
+    cardStreaksRef.current.set(currentItem._id, newStreak);
+    setCardStreaks(new Map(cardStreaksRef.current));
+
+    if (newStreak >= 2 && !completedCardIdsRef.current.has(currentItem._id)) {
+      completedCardIdsRef.current.add(currentItem._id);
+      progressService.completeLearning(currentItem._id).catch(err => {
+        console.error('[LearnProgress] Failed to complete learning:', err);
+      });
+
+      setBatchProgress(prevBp => {
+        const nextBp = new Map(prevBp);
+        const bp = nextBp.get(currentBatchIdx) || { correct: 0 };
         const newCorrect = bp.correct + 1;
         const actualBatchSize = getBatchSize(currentBatchIdx, totalItems, totalBatches_);
-        next.set(currentBatchIdx, { correct: newCorrect });
+        nextBp.set(currentBatchIdx, { correct: newCorrect });
+
         if (newCorrect >= actualBatchSize) {
           if (currentBatchIdx + 1 >= totalBatches_) {
             console.log('[LearnProgress] handleAnswer: finished last round. Clearing learn_round');
@@ -227,31 +241,41 @@ export default function StudySetLearn() {
             setScreen('batch-complete');
           }
         }
-        return next;
+        return nextBp;
       });
     }
-  }, [answered, currentItem, currentBatchIdx, totalBatches_, totalItems, playCorrectSound, triggerRewards]);
+  }, [answered, currentItem, currentBatchIdx, totalBatches_, totalItems, playCorrectSound, triggerRewards, id]);
 
   const handleTypeAnswer = useCallback(() => {
-    if (answered || !typedAnswer.trim() || !currentItem) return;
+    if (answeredRef.current || !typedAnswer.trim() || !currentItem) return;
+    answeredRef.current = true;
     setAnswered(true);
     const correct_ = typedAnswer.trim().toLowerCase() === currentItem.front.trim().toLowerCase();
     setIsCorrect(correct_);
     setItemResults(prev => new Map(prev).set(currentItem.itemId, correct_));
 
-    // Save progress to server
-    progressService.updateCardProgress(currentItem._id, correct_ ? 3 : 0).catch(err => {
-      console.error('[LearnProgress] Failed to save card progress:', err);
-    });
-
     if (correct_) {
       playCorrectSound();
-      setBatchProgress(prev => {
-        const next = new Map(prev);
-        const bp = next.get(currentBatchIdx) || { correct: 0 };
+    }
+
+    const currentStreak = cardStreaksRef.current.get(currentItem._id) || 0;
+    const newStreak = correct_ ? currentStreak + 1 : 0;
+    cardStreaksRef.current.set(currentItem._id, newStreak);
+    setCardStreaks(new Map(cardStreaksRef.current));
+
+    if (newStreak >= 2 && !completedCardIdsRef.current.has(currentItem._id)) {
+      completedCardIdsRef.current.add(currentItem._id);
+      progressService.completeLearning(currentItem._id).catch(err => {
+        console.error('[LearnProgress] Failed to complete learning:', err);
+      });
+
+      setBatchProgress(prevBp => {
+        const nextBp = new Map(prevBp);
+        const bp = nextBp.get(currentBatchIdx) || { correct: 0 };
         const newCorrect = bp.correct + 1;
-        next.set(currentBatchIdx, { correct: newCorrect });
         const actualBatchSize = getBatchSize(currentBatchIdx, totalItems, totalBatches_);
+        nextBp.set(currentBatchIdx, { correct: newCorrect });
+
         if (newCorrect >= actualBatchSize) {
           if (currentBatchIdx + 1 >= totalBatches_) {
             console.log('[LearnProgress] handleTypeAnswer: finished last round. Clearing learn_round');
@@ -272,44 +296,38 @@ export default function StudySetLearn() {
             setScreen('batch-complete');
           }
         }
-        return next;
+        return nextBp;
       });
     }
-  }, [answered, typedAnswer, currentItem, currentBatchIdx, totalBatches_, totalItems, playCorrectSound, triggerRewards]);
+  }, [answered, typedAnswer, currentItem, currentBatchIdx, totalBatches_, totalItems, playCorrectSound, triggerRewards, id]);
 
   const handleDontKnow = useCallback(() => {
-    if (answered || !currentItem) return;
+    if (answeredRef.current || !currentItem) return;
+    answeredRef.current = true;
     setAnswered(true);
     setIsCorrect(false);
     setItemResults(prev => new Map(prev).set(currentItem.itemId, false));
 
-    // Save progress to server
-    progressService.updateCardProgress(currentItem._id, 0).catch(err => {
-      console.error('[LearnProgress] Failed to save card progress:', err);
-    });
+    cardStreaksRef.current.set(currentItem._id, 0);
+    setCardStreaks(new Map(cardStreaksRef.current));
   }, [answered, currentItem]);
 
   const handleNext = useCallback(() => {
+    if (!answeredRef.current) return;
+    answeredRef.current = false;
     setAnswered(false);
     setSelectedOption(null);
     setTypedAnswer('');
     setIsCorrect(false);
     setShowHint(false);
 
-    if (!currentItem) return;
-    const wasCorrect = itemResults.get(currentItem.itemId) === true;
+    setBatchQueue(prevQueue => {
+      if (prevQueue.length === 0) return prevQueue;
+      const activeItem = prevQueue[0];
+      const isCompleted = completedCardIdsRef.current.has(activeItem._id);
 
-    if (!wasCorrect) {
-      setBatchQueue(prev => {
-        const next = [...prev];
-        const [removed] = next.splice(queueIdx, 1);
-        next.push(removed);
-        return next;
-      });
-    } else {
-      if (queueIdx < batchQueue.length - 1) {
-        setQueueIdx(prev => prev + 1);
-      } else {
+      if (isCompleted) {
+        const next = prevQueue.slice(1);
         const bp = batchProgress.get(currentBatchIdx) || { correct: 0 };
         const actualBatchSize = getBatchSize(currentBatchIdx, totalItems, totalBatches_);
         if (bp.correct >= actualBatchSize) {
@@ -318,25 +336,15 @@ export default function StudySetLearn() {
           } else {
             setScreen('batch-complete');
           }
-        } else {
-          const batchStart = getBatchesOffset(currentBatchIdx, totalItems, totalBatches_);
-          const batchItems = sessionItems.slice(batchStart, batchStart + actualBatchSize);
-          const wrongSet = new Set();
-          batchItems.forEach(item => {
-            if (itemResults.get(item.itemId) !== true) wrongSet.add(item.itemId);
-          });
-          const sorted = [...batchItems].sort((a, b) => {
-            const aWrong = wrongSet.has(a.itemId);
-            const bWrong = wrongSet.has(b.itemId);
-            if (aWrong === bWrong) return 0;
-            return aWrong ? 1 : -1;
-          });
-          setBatchQueue(sorted);
-          setQueueIdx(0);
         }
+        return next;
+      } else {
+        const next = prevQueue.slice(1);
+        next.push(activeItem);
+        return next;
       }
-    }
-  }, [currentItem, queueIdx, batchQueue, batchProgress, currentBatchIdx, itemResults, sessionItems, totalBatches_, totalItems]);
+    });
+  }, [batchProgress, currentBatchIdx, totalBatches_, totalItems, id]);
 
   const handleBatchCompleteContinue = useCallback(() => {
     const nextBatchIdx = currentBatchIdx + 1;
@@ -353,6 +361,13 @@ export default function StudySetLearn() {
 
     console.log('[LearnProgress] handleBatchCompleteContinue: saving learn_round =', nextBatchIdx);
     localStorage.setItem(`learn_round_${id}`, nextBatchIdx);
+
+    // Reset streaks and completed refs for the new batch
+    cardStreaksRef.current = new Map();
+    completedCardIdsRef.current = new Set();
+    answeredRef.current = false;
+    setCardStreaks(new Map());
+
     setBatchQueue(nextBatchItems);
     setCurrentBatchIdx(nextBatchIdx);
     setQueueIdx(0);
@@ -424,6 +439,10 @@ export default function StudySetLearn() {
     setSessionItems(newItems);
     const restart = screen === 'learning' || screen === 'batch-complete';
     if (restart) {
+      cardStreaksRef.current = new Map();
+      completedCardIdsRef.current = new Set();
+      setCardStreaks(new Map());
+
       setBatchQueue(newItems.slice(0, eb));
       setBatchProgress(new Map([[0, { correct: 0 }]]));
       setItemResults(new Map());
@@ -442,6 +461,10 @@ export default function StudySetLearn() {
     setSessionItems(newItems);
     const restart = screen === 'learning' || screen === 'batch-complete';
     if (restart) {
+      cardStreaksRef.current = new Map();
+      completedCardIdsRef.current = new Set();
+      setCardStreaks(new Map());
+
       setBatchQueue(newItems.slice(0, eb));
       setBatchProgress(new Map([[0, { correct: 0 }]]));
       setItemResults(new Map());
@@ -506,6 +529,10 @@ export default function StudySetLearn() {
   useEffect(() => {
     if (sessionItems.length === 0 || screen !== 'loading') return;
 
+    cardStreaksRef.current = new Map();
+    completedCardIdsRef.current = new Set();
+    setCardStreaks(new Map());
+
     const totalItems = sessionItems.length;
     const totalBatches = Math.max(1, Math.ceil(totalItems / BATCH_SIZE));
     const effectiveSize = Math.ceil(totalItems / totalBatches);
@@ -531,7 +558,7 @@ export default function StudySetLearn() {
         let correctCount = 0;
         batchItems.forEach(item => {
           const prog = cardProgressMap.get(item._id);
-          const isMastered = prog && (prog.correctReviews > 0 || prog.masteryLevel >= 4);
+          const isMastered = prog && (prog.status === 'LEARNING' || prog.status === 'REVIEW' || prog.correctReviews > 0 || prog.masteryLevel >= 4);
           if (isMastered) {
             initialItemResults.set(item.itemId, true);
             correctCount++;
@@ -581,6 +608,8 @@ export default function StudySetLearn() {
     setItemResults(initialItemResults);
     setBatchProgress(initialBatchProgress);
     setCurrentBatchIdx(startBatchIdx);
+    answeredRef.current = false;
+    setAnswered(false);
     setQueueIdx(0);
     setScreen('learning');
   }, [id, sessionItems, screen, cardProgressMap]);

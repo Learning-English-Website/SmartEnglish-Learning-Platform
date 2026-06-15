@@ -3,67 +3,10 @@ const FlashcardSet = require('../../models/flashcardSet.model');
 const Flashcard = require('../../models/flashcard.model');
 const CardProgress = require('../../models/cardProgress.model');
 const { AppError } = require('../../shared/errors/AppError');
-
-// SM-2 Algorithm Constants
-const MIN_EASE_FACTOR = 1.3;
-const MAX_EASE_FACTOR = 2.5;
-const INITIAL_EASE_FACTOR = 2.5;
-
-/**
- * Calculate next review schedule using SM-2 algorithm
- *
- * Quality ratings (mapped from UI):
- * - 0 = Again (complete blackout)
- * - 1 = Hard (correct but with difficulty)
- * - 2 = Good (correct with some hesitation)
- * - 3 = Easy (perfect recall)
- */
-const calculateSM2 = (currentSchedule, quality) => {
-  const now = new Date();
-
-  // Map our 0-3 quality to SM-2's 0-5 scale
-  const sm2Quality = quality * (5 / 3);
-
-  let { easeFactor = INITIAL_EASE_FACTOR, interval = 0, repetitions = 0, lapses = 0 } = currentSchedule || {};
-
-  if (quality < 2) {
-    // Failed recall - reset
-    repetitions = 0;
-    interval = 1; // Review again tomorrow
-    lapses = (lapses || 0) + 1;
-
-    // Decrease ease factor (min 1.3)
-    easeFactor = Math.max(MIN_EASE_FACTOR, easeFactor - 0.2);
-  } else {
-    // Successful recall
-    if (repetitions === 0) {
-      interval = 1;
-    } else if (repetitions === 1) {
-      interval = 6;
-    } else {
-      interval = Math.round(interval * easeFactor);
-    }
-
-    repetitions += 1;
-
-    // Adjust ease factor based on quality
-    const efChange = 0.1 - (5 - sm2Quality) * (0.08 + (5 - sm2Quality) * 0.02);
-    easeFactor = Math.min(MAX_EASE_FACTOR, Math.max(MIN_EASE_FACTOR, easeFactor + efChange));
-  }
-
-  // Calculate next review date
-  const nextReview = new Date(now);
-  nextReview.setDate(nextReview.getDate() + interval);
-
-  return {
-    easeFactor,
-    interval,
-    repetitions,
-    nextReview,
-    lastReview: now,
-    lapses,
-  };
-};
+const {
+  INITIAL_EASE_FACTOR,
+  calculateSM2,
+} = require('../../shared/services/sm2.service');
 
 /**
  * Start a new study session for a flashcard set
@@ -184,7 +127,7 @@ const submitAnswer = async (userId, sessionId, cardId, isCorrect, mode, response
     }
   }
 
-  const quality = isCorrect ? 2 : 0;
+  const quality = isCorrect ? 4 : 0;
 
   let progress = await CardProgress.findOne({ user: userId, card: cardId });
 
@@ -217,6 +160,7 @@ const submitAnswer = async (userId, sessionId, cardId, isCorrect, mode, response
   progress.nextReview = newSchedule.nextReview;
   progress.lastReview = newSchedule.lastReview;
   progress.lapses = newSchedule.lapses;
+  progress.status = newSchedule.status;
   progress.totalReviews += 1;
   if (isCorrect) progress.correctReviews += 1;
   await progress.save();

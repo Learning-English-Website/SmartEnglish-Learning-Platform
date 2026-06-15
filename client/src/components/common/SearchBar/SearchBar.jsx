@@ -4,7 +4,7 @@ import './SearchBar.css';
 export default function SearchBar({
   value,
   onChange,
-  placeholder = 'Search...',
+  placeholder = 'Tìm kiếm...',
   debounceMs = 300,
   size = 'md',
   className = '',
