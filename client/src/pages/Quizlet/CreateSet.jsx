@@ -83,7 +83,7 @@ export default function CreateSet() {
     }));
     setCards((prev) => [...prev, ...newCards]);
     setShowImport(false);
-    toast.success(`Added ${importedCards.length} cards from file!`);
+    toast.success(`Đã thêm ${importedCards.length} thẻ từ file!`);
   };
 
   /* ── Auto-save ─────────────────────────────────────────────────────── */
@@ -124,7 +124,7 @@ export default function CreateSet() {
     setIsPublic(draft.isPublic ?? false);
     setCards(draft.cards?.length ? draft.cards : [makeCard(), makeCard(), makeCard()]);
     setShowDraftBanner(false);
-    toast.success('Draft restored!');
+    toast.success('Đã khôi phục bản nháp!');
   };
 
   /* ── Keyboard shortcuts ─────────────────────────────────────────────── */
@@ -242,8 +242,8 @@ export default function CreateSet() {
         {showDraftBanner && (
           <div className="cs-draft-banner">
             <FiInfo size={14} />
-            <span>You have an unsaved draft.</span>
-            <button className="cs-draft-btn" onClick={restoreDraft}>Restore</button>
+            <span>Bạn có một bản nháp chưa lưu.</span>
+            <button className="cs-draft-btn" onClick={restoreDraft}>Khôi phục</button>
             <button className="cs-draft-dismiss" onClick={() => { setShowDraftBanner(false); clearDraft(); }}>✕</button>
           </div>
         )}
@@ -254,10 +254,10 @@ export default function CreateSet() {
             <button className="cs-back-btn" onClick={() => navigate('/flashcards')}>
               <FiArrowLeft size={18} />
             </button>
-            <h1 className="cs-topbar-title">Create a new flashcard set</h1>
+            <h1 className="cs-topbar-title">Tạo Flashcard Set Mới</h1>
             <div className="cs-shortcut-hints">
-              <span><kbd>Ctrl+N</kbd> Add card</span>
-              <span><kbd>Ctrl+Enter</kbd> Create</span>
+              <span><kbd>Ctrl+N</kbd> Thêm thẻ</span>
+              <span><kbd>Ctrl+Enter</kbd> Tạo</span>
             </div>
           </div>
           <div className="cs-topbar-right">
@@ -267,7 +267,7 @@ export default function CreateSet() {
               disabled={submitting}
               id="cs-create-btn"
             >
-              {submitting ? <span className="spinner-border spinner-border-sm" /> : 'Create'}
+              {submitting ? <span className="spinner-border spinner-border-sm" /> : 'Tạo'}
             </button>
             <button
               className="cs-btn cs-btn--primary"
@@ -275,7 +275,7 @@ export default function CreateSet() {
               disabled={submitting}
               id="cs-create-practice-btn"
             >
-              {submitting ? <span className="spinner-border spinner-border-sm" /> : 'Create and practice'}
+              {submitting ? <span className="spinner-border spinner-border-sm" /> : 'Tạo và luyện tập'}
             </button>
           </div>
         </div>
@@ -293,14 +293,14 @@ export default function CreateSet() {
               type="button"
             >
               {isPublic ? <FiGlobe size={13} /> : <FiLock size={13} />}
-              {isPublic ? 'Public' : 'Private'}
+              {isPublic ? 'Công khai' : 'Riêng tư'}
             </button>
             {savedAt ? (
               <span className="cs-saved-label cs-saved-label--active">
-                ✓ Draft saved {savedAt.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                ✓ Đã lưu bản nháp {savedAt.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
               </span>
             ) : (
-              <span className="cs-saved-label">Auto-save enabled</span>
+              <span className="cs-saved-label">Tự động lưu đang bật</span>
             )}
           </div>
 
@@ -309,7 +309,7 @@ export default function CreateSet() {
             id="cs-title-input"
             className={`cs-title-input ${titleError ? 'cs-title-input--error' : ''}`}
             type="text"
-            placeholder="Please enter a title to create your set."
+            placeholder="Tiêu đề"
             value={title}
             onChange={(e) => { setTitle(e.target.value); if (titleError) setTitleError(''); }}
             autoFocus
@@ -319,7 +319,7 @@ export default function CreateSet() {
           <input
             className="cs-desc-input"
             type="text"
-            placeholder="Add a description..."
+            placeholder="Mô tả"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
           />
@@ -331,9 +331,9 @@ export default function CreateSet() {
                 className="cs-folder-select"
                 value={selectedFolder || ''}
                 onChange={(e) => setSelectedFolder(e.target.value || null)}
-                aria-label="Folder"
+                aria-label="Thư mục"
               >
-                <option value="">No folder</option>
+                <option value="">Không có thư mục</option>
                 {folders.map((f) => (
                   <option key={f._id} value={f._id}>{f.name}</option>
                 ))}
@@ -344,7 +344,7 @@ export default function CreateSet() {
               <TagPicker
                 selectedTags={tags}
                 onChange={setTags}
-                placeholder="Add tags..."
+                placeholder="Thêm tag..."
                 folderId={searchParams.get('folderId')}
               />
             </div>
@@ -366,8 +366,8 @@ export default function CreateSet() {
                     <button
                       className="cs-card-icon-btn cs-card-icon-btn--delete"
                       onClick={() => deleteCard(card.id)}
-                      title="Delete card"
-                      aria-label="Delete card"
+                      title="Xóa thẻ"
+                      aria-label="Xóa thẻ"
                     >
                       <FiTrash2 size={15} />
                     </button>
@@ -390,11 +390,11 @@ export default function CreateSet() {
           <div className="cs-add-card-row">
             <button className="cs-add-card-btn" onClick={addCard} id="cs-add-card-btn">
               <span className="cs-add-card-plus"><FiPlus size={20} /></span>
-              <span>ADD CARD</span>
+              <span>THÊM THẺ</span>
             </button>
             <button className="cs-add-card-btn cs-import-btn" onClick={() => setShowImport(true)} id="cs-import-btn">
               <span className="cs-add-card-plus"><FiUpload size={20} /></span>
-              <span>IMPORT FROM FILE</span>
+              <span>NHẬP TỪ FILE</span>
             </button>
           </div>
 
@@ -408,7 +408,7 @@ export default function CreateSet() {
               {submitting ? (
                 <span className="spinner-border spinner-border-sm" />
               ) : (
-                <><FiSave size={16} /> Create Set</>
+                <><FiSave size={16} /> Tạo Set</>
               )}
             </button>
           </div>

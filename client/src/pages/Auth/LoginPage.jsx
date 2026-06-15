@@ -1,15 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Form, Button } from 'react-bootstrap';
 import { FiMail, FiLock, FiEye, FiEyeOff } from 'react-icons/fi';
 import { FcGoogle } from 'react-icons/fc';
 import { useAuth } from '../../hooks/useAuth';
+import toast from 'react-hot-toast';
 import './Auth.css';
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { isAuthenticated, user, login, loading } = useAuth();
+  const errorHandled = useRef(false);
 
   useEffect(() => {
     if (isAuthenticated && user) {
@@ -23,6 +25,25 @@ export default function LoginPage() {
       }
     }
   }, [isAuthenticated, user, navigate, searchParams]);
+
+  useEffect(() => {
+    const errorParam = searchParams.get('error');
+    if (errorParam) {
+      if (!errorHandled.current) {
+        errorHandled.current = true;
+        if (errorParam === 'locked') {
+          toast.error('Tài khoản của bạn đã bị tạm khóa bởi Quản trị viên.');
+        } else {
+          toast.error('Đăng nhập bằng Google thất bại.');
+        }
+      }
+      const redirect = searchParams.get('redirect');
+      const dest = redirect ? `/login?redirect=${encodeURIComponent(redirect)}` : '/login';
+      navigate(dest, { replace: true });
+    } else {
+      errorHandled.current = false;
+    }
+  }, [searchParams, navigate]);
 
   const handleGoogleLogin = () => {
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -66,17 +87,17 @@ export default function LoginPage() {
         {/* Header */}
         <div className="auth-header">
           <div className="auth-logo">🧠</div>
-          <h1 className="auth-title">Welcome back</h1>
-          <p className="auth-subtitle">Sign in to continue learning</p>
+          <h1 className="auth-title">Chào mừng quay trở lại</h1>
+          <p className="auth-subtitle">Đăng nhập để tiếp tục học tập</p>
         </div>
 
         {/* Google Button */}
         <Button className="btn-google" variant="outline-secondary" onClick={handleGoogleLogin}>
           <FcGoogle size={20} />
-          Sign in with Google
+          Đăng nhập với Google
         </Button>
 
-        <div className="auth-divider"><span>or</span></div>
+        <div className="auth-divider"><span>hoặc</span></div>
 
         {/* Form */}
         <Form onSubmit={handleSubmit} noValidate>
@@ -87,7 +108,7 @@ export default function LoginPage() {
                 type="email"
                 name="email"
                 id="login-email"
-                placeholder="Email address"
+                placeholder="Địa chỉ Email"
                 value={formData.email}
                 onChange={handleChange}
                 isInvalid={!!errors.email}
@@ -105,7 +126,7 @@ export default function LoginPage() {
                 type={showPassword ? 'text' : 'password'}
                 name="password"
                 id="login-password"
-                placeholder="Password"
+                placeholder="Mật khẩu"
                 value={formData.password}
                 onChange={handleChange}
                 isInvalid={!!errors.password}
@@ -125,7 +146,7 @@ export default function LoginPage() {
           </Form.Group>
 
           <div className="text-end mb-3">
-            <Link to="/forgot-password" className="auth-link-small">Forgot Password?</Link>
+            <Link to="/forgot-password" className="auth-link-small">Quên mật khẩu?</Link>
           </div>
 
           <Button
@@ -137,13 +158,13 @@ export default function LoginPage() {
             {loading ? (
               <span className="spinner-border spinner-border-sm me-2" />
             ) : null}
-            {loading ? 'Signing in...' : 'Sign In'}
+            {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
           </Button>
         </Form>
 
         <p className="auth-footer-text">
-          Don't have an account?{' '}
-          <Link to="/register" className="auth-link">Create one free</Link>
+          Chưa có tài khoản?{' '}
+          <Link to="/register" className="auth-link">Đăng ký miễn phí</Link>
         </p>
       </div>
     </div>

@@ -24,6 +24,7 @@ export default function TagPicker({ selectedTags = [], onChange, placeholder = '
   const inputRef = useRef(null);
   const dropdownRef = useRef(null);
   const debounceRef = useRef(null);
+  const ignoreNextFocus = useRef(false);
 
   // Load tags (scoped to folder if provided)
   useEffect(() => {
@@ -60,6 +61,19 @@ export default function TagPicker({ selectedTags = [], onChange, placeholder = '
     setFilteredTags(filtered.slice(0, 10));
   }, [inputValue, allTags, selectedTags]);
 
+  // Click outside dropdown detection
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setShowDropdown(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
   // Check if exact tag exists
   const exactTagExists = filteredTags.some(
     (tag) => tag.name.toLowerCase() === inputValue.toLowerCase()
@@ -77,6 +91,7 @@ export default function TagPicker({ selectedTags = [], onChange, placeholder = '
     }
     setInputValue('');
     setShowDropdown(false);
+    ignoreNextFocus.current = true;
     inputRef.current?.focus();
   };
 
@@ -155,7 +170,14 @@ export default function TagPicker({ selectedTags = [], onChange, placeholder = '
               type="text"
               value={inputValue}
               onChange={handleInputChange}
-              onFocus={() => setShowDropdown(true)}
+              onFocus={() => {
+                if (ignoreNextFocus.current) {
+                  ignoreNextFocus.current = false;
+                  return;
+                }
+                setShowDropdown(true);
+              }}
+              onClick={() => setShowDropdown(true)}
               onKeyDown={handleKeyDown}
               placeholder={selectedTags.length === 0 ? placeholder : ''}
               className="tag-picker-input"

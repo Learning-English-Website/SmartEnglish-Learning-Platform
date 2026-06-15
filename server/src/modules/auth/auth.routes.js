@@ -59,8 +59,13 @@ router.get('/google/callback', (req, res, next) => {
     console.error('Failed to parse Google OAuth state:', err);
   }
 
-  passport.authenticate('google', { session: false, failureRedirect: `${process.env.CLIENT_URL}/login?error=google_failed` }, (err, authData) => {
-    if (err || !authData) return res.redirect(`${process.env.CLIENT_URL}/login?error=google_failed`);
+  passport.authenticate('google', { session: false }, (err, authData) => {
+    if (err || !authData) {
+      if (err && err.message === 'Tài khoản của bạn đã bị tạm khóa bởi Quản trị viên.') {
+        return res.redirect(`${process.env.CLIENT_URL}/login?error=locked`);
+      }
+      return res.redirect(`${process.env.CLIENT_URL}/login?error=google_failed`);
+    }
     const tokens = authData;
     const isProd = process.env.NODE_ENV === 'production';
     const sameSite = isProd ? 'none' : 'lax';

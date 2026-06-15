@@ -245,10 +245,10 @@ export default function SetDetail() {
       await cardService.delete(deleteCardId);
       setCards((prev) => prev.filter((c) => c._id !== deleteCardId));
       setSet((prev) => prev ? { ...prev, cardCount: Math.max(0, (prev.cardCount ?? 1) - 1) } : prev);
-      toast.success('Card deleted.');
+      toast.success('Đã xóa thẻ thành công.');
       setDeleteCardId(null);
     } catch {
-      toast.error('Failed to delete card.');
+      toast.error('Xóa thẻ thất bại.');
     } finally {
       setDeletingCard(false);
     }
@@ -263,7 +263,7 @@ export default function SetDetail() {
       const createdArr = Array.isArray(created) ? created : [];
       setCards((prev) => [...prev, ...createdArr]);
       setSet((prev) => prev ? { ...prev, cardCount: (prev.cardCount ?? 0) + createdArr.length } : prev);
-      toast.success(`${createdArr.length} cards added!`);
+      toast.success(`Đã thêm ${createdArr.length} thẻ thành công!`);
       setShowBulk(false);
     } catch (err) {
       const msg = err?.response?.data?.error?.message || err?.response?.data?.message || 'Bulk create failed.';
@@ -286,7 +286,7 @@ export default function SetDetail() {
       const createdArr = Array.isArray(created) ? created : [];
       setCards((prev) => [...prev, ...createdArr]);
       setSet((prev) => prev ? { ...prev, cardCount: (prev.cardCount ?? 0) + createdArr.length } : prev);
-      toast.success(`${createdArr.length} cards imported!`);
+      toast.success(`Đã nhập ${createdArr.length} thẻ thành công!`);
     } catch (err) {
       const msg = err?.response?.data?.error?.message || err?.response?.data?.message || 'Import failed. Please try again.';
       if (msg.includes('Premium') || msg.includes('miễn phí')) {
@@ -303,10 +303,10 @@ export default function SetDetail() {
     setDeletingSet(true);
     try {
       await setService.delete(id);
-      toast.success('Set deleted.');
+      toast.success('Xóa học phần thành công.');
       navigate('/flashcards');
     } catch {
-      toast.error('Failed to delete set.');
+      toast.error('Xóa học phần thất bại.');
     } finally {
       setDeletingSet(false);
     }
@@ -362,9 +362,9 @@ export default function SetDetail() {
     try {
       await noteService.delete(noteId);
       setNotes((prev) => prev.filter((n) => n._id !== noteId));
-      toast.success('Note deleted.');
+      toast.success('Đã xóa ghi chú thành công.');
     } catch {
-      toast.error('Failed to delete note.');
+      toast.error('Xóa ghi chú thất bại.');
     }
   };
 

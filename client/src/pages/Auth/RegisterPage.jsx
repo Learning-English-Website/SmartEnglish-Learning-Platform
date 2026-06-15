@@ -200,7 +200,7 @@ export default function RegisterPage() {
   };
 
   const strength = getStrength();
-  const strengthLabel = ['', 'Very Weak', 'Weak', 'Fair', 'Strong', 'Very Strong'][strength];
+  const strengthLabel = ['', 'Rất yếu', 'Yếu', 'Trung bình', 'Mạnh', 'Rất mạnh'][strength];
 
   return (
     <div className="auth-page">
@@ -220,7 +220,7 @@ export default function RegisterPage() {
               Đăng ký với Google
             </Button>
 
-            <div className="auth-divider"><span>or</span></div>
+            <div className="auth-divider"><span>hoặc</span></div>
           </>
         ) : null}
 

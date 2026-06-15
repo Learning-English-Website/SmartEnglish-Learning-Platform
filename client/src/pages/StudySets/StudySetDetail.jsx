@@ -144,10 +144,10 @@ export default function StudySetDetail() {
     setDeletingSet(true);
     try {
       await setService.delete(id);
-      toast.success('Đã xóa học phần');
+      toast.success('Xóa học phần thành công.');
       navigate('/library');
     } catch {
-      toast.error('Không thể xóa học phần');
+      toast.error('Xóa học phần thất bại.');
     } finally {
       setDeletingSet(false);
       setShowDeleteSetConfirm(false);

@@ -25,10 +25,10 @@ export default function EditProfilePage() {
 
   const validate = () => {
     const errs = {};
-    if (!formData.username) errs.username = 'Username is required';
-    else if (formData.username.length < 3) errs.username = 'At least 3 characters';
-    else if (formData.username.length > 30) errs.username = 'Max 30 characters';
-    else if (!/^[a-zA-Z0-9]+$/.test(formData.username)) errs.username = 'Letters and numbers only';
+    if (!formData.username) errs.username = 'Tên đăng nhập là bắt buộc';
+    else if (formData.username.length < 3) errs.username = 'Tên đăng nhập tối thiểu 3 ký tự';
+    else if (formData.username.length > 30) errs.username = 'Tên đăng nhập tối đa 30 ký tự';
+    else if (!/^[a-zA-Z0-9]+$/.test(formData.username)) errs.username = 'Chỉ dùng chữ cái và số';
     return errs;
   };
 
@@ -44,10 +44,10 @@ export default function EditProfilePage() {
     }));
 
     if (updateProfile.fulfilled.match(result)) {
-      toast.success('Profile updated! ✅');
+      toast.success('Cập nhật hồ sơ thành công! ✅');
       navigate('/profile');
     } else {
-      toast.error(result.payload || 'Update failed');
+      toast.error(result.payload || 'Cập nhật thất bại');
     }
   };
 
@@ -55,16 +55,16 @@ export default function EditProfilePage() {
     <div className="profile-page">
       <Container className="profile-container">
         <Link to="/profile" className="back-link">
-          <FiArrowLeft /> Back to Profile
+          <FiArrowLeft /> Quay lại Hồ sơ
         </Link>
 
         <div className="profile-card" style={{ marginTop: '1rem' }}>
-          <h2 className="profile-edit-title">Edit profile</h2>
+          <h2 className="profile-edit-title">Chỉnh sửa hồ sơ</h2>
 
           <Form onSubmit={handleSubmit} noValidate>
             {/* Email (read-only) */}
             <Form.Group className="mb-3">
-              <Form.Label className="form-label-custom">Email (cannot be changed)</Form.Label>
+              <Form.Label className="form-label-custom">Email (không thể thay đổi)</Form.Label>
               <Form.Control
                 type="email"
                 value={user?.email || ''}
@@ -75,14 +75,14 @@ export default function EditProfilePage() {
 
             {/* Username */}
             <Form.Group className="mb-3">
-              <Form.Label className="form-label-custom">Username</Form.Label>
+              <Form.Label className="form-label-custom">Tên đăng nhập</Form.Label>
               <div className="input-wrapper-dark">
                 <FiUser className="input-icon-dark" />
                 <Form.Control
                   type="text"
                   id="edit-username"
                   name="username"
-                  placeholder="Your username"
+                  placeholder="Tên đăng nhập của bạn"
                   value={formData.username}
                   onChange={(e) => {
                     setFormData(p => ({ ...p, username: e.target.value }));
@@ -99,7 +99,7 @@ export default function EditProfilePage() {
 
             {/* Avatar URL */}
             <Form.Group className="mb-4">
-              <Form.Label className="form-label-custom">Avatar URL (optional)</Form.Label>
+              <Form.Label className="form-label-custom">Đường dẫn ảnh đại diện (tùy chọn)</Form.Label>
               <div className="input-wrapper-dark" style={{ marginBottom: '10px' }}>
                 <FiLink className="input-icon-dark" />
                 <Form.Control
@@ -121,7 +121,7 @@ export default function EditProfilePage() {
 
             {/* Email reminders */}
             <Form.Group className="mb-4">
-              <Form.Label className="form-label-custom">Email streak reminder</Form.Label>
+              <Form.Label className="form-label-custom">Nhắc nhở học tập qua email</Form.Label>
               <div style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -145,7 +145,7 @@ export default function EditProfilePage() {
                   id="toggle-email-reminder"
                   checked={!!formData.emailReminderEnabled}
                   onChange={(e) => setFormData(p => ({ ...p, emailReminderEnabled: e.target.checked }))}
-                  label={formData.emailReminderEnabled ? 'ON' : 'OFF'}
+                  label={formData.emailReminderEnabled ? 'BẬT' : 'TẮT'}
                 />
               </div>
             </Form.Group>
@@ -158,7 +158,7 @@ export default function EditProfilePage() {
                 id="save-profile-btn"
               >
                 {loading && <span className="spinner-border spinner-border-sm me-2" />}
-                {loading ? 'Saving...' : 'Save Changes'}
+                {loading ? 'Đang lưu...' : 'Lưu Thay Đổi'}
               </Button>
               <Button
                 as={Link}
@@ -167,7 +167,7 @@ export default function EditProfilePage() {
                 className="btn-cancel"
                 id="cancel-edit-btn"
               >
-                Cancel
+                Hủy
               </Button>
             </div>
           </Form>

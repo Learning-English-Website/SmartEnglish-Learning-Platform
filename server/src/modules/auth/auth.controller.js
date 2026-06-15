@@ -27,7 +27,7 @@ function setAuthCookies(res, { accessToken, refreshToken }) {
 
 const register = async (req, res) => {
   const result = await authService.register(req.body);
-  res.status(201).json(ApiResponse.success(result, 'OTP sent. Verify your email to activate account.'));
+  res.status(201).json(ApiResponse.success(result, 'Mã OTP đã được gửi. Hãy xác thực email của bạn để kích hoạt tài khoản.'));
 };
 
 const resendVerificationOtp = async (req, res) => {
@@ -39,7 +39,7 @@ const login = async (req, res) => {
   const { email, password } = req.body;
   const result = await authService.login(email, password);
   setAuthCookies(res, result);
-  res.status(200).json(ApiResponse.success(result, 'Login successful'));
+  res.status(200).json(ApiResponse.success(result, 'Đăng nhập thành công'));
 };
 
 const refreshToken = async (req, res) => {
@@ -55,7 +55,7 @@ const logout = async (req, res) => {
   // Clear HttpOnly cookies
   res.clearCookie('accessToken');
   res.clearCookie('refreshToken');
-  res.status(200).json(ApiResponse.success(null, 'Logged out successfully'));
+  res.status(200).json(ApiResponse.success(null, 'Đăng xuất thành công'));
 };
 
 const forgotPassword = async (req, res) => {

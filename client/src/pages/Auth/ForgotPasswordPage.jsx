@@ -97,8 +97,8 @@ export default function ForgotPasswordPage() {
     <>
       <div className="auth-header">
         <div className="auth-logo">🔑</div>
-        <h1 className="auth-title">Forgot password?</h1>
-        <p className="auth-subtitle">We'll send a reset OTP to your email</p>
+        <h1 className="auth-title">Quên mật khẩu?</h1>
+        <p className="auth-subtitle">Chúng tôi sẽ gửi mã OTP khôi phục đến email của bạn</p>
       </div>
 
       <Form onSubmit={handleRequestOtp} noValidate>
@@ -108,7 +108,7 @@ export default function ForgotPasswordPage() {
             <Form.Control
               type="email"
               id="forgot-email"
-              placeholder="Enter your email address"
+              placeholder="Nhập địa chỉ email của bạn"
               value={email}
               onChange={(e) => { setEmail(e.target.value); setErrors((prev) => ({ ...prev, email: '' })); }}
               isInvalid={!!errors.email}
@@ -121,7 +121,7 @@ export default function ForgotPasswordPage() {
 
         <Button type="submit" className="btn-auth-primary" disabled={loading} id="forgot-submit">
           {loading && <span className="spinner-border spinner-border-sm me-2" />}
-          {loading ? 'Sending...' : 'Send Reset OTP'}
+          {loading ? 'Đang gửi...' : 'Gửi mã OTP khôi phục'}
         </Button>
       </Form>
     </>
@@ -130,10 +130,10 @@ export default function ForgotPasswordPage() {
   const renderResetForm = () => (
     <div className="auth-success">
       <div className="success-icon"><FiCheckCircle /></div>
-      <h2>Check your email for reset OTP</h2>
+      <h2>Kiểm tra mã OTP trong email của bạn</h2>
       <p>
-        If an account exists for <strong>{effectiveEmail}</strong>, you will receive an OTP shortly.
-        The OTP expires in 10 minutes.
+        Nếu tài khoản tồn tại cho <strong>{effectiveEmail}</strong>, bạn sẽ nhận được mã OTP trong giây lát.
+        Mã OTP có hiệu lực trong 10 phút.
       </p>
 
       <Form onSubmit={handleResetPassword} noValidate>
@@ -142,7 +142,7 @@ export default function ForgotPasswordPage() {
             <FiMail className="input-icon" />
             <Form.Control
               type="text"
-              placeholder="OTP code (6 digits)"
+              placeholder="Mã OTP (6 chữ số)"
               value={otp}
               onChange={(e) => { setOtp(e.target.value.replace(/\D/g, '').slice(0, 6)); setErrors((prev) => ({ ...prev, otp: '' })); }}
               isInvalid={!!errors.otp}
@@ -158,7 +158,7 @@ export default function ForgotPasswordPage() {
             <FiLock className="input-icon" />
             <Form.Control
               type="password"
-              placeholder="New password"
+              placeholder="Mật khẩu mới"
               value={newPassword}
               onChange={(e) => { setNewPassword(e.target.value); setErrors((prev) => ({ ...prev, newPassword: '' })); }}
               isInvalid={!!errors.newPassword}
@@ -174,7 +174,7 @@ export default function ForgotPasswordPage() {
             <FiLock className="input-icon" />
             <Form.Control
               type="password"
-              placeholder="Confirm new password"
+              placeholder="Nhập lại mật khẩu mới"
               value={confirmPassword}
               onChange={(e) => { setConfirmPassword(e.target.value); setErrors((prev) => ({ ...prev, confirmPassword: '' })); }}
               isInvalid={!!errors.confirmPassword}
@@ -187,7 +187,7 @@ export default function ForgotPasswordPage() {
 
         <Button type="submit" className="btn-auth-primary" disabled={loading}>
           {loading && <span className="spinner-border spinner-border-sm me-2" />}
-          {loading ? 'Resetting...' : 'Reset Password'}
+          {loading ? 'Đang đặt lại...' : 'Đặt lại mật khẩu'}
         </Button>
       </Form>
     </div>
@@ -206,12 +206,12 @@ export default function ForgotPasswordPage() {
               style={{ background: 'none', border: 'none', padding: 0 }}
             >
               <FiArrowLeft className="me-1" />
-              Use another email
+              Sử dụng email khác
             </button>
           ) : (
             <Link to="/login" className="auth-link">
               <FiArrowLeft className="me-1" />
-              Back to Login
+              Quay lại Đăng nhập
             </Link>
           )}
         </p>

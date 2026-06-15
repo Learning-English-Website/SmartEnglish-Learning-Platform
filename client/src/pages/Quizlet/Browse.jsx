@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Row, Col, Button, Spinner } from 'react-bootstrap';
 import { FiSearch, FiX, FiGrid, FiList } from 'react-icons/fi';
 import SetCard from '../../components/common/SetCard/SetCard';
@@ -8,6 +8,7 @@ import useDebounce from '../../hooks/useDebounce';
 import './Browse.css';
 
 export default function Browse() {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const initialTag = searchParams.get('tag') || '';
 
@@ -168,7 +169,7 @@ export default function Browse() {
             <Row className={`browse-grid ${viewMode === 'list' ? 'browse-grid--list' : ''}`}>
               {sets.map((set) => (
                 <Col key={set._id} xs={12} sm={viewMode === 'list' ? 12 : 6} md={viewMode === 'list' ? 12 : 4} lg={viewMode === 'list' ? 12 : 3}>
-                  <SetCard set={set} showActions={false} />
+                  <SetCard set={set} showActions={false} onClick={() => navigate(`/flashcards/sets/${set._id}`)} />
                 </Col>
               ))}
             </Row>

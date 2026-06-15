@@ -86,10 +86,10 @@ export default function MySets() {
     try {
       await setService.delete(deleteTarget.id);
       setAllSets((prev) => prev.filter((set) => set._id !== deleteTarget.id));
-      toast.success(`Da xoa "${deleteTarget.title}"`);
+      toast.success('Xóa học phần thành công.');
       setDeleteTarget(null);
     } catch {
-      toast.error('Xoa that bai. Vui long thu lai.');
+      toast.error('Xóa học phần thất bại.');
     } finally {
       setDeleting(false);
     }

@@ -1,17 +1,20 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Container, Form } from 'react-bootstrap';
 import { FiArrowLeft, FiSave, FiTrash2, FiEdit2 } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import { setService } from '../../api/setService';
+import { folderService } from '../../api/folderService';
 import { ConfirmModal } from '../../components/common/Modal/Modal';
 import { LoadingSpinner } from '../../components/common';
 import TagPicker from '../../components/common/TagPicker/TagPicker';
+import { useAuth } from '../../hooks/useAuth';
 import './SetForm.css';
 
 export default function EditSet() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user: currentUser } = useAuth();
 
   const [form, setForm] = useState(null);
   const [errors, setErrors] = useState({ title: '' });
@@ -19,14 +22,43 @@ export default function EditSet() {
   const [submitting, setSubmitting] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [folders, setFolders] = useState([]);
+  const [selectedFolder, setSelectedFolder] = useState('');
+  const [initialFolder, setInitialFolder] = useState('');
+  const hasToastedError = useRef(false);
 
   // Fetch existing set data
   useEffect(() => {
     if (!id) return;
     setLoading(true);
-    setService.getById(id)
-      .then((data) => {
-        const set = data?.set ?? data?.data ?? data;
+    Promise.all([
+      setService.getById(id),
+      folderService.getAll()
+    ])
+      .then(([setData, foldersData]) => {
+        const set = setData?.set ?? setData?.data ?? setData;
+        const foldersList = Array.isArray(foldersData) ? foldersData : foldersData?.data ?? [];
+        setFolders(foldersList);
+
+        // Check ownership
+        const ownerId = set.user?._id ?? set.user;
+        if (ownerId && currentUser && ownerId.toString() !== currentUser._id.toString()) {
+          if (!hasToastedError.current) {
+            hasToastedError.current = true;
+            toast.error('Bạn không có quyền chỉnh sửa học phần này.');
+          }
+          navigate(`/flashcards/sets/${id}`);
+          return;
+        }
+
+        // Find folder containing this set
+        const currentFolder = foldersList.find(f => 
+          f.sets && f.sets.some(setId => setId.toString() === id.toString())
+        );
+        const folderId = currentFolder ? currentFolder._id : '';
+        setSelectedFolder(folderId);
+        setInitialFolder(folderId);
+
         setForm({
           title: set.title ?? '',
           description: set.description ?? '',
@@ -34,8 +66,12 @@ export default function EditSet() {
           tags: Array.isArray(set.tags) ? set.tags : [],
         });
       })
-      .catch(() => {
-        toast.error('Không thể tải thông tin set.');
+      .catch((err) => {
+        console.error('Failed to load edit set info:', err);
+        if (!hasToastedError.current) {
+          hasToastedError.current = true;
+          toast.error('Không thể tải thông tin set.');
+        }
         navigate('/flashcards');
       })
       .finally(() => setLoading(false));
@@ -71,6 +107,17 @@ export default function EditSet() {
       };
       console.log('Submitting with tags:', form.tags);
       await setService.update(id, payload);
+
+      // Update folder membership if changed
+      if (selectedFolder !== initialFolder) {
+        if (initialFolder) {
+          await folderService.removeSet(initialFolder, id);
+        }
+        if (selectedFolder) {
+          await folderService.addSet(selectedFolder, id);
+        }
+      }
+
       toast.success('Cập nhật thành công! ✏️');
       navigate(`/flashcards/sets/${id}`);
     } catch (err) {
@@ -102,6 +149,10 @@ export default function EditSet() {
         <LoadingSpinner text="Đang tải..." />
       </div>
     );
+  }
+
+  if (!form) {
+    return null;
   }
 
   return (
@@ -175,6 +226,23 @@ export default function EditSet() {
                 </div>
               </Form.Group>
             </div>
+
+            {/* Folder */}
+            <Form.Group className="set-form-group" controlId="edit-set-folder">
+              <Form.Label className="type-label">Thư mục</Form.Label>
+              <select
+                name="folder"
+                value={selectedFolder}
+                onChange={(e) => setSelectedFolder(e.target.value)}
+                className="set-form-input"
+                aria-label="Thư mục"
+              >
+                <option value="">Không có thư mục</option>
+                {folders.map((f) => (
+                  <option key={f._id} value={f._id}>{f.name}</option>
+                ))}
+              </select>
+            </Form.Group>
 
             {/* Tags */}
             <Form.Group className="set-form-group" controlId="edit-set-tags">

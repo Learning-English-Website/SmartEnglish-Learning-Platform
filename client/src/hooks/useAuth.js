@@ -29,7 +29,7 @@ export function useAuth() {
     dispatch(clearError());
     const result = await dispatch(loginUser({ email, password }));
     if (loginUser.fulfilled.match(result)) {
-      toast.success(`Welcome back, ${result.payload.username}! 👋`);
+      toast.success(`Chào mừng quay trở lại, ${result.payload.username}! 👋`);
       if (result.payload.role === 'admin') {
         navigate('/admin', { replace: true });
       } else if (result.payload.role === 'cskh') {
@@ -41,7 +41,7 @@ export function useAuth() {
         navigate(dest, { replace: true });
       }
     } else {
-      toast.error(result.payload || 'Login failed');
+      toast.error(result.payload || 'Đăng nhập thất bại');
     }
   }, [dispatch, navigate]);
 
@@ -49,10 +49,10 @@ export function useAuth() {
     dispatch(clearError());
     const result = await dispatch(registerUser({ email, username, password }));
     if (registerUser.fulfilled.match(result)) {
-      toast.success('OTP sent to your email. Verify to activate account.');
+      toast.success('Mã OTP đã được gửi đến email của bạn. Xác thực để kích hoạt tài khoản.');
       return { requiresEmailVerification: true };
     } else {
-      toast.error(result.payload || 'Registration failed');
+      toast.error(result.payload || 'Đăng ký thất bại');
       return null;
     }
   }, [dispatch]);
@@ -61,7 +61,7 @@ export function useAuth() {
     dispatch(clearError());
     const result = await dispatch(verifyEmailOtp({ email, otp }));
     if (verifyEmailOtp.fulfilled.match(result)) {
-      toast.success('Email verified! Account activated.');
+      toast.success('Xác thực email thành công! Tài khoản đã được kích hoạt.');
       if (result.payload.role === 'admin') {
         navigate('/admin', { replace: true });
       } else if (result.payload.role === 'cskh') {
@@ -73,7 +73,7 @@ export function useAuth() {
       }
       return true;
     } else {
-      toast.error(result.payload || 'OTP verification failed');
+      toast.error(result.payload || 'Xác thực OTP thất bại');
       return false;
     }
   }, [dispatch, navigate]);
@@ -82,17 +82,17 @@ export function useAuth() {
     dispatch(clearError());
     const result = await dispatch(resendVerificationOtp({ email }));
     if (resendVerificationOtp.fulfilled.match(result)) {
-      toast.success('A new OTP has been sent to your email.');
+      toast.success('Mã OTP mới đã được gửi đến email của bạn.');
       return true;
     } else {
-      toast.error(result.payload || 'Failed to resend verification OTP');
+      toast.error(result.payload || 'Gửi lại mã OTP thất bại');
       return false;
     }
   }, [dispatch]);
 
   const logout = useCallback(async () => {
     await dispatch(logoutUser());
-    toast.success('Logged out successfully');
+    toast.success('Đăng xuất thành công');
     navigate('/login');
   }, [dispatch, navigate]);
 
@@ -100,10 +100,10 @@ export function useAuth() {
     dispatch(clearError());
     const result = await dispatch(forgotPassword({ email }));
     if (forgotPassword.fulfilled.match(result)) {
-      toast.success('OTP sent! Check your email 📧');
+      toast.success('Đã gửi mã OTP! Vui lòng kiểm tra email 📧');
       return true;
     } else {
-      toast.error(result.payload || 'Failed to send reset OTP');
+      toast.error(result.payload || 'Gửi mã OTP khôi phục thất bại');
       return false;
     }
   }, [dispatch]);
@@ -112,11 +112,11 @@ export function useAuth() {
     dispatch(clearError());
     const result = await dispatch(resetPasswordOtp({ email, otp, newPassword }));
     if (resetPasswordOtp.fulfilled.match(result)) {
-      toast.success('Password reset successful. Please sign in.');
+      toast.success('Đặt lại mật khẩu thành công. Vui lòng đăng nhập.');
       navigate('/login');
       return true;
     } else {
-      toast.error(result.payload || 'Failed to reset password');
+      toast.error(result.payload || 'Đặt lại mật khẩu thất bại');
       return false;
     }
   }, [dispatch, navigate]);

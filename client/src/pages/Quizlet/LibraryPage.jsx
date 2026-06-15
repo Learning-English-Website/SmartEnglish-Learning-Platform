@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { BookOpen, Folder, Users, FileText, Sparkles, Plus, Clock } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
+import { toast } from 'react-hot-toast';
 import { setService } from '../../api/setService';
 import { folderService } from '../../api/folderService';
 import { FilterDropdown, ConfirmModal } from '../../components/common';
@@ -79,9 +80,11 @@ export default function LibraryPage() {
     try {
       await setService.delete(deleteTarget._id);
       setSets((prev) => prev.filter((s) => s._id !== deleteTarget._id));
+      toast.success('Xóa học phần thành công.');
       setDeleteTarget(null);
     } catch (err) {
       console.error('Delete failed:', err);
+      toast.error('Xóa học phần thất bại.');
     } finally {
       setDeleting(false);
     }
@@ -171,6 +174,7 @@ export default function LibraryPage() {
                   key={set._id}
                   set={set}
                   showActions={isOwnProfile}
+                  onClick={() => navigate(`/flashcards/sets/${set._id}`)}
                   onEdit={() => handleEditSet(set)}
                   onDelete={() => handleDeleteSet(set)}
                 />

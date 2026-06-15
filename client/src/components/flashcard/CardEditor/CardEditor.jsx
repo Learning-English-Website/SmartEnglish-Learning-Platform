@@ -186,7 +186,7 @@ export default function CardEditor({ card, onSave, onCancel, loading = false, in
         setForm((prev) => ({ ...prev, pronunciation: data.phonetic }));
       }
     } catch (err) {
-      setDictError(err.message ?? 'Not found');
+      setDictError(err.message ?? 'Không tìm thấy từ');
     } finally {
       setDictLoading(false);
     }
@@ -232,8 +232,8 @@ export default function CardEditor({ card, onSave, onCancel, loading = false, in
   /* ── Validate + Submit ───────────────────────────────────────────── */
   const validate = () => {
     const errs = {};
-    if (!form.front.trim()) errs.front = 'Term is required';
-    if (!form.back.trim())  errs.back  = 'Definition is required';
+    if (!form.front.trim()) errs.front = 'Thuật ngữ là bắt buộc';
+    if (!form.back.trim())  errs.back  = 'Định nghĩa là bắt buộc';
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -280,7 +280,7 @@ export default function CardEditor({ card, onSave, onCancel, loading = false, in
         {/* TERM with autocomplete */}
         <div className="ce-field-block" ref={wrapRef} style={{ position: 'relative' }}>
           <div className="ce-field-header">
-            <label className="ce-label">TERM *</label>
+            <label className="ce-label">THUẬT NGỮ *</label>
             <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
               {/* ⚡ Auto-fill all fields */}
               <button
@@ -288,7 +288,7 @@ export default function CardEditor({ card, onSave, onCancel, loading = false, in
                 className={`ce-suggest-btn ${autoFilling ? 'active' : ''}`}
                 onClick={autoFillAll}
                 disabled={!canAutoFill}
-                title="Auto-fill pronunciation, definition, example, collocations & related words"
+                title="Tự động điền phát âm, định nghĩa, ví dụ, cụm từ & từ liên quan"
                 style={{ minWidth: 32 }}
               >
                 {autoFilling ? <span className="ce-spinner" /> : <FiZap size={12} />}
@@ -299,9 +299,9 @@ export default function CardEditor({ card, onSave, onCancel, loading = false, in
                 className={`ce-suggest-btn ${phase === 'detail' && dropdownOpen ? 'active' : ''}`}
                 onClick={handleSuggestBtn}
                 disabled={!canSuggest || dictLoading}
-                title="Look up pronunciation & definition"
+                title="Tra cứu phát âm & định nghĩa"
               >
-                {dictLoading ? <span className="ce-spinner" /> : <>Suggest</>}
+                {dictLoading ? <span className="ce-spinner" /> : <>Gợi ý</>}
               </button>
             </div>
           </div>
@@ -311,7 +311,7 @@ export default function CardEditor({ card, onSave, onCancel, loading = false, in
             <input
               name="front"
               className={`ce-input ce-input--icon ${errors.front ? 'ce-input--error' : ''}`}
-              placeholder="Type a word to search…"
+              placeholder="Nhập từ để tìm kiếm..."
               value={form.front}
               onChange={handleChange}
               autoFocus={!card}
@@ -330,7 +330,7 @@ export default function CardEditor({ card, onSave, onCancel, loading = false, in
                 <>
                   {wordList.length === 0 ? (
                     <div className="ce-dropdown-empty">
-                      <FiSearch size={13} /> No words found for "{form.front}"
+                      <FiSearch size={13} /> Không tìm thấy từ nào cho "{form.front}"
                     </div>
                   ) : (
                     <div className="ce-word-list">
@@ -345,14 +345,14 @@ export default function CardEditor({ card, onSave, onCancel, loading = false, in
                             {highlightMatch(item.word, form.front)}
                           </span>
                           <span className="ce-word-score">
-                            {item.tags?.includes('prop') ? '(proper noun)' : ''}
+                            {item.tags?.includes('prop') ? '(danh từ riêng)' : ''}
                           </span>
                         </button>
                       ))}
                     </div>
                   )}
                   <div className="ce-dropdown-footer">
-                    Click a word → see pronunciation & definition
+                    Chọn một từ → xem phát âm & định nghĩa
                   </div>
                 </>
               )}
@@ -362,7 +362,7 @@ export default function CardEditor({ card, onSave, onCancel, loading = false, in
                 <>
                   {dictLoading && (
                     <div className="ce-dropdown-loading">
-                      <span className="ce-spinner" /> Looking up "{form.front}"…
+                      <span className="ce-spinner" /> Đang tra cứu "{form.front}"…
                     </div>
                   )}
 
@@ -386,7 +386,7 @@ export default function CardEditor({ card, onSave, onCancel, loading = false, in
                               type="button"
                               className={`ce-audio-btn ${audioPlaying ? 'playing' : ''}`}
                               onClick={playAudio}
-                              title="Play pronunciation"
+                              title="Nghe phát âm"
                             >
                               <FiVolume2 size={13} />
                             </button>
@@ -397,7 +397,7 @@ export default function CardEditor({ card, onSave, onCancel, loading = false, in
                               className="ce-use-ipa-btn"
                               onClick={() => setForm((p) => ({ ...p, pronunciation: dictData.phonetic }))}
                             >
-                              Use IPA
+                              Dùng IPA
                             </button>
                           )}
                         </div>
@@ -432,7 +432,7 @@ export default function CardEditor({ card, onSave, onCancel, loading = false, in
                           className="ce-back-to-search"
                           onClick={() => { setPhase('words'); triggerWordSearch(form.front); }}
                         >
-                          ← Back to search
+                          ← Quay lại tìm kiếm
                         </button>
                       </div>
                     </>
@@ -446,12 +446,12 @@ export default function CardEditor({ card, onSave, onCancel, loading = false, in
         {/* DEFINITION */}
         <div className="ce-field-block">
           <div className="ce-field-header">
-            <label className="ce-label">DEFINITION *</label>
+            <label className="ce-label">ĐỊNH NGHĨA *</label>
           </div>
           <input
             name="back"
             className={`ce-input ${errors.back ? 'ce-input--error' : ''}`}
-            placeholder="Enter definition (or click suggestion)"
+            placeholder="Nhập định nghĩa (hoặc chọn từ gợi ý)"
             value={form.back}
             onChange={handleChange}
           />
@@ -462,7 +462,7 @@ export default function CardEditor({ card, onSave, onCancel, loading = false, in
       {/* ── Row 2: Extra fields ──────────────────────────────────────── */}
       <div className="ce-row ce-row--extra">
         <div className="ce-field-block">
-          <label className="ce-label">PRONUNCIATION</label>
+          <label className="ce-label">PHÁT ÂM</label>
           <input
             name="pronunciation"
             className="ce-input"
@@ -472,11 +472,11 @@ export default function CardEditor({ card, onSave, onCancel, loading = false, in
           />
         </div>
         <div className="ce-field-block">
-          <label className="ce-label">EXAMPLE SENTENCE</label>
+          <label className="ce-label">VÍ DỤ</label>
           <input
             name="example"
             className="ce-input"
-            placeholder="e.g. Hello, how are you?"
+            placeholder="Ví dụ: Hello, how are you?"
             value={form.example}
             onChange={handleChange}
           />
@@ -486,27 +486,27 @@ export default function CardEditor({ card, onSave, onCancel, loading = false, in
           <input
             name="collocation"
             className="ce-input"
-            placeholder="e.g. make a decision, take a photo"
+            placeholder="Ví dụ: make a decision, take a photo"
             value={form.collocation}
             onChange={handleChange}
           />
         </div>
         <div className="ce-field-block">
-          <label className="ce-label">RELATED WORDS</label>
+          <label className="ce-label">TỪ LIÊN QUAN</label>
           <input
             name="relatedWords"
             className="ce-input"
-            placeholder="e.g. quick, fast, rapid"
+            placeholder="Ví dụ: quick, fast, rapid"
             value={form.relatedWords}
             onChange={handleChange}
           />
         </div>
         <div className="ce-field-block">
-          <label className="ce-label">NOTE</label>
+          <label className="ce-label">GHI CHÚ</label>
           <input
             name="note"
             className="ce-input"
-            placeholder="Additional notes..."
+            placeholder="Ghi chú thêm..."
             value={form.note}
             onChange={handleChange}
           />
@@ -521,7 +521,7 @@ export default function CardEditor({ card, onSave, onCancel, loading = false, in
           onClick={() => setShowImagePicker((v) => !v)}
         >
           <FiImage size={14} />
-          {form.imageUrl ? 'Change image' : 'Add image'}
+          {form.imageUrl ? 'Đổi ảnh' : 'Thêm ảnh'}
           {form.imageUrl && <span className="ce-image-badge">✓</span>}
         </button>
 
@@ -532,7 +532,7 @@ export default function CardEditor({ card, onSave, onCancel, loading = false, in
               type="button"
               className="ce-image-remove"
               onClick={() => setForm((p) => ({ ...p, imageUrl: '' }))}
-              title="Remove image"
+              title="Xóa ảnh"
             >
               <FiX size={11} />
             </button>
@@ -548,14 +548,14 @@ export default function CardEditor({ card, onSave, onCancel, loading = false, in
                 className={`ce-image-tab ${imageTab === 'search' ? 'active' : ''}`}
                 onClick={() => setImageTab('search')}
               >
-                <FiSearch size={13} /> Search
+                <FiSearch size={13} /> Tìm kiếm
               </button>
               <button
                 type="button"
                 className={`ce-image-tab ${imageTab === 'upload' ? 'active' : ''}`}
                 onClick={() => setImageTab('upload')}
               >
-                <FiUpload size={13} /> Upload
+                <FiUpload size={13} /> Tải lên
               </button>
             </div>
 
@@ -581,12 +581,12 @@ export default function CardEditor({ card, onSave, onCancel, loading = false, in
       {!inlineMode && (
         <div className="ce-actions">
           <button type="button" className="ce-btn ce-btn--cancel" onClick={onCancel} disabled={loading}>
-            <FiX size={14} /> Cancel
+            <FiX size={14} /> Hủy
           </button>
           <button type="submit" className="ce-btn ce-btn--save" disabled={loading}>
             {loading
               ? <span className="spinner-border spinner-border-sm" />
-              : <><FiSave size={14} /> {card ? 'Save Changes' : 'Add Card'}</>
+              : <><FiSave size={14} /> {card ? 'Lưu thay đổi' : 'Thêm thẻ'}</>
             }
           </button>
         </div>

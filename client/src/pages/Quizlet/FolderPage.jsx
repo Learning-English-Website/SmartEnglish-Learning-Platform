@@ -9,6 +9,7 @@ import { setService } from '../../api/setService';
 import { tagService } from '../../api/tagService';
 import CreateFolderModal from './CreateFolderModal';
 import CreateTagModal from './CreateTagModal';
+import { toast } from 'react-hot-toast';
 import './FolderPage.css';
 
 export default function FolderPage() {
@@ -94,8 +95,10 @@ export default function FolderPage() {
     try {
       await setService.delete(set._id);
       setSets((prev) => prev.filter((s) => s._id !== set._id));
+      toast.success('Xóa học phần thành công.');
     } catch (err) {
       console.error('Delete failed:', err);
+      toast.error('Xóa học phần thất bại.');
     }
     setOpenMenuId(null);
   };

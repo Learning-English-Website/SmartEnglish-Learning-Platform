@@ -60,8 +60,8 @@ class AuthService {
           requiresEmailVerification: true,
         };
       }
-      const field = existing.email === normalizedEmail ? 'Email' : 'Username';
-      throw new AppError(`${field} already in use`, 409);
+      const field = existing.email === normalizedEmail ? 'Email' : 'Tên đăng nhập';
+      throw new AppError(`${field} đã được sử dụng`, 409);
     }
 
     const user = await User.create({ email: normalizedEmail, username, password });
@@ -89,10 +89,10 @@ class AuthService {
    */
   async login(email, password) {
     const user = await User.findByEmail(normalizeEmail(email));
-    if (!user) throw new AppError('Invalid email or password', 401);
+    if (!user) throw new AppError('Email hoặc mật khẩu không chính xác', 401);
 
     if (!user.password) {
-      throw new AppError('Invalid email or password', 401);
+      throw new AppError('Email hoặc mật khẩu không chính xác', 401);
     }
 
     if (user.status === 'locked') {
@@ -100,9 +100,9 @@ class AuthService {
     }
 
     const isMatch = await user.comparePassword(password);
-    if (!isMatch) throw new AppError('Invalid email or password', 401);
+    if (!isMatch) throw new AppError('Email hoặc mật khẩu không chính xác', 401);
     if (!user.isVerified) {
-      throw new AppError('Email not verified. Please verify OTP before login.', 403);
+      throw new AppError('Email chưa được xác thực. Vui lòng xác thực mã OTP trước khi đăng nhập.', 403);
     }
 
     const accessToken = generateAccessToken(user);
@@ -342,15 +342,15 @@ class AuthService {
     const normalizedEmail = normalizeEmail(email);
     const key = EMAIL_VERIFY_OTP_KEY(normalizedEmail);
     const data = await redis.get(key);
-    if (!data) throw new AppError('Invalid or expired OTP', 400);
+    if (!data) throw new AppError('Mã OTP không hợp lệ hoặc đã hết hạn', 400);
 
     const parsed = JSON.parse(data);
     if (parsed.otpHash !== hashOtp(otp)) {
-      throw new AppError('Invalid or expired OTP', 400);
+      throw new AppError('Mã OTP không hợp lệ hoặc đã hết hạn', 400);
     }
 
     const user = await User.findById(parsed.userId);
-    if (!user) throw new AppError('User not found', 404);
+    if (!user) throw new AppError('Không tìm thấy người dùng', 404);
 
     user.isVerified = true;
     await user.save({ validateBeforeSave: false });
@@ -364,7 +364,7 @@ class AuthService {
       user: user.toPublicProfile(),
       accessToken,
       refreshToken,
-      message: 'Email verified successfully',
+      message: 'Xác thực email thành công',
     };
   }
 
@@ -401,12 +401,12 @@ class AuthService {
     const normalizedEmail = normalizeEmail(email);
     const key = RESET_OTP_KEY(normalizedEmail);
     const data = await redis.get(key);
-    if (!data) throw new AppError('Invalid or expired OTP', 400);
+    if (!data) throw new AppError('Mã OTP không hợp lệ hoặc đã hết hạn', 400);
 
     const parsed = JSON.parse(data);
     const hashedOtp = hashOtp(otp);
     if (parsed.otpHash !== hashedOtp) {
-      throw new AppError('Invalid or expired OTP', 400);
+      throw new AppError('Mã OTP không hợp lệ hoặc đã hết hạn', 400);
     }
 
     // Invalidate OTP immediately to prevent reuse
@@ -436,7 +436,7 @@ class AuthService {
       const parsed = JSON.parse(data);
       const hashedOtp = hashOtp(otp);
       if (parsed.otpHash !== hashedOtp) {
-        throw new AppError('Invalid or expired OTP', 400);
+        throw new AppError('Mã OTP không hợp lệ hoặc đã hết hạn', 400);
       }
       userId = parsed.userId;
       await redis.del(key);
@@ -452,12 +452,12 @@ class AuthService {
     }
 
     const user = await User.findById(userId).select('+password');
-    if (!user) throw new AppError('User not found', 404);
+    if (!user) throw new AppError('Không tìm thấy người dùng', 404);
 
     user.password = newPassword;
     await user.save();
 
-    return { message: 'Password reset successful' };
+    return { message: 'Đặt lại mật khẩu thành công' };
   }
 }
 

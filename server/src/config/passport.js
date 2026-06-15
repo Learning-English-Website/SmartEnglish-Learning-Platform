@@ -35,6 +35,9 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET && process.
           // Find existing user by email
           let user = await User.findOne({ email });
           if (user) {
+            if (user.status === 'locked') {
+              return done(new AppError('Tài khoản của bạn đã bị tạm khóa bởi Quản trị viên.', 403));
+            }
             // Attach Google ID if not already stored
             if (!user.oauth?.googleId) {
               user.oauth = user.oauth || {};

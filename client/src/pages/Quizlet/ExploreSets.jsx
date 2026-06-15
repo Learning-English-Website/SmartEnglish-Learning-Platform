@@ -31,7 +31,7 @@ export default function ExploreSets() {
     const fetchSets = async () => {
       setLoading(true);
       try {
-        const res = await setService.getAll();
+        const res = await setService.getPublicSets();
         const allSets = res?.data ?? res ?? [];
         // Filter to only public sets
         const publicSets = allSets.filter(s => s.isPublic);
