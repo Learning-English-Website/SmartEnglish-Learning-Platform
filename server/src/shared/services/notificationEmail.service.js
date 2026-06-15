@@ -8,7 +8,7 @@ const STREAK_REMINDER_HTML = (username, streak) => `
 <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 500px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 16px; overflow: hidden; background-color: #ffffff; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);">
   <!-- Brand Header -->
   <div style="background-color: #07091E; padding: 24px; text-align: center; border-bottom: 3px solid #38BDF8;">
-    <img src="https://smartenglish-api-1iby.onrender.com/uploads/logo_app.png" alt="Memoris Logo" style="height: 38px; vertical-align: middle; display: inline-block;" />
+    <img src="https://memoris.site/uploads/logo_app.png" alt="Memoris Logo" style="height: 38px; vertical-align: middle; display: inline-block;" />
     <span style="color: #ffffff; font-size: 22px; font-weight: 800; letter-spacing: 0.5px; margin-left: 8px; vertical-align: middle;">Memoris</span>
   </div>
   <!-- Content Body -->
@@ -39,7 +39,7 @@ const ACHIEVEMENT_UNLOCKED_HTML = (username, achievement) => `
 <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 500px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 16px; overflow: hidden; background-color: #ffffff; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);">
   <!-- Brand Header -->
   <div style="background-color: #07091E; padding: 24px; text-align: center; border-bottom: 3px solid #38BDF8;">
-    <img src="https://smartenglish-api-1iby.onrender.com/uploads/logo_app.png" alt="Memoris Logo" style="height: 38px; vertical-align: middle; display: inline-block;" />
+    <img src="https://memoris.site/uploads/logo_app.png" alt="Memoris Logo" style="height: 38px; vertical-align: middle; display: inline-block;" />
     <span style="color: #ffffff; font-size: 22px; font-weight: 800; letter-spacing: 0.5px; margin-left: 8px; vertical-align: middle;">Memoris</span>
   </div>
   <!-- Content Body -->
@@ -70,7 +70,7 @@ const WEEKLY_PROGRESS_HTML = (username, stats) => `
 <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 500px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 16px; overflow: hidden; background-color: #ffffff; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);">
   <!-- Brand Header -->
   <div style="background-color: #07091E; padding: 24px; text-align: center; border-bottom: 3px solid #38BDF8;">
-    <img src="https://smartenglish-api-1iby.onrender.com/uploads/logo_app.png" alt="Memoris Logo" style="height: 38px; vertical-align: middle; display: inline-block;" />
+    <img src="https://memoris.site/uploads/logo_app.png" alt="Memoris Logo" style="height: 38px; vertical-align: middle; display: inline-block;" />
     <span style="color: #ffffff; font-size: 22px; font-weight: 800; letter-spacing: 0.5px; margin-left: 8px; vertical-align: middle;">Memoris</span>
   </div>
   <!-- Content Body -->

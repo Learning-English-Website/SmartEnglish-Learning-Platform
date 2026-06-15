@@ -6,6 +6,7 @@ import {
   RotateCcw, Maximize2, Minimize2, Keyboard, Lightbulb,
   BookOpen, Brain, ClipboardCheck, Box,
   Shuffle, VolumeX, ChevronDown, ArrowLeft, Settings, Star,
+  Eye, Check, X,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../../hooks/useAuth';
@@ -40,11 +41,15 @@ export default function StudyPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const [roundCards, setRoundCards] = useState([]);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const [showHint, setShowHint] = useState(false);
   const [knownCards, setKnownCards] = useState(new Set());
   const [learningCards, setLearningCards] = useState(new Set());
+  const [nextRoundIds, setNextRoundIds] = useState(new Set());
+  const [roundNum, setRoundNum] = useState(1);
+  const [isSessionComplete, setIsSessionComplete] = useState(false);
   const audioRef = useRef(null);
 
   // Header state
@@ -66,13 +71,44 @@ export default function StudyPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [setRes, cardsRes] = await Promise.all([
+      const [setRes, cardsRes, schedulesRes] = await Promise.all([
         setService.getById(id),
         cardService.getBySetId(id),
+        progressService.getCardSchedules(id),
       ]);
       setStudySet(setRes?.data ?? setRes);
+      
       const cardsData = cardsRes?.data ?? cardsRes;
-      setCards(Array.isArray(cardsData) ? cardsData : []);
+      const rawCards = Array.isArray(cardsData) ? cardsData : [];
+      setCards(rawCards);
+
+      const schedules = schedulesRes?.data ?? schedulesRes;
+      const statusMap = new Map();
+      if (Array.isArray(schedules)) {
+        schedules.forEach(item => {
+          statusMap.set(item.cardId, item.flashcardStatus);
+        });
+      }
+
+      const initialKnown = new Set();
+      const initialLearning = new Set();
+      rawCards.forEach(c => {
+        const stat = statusMap.get(c._id) || 'NEW';
+        if (stat === 'KNOWN') {
+          initialKnown.add(c._id);
+        } else if (stat === 'LEARNING') {
+          initialLearning.add(c._id);
+        }
+      });
+      setKnownCards(initialKnown);
+      setLearningCards(initialLearning);
+
+      const activeCards = rawCards.filter(c => !initialKnown.has(c._id));
+      setRoundCards(activeCards);
+      setCurrentIdx(0);
+      setRoundNum(1);
+      setNextRoundIds(new Set());
+      setIsSessionComplete(activeCards.length === 0 && rawCards.length > 0);
     } catch (err) {
       setError('Không thể tải dữ liệu');
     } finally {
@@ -82,8 +118,8 @@ export default function StudyPage() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const currentCard = cards[currentIdx];
-  const totalCards = cards.length;
+  const currentCard = roundCards[currentIdx];
+  const totalCards = roundCards.length;
 
   /* ── Navigation ────────────────────────────────────────────────────────── */
   const goNext = useCallback(() => {
@@ -122,7 +158,7 @@ export default function StudyPage() {
 
   /* ── Shuffle ─────────────────────────────────────────────────────────── */
   const handleShuffle = useCallback(() => {
-    setCards(prev => {
+    setRoundCards(prev => {
       const shuffled = [...prev];
       for (let i = shuffled.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -132,8 +168,7 @@ export default function StudyPage() {
     });
     setCurrentIdx(0);
     setIsFlipped(false);
-    setKnownCards(new Set());
-    setLearningCards(new Set());
+    setNextRoundIds(new Set());
     setIsShuffled(true);
     toast.success('Đã xáo trộn thẻ');
   }, []);
@@ -147,42 +182,92 @@ export default function StudyPage() {
     setModeDropdownOpen(false);
   }, [id, navigate, returnTo]);
 
+  /* ── Round ending logic ───────────────────────────────────────────────── */
+  const handleRoundEnd = useCallback((nextIds) => {
+    setIsFlipped(false);
+    setShowHint(false);
+
+    if (nextIds.size > 0) {
+      const nextRoundCards = cards.filter(c => nextIds.has(c._id));
+      setRoundCards(nextRoundCards);
+      setNextRoundIds(new Set());
+      setCurrentIdx(0);
+      setRoundNum(prev => prev + 1);
+      toast.success(`Bắt đầu vòng ${roundNum + 1} với ${nextIds.size} thẻ chưa thuộc!`);
+    } else {
+      setIsSessionComplete(true);
+      toast.success('Chúc mừng! Bạn đã hoàn thành bộ thẻ.');
+    }
+  }, [cards, roundNum]);
+
   /* ── Mark correct/incorrect ─────────────────────────────────────────── */
   const handleCorrect = useCallback(() => {
+    if (roundCards.length === 0) return;
+    const currentCard = roundCards[currentIdx];
     if (!currentCard) return;
-    setKnownCards((prev) => new Set([...prev, currentCard._id]));
-    setLearningCards((prev) => {
-      const next = new Set(prev);
-      next.delete(currentCard._id);
-      return next;
-    });
-    progressService.updateCardProgress(currentCard._id, 3).catch(err => {
-      console.error('Failed to update progress:', err);
-    });
-    if (currentIdx < totalCards - 1) {
-      setTimeout(goNext, 300);
-    } else {
-      toast.success('Hoàn thành!');
-    }
-  }, [currentCard, currentIdx, totalCards, goNext]);
+    const cardId = currentCard._id;
 
-  const handleIncorrect = useCallback(() => {
-    if (!currentCard) return;
-    setLearningCards((prev) => new Set([...prev, currentCard._id]));
     setKnownCards((prev) => {
       const next = new Set(prev);
-      next.delete(currentCard._id);
+      next.add(cardId);
       return next;
     });
-    progressService.updateCardProgress(currentCard._id, 0).catch(err => {
-      console.error('Failed to update progress:', err);
+    setLearningCards((prev) => {
+      const next = new Set(prev);
+      next.delete(cardId);
+      return next;
     });
+
+    progressService.updateFlashcardStatus(cardId, 'KNOWN').catch(err => {
+      console.error('Failed to update flashcard status:', err);
+    });
+
     if (currentIdx < totalCards - 1) {
-      setTimeout(goNext, 300);
+      setIsFlipped(false);
+      setShowHint(false);
+      setTimeout(() => setCurrentIdx((p) => p + 1), 300);
     } else {
-      toast.success('Hoàn thành!');
+      const updatedNextRoundIds = new Set(nextRoundIds);
+      setTimeout(() => handleRoundEnd(updatedNextRoundIds), 300);
     }
-  }, [currentCard, currentIdx, totalCards, goNext]);
+  }, [currentIdx, roundCards, totalCards, nextRoundIds, handleRoundEnd]);
+
+  const handleIncorrect = useCallback(() => {
+    if (roundCards.length === 0) return;
+    const currentCard = roundCards[currentIdx];
+    if (!currentCard) return;
+    const cardId = currentCard._id;
+
+    setNextRoundIds(prev => {
+      const next = new Set(prev);
+      next.add(cardId);
+      return next;
+    });
+    setLearningCards((prev) => {
+      const next = new Set(prev);
+      next.add(cardId);
+      return next;
+    });
+    setKnownCards((prev) => {
+      const next = new Set(prev);
+      next.delete(cardId);
+      return next;
+    });
+
+    progressService.updateFlashcardStatus(cardId, 'LEARNING').catch(err => {
+      console.error('Failed to update flashcard status:', err);
+    });
+
+    if (currentIdx < totalCards - 1) {
+      setIsFlipped(false);
+      setShowHint(false);
+      setTimeout(() => setCurrentIdx((p) => p + 1), 300);
+    } else {
+      const updatedNextRoundIds = new Set(nextRoundIds);
+      updatedNextRoundIds.add(cardId);
+      setTimeout(() => handleRoundEnd(updatedNextRoundIds), 300);
+    }
+  }, [currentIdx, roundCards, totalCards, nextRoundIds, handleRoundEnd]);
 
   /* ── Keyboard shortcuts ───────────────────────────────────────────────── */
   useEffect(() => {
@@ -200,12 +285,23 @@ export default function StudyPage() {
   }, [goNext, goPrev, navigate, id, handleCorrect, handleIncorrect]);
 
   /* ── Reset ────────────────────────────────────────────────────────────── */
-  const handleReset = () => {
-    setKnownCards(new Set());
-    setLearningCards(new Set());
-    setCurrentIdx(0);
-    setIsFlipped(false);
-    toast.success('Đã đặt lại tiến độ');
+  const handleReset = async () => {
+    try {
+      await progressService.resetSetFlashcardProgress(id);
+      setKnownCards(new Set());
+      setLearningCards(new Set());
+      setRoundCards(cards);
+      setNextRoundIds(new Set());
+      setRoundNum(1);
+      setCurrentIdx(0);
+      setIsSessionComplete(false);
+      setIsFlipped(false);
+      setShowHint(false);
+      toast.success('Đã đặt lại tiến trình học thẻ');
+    } catch (err) {
+      console.error('Failed to reset set flashcard progress:', err);
+      toast.error('Không thể đặt lại tiến độ');
+    }
   };
 
   const toggleStar = useCallback((cardId) => {
@@ -319,7 +415,158 @@ export default function StudyPage() {
     );
   }
 
-  const progressPct = totalCards > 0 ? ((currentIdx + 1) / totalCards) * 100 : 0;
+  if (isSessionComplete && cards.length > 0) {
+    const knownCount = knownCards.size;
+    const learningCount = learningCards.size;
+    const totalCount = cards.length;
+
+    // Percentages for the progress bars
+    const knownPct = totalCount > 0 ? (knownCount / totalCount) * 100 : 0;
+    const learningPct = totalCount > 0 ? (learningCount / totalCount) * 100 : 0;
+    const remainingCount = Math.max(0, totalCount - knownCount - learningCount);
+    const remainingPct = totalCount > 0 ? (remainingCount / totalCount) * 100 : 0;
+
+    return (
+      <div className="ql2-page session-complete-page">
+        <header className="ql2-header">
+          <div className="ql2-header__left">
+            <button className="ql2-header__back" onClick={() => navigate(returnTo)}>
+              <ArrowLeft size={20} />
+            </button>
+            <span style={{ fontWeight: 600, fontSize: '1.1rem', marginLeft: '12px' }}>
+              Kết quả học thẻ
+            </span>
+          </div>
+        </header>
+
+        <div className="completion-container">
+          <div className="confetti-decor" />
+          
+          <div className="completion-card">
+            <h2 className="completion-title">Chà, bạn nắm bài thật chắc!</h2>
+            <p className="completion-subtitle">Bạn đã sắp xếp tất cả các thẻ ghi nhớ.</p>
+
+            <div className="completion-content-layout">
+              {/* Left Column - Progress Ring and bars */}
+              <div className="completion-left-col">
+                <div className="completion-progress-ring-box">
+                  <svg className="completion-progress-ring" width="140" height="140">
+                    <circle 
+                      className="ring-bg" 
+                      stroke="rgba(0,0,0,0.05)" 
+                      strokeWidth="10" 
+                      fill="transparent" 
+                      r="58" 
+                      cx="70" 
+                      cy="70"
+                    />
+                    <circle 
+                      className="ring-fill" 
+                      stroke="#10b981" 
+                      strokeWidth="10" 
+                      fill="transparent" 
+                      r="58" 
+                      cx="70" 
+                      cy="70"
+                      strokeDasharray="364.4"
+                      strokeDashoffset={364.4 - (364.4 * knownPct) / 100}
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                  <div className="ring-center-content">
+                    <Check size={36} color="#10b981" strokeWidth={3} />
+                  </div>
+                </div>
+
+                <div className="completion-stats-bars">
+                  <div className="stat-row">
+                    <div className="stat-info">
+                      <span className="stat-label text-known">Đã biết</span>
+                      <span className="stat-value">{knownCount}</span>
+                    </div>
+                    <div className="stat-progress-track">
+                      <div className="stat-progress-fill bg-known" style={{ width: `${knownPct}%` }} />
+                    </div>
+                  </div>
+
+                  <div className="stat-row">
+                    <div className="stat-info">
+                      <span className="stat-label text-learning">Đang học</span>
+                      <span className="stat-value">{learningCount}</span>
+                    </div>
+                    <div className="stat-progress-track">
+                      <div className="stat-progress-fill bg-learning" style={{ width: `${learningPct}%` }} />
+                    </div>
+                  </div>
+
+                  <div className="stat-row">
+                    <div className="stat-info">
+                      <span className="stat-label text-remaining">Còn lại</span>
+                      <span className="stat-value">{remainingCount}</span>
+                    </div>
+                    <div className="stat-progress-track">
+                      <div className="stat-progress-fill bg-remaining" style={{ width: `${remainingPct}%` }} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column - Next Steps */}
+              <div className="completion-right-col">
+                <h3 className="next-steps-title">Bước tiếp theo</h3>
+                
+                <button 
+                  className="next-step-btn primary-btn"
+                  onClick={() => navigate(`/study-sets/${id}/learn`, { state: { returnTo } })}
+                >
+                  <Brain size={20} />
+                  <div className="btn-text-box">
+                    <span className="btn-main-text">Ôn luyện với các câu hỏi</span>
+                    <span className="btn-sub-text">Học sâu hơn với chế độ Học</span>
+                  </div>
+                </button>
+
+                <button 
+                  className="next-step-btn secondary-btn"
+                  onClick={handleReset}
+                >
+                  <RotateCcw size={20} />
+                  <div className="btn-text-box">
+                    <span className="btn-main-text">Đặt lại Thẻ ghi nhớ</span>
+                    <span className="btn-sub-text">Học lại toàn bộ thẻ từ đầu</span>
+                  </div>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer Actions */}
+        <footer className="completion-footer">
+          <button 
+            className="footer-action-btn"
+            onClick={() => {
+              setIsSessionComplete(false);
+              setRoundCards([cards[cards.length - 1]]);
+              setCurrentIdx(0);
+              setNextRoundIds(new Set());
+            }}
+          >
+            Quay lại câu hỏi cuối cùng
+          </button>
+          <button 
+            className="footer-action-btn primary"
+            onClick={() => navigate(`/study-sets/${id}`)}
+          >
+            Nhấp để quay lại Bộ thẻ
+          </button>
+        </footer>
+      </div>
+    );
+  }
+
+  const overallProgressNum = cards.length > 0 ? (cards.length - roundCards.length + currentIdx + 1) : 0;
+  const progressPct = cards.length > 0 ? (overallProgressNum / cards.length) * 100 : 0;
 
   return (
     <div className="ql2-page">
@@ -380,6 +627,7 @@ export default function StudyPage() {
               <div
                 className="ql2-progress-bar__batch current"
                 style={{ '--puck-pos': 0 }}
+                data-tooltip={`${overallProgressNum} / ${cards.length}`}
               >
                 <div className="ql2-progress-bar__batch-bg" />
                 <div
@@ -388,11 +636,8 @@ export default function StudyPage() {
                 />
               </div>
             </div>
-            <div className="ql2-progress-bar__total">{totalCards}</div>
+            <div className="ql2-progress-bar__total">{cards.length}</div>
           </div>
-          <span className="ql2-progress-label" style={{ marginLeft: '12px' }}>
-            {currentIdx + 1} / {totalCards}
-          </span>
         </div>
 
         <div className="ql2-header__right">
@@ -435,9 +680,21 @@ export default function StudyPage() {
         )}
       </header>
 
-      <div className="ql2-content">
+      <div className="review-body">
+        {/* Bucket Counter Row */}
+        <div className="ql-flashcard-bucket-counter">
+          <div className="bucket-counter-item learning-bucket">
+            <span className="bucket-number">{learningCards.size}</span>
+            <span className="bucket-label">Đang học</span>
+          </div>
+          <div className="bucket-counter-item known-bucket">
+            <span className="bucket-label">Đã biết</span>
+            <span className="bucket-number">{knownCards.size}</span>
+          </div>
+        </div>
+
         {/* Main Card */}
-        <div className="ql2-card-area">
+        <div className="review-card-perspective">
           <AnimatePresence mode="wait">
             <motion.div
               key={currentIdx}
@@ -445,147 +702,146 @@ export default function StudyPage() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -60 }}
               transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-              className="ql2-flashcard-wrapper"
+              className="review-flashcard-motion-wrapper"
+              style={{ width: '100%', height: '100%' }}
             >
-              <div
-                className={`ql2-flashcard ${isFlipped ? 'ql2-flashcard--flipped' : ''}`}
+              <motion.div
+                className={`review-flashcard ${isFlipped ? 'flipped' : ''}`}
                 onClick={handleFlip}
+                animate={{ rotateY: isFlipped ? 180 : 0 }}
+                transition={{ duration: 0.4 }}
+                style={{ transformStyle: 'preserve-3d' }}
                 role="button"
                 tabIndex={0}
                 onKeyDown={(e) => e.key === 'Enter' && handleFlip()}
               >
-                {/* Front */}
-                <div className="ql2-flashcard__face ql2-flashcard__front">
-                  <div className="ql2-flashcard__controls">
-                    <button
-                      className={`ql2-hint-toggle ${showHint ? 'active' : ''}`}
-                      onClick={(e) => { e.stopPropagation(); setShowHint(!showHint); }}
-                    >
-                      <Lightbulb size={14} />
-                      <span className={showHint ? 'ql2-hint-mask' : ''}>
-                        {showHint ? getWordHint(currentCard?.front) : 'Hiển thị gợi ý'}
-                      </span>
-                    </button>
+                {/* Front Side */}
+                <div className="card-face card-front">
+                  <div className="card-top-hint">THẺ GHI NHỚ</div>
 
-                    <div className="ql2-flashcard__right-controls">
+                  {/* Top-left Star & Hint buttons */}
+                  {currentCard && (
+                    <div className="card-top-left-group">
                       <button
-                        className="ql2-card-action-btn"
+                        className={`card-star-btn ${starredCards.has(currentCard._id) ? 'active' : ''}`}
                         onClick={(e) => {
                           e.stopPropagation();
-                          speakCard(currentCard?.front);
-                        }}
-                        title="Nghe phát âm"
-                      >
-                        <Volume2 size={16} />
-                      </button>
-
-                      <button
-                        className={`ql2-card-action-btn ${starredCards.has(currentCard?._id) ? 'active' : ''}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleStar(currentCard?._id);
+                          toggleStar(currentCard._id);
                         }}
                         title="Đánh dấu sao"
                       >
                         <Star
-                          size={16}
-                          fill={starredCards.has(currentCard?._id) ? '#f59e0b' : 'none'}
-                          color={starredCards.has(currentCard?._id) ? '#f59e0b' : 'currentColor'}
+                          size={20}
+                          fill={starredCards.has(currentCard._id) ? '#f59e0b' : 'none'}
+                          color={starredCards.has(currentCard._id) ? '#f59e0b' : 'currentColor'}
                         />
                       </button>
+
+                      <button
+                        className={`card-hint-btn ${showHint ? 'active' : ''}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowHint(!showHint);
+                        }}
+                        title="Gợi ý"
+                      >
+                        <Lightbulb size={20} />
+                        {showHint && (
+                          <span className="card-hint-tooltip" onClick={(e) => e.stopPropagation()}>
+                            {currentCard.hint || `Gợi ý: ${getWordHint(currentCard.front)}`}
+                          </span>
+                        )}
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Top-right Pronunciation button */}
+                  {currentCard?.pronunciation && (
+                    <div 
+                      className="card-audio-top-right" 
+                      onClick={(e) => { e.stopPropagation(); speakCard(currentCard.front); }}
+                      title="Phát âm"
+                    >
+                      <Volume2 size={20} className="speak-icon" />
+                      <span className="card-ipa-tooltip">{currentCard.pronunciation}</span>
+                    </div>
+                  )}
+
+                  <div className="card-front-center-group">
+                    <div className="card-main-word">
+                      {currentCard?.front}
                     </div>
                   </div>
 
-                  <div className="ql2-flashcard__content">
-                    <AnimatePresence>
-                      {showHint && currentCard?.hint && (
-                        <motion.div
-                          className="ql2-hint-text"
-                          initial={{ opacity: 0, y: -10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -10 }}
-                        >
-                          {currentCard.hint}
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-
-                    <motion.h1
-                      className="ql2-flashcard__word"
-                      initial={{ scale: 0.95 }}
-                      animate={{ scale: 1 }}
-                      key={currentCard?._id}
-                    >
-                      {currentCard?.front}
-                    </motion.h1>
-
-                    {currentCard?.pronunciation && (
-                      <span className="ql2-phonetic">{currentCard.pronunciation}</span>
-                    )}
-                  </div>
-
-                  <div className="ql2-flashcard__hint-bottom">
-                    Nhấn để lật thẻ
+                  <div className="flip-prompt">
+                    <Eye size={16} /> Click vào thẻ hoặc nhấn Phím Cách để xem đáp án
                   </div>
                 </div>
 
-                {/* Back */}
-                <div className="ql2-flashcard__face ql2-flashcard__back">
-                  <div className="ql2-flashcard__controls">
-                    <span className="ql2-definition-label">Định nghĩa</span>
+                {/* Back Side */}
+                <div className="card-face card-back">
+                  <div className="card-top-hint">ĐỊNH NGHĨA</div>
 
-                    <div className="ql2-flashcard__right-controls">
+                  {/* Top-left Star button */}
+                  {currentCard && (
+                    <div className="card-top-left-group">
                       <button
-                        className={`ql2-card-action-btn ${starredCards.has(currentCard?._id) ? 'active' : ''}`}
+                        className={`card-star-btn ${starredCards.has(currentCard._id) ? 'active' : ''}`}
                         onClick={(e) => {
                           e.stopPropagation();
-                          toggleStar(currentCard?._id);
+                          toggleStar(currentCard._id);
                         }}
                         title="Đánh dấu sao"
                       >
                         <Star
-                          size={16}
-                          fill={starredCards.has(currentCard?._id) ? '#f59e0b' : 'none'}
-                          color={starredCards.has(currentCard?._id) ? '#f59e0b' : 'currentColor'}
+                          size={20}
+                          fill={starredCards.has(currentCard._id) ? '#f59e0b' : 'none'}
+                          color={starredCards.has(currentCard._id) ? '#f59e0b' : 'currentColor'}
                         />
                       </button>
                     </div>
-                  </div>
+                  )}
 
-                  <div className="ql2-flashcard__content">
-                    <div className="ql2-flashcard__back-content-layout">
-                      <div className="ql2-flashcard__back-text-section">
-                        <motion.h1
-                          className="ql2-flashcard__word ql2-flashcard__word--back"
-                          initial={{ scale: 0.95 }}
-                          animate={{ scale: 1 }}
-                          key={`back-${currentCard?._id}`}
-                        >
-                          {currentCard?.back}
-                        </motion.h1>
-
-                        {currentCard?.example && (
-                          <p className="ql2-example">"{currentCard.example}"</p>
-                        )}
+                  <div className={`card-back-content ${currentCard?.imageUrl ? 'has-image' : 'no-image'}`}>
+                    <div className="card-back-info">
+                      <div className="card-back-meaning">
+                        {currentCard?.back}
                       </div>
 
-                      {currentCard?.imageUrl && (
-                        <div className="ql2-flashcard__image-container">
-                          <img
-                            alt={currentCard?.back}
-                            src={currentCard.imageUrl}
-                            className="ql2-flashcard__image"
-                          />
+                      {currentCard?.example && (
+                        <p className="card-back-example">"{currentCard.example}"</p>
+                      )}
+
+                      {currentCard?.collocation && (
+                        <div className="card-back-extra">
+                          <strong>Cụm từ:</strong> {currentCard.collocation}
+                        </div>
+                      )}
+
+                      {currentCard?.relatedWords && (
+                        <div className="card-back-extra">
+                          <strong>Từ liên quan:</strong> {currentCard.relatedWords}
                         </div>
                       )}
                     </div>
+
+                    {currentCard?.imageUrl && (
+                      <div className="card-back-image-wrapper">
+                        <img
+                          alt={currentCard?.back}
+                          src={currentCard.imageUrl}
+                          className="card-back-image"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </div>
+                    )}
                   </div>
 
-                  <div className="ql2-flashcard__hint-bottom ql2-flashcard__hint-bottom--back">
-                    Nhấn để lật lại
+                  <div className="flip-prompt">
+                    <Eye size={16} /> Click vào thẻ để quay lại mặt trước
                   </div>
                 </div>
-              </div>
+              </motion.div>
             </motion.div>
           </AnimatePresence>
 
@@ -606,47 +862,24 @@ export default function StudyPage() {
           </button>
         </div>
 
-        {/* Action Buttons for SM-2 Spaced Repetition */}
-        <div className="ql-flashcard-actions" style={{ display: 'flex', justifyContent: 'center', gap: '16px', marginTop: '24px' }}>
-          <button
-            className="ql-action-btn ql-action-btn--incorrect"
-            onClick={handleIncorrect}
-            style={{
-              padding: '12px 28px',
-              borderRadius: '24px',
-              border: '2px solid #ef4444',
-              background: '#fef2f2',
-              color: '#ef4444',
-              fontWeight: 'bold',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              transition: 'all 0.2s',
-            }}
+        {/* Rating buttons (always visible) */}
+        <div className="rating-container-circle">
+          <button 
+            className="rate-circle-btn rate-circle-again" 
+            onClick={(e) => { e.stopPropagation(); handleIncorrect(); }} 
+            title="Đang học (Phím 1)"
           >
-            Chưa thuộc (⚡)
+            <X size={24} />
           </button>
-          <button
-            className="ql-action-btn ql-action-btn--correct"
-            onClick={handleCorrect}
-            style={{
-              padding: '12px 28px',
-              borderRadius: '24px',
-              border: '2px solid #22c55e',
-              background: '#f0fdf4',
-              color: '#22c55e',
-              fontWeight: 'bold',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              transition: 'all 0.2s',
-            }}
+          <button 
+            className="rate-circle-btn rate-circle-remembered" 
+            onClick={(e) => { e.stopPropagation(); handleCorrect(); }} 
+            title="Đã biết (Phím 2)"
           >
-            Đã thuộc (✓)
+            <Check size={24} />
           </button>
         </div>
+
       </div>
     </div>
   );

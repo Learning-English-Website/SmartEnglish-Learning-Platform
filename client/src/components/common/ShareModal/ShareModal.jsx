@@ -19,7 +19,7 @@ const APP_URL = import.meta.env.VITE_APP_URL || window.location.origin;
  */
 export default function ShareModal({ show, setId, setTitle, isPublic, onHide, onPublicChanged }) {
   const [copied, setCopied] = useState(false);
-    const [copiedDeepLink, setCopiedDeepLink] = useState(false);
+  const [copiedDeepLink, setCopiedDeepLink] = useState(false);
   const [currentIsPublic, setCurrentIsPublic] = useState(isPublic);
   const [makingPublic, setMakingPublic] = useState(false);
 
@@ -42,10 +42,10 @@ export default function ShareModal({ show, setId, setTitle, isPublic, onHide, on
     try {
       await setService.update(setId, { isPublic: true });
       setCurrentIsPublic(true);
-      toast.success('Set is now public! Anyone can view it.');
+      toast.success('Học phần hiện đã được công khai! Bất kỳ ai cũng có thể xem.');
       onPublicChanged?.(true);
     } catch (err) {
-      toast.error('Failed to make set public');
+      toast.error('Không thể công khai học phần này');
     } finally {
       setMakingPublic(false);
     }
@@ -55,10 +55,10 @@ export default function ShareModal({ show, setId, setTitle, isPublic, onHide, on
     try {
       await navigator.clipboard.writeText(shareUrl);
       setCopied(true);
-      toast.success('Link copied to clipboard!');
+      toast.success('Đã sao chép liên kết vào bộ nhớ tạm!');
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      toast.error('Failed to copy link');
+      toast.error('Không thể sao chép liên kết');
     }
   };
 
@@ -66,10 +66,10 @@ export default function ShareModal({ show, setId, setTitle, isPublic, onHide, on
     try {
       await navigator.clipboard.writeText(deepLinkUrl);
       setCopiedDeepLink(true);
-      toast.success('Mobile deep link copied!');
+      toast.success('Đã sao chép Mobile deep link!');
       setTimeout(() => setCopiedDeepLink(false), 2000);
     } catch {
-      toast.error('Failed to copy deep link');
+      toast.error('Không thể sao chép deep link');
     }
   };
 
@@ -84,7 +84,7 @@ export default function ShareModal({ show, setId, setTitle, isPublic, onHide, on
       <Modal.Header closeButton className="share-modal-header">
         <Modal.Title>
           <FiShare2 className="me-2" />
-          Share "{setTitle || 'Set'}"
+          Chia sẻ "{setTitle || 'Học phần'}"
         </Modal.Title>
       </Modal.Header>
 
@@ -94,9 +94,9 @@ export default function ShareModal({ show, setId, setTitle, isPublic, onHide, on
             <div className="share-icon-wrap">
               <FiLock size={48} />
             </div>
-            <h4>This set is private</h4>
+            <h4>Học phần này đang ở chế độ riêng tư</h4>
             <p>
-              To share this set, you need to make it public first. Only then can others view and study it.
+              Để chia sẻ học phần này, trước tiên bạn cần công khai nó. Chỉ khi đó người khác mới có thể xem và học.
             </p>
             <Button
               variant="primary"
@@ -107,19 +107,19 @@ export default function ShareModal({ show, setId, setTitle, isPublic, onHide, on
               {makingPublic ? (
                 <>
                   <span className="spinner-border spinner-border-sm me-2" />
-                  Making public...
+                  Đang công khai...
                 </>
               ) : (
                 <>
                   <FiGlobe className="me-2" />
-                  Make Public
+                  Công khai
                 </>
               )}
             </Button>
           </div>
         ) : (
           <div className="share-link-section">
-            <p className="share-link-label">Share this public set (Web)</p>
+            <p className="share-link-label">Chia sẻ học phần công khai này (Web)</p>
 
             <InputGroup className="share-link-input-group mb-3">
               <Form.Control
@@ -135,17 +135,17 @@ export default function ShareModal({ show, setId, setTitle, isPublic, onHide, on
               >
                 {copied ? (
                   <>
-                    <FiCheck className="me-1" /> Copied
+                    <FiCheck className="me-1" /> Đã chép
                   </>
                 ) : (
                   <>
-                    <FiCopy className="me-1" /> Copy
+                    <FiCopy className="me-1" /> Sao chép
                   </>
                 )}
               </Button>
             </InputGroup>
 
-            <p className="share-link-label">Open in Mobile App (Deep Link)</p>
+            <p className="share-link-label">Mở trong Ứng dụng Di động (Deep Link)</p>
 
             <InputGroup className="share-link-input-group">
               <Form.Control
@@ -161,18 +161,18 @@ export default function ShareModal({ show, setId, setTitle, isPublic, onHide, on
               >
                 {copiedDeepLink ? (
                   <>
-                    <FiCheck className="me-1" /> Copied
+                    <FiCheck className="me-1" /> Đã chép
                   </>
                 ) : (
                   <>
-                    <FiCopy className="me-1" /> Copy
+                    <FiCopy className="me-1" /> Sao chép
                   </>
                 )}
               </Button>
             </InputGroup>
 
             <div className="share-info mt-3">
-              <small>Anyone with these links can view and study this set.</small>
+              <small>Bất kỳ ai có liên kết này đều có thể xem và học học phần này.</small>
             </div>
           </div>
         )}
@@ -180,7 +180,7 @@ export default function ShareModal({ show, setId, setTitle, isPublic, onHide, on
 
       <Modal.Footer className="share-modal-footer">
         <Button variant="secondary" onClick={handleClose}>
-          {currentIsPublic ? 'Done' : 'Cancel'}
+          {currentIsPublic ? 'Hoàn tất' : 'Hủy'}
         </Button>
       </Modal.Footer>
     </Modal>

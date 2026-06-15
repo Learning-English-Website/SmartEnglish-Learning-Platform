@@ -206,7 +206,9 @@ export default function RegisterPage() {
     <div className="auth-page">
       <div className="auth-card">
         <div className="auth-header">
-          <div className="auth-logo">🧠</div>
+          <div className="auth-logo">
+            <img src="/uploads/logo_app.png" alt="Memoris Logo" style={{ height: '48px', objectFit: 'contain' }} />
+          </div>
           <h1 className="auth-title">Tạo tài khoản</h1>
           <p className="auth-subtitle">
             {isOtpStep ? `Nhập mã OTP đã gửi tới ${effectiveEmail}` : 'Bắt đầu hành trình học tập của bạn ngay hôm nay'}

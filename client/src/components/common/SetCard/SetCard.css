@@ -1,79 +1,136 @@
+/* ==========================================================================
+   SET CARD — Premium Column/Row Layout
+   ========================================================================== */
+
 .set-card {
-  display: flex;
-  flex-direction: column;
-  padding: 16px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-subtle);
-  border-radius: 10px;
-  transition: box-shadow 0.15s, border-color 0.15s;
-  cursor: pointer;
-}
-
-.set-card:hover {
-  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
-  border-color: var(--border-default);
-}
-
-.set-card__body {
-  flex: 1;
-  margin-bottom: 12px;
-}
-
-.set-card__title {
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin: 0 0 6px 0;
-}
-
-.set-card__desc {
-  font-size: 0.85rem;
-  color: var(--text-muted);
-  margin: 0;
-  line-height: 1.4;
-}
-
-.set-card__footer {
+  font-family: 'Be Vietnam Pro', -apple-system, BlinkMacSystemFont, sans-serif !important;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-top: 10px;
-  border-top: 1px solid var(--border-subtle);
+  padding: 18px 24px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-left: 4.5px solid var(--gl-tertiary); /* Cobalt Blue theme indicator */
+  border-bottom: 1px solid var(--border-subtle);
+  border-radius: 14px;
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 0.25s ease;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.01);
+  width: 100%;
 }
 
-.set-card__stats {
-  display: inline-flex;
+.set-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--border-subtle);
+  border-left-color: #1e4fd4; /* darker cobalt */
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.05);
+}
+
+[data-theme='dark'] .set-card:hover {
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.25);
+}
+
+.set-card:active {
+  transform: translateY(-1px);
+}
+
+.set-card__main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.set-card__header-row {
+  display: flex;
   align-items: center;
-  gap: 5px;
-  font-size: 0.8rem;
+  gap: 8px;
+  font-size: 0.85rem;
   color: var(--text-muted);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.set-card__count {
+  font-weight: 700;
+}
+
+.set-card__separator {
+  color: var(--border-subtle);
+}
+
+.set-card__user-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.set-card__avatar {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(44, 94, 245, 0.1);
+  color: var(--gl-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.set-card__username {
+  font-weight: 750;
+  color: var(--text-body);
+}
+
+.set-card__title {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--text-heading);
+  margin: 0;
+  line-height: 1.35;
+  word-break: break-word;
+  letter-spacing: -0.02em;
+}
+
+.set-card:hover .set-card__title {
+  color: var(--gl-tertiary);
 }
 
 .set-card__actions {
   display: flex;
-  gap: 6px;
+  gap: 8px;
+  margin-left: 16px;
 }
 
 .set-card__btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border: none;
-  border-radius: 6px;
-  background: transparent;
+  border-radius: 8px;
+  background: rgba(15, 20, 25, 0.03);
   color: var(--text-muted);
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+[data-theme='dark'] .set-card__btn {
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .set-card__btn:hover {
-  background: var(--bg-page);
+  background: var(--bg-hover);
+  color: var(--text-body);
 }
 
 .set-card__btn--edit:hover {
-  color: #2c5ef5;
+  color: var(--gl-tertiary);
+  background: rgba(44, 94, 245, 0.1);
 }
 
 .set-card__btn--delete:hover {

@@ -15,7 +15,6 @@ const cardProgressSchema = new Schema(
     easeFactor: {
       type: Number,
       min: 1.3,
-      max: 2.5,
       default: 2.5,
     },
     interval: {
@@ -38,6 +37,21 @@ const cardProgressSchema = new Schema(
     lapses: {
       type: Number,
       default: 0, // number of times the card was forgotten
+    },
+    status: {
+      type: String,
+      enum: ['NEW', 'LEARNING', 'REVIEW'],
+      default: 'NEW',
+      index: true,
+      // NOTE: We do NOT create CardProgress records for new cards.
+      // Cards without a progress record are treated as NEW implicitly.
+      // The 'NEW' status in this schema is only for backwards compatibility or legacy data migration.
+    },
+    flashcardStatus: {
+      type: String,
+      enum: ['NEW', 'LEARNING', 'KNOWN'],
+      default: 'NEW',
+      index: true,
     },
 
     // Statistics

@@ -101,12 +101,8 @@ export default function DashboardLayout({ children }) {
           <button className="q-hamburger" onClick={toggleMobileSidebar} aria-label="Menu">
             <Menu size={18} />
           </button>
-          <Link to="/dashboard" className="q-logo">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M12 2L2 7l10 5 10-5-10-5z" fill="#2563eb" />
-              <path d="M2 17l10 5 10-5" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M2 12l10 5 10-5" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
+          <Link to="/dashboard" className="q-logo d-flex align-items-center">
+            <img src="/uploads/logo_app.png" alt="Memoris Logo" className="q-logo-img" style={{ height: '26px', marginRight: '8px', objectFit: 'contain' }} />
             <span>Memoris</span>
           </Link>
         </div>

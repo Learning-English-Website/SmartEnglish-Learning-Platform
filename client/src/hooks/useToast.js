@@ -9,9 +9,9 @@ export function useToast() {
   const loading = (message) => toast.loading(message);
   const promise = (promise, messages = {}) => {
     return toast.promise(promise, {
-      loading: messages.loading || 'Loading...',
-      success: messages.success || 'Success!',
-      error: messages.error || 'Something went wrong',
+      loading: messages.loading || 'Đang tải...',
+      success: messages.success || 'Thành công!',
+      error: messages.error || 'Đã xảy ra lỗi',
     });
   };
 

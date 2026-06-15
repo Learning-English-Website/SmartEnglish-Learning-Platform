@@ -15,6 +15,26 @@
   padding: 40px 32px 32px;
 }
 
+.folder-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 20px;
+  padding: 6px 0;
+  font-family: var(--font-sans);
+  transition: color 0.2s ease;
+}
+
+.folder-back-link:hover {
+  color: var(--gl-tertiary);
+}
+
 /* ── Loading ────────────────────────────────── */
 .folder-loading {
   display: flex;

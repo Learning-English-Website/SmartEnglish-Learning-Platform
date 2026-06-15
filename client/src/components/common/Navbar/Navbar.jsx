@@ -12,8 +12,8 @@ export default function AppNavbar({ darkMode, onToggleDark }) {
     <Navbar className="memoris-navbar" expand="lg" fixed="top">
       <Container>
         {/* Brand */}
-        <Navbar.Brand as={Link} to="/" className="brand">
-          <span className="brand-icon">🧠</span>
+        <Navbar.Brand as={Link} to="/" className="brand d-flex align-items-center">
+          <img src="/uploads/logo_app.png" alt="Memoris Logo" className="brand-logo-img" style={{ height: '32px', marginRight: '10px', objectFit: 'contain' }} />
           <span className="brand-name">Memoris</span>
         </Navbar.Brand>
 
@@ -22,10 +22,10 @@ export default function AppNavbar({ darkMode, onToggleDark }) {
         <Navbar.Collapse id="main-nav">
           {isAuthenticated && (
             <Nav className="me-auto nav-links">
-              <Nav.Link as={NavLink} to="/dashboard" end>Dashboard</Nav.Link>
-              <Nav.Link as={NavLink} to="/flashcards" end>Flashcards</Nav.Link>
-              <Nav.Link as={NavLink} to="/flashcards/browse">Browse</Nav.Link>
-              <Nav.Link as={NavLink} to="/duolingo">Practice</Nav.Link>
+              <Nav.Link as={NavLink} to="/dashboard" end>Bảng điều khiển</Nav.Link>
+              <Nav.Link as={NavLink} to="/flashcards" end>Thẻ ghi nhớ</Nav.Link>
+              <Nav.Link as={NavLink} to="/flashcards/browse">Khám phá</Nav.Link>
+              <Nav.Link as={NavLink} to="/duolingo">Luyện tập</Nav.Link>
               {user?.role === 'teacher' && (
                 <Nav.Link as={NavLink} to="/teacher/studio" className="text-primary fw-bold">Studio Soạn Bài</Nav.Link>
               )}
@@ -38,7 +38,7 @@ export default function AppNavbar({ darkMode, onToggleDark }) {
               variant="ghost"
               className="btn-icon"
               onClick={onToggleDark}
-              title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+              title={darkMode ? 'Chuyển sang giao diện sáng' : 'Chuyển sang giao diện tối'}
             >
               {darkMode ? <FiSun /> : <FiMoon />}
             </Button>
@@ -61,33 +61,33 @@ export default function AppNavbar({ darkMode, onToggleDark }) {
                 <Dropdown.Menu className="dropdown-menu-custom">
                   {user?.role === 'teacher' && (
                     <Dropdown.Item as={Link} to="/teacher/studio">
-                      <FiSettings className="me-2 text-primary" /> Teacher Studio
+                      <FiSettings className="me-2 text-primary" /> Studio Giáo viên
                     </Dropdown.Item>
                   )}
                   {user?.role === 'admin' && (
                     <Dropdown.Item as={Link} to="/admin">
-                      <FiSettings className="me-2 text-danger" /> Admin Panel
+                      <FiSettings className="me-2 text-danger" /> Bảng Quản trị
                     </Dropdown.Item>
                   )}
                   <Dropdown.Item as={Link} to="/profile">
-                    <FiUser className="me-2" /> Profile
+                    <FiUser className="me-2" /> Hồ sơ
                   </Dropdown.Item>
                   <Dropdown.Item as={Link} to="/profile/edit">
-                    <FiSettings className="me-2" /> Edit Profile
+                    <FiSettings className="me-2" /> Chỉnh sửa hồ sơ
                   </Dropdown.Item>
                   <Dropdown.Divider />
                   <Dropdown.Item onClick={logout} className="logout-item">
-                    <FiLogOut className="me-2" /> Logout
+                    <FiLogOut className="me-2" /> Đăng xuất
                   </Dropdown.Item>
                 </Dropdown.Menu>
               </Dropdown>
             ) : (
               <div className="auth-buttons">
                 <Button as={Link} to="/login" variant="outline-primary" className="btn-login">
-                  Log In
+                  Đăng nhập
                 </Button>
                 <Button as={Link} to="/register" variant="primary" className="btn-register">
-                  Get Started
+                  Bắt đầu
                 </Button>
               </div>
             )}

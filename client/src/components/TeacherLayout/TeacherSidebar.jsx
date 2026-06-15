@@ -13,11 +13,13 @@ export default function TeacherSidebar({ collapsed, onToggle }) {
     <aside className={`teacher-sidebar ${collapsed ? 'collapsed' : ''}`}>
       {/* Logo */}
       <div className="teacher-sidebar-logo">
-        <div className="teacher-sidebar-logo-icon"><Settings size={20} color="#fff" /></div>
+        <div className="teacher-sidebar-logo-icon">
+          <img src="/uploads/logo_app.png" alt="Logo" style={{ height: '20px', width: '20px', objectFit: 'contain' }} />
+        </div>
         {!collapsed && (
           <div className="teacher-sidebar-logo-text">
             <span className="teacher-logo-title">SmartEnglish</span>
-            <span className="teacher-logo-sub">Teacher Panel</span>
+            <span className="teacher-logo-sub">Bảng Giáo viên</span>
           </div>
         )}
         <button className="teacher-sidebar-toggle" onClick={onToggle} title={collapsed ? 'Mở rộng' : 'Thu gọn'}>

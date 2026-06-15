@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   Folder, Plus, BookOpen, GraduationCap, Clock, MoreHorizontal,
-  Layers, StickyNote, Brain
+  Layers, StickyNote, Brain, ArrowLeft
 } from 'lucide-react';
 import { folderService } from '../../api/folderService';
 import { setService } from '../../api/setService';
@@ -67,7 +67,10 @@ export default function FolderPage() {
       }
     };
 
-    fetchFolder();
+    const fetchFolderWrapper = () => {
+      fetchFolder();
+    };
+    fetchFolderWrapper();
   }, [folderId, navigate]);
 
   // Close menu on outside click
@@ -171,6 +174,12 @@ export default function FolderPage() {
   return (
     <div className="folder-page">
       <div className="folder-container">
+        
+        {/* Back Link */}
+        <button className="folder-back-link" onClick={() => navigate('/library')}>
+          <ArrowLeft size={16} />
+          <span>Quay lại thư viện</span>
+        </button>
 
         {/* Header */}
         <div className="folder-header">

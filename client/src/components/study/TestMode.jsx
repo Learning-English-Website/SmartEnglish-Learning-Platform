@@ -812,12 +812,12 @@ export default function TestMode({ cards = [], setTitle = '', onClose, onComplet
     return false;
   };
 
-  // Calculate quality based on average correct rate
+  // Calculate API quality on the backend scale: 0=Again, 3=Hard, 4=Good, 5=Easy.
   const calculateQuality = (total, correct) => {
-    if (total === 0) return 2; // Default to Good if no questions
+    if (total === 0) return 4; // Default to Good if no questions
     const ratio = correct / total;
-    if (ratio === 1) return 3; // Easy - all correct
-    if (ratio >= 0.5) return 2; // Good - at least half correct
+    if (ratio === 1) return 5; // Easy - all correct
+    if (ratio >= 0.5) return 4; // Good - at least half correct
     return 0; // Again - less than half correct
   };
 
@@ -898,7 +898,7 @@ export default function TestMode({ cards = [], setTitle = '', onClose, onComplet
     const cardSummary = Object.entries(cardResults).map(([cardId, result]) => {
       const card = cards.find(c => c.id === cardId);
       const quality = calculateQuality(result.total, result.correct);
-      const qualityLabel = quality === 3 ? 'Easy' : quality === 2 ? 'Good' : 'Again';
+      const qualityLabel = quality === 5 ? 'Easy' : quality === 4 ? 'Good' : 'Again';
       return {
         cardId,
         front: card?.front || 'Unknown',
@@ -981,7 +981,7 @@ export default function TestMode({ cards = [], setTitle = '', onClose, onComplet
 
             {/* Card progress summary */}
             <div className="test-results__card-summary">
-              <h3 className="test-results__section-title">Tiến độ theo thẻ (SM-2)</h3>
+              <h3 className="test-results__section-title">Tiến độ ôn tập thông minh</h3>
               <div className="test-results__cards-list">
                 {cardSummary.map((summary, idx) => (
                   <div key={summary.cardId} className={`test-results__card-item quality-${summary.qualityLabel.toLowerCase()}`}>

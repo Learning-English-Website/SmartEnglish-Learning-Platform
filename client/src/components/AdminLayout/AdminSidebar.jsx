@@ -161,10 +161,18 @@ export default function AdminSidebar({ collapsed, onToggle }) {
     <aside className={`admin-sidebar ${collapsed ? 'collapsed' : ''}`}>
       {/* Gentelella Logo Header */}
       <div className="admin-sidebar-logo">
-        <div className="admin-logo-icon">
-          <span className="gentelella-logo-paw">🐾</span>
+        <div className="admin-sidebar-logo-icon">
+          <img src="/uploads/logo_app.png" alt="Logo" style={{ height: '20px', width: '20px', objectFit: 'contain' }} />
         </div>
-        {!collapsed && <span className="gentelella-logo-text">Memoris</span>}
+        {!collapsed && (
+          <div className="admin-sidebar-logo-text">
+            <span className="admin-logo-title">SmartEnglish</span>
+            <span className="admin-logo-sub">{isCskh ? 'Support Panel' : 'Admin Panel'}</span>
+          </div>
+        )}
+        <button className="admin-sidebar-toggle" onClick={onToggle} title={collapsed ? 'Mở rộng' : 'Thu gọn'}>
+          {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+        </button>
       </div>
 
       {/* Welcome Section */}

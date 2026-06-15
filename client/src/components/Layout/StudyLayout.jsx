@@ -42,12 +42,8 @@ export default function StudyLayout({ backTo: defaultBackTo, hideHeader = false 
                 <path d="m15 18-6-6 6-6"/>
               </svg>
             </button>
-            <div className="study-layout__brand">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M12 2L2 7l10 5 10-5-10-5z" fill="#4255ff"/>
-                <path d="M2 17l10 5 10-5" stroke="#4255ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M2 12l10 5 10-5" stroke="#4255ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
+            <div className="study-layout__brand d-flex align-items-center">
+              <img src="/uploads/logo_app.png" alt="Memoris Logo" style={{ height: '22px', marginRight: '8px', objectFit: 'contain' }} />
               <span className="study-layout__brand-name">Memoris</span>
             </div>
             {title && (

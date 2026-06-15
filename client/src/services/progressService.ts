@@ -13,6 +13,8 @@ export interface CardProgress {
   lapses: number;
   totalReviews: number;
   correctReviews: number;
+  status: 'NEW' | 'LEARNING' | 'REVIEW';
+  flashcardStatus?: 'NEW' | 'LEARNING' | 'KNOWN';
 }
 
 /**
@@ -41,10 +43,16 @@ export interface UserStats {
   longestStreak: number;
   masteredCards: number;
   learningCards: number;
+  newCards: number;
+  dueToday: number;
+  todayXp: number;
+  last7DaysXp?: Array<{ date: string; xp: number }>;
   level: number;
   xp: number;
   xpToNextLevel: number;
 }
+
+export type ApiQualityRating = 0 | 3 | 4 | 5;
 
 /**
  * Progress service for spaced repetition and learning analytics
@@ -60,9 +68,9 @@ export const progressService = {
   /**
    * Update card progress with SM-2 quality rating
    * @param {string} cardId - Card ID
-   * @param {number} quality - Quality rating (0-3: 0=again, 1=hard, 2=good, 3=easy)
+   * @param {ApiQualityRating} quality - Backend quality rating (0=again, 3=hard, 4=good, 5=easy)
    */
-  updateCardProgress: (cardId: string, quality: number) =>
+  updateCardProgress: (cardId: string, quality: ApiQualityRating) =>
     axiosClient.put<CardProgress>(`/progress/cards/${cardId}`, { quality }),
 
   /**
@@ -126,6 +134,43 @@ export const progressService = {
       `/progress/forecast`,
       { params: { days } }
     ),
+
+  /**
+   * Complete learning a card (idempotent PUT NEW -> LEARNING)
+   * @param {string} cardId - Card ID
+   */
+  completeLearning: (cardId: string) =>
+    axiosClient.put<CardProgress>(`/progress/cards/${cardId}/complete-learning`),
+
+  /**
+   * Update flashcard status for a card (NEW, LEARNING, KNOWN)
+   * @param {string} cardId - Card ID
+   * @param {'NEW' | 'LEARNING' | 'KNOWN'} status - New flashcard status
+   */
+  updateFlashcardStatus: (cardId: string, status: 'NEW' | 'LEARNING' | 'KNOWN') =>
+    axiosClient.put<CardProgress>(`/progress/cards/${cardId}/flashcard-status`, { status }),
+
+  /**
+   * Reset flashcard progress for all cards in a set to NEW
+   * @param {string} setId - Set ID
+   */
+  resetSetFlashcardProgress: (setId: string) =>
+    axiosClient.post<{ success: boolean }>(`/progress/sets/${setId}/reset-flashcards`),
+
+  /**
+   * Get new cards to learn (implicit NEW, i.e., no progress or status !== LEARNING/REVIEW)
+   * @param {string} [setId] - Optional set filter
+   * @param {number} [limit] - Optional limit
+   */
+  getNewCards: (setId?: string, limit?: number) =>
+    axiosClient.get<any[]>(`/progress/new-cards`, { params: { setId, limit } }),
+
+  /**
+   * Get cards due for review (LEARNING/REVIEW status, nextReview <= now)
+   * @param {string} [setId] - Optional set filter
+   */
+  getDueCards: (setId?: string) =>
+    axiosClient.get<any[]>(`/progress/due-cards`, { params: { setId } }),
 };
 
 export default progressService;

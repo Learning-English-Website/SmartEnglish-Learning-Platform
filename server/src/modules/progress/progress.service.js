@@ -3,77 +3,11 @@ const CardProgress = require('../../models/cardProgress.model');
 const Flashcard = require('../../models/flashcard.model');
 const StudySession = require('../../models/studySession.model');
 const { AppError } = require('../../shared/errors/AppError');
-
-// SM-2 Algorithm Constants - Optimized for "ham học" (learning enthusiasts)
-const MIN_EASE_FACTOR = 1.3;
-const MAX_EASE_FACTOR = 2.0; // Giảm từ 2.5 để khoảng cách tăng chậm hơn
-const INITIAL_EASE_FACTOR = 2.0; // Giảm từ 2.5
-
-/**
- * Calculate next review schedule using SM-2 algorithm
- * Optimized for learning enthusiasts:
- * - Card đúng: khoảng cách tăng chậm hơn (1 → 2 → 3-4 ngày)
- * - Card sai: review lại ngay trong ngày
- *
- * Quality ratings (mapped from UI):
- * - 0 = Again (complete blackout)
- * - 1 = Hard (correct but with difficulty)
- * - 2 = Good (correct with some hesitation)
- * - 3 = Easy (perfect recall)
- */
-const calculateSM2 = (currentSchedule, quality) => {
-  const now = new Date();
-
-  // Map our 0-3 quality to SM-2's 0-5 scale
-  const sm2Quality = quality * (5 / 3);
-
-  let { easeFactor = INITIAL_EASE_FACTOR, interval = 0, repetitions = 0, lapses = 0 } = currentSchedule || {};
-
-  if (quality < 2) {
-    // Failed recall - reset, schedule for review AGAIN TODAY immediately
-    repetitions = 0;
-    interval = 0; // Review again today - no delay
-    lapses = (lapses || 0) + 1;
-
-    // Decrease ease factor (min 1.3)
-    easeFactor = Math.max(MIN_EASE_FACTOR, easeFactor - 0.2);
-
-    // Next review is NOW (today)
-    nextReview = new Date(now);
-  } else {
-    // Successful recall - tăng khoảng cách chậm hơn cho "người ham học"
-    if (repetitions === 0) {
-      interval = 1; // Lần đầu đúng: 1 ngày
-    } else if (repetitions === 1) {
-      interval = 2; // Lần 2 đúng: 2 ngày (thay vì 6)
-    } else {
-      // Từ lần 3+: dùng (EF - 0.5) để tăng chậm hơn
-      // Ví dụ: EF = 2.0 → multiplier = 1.5 → interval tăng chậm
-      const effectiveEF = easeFactor - 0.5;
-      interval = Math.max(1, Math.round(interval * effectiveEF));
-    }
-
-    repetitions += 1;
-
-    // Adjust ease factor based on quality
-    const efChange = 0.1 - (5 - sm2Quality) * (0.08 + (5 - sm2Quality) * 0.02);
-    easeFactor = Math.min(MAX_EASE_FACTOR, Math.max(MIN_EASE_FACTOR, easeFactor + efChange));
-
-    // Calculate next review date for successful recall
-    const successfulNextReview = new Date(now);
-    successfulNextReview.setDate(successfulNextReview.getDate() + interval);
-    nextReview = successfulNextReview;
-  }
-
-  return {
-    easeFactor,
-    interval,
-    repetitions,
-    nextReview,
-    lastReview: now,
-    lapses,
-  };
-};
+const {
+  INITIAL_EASE_FACTOR,
+  calculateSM2,
+  getNextReviewDate,
+} = require('../../shared/services/sm2.service');
 
 /**
  * Get progress for a specific card
@@ -95,6 +29,8 @@ const getCardProgress = async (userId, cardId) => {
       correctReviews: 0,
       accuracy: 0,
       masteryLevel: 0,
+      status: 'NEW',
+      flashcardStatus: 'NEW',
     };
   }
 
@@ -110,6 +46,8 @@ const getCardProgress = async (userId, cardId) => {
     correctReviews: progress.correctReviews,
     accuracy: progress.totalReviews > 0 ? Math.round((progress.correctReviews / progress.totalReviews) * 100) : 0,
     masteryLevel: progress.masteryLevel,
+    status: progress.status,
+    flashcardStatus: progress.flashcardStatus || 'NEW',
   };
 };
 
@@ -126,22 +64,10 @@ const updateCardProgress = async (userId, cardId, quality) => {
     throw new AppError('Card not found', 404);
   }
 
-  // Get or create progress
+  // Get progress
   let progress = await CardProgress.findOne({ user: userId, card: cardId });
-  console.log('[CardProgress] Existing progress:', progress ? 'found' : 'not found');
-
-  if (!progress) {
-    progress = new CardProgress({
-      user: userId,
-      card: cardId,
-      easeFactor: INITIAL_EASE_FACTOR,
-      interval: 0,
-      repetitions: 0,
-      nextReview: new Date(),
-      totalReviews: 0,
-      correctReviews: 0,
-      lapses: 0,
-    });
+  if (!progress || progress.status === 'NEW') {
+    throw new AppError('Card has not been learned yet in Learn Mode', 400);
   }
 
   // Calculate new SM-2 schedule
@@ -161,9 +87,10 @@ const updateCardProgress = async (userId, cardId, quality) => {
   progress.repetitions = newSchedule.repetitions;
   progress.nextReview = newSchedule.nextReview;
   progress.lastReview = newSchedule.lastReview;
+  progress.status = newSchedule.status;
   progress.lapses = newSchedule.lapses;
   progress.totalReviews += 1;
-  if (quality >= 2) {
+  if (quality >= 3) {
     progress.correctReviews += 1;
   }
 
@@ -178,6 +105,7 @@ const updateCardProgress = async (userId, cardId, quality) => {
     nextReview: progress.nextReview,
     lastReview: progress.lastReview,
     lapses: progress.lapses,
+    status: progress.status,
     totalReviews: progress.totalReviews,
     correctReviews: progress.correctReviews,
     accuracy: progress.totalReviews > 0 ? Math.round((progress.correctReviews / progress.totalReviews) * 100) : 0,
@@ -221,10 +149,10 @@ const getSetProgress = async (userId, setId) => {
   }).sort({ createdAt: -1 });
 
   // Calculate stats
-  const masteredCards = progressRecords.filter(p => p.correctReviews > 0).length;
-  const learningCards = progressRecords.filter(p => p.totalReviews > 0 && p.correctReviews === 0).length;
-  const newCards = progressRecords.filter(p => p.totalReviews === 0).length;
-  const dueCards = progressRecords.filter(p => new Date(p.nextReview) <= now).length;
+  const learningCards = progressRecords.filter(p => p.status === 'LEARNING').length;
+  const masteredCards = progressRecords.filter(p => p.status === 'REVIEW').length;
+  const newCards = Math.max(0, cards.length - (learningCards + masteredCards));
+  const dueCards = progressRecords.filter(p => ['LEARNING', 'REVIEW'].includes(p.status) && new Date(p.nextReview) <= now).length;
 
   // Calculate average accuracy
   const cardsWithReviews = progressRecords.filter(p => p.totalReviews > 0);
@@ -276,6 +204,8 @@ const getCardSchedules = async (userId, setId) => {
         totalReviews: 0,
         correctReviews: 0,
         masteryLevel: 0,
+        status: 'NEW',
+        flashcardStatus: 'NEW',
       };
     }
     return {
@@ -289,6 +219,8 @@ const getCardSchedules = async (userId, setId) => {
       totalReviews: progress.totalReviews,
       correctReviews: progress.correctReviews,
       masteryLevel: progress.masteryLevel,
+      status: progress.status,
+      flashcardStatus: progress.flashcardStatus || 'NEW',
     };
   });
 };
@@ -315,6 +247,7 @@ const resetCardProgress = async (userId, cardId) => {
   progress.totalReviews = 0;
   progress.correctReviews = 0;
   progress.masteryLevel = 0;
+  progress.status = 'NEW';
 
   await progress.save();
 
@@ -345,6 +278,7 @@ const resetSetProgress = async (userId, setId) => {
         totalReviews: 0,
         correctReviews: 0,
         masteryLevel: 0,
+        status: 'NEW',
       }
     }
   );
@@ -370,6 +304,7 @@ const getDueCardsCount = async (userId, setId) => {
   const dueCount = await CardProgress.countDocuments({
     user: userId,
     card: { $in: cardIds },
+    status: { $in: ['LEARNING', 'REVIEW'] },
     nextReview: { $lte: now },
   });
 
@@ -390,13 +325,27 @@ const getOverallStats = async (userId) => {
   const sessions = await StudySession.find({ user: userId, completedAt: { $exists: true } });
 
   // Calculate mastery distribution
-  const masteredCards = allProgress.filter(p => p.correctReviews > 0).length;
-  const learningCards = allProgress.filter(p => p.totalReviews > 0 && p.correctReviews === 0).length;
-  const newCards = allProgress.filter(p => p.totalReviews === 0).length;
+  const learningCards = allProgress.filter(p => p.status === 'LEARNING').length;
+  const masteredCards = allProgress.filter(p => p.status === 'REVIEW').length;
 
-  // Due today — thẻ có nextReview <= now
+  // Due today — thẻ có status in ['LEARNING', 'REVIEW'] và nextReview <= now
   const now = new Date();
-  const dueToday = allProgress.filter(p => new Date(p.nextReview) <= now).length;
+  const dueToday = allProgress.filter(p => 
+    ['LEARNING', 'REVIEW'].includes(p.status) && new Date(p.nextReview) <= now
+  ).length;
+
+  // Calculate newCards count by subtracting active cards from total cards in all user's sets
+  let newCards = 0;
+  try {
+    const FlashcardSet = require('../../models/flashcardSet.model');
+    const userSets = await FlashcardSet.find({ user: userId }).select('_id');
+    const setIds = userSets.map(s => s._id);
+    const totalCardsInSets = await Flashcard.countDocuments({ set: { $in: setIds } });
+    newCards = Math.max(0, totalCardsInSets - (learningCards + masteredCards));
+  } catch (err) {
+    console.error('[ProgressService] Failed to calculate total cards for newCards:', err.message);
+    newCards = allProgress.filter(p => p.status === 'NEW').length;
+  }
 
   // Calculate average accuracy
   const cardsWithReviews = allProgress.filter(p => p.totalReviews > 0);
@@ -563,6 +512,174 @@ const getLearningForecast = async (userId, days = 7) => {
   return forecasts;
 };
 
+
+/**
+ * Safe, idempotent complete learning (transition NEW -> LEARNING)
+ */
+const completeLearning = async (userId, cardId) => {
+  const progress = await CardProgress.findOne({ user: userId, card: cardId });
+
+  if (!progress) {
+    return CardProgress.create({
+      user: userId,
+      card: cardId,
+      status: 'LEARNING',
+      repetitions: 1,
+      interval: 1,
+      easeFactor: INITIAL_EASE_FACTOR,
+      nextReview: getNextReviewDate(1),
+    });
+  }
+
+  if (progress.status === 'NEW') {
+    progress.status = 'LEARNING';
+    progress.repetitions = 1;
+    progress.interval = 1;
+    progress.easeFactor = INITIAL_EASE_FACTOR;
+    progress.nextReview = getNextReviewDate(1);
+    return progress.save();
+  }
+
+  return progress; // Already LEARNING or REVIEW - returned unchanged
+};
+
+/**
+ * Get new cards for a set or globally
+ */
+const getNewCards = async (userId, setId, limit = 10) => {
+  const finalLimit = Math.min(Number(limit) || 10, 20);
+
+  let cardQuery = {};
+  if (setId) {
+    cardQuery.set = setId;
+  } else {
+    const FlashcardSet = require('../../models/flashcardSet.model');
+    const userSets = await FlashcardSet.find({ user: userId });
+    const setIds = userSets.map(s => s._id);
+    cardQuery.set = { $in: setIds };
+  }
+
+  const allCards = await Flashcard.find(cardQuery).select('_id front back pronunciation example note collocation relatedWords imageUrl difficulty');
+  if (allCards.length === 0) return [];
+
+  const allCardIds = allCards.map(c => c._id.toString());
+
+  // Find progress records that are LEARNING or REVIEW
+  const activeProgress = await CardProgress.find({
+    user: userId,
+    card: { $in: allCardIds },
+    status: { $in: ['LEARNING', 'REVIEW'] }
+  }).select('card');
+
+  const activeCardIds = new Set(activeProgress.map(p => p.card.toString()));
+
+  // Filter out active cards
+  const newCards = allCards.filter(card => !activeCardIds.has(card._id.toString()));
+
+  return newCards.slice(0, finalLimit);
+};
+
+/**
+ * Get due cards for a user (and optionally filtered by set)
+ */
+const getDueCards = async (userId, setId) => {
+  const now = new Date();
+
+  let progressQuery = {
+    user: userId,
+    status: { $in: ['LEARNING', 'REVIEW'] },
+    nextReview: { $lte: now }
+  };
+
+  if (setId) {
+    const cardsInSet = await Flashcard.find({ set: setId }).select('_id');
+    const cardIds = cardsInSet.map(c => c._id);
+    progressQuery.card = { $in: cardIds };
+  }
+
+  const dueProgress = await CardProgress.find(progressQuery)
+    .populate({
+      path: 'card',
+      select: '_id front back pronunciation example note collocation relatedWords imageUrl difficulty set'
+    })
+    .sort({ nextReview: 1 });
+
+  return dueProgress
+    .filter(p => p.card)
+    .map(p => ({
+      _id: p.card._id,
+      front: p.card.front,
+      back: p.card.back,
+      pronunciation: p.card.pronunciation,
+      example: p.card.example,
+      note: p.card.note,
+      collocation: p.card.collocation,
+      relatedWords: p.card.relatedWords,
+      imageUrl: p.card.imageUrl,
+      difficulty: p.card.difficulty,
+      set: p.card.set,
+      progress: {
+        easeFactor: p.easeFactor,
+        interval: p.interval,
+        repetitions: p.repetitions,
+        nextReview: p.nextReview,
+        lastReview: p.lastReview,
+        status: p.status
+      }
+    }));
+};
+
+/**
+ * Update flashcardStatus for a card (idempotent, does not affect SM-2 variables)
+ */
+const updateFlashcardStatus = async (userId, cardId, status) => {
+  if (!['NEW', 'LEARNING', 'KNOWN'].includes(status)) {
+    throw new AppError('Invalid flashcard status', 400);
+  }
+
+  // Verify card exists
+  const card = await Flashcard.findById(cardId);
+  if (!card) {
+    throw new AppError('Card not found', 404);
+  }
+
+  let progress = await CardProgress.findOne({ user: userId, card: cardId });
+  if (!progress) {
+    // Create minimal progress record with flashcardStatus
+    progress = new CardProgress({
+      user: userId,
+      card: cardId,
+      flashcardStatus: status,
+      // Fill SM-2 defaults but keep as implicitly NEW in SM-2 logic
+      status: 'NEW',
+    });
+  } else {
+    progress.flashcardStatus = status;
+  }
+
+  await progress.save();
+  return {
+    cardId: progress.card,
+    flashcardStatus: progress.flashcardStatus,
+    status: progress.status,
+  };
+};
+
+/**
+ * Reset flashcardStatus to NEW for all cards in a set
+ */
+const resetSetFlashcardProgress = async (userId, setId) => {
+  const cards = await Flashcard.find({ set: setId });
+  const cardIds = cards.map(c => c._id);
+
+  await CardProgress.updateMany(
+    { user: userId, card: { $in: cardIds } },
+    { $set: { flashcardStatus: 'NEW' } }
+  );
+
+  return { success: true };
+};
+
 module.exports = {
   getCardProgress,
   updateCardProgress,
@@ -574,4 +691,9 @@ module.exports = {
   getOverallStats,
   getStudyCalendar,
   getLearningForecast,
+  completeLearning,
+  getNewCards,
+  getDueCards,
+  updateFlashcardStatus,
+  resetSetFlashcardProgress,
 };
