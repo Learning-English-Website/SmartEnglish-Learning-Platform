@@ -102,6 +102,20 @@ class AuthService {
     const isMatch = await user.comparePassword(password);
     if (!isMatch) throw new AppError('Email hoặc mật khẩu không chính xác', 401);
     if (!user.isVerified) {
+      const otp = generateOtpCode();
+      await redis.set(
+        EMAIL_VERIFY_OTP_KEY(user.email),
+        JSON.stringify({ otpHash: hashOtp(otp), userId: user._id.toString() }),
+        'EX',
+        OTP_TTL_SECONDS
+      );
+      eventBus.emit('user:registered', {
+        userId: user._id,
+        email: user.email,
+        username: user.username,
+        otp,
+      });
+      console.log(`🔑 [OTP] Login-triggered verification OTP for unverified user ${user.email}: ${otp}`);
       throw new AppError('Email chưa được xác thực. Vui lòng xác thực mã OTP trước khi đăng nhập.', 403);
     }
 
@@ -221,9 +235,17 @@ class AuthService {
       if (user.status === 'locked') {
         throw new AppError('Tài khoản của bạn đã bị tạm khóa bởi Quản trị viên.', 403);
       }
+      let isModified = false;
       if (!user.oauth) user.oauth = {};
       if (!user.oauth.googleId) {
         user.oauth.googleId = payload.sub;
+        isModified = true;
+      }
+      if (!user.isVerified) {
+        user.isVerified = true;
+        isModified = true;
+      }
+      if (isModified) {
         await user.save({ validateBeforeSave: false });
       }
     } else {

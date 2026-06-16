@@ -41,7 +41,14 @@ export function useAuth() {
         navigate(dest, { replace: true });
       }
     } else {
-      toast.error(result.payload || 'Đăng nhập thất bại');
+      if (result.payload === 'Email chưa được xác thực. Vui lòng xác thực mã OTP trước khi đăng nhập.') {
+        toast.error(result.payload);
+        const normalizedEmail = email.trim().toLowerCase();
+        localStorage.setItem('pending_verification_email', normalizedEmail);
+        navigate(`/register/otp?email=${encodeURIComponent(normalizedEmail)}`);
+      } else {
+        toast.error(result.payload || 'Đăng nhập thất bại');
+      }
     }
   }, [dispatch, navigate]);
 

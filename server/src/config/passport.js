@@ -38,11 +38,20 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET && process.
             if (user.status === 'locked') {
               return done(new AppError('Tài khoản của bạn đã bị tạm khóa bởi Quản trị viên.', 403));
             }
+            let isModified = false;
             // Attach Google ID if not already stored
             if (!user.oauth?.googleId) {
               user.oauth = user.oauth || {};
               user.oauth.googleId = profile.id;
-              await user.save();
+              isModified = true;
+            }
+            // Auto-verify if user logs in with Google
+            if (!user.isVerified) {
+              user.isVerified = true;
+              isModified = true;
+            }
+            if (isModified) {
+              await user.save({ validateBeforeSave: false });
             }
           } else {
             // Generate a unique, valid username based on Google display name
@@ -71,6 +80,7 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET && process.
               password: undefined, // No local password
               oauth: { googleId: profile.id },
               avatar: profile.photos?.[0]?.value,
+              isVerified: true,
             });
           }
           // Generate JWTs
