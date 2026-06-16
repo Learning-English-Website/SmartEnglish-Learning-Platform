@@ -9,7 +9,10 @@ const { errorHandler } = require('./middleware/error.middleware');
 const app = express();
 
 // ── Security Middleware ───────────────────────────────────────────────────────
-app.use(helmet());
+app.use(helmet({
+  crossOriginEmbedderPolicy: false,
+  crossOriginResourcePolicy: false,
+}));
 const allowedOrigins = [
   process.env.CLIENT_URL,
   'http://localhost:5173',
