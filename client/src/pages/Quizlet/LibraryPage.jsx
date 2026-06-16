@@ -243,7 +243,7 @@ export default function LibraryPage() {
                           key={set._id}
                           set={set}
                           showActions={isOwnProfile}
-                          onClick={() => navigate(`/study-sets/${set._id}`)}
+                          onClick={() => navigate(`/flashcards/sets/${set._id}`)}
                           onEdit={() => handleEditSet(set)}
                           onDelete={() => handleDeleteSet(set)}
                         />

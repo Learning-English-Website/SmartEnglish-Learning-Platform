@@ -109,7 +109,7 @@ export default function FolderPage() {
   const handleLearn = (set, e) => {
     e.stopPropagation();
     setOpenMenuId(null);
-    navigate(`/study-sets/${set._id}/learn`);
+    navigate(`/flashcards/sets/${set._id}/learn`);
   };
 
   const handleEditSet = (set, e) => {
@@ -286,7 +286,7 @@ export default function FolderPage() {
                       <div
                         key={set._id}
                         className="folder-set-item"
-                        onClick={() => navigate(`/study-sets/${set._id}`)}
+                        onClick={() => navigate(`/flashcards/sets/${set._id}`)}
                       >
                         <div className="fsi-icon">
                           <BookOpen size={18} />

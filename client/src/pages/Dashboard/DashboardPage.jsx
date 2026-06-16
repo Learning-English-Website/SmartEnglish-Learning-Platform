@@ -254,7 +254,7 @@ export default function DashboardPage() {
                     <div 
                       key={set._id} 
                       className="db-set-row"
-                      onClick={() => navigate(`/study-sets/${set._id}`)}
+                      onClick={() => navigate(`/flashcards/sets/${set._id}`)}
                     >
                       <div className="db-set-row-icon">
                         <Layers size={18} />

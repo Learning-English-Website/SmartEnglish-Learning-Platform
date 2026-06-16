@@ -106,6 +106,18 @@ export default function SetDetail() {
   // Reorder save debounce
   const reorderTimerRef = useRef(null);
 
+  // DnD kit sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
   /* ── Auth check ──────────────────────────────────────────────────────── */
   useEffect(() => {
     if (authLoading) return;
@@ -457,25 +469,25 @@ export default function SetDetail() {
           {/* ── Mode Cards Grid ───────────────────────────────────────── */}
           <div className="sd-modes-section">
             <div className="sd-modes-grid">
-              <button className="sd-mode-card" onClick={() => navigate(`/study-sets/${id}/flashcards`, { state: { returnTo: location.pathname } })}>
+              <button className="sd-mode-card" onClick={() => navigate(`/flashcards/sets/${id}/flashcards`, { state: { returnTo: location.pathname } })}>
                 <div className="sd-mode-icon sd-mode-icon--blue">
                   <FiBookOpen size={24} />
                 </div>
                 <span className="sd-mode-label">Thẻ ghi nhớ</span>
               </button>
-              <button className="sd-mode-card" onClick={() => navigate(`/study-sets/${id}/learn`, { state: { returnTo: location.pathname } })}>
+              <button className="sd-mode-card" onClick={() => navigate(`/flashcards/sets/${id}/learn`, { state: { returnTo: location.pathname } })}>
                 <div className="sd-mode-icon sd-mode-icon--purple">
                   <FiZap size={24} />
                 </div>
                 <span className="sd-mode-label">Học</span>
               </button>
-              <button className="sd-mode-card" onClick={() => navigate(`/study-sets/${id}/test`, { state: { returnTo: location.pathname } })}>
+              <button className="sd-mode-card" onClick={() => navigate(`/flashcards/sets/${id}/test`, { state: { returnTo: location.pathname } })}>
                 <div className="sd-mode-icon sd-mode-icon--green">
                   <FiTarget size={24} />
                 </div>
                 <span className="sd-mode-label">Kiểm tra</span>
               </button>
-              <button className="sd-mode-card" onClick={() => navigate(`/study-sets/${id}/match`, { state: { returnTo: location.pathname } })}>
+              <button className="sd-mode-card" onClick={() => navigate(`/flashcards/sets/${id}/match`, { state: { returnTo: location.pathname } })}>
                 <div className="sd-mode-icon sd-mode-icon--orange">
                   <FiGrid size={24} />
                 </div>
@@ -595,57 +607,41 @@ export default function SetDetail() {
                 )}
               </div>
             ) : layout === LAYOUT.LIST ? (
-              <div className="sd-cards-list-modern">
-                {cards.map((card, idx) => (
-                  <div key={card._id}>
-                    {editingCard?._id === card._id ? (
-                      <div className="sd-inline-edit">
-                        <CardEditor
-                          card={card}
-                          onSave={handleSaveEdit}
-                          onCancel={() => setEditingCard(null)}
-                          loading={savingEdit}
-                        />
-                      </div>
-                    ) : (
-                      <div className="sd-term-card">
-                        <div className="sd-term-content">
-                          <div className="sd-term-front">
-                            <span className="sd-term-text">{card.front}</span>
-                            {card.pronunciation && (
-                              <span className="sd-term-pronunciation">{card.pronunciation}</span>
-                            )}
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext
+                  items={cards.map((c) => c._id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <div className="sd-cards-list-modern">
+                    {cards.map((card, idx) => (
+                      <div key={card._id}>
+                        {editingCard?._id === card._id ? (
+                          <div className="sd-inline-edit">
+                            <CardEditor
+                              card={card}
+                              onSave={handleSaveEdit}
+                              onCancel={() => setEditingCard(null)}
+                              loading={savingEdit}
+                            />
                           </div>
-                          <div className="sd-term-divider"></div>
-                          <div className="sd-term-back">
-                            <span className="sd-term-text">{card.back}</span>
-                          </div>
-                        </div>
-                        <div className="sd-term-actions">
-                          {isOwner && (
-                            <>
-                              <button 
-                                className="sd-term-btn"
-                                onClick={() => { setEditingCard(card); setShowAddCard(false); }}
-                                title="Edit"
-                              >
-                                <FiEdit2 size={14} />
-                              </button>
-                              <button 
-                                className="sd-term-btn"
-                                onClick={() => setDeleteCardId(card._id)}
-                                title="Delete"
-                              >
-                                <FiTrash2 size={14} />
-                              </button>
-                            </>
-                          )}
-                        </div>
+                        ) : (
+                          <SortableCardRow
+                            card={card}
+                            index={idx + 1}
+                            readonly={!isOwner}
+                            onEdit={() => { setEditingCard(card); setShowAddCard(false); }}
+                            onDelete={() => setDeleteCardId(card._id)}
+                          />
+                        )}
                       </div>
-                    )}
+                    ))}
                   </div>
-                ))}
-              </div>
+                </SortableContext>
+              </DndContext>
             ) : (
               <div className="sd-cards-grid-modern">
                 {cards.map((card) => (

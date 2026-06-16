@@ -15,10 +15,11 @@ const flashcardSchema = new Schema(
     imageUrl: { type: String, default: null },
     difficulty: { type: Number, min: 0, max: 5, default: 0 },
     nextReviewAt: { type: Date, default: null },
+    order: { type: Number, default: 0 },
   },
   { timestamps: true }
 );
 
-flashcardSchema.index({ set: 1, createdAt: -1 });
+flashcardSchema.index({ set: 1, order: 1, createdAt: 1 });
 
 module.exports = mongoose.model('Flashcard', flashcardSchema);

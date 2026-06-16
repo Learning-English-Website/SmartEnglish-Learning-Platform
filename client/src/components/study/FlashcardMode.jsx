@@ -44,6 +44,7 @@ export default function FlashcardMode({ cards = [], setTitle = '', onClose, onCo
   // Keyboard navigation
   useEffect(() => {
     const handleKey = (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
       if (e.key === 'ArrowLeft') handlePrev();
       else if (e.key === 'ArrowRight') handleNext();
       else if (e.key === ' ' || e.key === 'Enter') {

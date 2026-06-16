@@ -44,7 +44,7 @@ const getCardsBySet = async (req, res) => {
   const isOwner = set.user.toString() === req.user._id.toString();
   if (!set.isPublic && !isOwner) throw new AppError('Access denied', 403);
 
-  const cards = await Flashcard.find({ set: setId }).sort({ createdAt: 1 }).lean();
+  const cards = await Flashcard.find({ set: setId }).sort({ order: 1, createdAt: 1 }).lean();
   res.json(ApiResponse.success(cards, 'Cards fetched'));
 };
 
@@ -56,9 +56,9 @@ const createCard = async (req, res) => {
   const { front, back, pronunciation, example, note, collocation, relatedWords, imageUrl } = req.body;
   if (!front || !back) throw new AppError('front and back are required', 400);
 
+  const existingCount = await Flashcard.countDocuments({ set: setId });
   // Chặn tài khoản thường vượt quá 30 từ
   if (req.user.premium !== 'premium') {
-    const existingCount = await Flashcard.countDocuments({ set: setId });
     if (existingCount >= 30) {
       throw new AppError('Bộ thẻ học của tài khoản thường giới hạn tối đa 30 từ. Vui lòng nâng cấp Premium để thêm không giới hạn!', 400);
     }
@@ -74,6 +74,7 @@ const createCard = async (req, res) => {
     collocation: collocation || null,
     relatedWords: relatedWords || null,
     imageUrl: imageUrl || null,
+    order: existingCount,
   });
 
   // Update cardCount
@@ -108,15 +109,20 @@ const bulkCreateCards = async (req, res) => {
 
   if (validCards.length === 0) throw new AppError('No valid cards provided', 400);
 
+  const existingCount = await Flashcard.countDocuments({ set: setId });
   // Chặn tài khoản thường vượt quá 30 từ khi thêm hàng loạt
   if (req.user.premium !== 'premium') {
-    const existingCount = await Flashcard.countDocuments({ set: setId });
     if (existingCount + validCards.length > 30) {
       throw new AppError('Bộ thẻ học của tài khoản thường giới hạn tối đa 30 từ. Việc thêm số từ này sẽ vượt quá giới hạn. Vui lòng nâng cấp Premium!', 400);
     }
   }
 
-  const created = await Flashcard.insertMany(validCards);
+  const cardsWithOrder = validCards.map((c, index) => ({
+    ...c,
+    order: existingCount + index
+  }));
+
+  const created = await Flashcard.insertMany(cardsWithOrder);
   await FlashcardSet.findByIdAndUpdate(setId, { $inc: { cardCount: created.length } });
 
   res.status(201).json(ApiResponse.success(created, `${created.length} cards created`));
@@ -168,15 +174,20 @@ const importCsvCards = async (req, res) => {
 
   if (validCards.length === 0) throw new AppError('No valid cards found in CSV', 400);
 
+  const existingCount = await Flashcard.countDocuments({ set: setId });
   // Chặn tài khoản thường vượt quá 30 từ khi nhập CSV
   if (req.user.premium !== 'premium') {
-    const existingCount = await Flashcard.countDocuments({ set: setId });
     if (existingCount + validCards.length > 30) {
       throw new AppError('Bộ thẻ học của tài khoản thường giới hạn tối đa 30 từ. Nhập file CSV này sẽ vượt quá giới hạn. Vui lòng nâng cấp Premium!', 400);
     }
   }
 
-  const created = await Flashcard.insertMany(validCards);
+  const cardsWithOrder = validCards.map((c, index) => ({
+    ...c,
+    order: existingCount + index
+  }));
+
+  const created = await Flashcard.insertMany(cardsWithOrder);
   await FlashcardSet.findByIdAndUpdate(setId, { $inc: { cardCount: created.length } });
 
   res.status(201).json(
@@ -226,8 +237,24 @@ const deleteCard = async (req, res) => {
 
 // ── PUT /api/flashcards/set/:setId/reorder ──────────────────────────────────
 const reorderCards = async (req, res) => {
-  // Simple acknowledgement — full reorder requires order field; skip for now
-  res.json(ApiResponse.success(null, 'Reorder acknowledged'));
+  const { setId } = req.params;
+  await requireOwner(setId, req.user._id);
+
+  const { cardIds } = req.body;
+  if (!Array.isArray(cardIds)) throw new AppError('cardIds must be an array', 400);
+
+  const operations = cardIds.map((id, index) => ({
+    updateOne: {
+      filter: { _id: id, set: setId },
+      update: { $set: { order: index } }
+    }
+  }));
+
+  if (operations.length > 0) {
+    await Flashcard.bulkWrite(operations);
+  }
+
+  res.json(ApiResponse.success(null, 'Cards reordered successfully'));
 };
 
 module.exports = { getCardsBySet, createCard, bulkCreateCards, importCsvCards, updateCard, deleteCard, reorderCards };

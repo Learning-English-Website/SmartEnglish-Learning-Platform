@@ -73,6 +73,7 @@ export default function StudySetDetail() {
 
   useEffect(() => {
     const handleKey = (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
       if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); nextCard(); }
       if (e.key === 'ArrowLeft') { e.preventDefault(); prevCard(); }
     };

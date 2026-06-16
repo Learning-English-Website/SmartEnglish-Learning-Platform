@@ -130,7 +130,7 @@ export default function StudySetLearn() {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const returnTo = location.state?.returnTo || `/study-sets/${id}`;
+  const returnTo = location.state?.returnTo || `/flashcards/sets/${id}`;
 
   const [studySet, setStudySet] = useState(null);
   const [cards, setCards] = useState([]);
@@ -424,10 +424,10 @@ export default function StudySetLearn() {
   }, [id, cards, includeMC, includeTA]);
 
   const handleModeChange = useCallback((m) => {
-    if (m === 'flashcards') navigate(`/study-sets/${id}/flashcards`, { state: { returnTo } });
+    if (m === 'flashcards') navigate(`/flashcards/sets/${id}/flashcards`, { state: { returnTo } });
     else if (m === 'learn') setModeDropdownOpen(false);
-    else if (m === 'test') navigate(`/study-sets/${id}/test`, { state: { returnTo } });
-    else if (m === 'match') navigate(`/study-sets/${id}/match`, { state: { returnTo } });
+    else if (m === 'test') navigate(`/flashcards/sets/${id}/test`, { state: { returnTo } });
+    else if (m === 'match') navigate(`/flashcards/sets/${id}/match`, { state: { returnTo } });
     setModeDropdownOpen(false);
   }, [id, navigate, returnTo]);
 
@@ -640,6 +640,12 @@ export default function StudySetLearn() {
   useEffect(() => {
     const handleKey = (e) => {
       if (screen !== 'learning') return;
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) {
+        if (e.key === 'Enter' && currentItem?.mode === 'ta' && !answered && typedAnswer.trim()) {
+          handleTypeAnswer();
+        }
+        return;
+      }
       if (e.key === 'Enter' && currentItem?.mode === 'ta' && !answered && typedAnswer.trim()) {
         handleTypeAnswer();
       } else if (e.key === ' ' && answered) {

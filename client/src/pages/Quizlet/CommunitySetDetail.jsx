@@ -153,25 +153,25 @@ export default function CommunitySetDetail() {
         {/* ── Mode Cards Grid ───────────────────────────────────────── */}
         <div className="sd-modes-section" style={{ marginTop: '32px' }}>
           <div className="sd-modes-grid">
-            <button className="sd-mode-card" onClick={() => navigate(`/study-sets/${id}/flashcards`, { state: { returnTo: location.pathname } })}>
+            <button className="sd-mode-card" onClick={() => navigate(`/flashcards/sets/${id}/flashcards`, { state: { returnTo: location.pathname } })}>
               <div className="sd-mode-icon sd-mode-icon--blue">
                 <FiBookOpen size={24} />
               </div>
               <span className="sd-mode-label">Thẻ ghi nhớ</span>
             </button>
-            <button className="sd-mode-card" onClick={() => navigate(`/study-sets/${id}/learn`, { state: { returnTo: location.pathname } })}>
+            <button className="sd-mode-card" onClick={() => navigate(`/flashcards/sets/${id}/learn`, { state: { returnTo: location.pathname } })}>
               <div className="sd-mode-icon sd-mode-icon--purple">
                 <FiZap size={24} />
               </div>
               <span className="sd-mode-label">Học</span>
             </button>
-            <button className="sd-mode-card" onClick={() => navigate(`/study-sets/${id}/test`, { state: { returnTo: location.pathname } })}>
+            <button className="sd-mode-card" onClick={() => navigate(`/flashcards/sets/${id}/test`, { state: { returnTo: location.pathname } })}>
               <div className="sd-mode-icon sd-mode-icon--green">
                 <FiTarget size={24} />
               </div>
               <span className="sd-mode-label">Kiểm tra</span>
             </button>
-            <button className="sd-mode-card" onClick={() => navigate(`/study-sets/${id}/match`, { state: { returnTo: location.pathname } })}>
+            <button className="sd-mode-card" onClick={() => navigate(`/flashcards/sets/${id}/match`, { state: { returnTo: location.pathname } })}>
               <div className="sd-mode-icon sd-mode-icon--orange">
                 <FiGrid size={24} />
               </div>

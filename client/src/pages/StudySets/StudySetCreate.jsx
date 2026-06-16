@@ -133,9 +133,9 @@ export default function StudySetCreate() {
       localStorage.removeItem(DRAFT_KEY);
       toast.success('Tạo học phần thành công! 🎉');
 
-      if (goToStudy && newId) navigate(`/study-sets/${newId}/learn`);
-      else if (newId) navigate(`/study-sets/${newId}`);
-      else navigate('/study-sets');
+      if (goToStudy && newId) navigate(`/flashcards/sets/${newId}/learn`);
+      else if (newId) navigate(`/flashcards/sets/${newId}`);
+      else navigate('/flashcards');
     } catch (err) {
       toast.error(err?.response?.data?.message || 'Tạo thất bại. Vui lòng thử lại.');
     } finally {

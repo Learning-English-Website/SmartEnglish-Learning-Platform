@@ -118,6 +118,7 @@ export default function ReviewPage() {
   // Keyboard controls
   useEffect(() => {
     const handleKeyDown = (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
       if (screen !== 'study' || !currentCard) return;
 
       if (e.key === ' ' || e.key === 'Enter') {

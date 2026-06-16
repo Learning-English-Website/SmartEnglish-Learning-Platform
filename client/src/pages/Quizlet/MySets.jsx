@@ -240,7 +240,7 @@ export default function MySets() {
                       <SetCard
                         key={set._id}
                         set={set}
-                        onClick={() => navigate(`/study-sets/${set._id}`)}
+                        onClick={() => navigate(`/flashcards/sets/${set._id}`)}
                         onEdit={() => navigate(`/flashcards/sets/${set._id}/edit`)}
                         onDelete={() => setDeleteTarget({ id: set._id, title: set.title })}
                       />

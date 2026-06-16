@@ -93,7 +93,7 @@ export default function ExploreSets() {
           {filteredSets.map((set) => (
             <Link
               key={set._id}
-              to={`/study-sets/${set._id}`}
+              to={`/flashcards/sets/${set._id}`}
               className="explore-card"
             >
               <div className="explore-card-header">

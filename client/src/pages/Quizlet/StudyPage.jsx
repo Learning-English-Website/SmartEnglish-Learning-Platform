@@ -34,7 +34,7 @@ export default function StudyPage() {
   const authLoading = useSelector(selectAuthLoading);
 
   const mode = location.pathname.split('/').pop() || 'flashcards';
-  const returnTo = location.state?.returnTo || `/study-sets/${id}`;
+  const returnTo = location.state?.returnTo || `/flashcards/sets/${id}`;
 
   const [studySet, setStudySet] = useState(null);
   const [cards, setCards] = useState([]);
@@ -63,7 +63,7 @@ export default function StudyPage() {
   useEffect(() => {
     if (authLoading) return;
     if (!isAuthenticated) {
-      navigate(`/login?redirect=/study-sets/${id}/${mode}`, { replace: true });
+      navigate(`/login?redirect=/flashcards/sets/${id}/${mode}`, { replace: true });
     }
   }, [isAuthenticated, authLoading, navigate, id, mode]);
 
@@ -176,9 +176,9 @@ export default function StudyPage() {
   /* ── Mode change ──────────────────────────────────────────────────────── */
   const handleModeChange = useCallback((m) => {
     if (m === 'flashcards') setModeDropdownOpen(false);
-    else if (m === 'learn') navigate(`/study-sets/${id}/learn`, { state: { returnTo } });
-    else if (m === 'test') navigate(`/study-sets/${id}/test`, { state: { returnTo } });
-    else if (m === 'match') navigate(`/study-sets/${id}/match`, { state: { returnTo } });
+    else if (m === 'learn') navigate(`/flashcards/sets/${id}/learn`, { state: { returnTo } });
+    else if (m === 'test') navigate(`/flashcards/sets/${id}/test`, { state: { returnTo } });
+    else if (m === 'match') navigate(`/flashcards/sets/${id}/match`, { state: { returnTo } });
     setModeDropdownOpen(false);
   }, [id, navigate, returnTo]);
 
@@ -278,7 +278,7 @@ export default function StudyPage() {
       if (e.key === 'ArrowLeft') goPrev();
       if (e.key === '1' || e.key === 'i') handleIncorrect();
       if (e.key === '2' || e.key === 'k') handleCorrect();
-      if (e.key === 'Escape') navigate(`/study-sets/${id}`);
+      if (e.key === 'Escape') navigate(`/flashcards/sets/${id}`);
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
@@ -368,7 +368,7 @@ export default function StudyPage() {
         cards={cards.map(c => ({ id: c._id, front: c.front, back: c.back }))}
         setTitle={studySet.title}
         onClose={() => navigate(returnTo)}
-        onModeChange={(newMode) => navigate(`/study-sets/${id}/${newMode}`, { state: { returnTo } })}
+        onModeChange={(newMode) => navigate(`/flashcards/sets/${id}/${newMode}`, { state: { returnTo } })}
         onComplete={(results) => {
           console.log('[StudyPage] Test completed:', results);
         }}
@@ -384,7 +384,7 @@ export default function StudyPage() {
         setId={id}
         setTitle={studySet.title}
         onClose={() => navigate(returnTo)}
-        onModeChange={(newMode) => navigate(`/study-sets/${id}/${newMode}`, { state: { returnTo } })}
+        onModeChange={(newMode) => navigate(`/flashcards/sets/${id}/${newMode}`, { state: { returnTo } })}
       />
     );
   }
@@ -517,7 +517,7 @@ export default function StudyPage() {
                 
                 <button 
                   className="next-step-btn primary-btn"
-                  onClick={() => navigate(`/study-sets/${id}/learn`, { state: { returnTo } })}
+                  onClick={() => navigate(`/flashcards/sets/${id}/learn`, { state: { returnTo } })}
                 >
                   <Brain size={20} />
                   <div className="btn-text-box">
@@ -556,7 +556,7 @@ export default function StudyPage() {
           </button>
           <button 
             className="footer-action-btn primary"
-            onClick={() => navigate(`/study-sets/${id}`)}
+            onClick={() => navigate(`/flashcards/sets/${id}`)}
           >
             Nhấp để quay lại Bộ thẻ
           </button>

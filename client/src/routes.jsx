@@ -35,8 +35,6 @@ const StudyPage = lazy(() => import('./pages/Quizlet/StudyPage'));
 const SharedSet = lazy(() => import('./pages/Quizlet/SharedSet'));
 const LibraryPage = lazy(() => import('./pages/Quizlet/LibraryPage'));
 const FolderPage = lazy(() => import('./pages/Quizlet/FolderPage'));
-const StudySetCreate = lazy(() => import('./pages/StudySets/StudySetCreate'));
-const StudySetDetail = lazy(() => import('./pages/StudySets/StudySetDetail'));
 const StudySetLearn = lazy(() => import('./pages/StudySets/StudySetLearn'));
 const LearnNewPage = lazy(() => import('./pages/StudySets/LearnNewPage'));
 const ReviewPage = lazy(() => import('./pages/StudySets/ReviewPage'));
@@ -128,7 +126,7 @@ const router = createBrowserRouter([
       { path: '/user/profile', element: withSuspense(<ProfilePage />) },
       { path: '/profile/edit', element: withSuspense(<EditProfilePage />) },
       { path: '/community/sets/:id', element: withSuspense(<CommunitySetDetail />) },
-      { path: '/study-sets/:id', element: withSuspense(<StudySetDetail />) },
+      { path: '/study-sets/:id', element: withSuspense(<SetDetail />) },
       { path: '/folders/:id/:slug', element: withSuspense(<FolderPage />) },
       { path: '/premium', element: withSuspense(<ProPage />) },
       { path: '/explore', element: withSuspense(<ExploreSetsPage />) },
@@ -144,11 +142,10 @@ const router = createBrowserRouter([
       </ProtectedRoute>
     ),
     children: [
-      { path: '/study-sets/create', element: withSuspense(<StudySetCreate />) },
-      { path: '/study-sets/:id/flashcards', element: withSuspense(<StudyPage />) },
-      { path: '/study-sets/:id/test', element: withSuspense(<StudyPage />) },
-      { path: '/study-sets/:id/match', element: withSuspense(<StudyPage />) },
-      { path: '/study-sets/:id/learn', element: withSuspense(<StudySetLearn />) },
+      { path: '/flashcards/sets/:id/flashcards', element: withSuspense(<StudyPage />) },
+      { path: '/flashcards/sets/:id/test', element: withSuspense(<StudyPage />) },
+      { path: '/flashcards/sets/:id/match', element: withSuspense(<StudyPage />) },
+      { path: '/flashcards/sets/:id/learn', element: withSuspense(<StudySetLearn />) },
       { path: '/flashcards/learn-new', element: withSuspense(<LearnNewPage />) },
       { path: '/flashcards/review', element: withSuspense(<ReviewPage />) },
     ],
