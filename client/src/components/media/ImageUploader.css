@@ -14,8 +14,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 100px;
-  border: 2px dashed var(--border-subtle);
+  min-height: 70px;
+  border: 1.5px dashed var(--border-subtle);
   border-radius: 10px;
   background: var(--bg-page);
   cursor: pointer;
@@ -42,27 +42,28 @@
 
 .iu-zone-content {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  gap: 4px;
-  padding: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 16px;
   text-align: center;
 }
 
 .iu-zone-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
   background: rgba(44, 94, 245, 0.08);
   color: var(--gl-tertiary);
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 4px;
 }
 
 .iu-zone-title {
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   font-weight: 600;
   color: var(--text-body);
 }
@@ -70,19 +71,18 @@
 .iu-zone-sub {
   font-size: 0.72rem;
   color: var(--text-muted);
-  margin-top: 2px;
 }
 
 .iu-browse-btn {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 5px 14px;
+  gap: 4px;
+  padding: 4px 10px;
   border-radius: 6px;
   border: 1.5px solid var(--border-subtle);
   background: var(--bg-elevated);
   color: var(--text-body);
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   font-weight: 600;
   font-family: var(--font-sans);
   cursor: pointer;
@@ -96,10 +96,10 @@
 }
 
 .iu-zone-hint {
-  font-size: 0.65rem;
+  font-size: 0.62rem;
   color: var(--text-muted);
   opacity: 0.7;
-  margin-top: 6px;
+  width: 100%;
 }
 
 /* Spinner */
@@ -135,15 +135,22 @@
   position: relative;
   border-radius: 10px;
   overflow: hidden;
-  height: 80px;
-  border: 2px solid var(--gl-tertiary);
-  background: var(--bg-page);
+  max-height: 240px;
+  height: auto;
+  min-height: 120px;
+  border: 1.5px solid var(--gl-tertiary);
+  background: #0f172a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .iu-preview-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+  max-width: 100%;
+  max-height: 240px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
   display: block;
 }
 
