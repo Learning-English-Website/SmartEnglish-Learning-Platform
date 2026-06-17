@@ -452,6 +452,18 @@
   background: #ffffff;
 }
 
+.form-group input.input-error {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12);
+}
+
+.form-error-text {
+  margin: -2px 0 0;
+  color: #dc2626;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
 .form-group-checkbox {
   display: flex;
   align-items: center;
