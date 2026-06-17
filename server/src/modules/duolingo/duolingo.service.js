@@ -16,7 +16,18 @@ const mongoose = require('mongoose');
 
 const POINTS_PER_CORRECT = 10;
 const MAX_HEARTS = 5;
-const POINTS_TO_REFILL = 300;
+const POINTS_TO_REFILL = 300;async function isExcludedFromXp(userId) {
+  try {
+    const user = await User.findById(userId).select('username email');
+    if (!user) return false;
+    const email = user.email ? user.email.toLowerCase() : '';
+    const username = user.username ? user.username.toLowerCase() : '';
+    return email.includes('chienthanglb') || username === 'chienthanglb' || username === 'thngl1';
+  } catch (err) {
+    console.error('[XP Exclusion Check Failed]:', err);
+    return false;
+  }
+}
 
 class DuolingoService {
   // === COURSES ===
@@ -219,58 +230,62 @@ class DuolingoService {
         upsertResult.createdAt.getTime() === upsertResult.updatedAt.getTime();
 
       if (isFirstAnswer) {
-        // Award points (XP) to user progress
-        await UserProgress.findOneAndUpdate(
-          { user: userId },
-          { $inc: { points: POINTS_PER_CORRECT, totalXP: POINTS_PER_CORRECT } }
-        );
+        const excluded = await isExcludedFromXp(userId);
+        if (!excluded) {
+          // Award points (XP) to user progress
+          await UserProgress.findOneAndUpdate(
+            { user: userId },
+            { $inc: { points: POINTS_PER_CORRECT, totalXP: POINTS_PER_CORRECT } }
+          );
 
-        // Update quest progress (XP quest)
-        questService.updateProgress(userId, { type: 'xp', xpEarned: POINTS_PER_CORRECT }).catch(err =>
-          console.error('[Quest] Failed to update XP progress:', err.message)
-        );
+          // Update quest progress (XP quest)
+          questService.updateProgress(userId, { type: 'xp', xpEarned: POINTS_PER_CORRECT }).catch(err =>
+            console.error('[Quest] Failed to update XP progress:', err.message)
+          );
 
-        // ── Daily Challenge: update score and emit realtime event ────────────────
-        try {
-          const todayKey = getDateKey(new Date());
-          const challenge_ = await dailyChallengeService.getTodayChallenge();
-          const dcLessonId = challenge_?.lesson?._id != null
-            ? String(challenge_.lesson._id)
-            : String(challenge_?.lesson || '');
-          const lessonId = challenge.lesson ? String(challenge.lesson) : null;
+          // ── Daily Challenge: update score and emit realtime event ────────────────
+          try {
+            const todayKey = getDateKey(new Date());
+            const challenge_ = await dailyChallengeService.getTodayChallenge();
+            const dcLessonId = challenge_?.lesson?._id != null
+              ? String(challenge_.lesson._id)
+              : String(challenge_?.lesson || '');
+            const lessonId = challenge.lesson ? String(challenge.lesson) : null;
 
-          if (dcLessonId && lessonId && dcLessonId === lessonId) {
-            const updatedScore = await DailyChallengeScore.findOneAndUpdate(
-              { date: todayKey, user: userId },
-              { $setOnInsert: { challenge: challenge_._id }, $inc: { xp: POINTS_PER_CORRECT } },
-              { upsert: true, new: true }
-            );
+            if (dcLessonId && lessonId && dcLessonId === lessonId) {
+              const updatedScore = await DailyChallengeScore.findOneAndUpdate(
+                { date: todayKey, user: userId },
+                { $setOnInsert: { challenge: challenge_._id }, $inc: { xp: POINTS_PER_CORRECT } },
+                { upsert: true, new: true }
+              );
 
-            console.log('[DailyChallenge] per-question XP update:', {
-              userId: String(userId),
-              date: todayKey,
-              lessonId,
-              xpDelta: POINTS_PER_CORRECT,
-              totalXp: updatedScore?.xp,
-            });
+              console.log('[DailyChallenge] per-question XP update:', {
+                userId: String(userId),
+                date: todayKey,
+                lessonId,
+                xpDelta: POINTS_PER_CORRECT,
+                totalXp: updatedScore?.xp,
+              });
 
-            // Emit realtime event for User B to see live leaderboard update
-            const user = await User.findById(userId).select('username');
-            eventBus.emit('dailyChallenge:xp_progress', {
-              date: todayKey,
-              userId: String(userId),
-              username: user?.username || 'Anonymous',
-              xpDelta: POINTS_PER_CORRECT,
-              totalXp: updatedScore?.xp || POINTS_PER_CORRECT,
-            });
+              // Emit realtime event for User B to see live leaderboard update
+              const user = await User.findById(userId).select('username');
+              eventBus.emit('dailyChallenge:xp_progress', {
+                date: todayKey,
+                userId: String(userId),
+                username: user?.username || 'Anonymous',
+                xpDelta: POINTS_PER_CORRECT,
+                totalXp: updatedScore?.xp || POINTS_PER_CORRECT,
+              });
+            }
+          } catch (err) {
+            console.error('[DailyChallenge] Failed to update per-question XP:', err.message);
           }
-        } catch (err) {
-          console.error('[DailyChallenge] Failed to update per-question XP:', err.message);
         }
       }
     }
 
-    return { isCorrect, pointsEarned: isCorrect ? POINTS_PER_CORRECT : 0 };
+    const excluded = await isExcludedFromXp(userId);
+    return { isCorrect, pointsEarned: (isCorrect && !excluded) ? POINTS_PER_CORRECT : 0 };
   }
 
   async completeLesson(userId, lessonId) {
@@ -358,7 +373,8 @@ class DuolingoService {
         }
       }
 
-      if (isFirstCompletion) {
+      const excluded = await isExcludedFromXp(userId);
+      if (isFirstCompletion && !excluded) {
         completionXp = 20;
         progress.points += completionXp;
         progress.totalXP += completionXp;
@@ -366,88 +382,91 @@ class DuolingoService {
       }
     }
 
-    // ── Quest progress ────────────────────────────────────────────────────
-    // streak: triggered on EVERY lesson completion (both Duolingo and Quizlet)
-    questService.updateProgress(userId, { type: 'streak', amount: 1 }).catch(err =>
-      console.error('[Quest] Failed to update streak progress:', err.message)
-    );
-
-    // lessons quest: every lesson completion counts
-    questService.updateProgress(userId, { type: 'lessons', amount: 1 }).catch(err =>
-      console.error('[Quest] Failed to update lessons progress:', err.message)
-    );
-
-    // Từ Vựng Mới (type: reviews) — only on FIRST-TIME lesson completion
-    if (isFirstCompletion) {
-      questService.updateProgress(userId, { type: 'reviews', amount: 1 }).catch(err =>
-        console.error('[Quest] Failed to update reviews progress:', err.message)
+    const excluded = await isExcludedFromXp(userId);
+    if (!excluded) {
+      // ── Quest progress ────────────────────────────────────────────────────
+      // streak: triggered on EVERY lesson completion (both Duolingo and Quizlet)
+      questService.updateProgress(userId, { type: 'streak', amount: 1 }).catch(err =>
+        console.error('[Quest] Failed to update streak progress:', err.message)
       );
-    }
 
-    // Luyện Tập (type: flashcards) — only on RE-DO / practice lesson (lesson already completed before)
-    if (!isFirstCompletion) {
-      questService.updateProgress(userId, { type: 'flashcards', amount: 1 }).catch(err =>
-        console.error('[Quest] Failed to update flashcards progress:', err.message)
+      // lessons quest: every lesson completion counts
+      questService.updateProgress(userId, { type: 'lessons', amount: 1 }).catch(err =>
+        console.error('[Quest] Failed to update lessons progress:', err.message)
       );
-    }
 
-    // Săn Điểm (type: xp) — completion bonus (20 XP for first-time)
-    if (completionXp > 0) {
-      questService.updateProgress(userId, { type: 'xp', xpEarned: completionXp }).catch(err =>
-        console.error('[Quest] Failed to update xp progress:', err.message)
-      );
-    }
-
-    // ── Daily Challenge scoring (always runs — re-dos earn DC XP too) ────────
-    try {
-      const todayKey = getDateKey(new Date());
-      const challenge = await dailyChallengeService.getTodayChallenge();
-      const dcLessonId = challenge?.lesson?._id != null
-        ? String(challenge.lesson._id)
-        : String(challenge?.lesson || '');
-      const currentLessonId = String(lesson._id);
-      console.log('[DailyChallenge] scoring check:', {
-        userId: String(userId),
-        todayKey,
-        dcLessonId,
-        currentLessonId,
-        match: dcLessonId === currentLessonId,
-        challengeId: challenge?._id,
-        challengeDate: challenge?.date,
-        isFirstCompletion,
-      });
-
-      if (dcLessonId && dcLessonId === currentLessonId) {
-        // completedChallenges counts ALL correct answers ever for this lesson.
-        // On re-do, new correct answers increase this count → more DC XP.
-        const lessonChallengeIds = await Challenge.distinct('_id', { lesson: lesson._id });
-        const completedChallenges = await ChallengeProgress.countDocuments({
-          user: userId,
-          completed: true,
-          challenge: { $in: lessonChallengeIds },
-        });
-        const challengeXp = (completedChallenges * POINTS_PER_CORRECT) + completionXp;
-        const result = await dailyChallengeService.addXpForUserOncePerDay({
-          userId,
-          dateKey: todayKey,
-          challengeId: challenge._id,
-          xp: challengeXp,
-        });
-        console.log('[DailyChallenge] score update (once/day):', {
-          userId: String(userId),
-          date: todayKey,
-          lessonId: String(lesson._id),
-          completedChallenges,
-          completionXp,
-          challengeXp,
-          result,
-        });
-
-        // Note: addXpForUserOncePerDay already emits 'dailyChallenge:score_updated'
-        // via its own eventBus.emit() — no duplicate emit needed here.
+      // Từ Vựng Mới (type: reviews) — only on FIRST-TIME lesson completion
+      if (isFirstCompletion) {
+        questService.updateProgress(userId, { type: 'reviews', amount: 1 }).catch(err =>
+          console.error('[Quest] Failed to update reviews progress:', err.message)
+        );
       }
-    } catch (err) {
-      console.error('[DailyChallenge] Failed to update score:', err.message);
+
+      // Luyện Tập (type: flashcards) — only on RE-DO / practice lesson (lesson already completed before)
+      if (!isFirstCompletion) {
+        questService.updateProgress(userId, { type: 'flashcards', amount: 1 }).catch(err =>
+          console.error('[Quest] Failed to update flashcards progress:', err.message)
+        );
+      }
+
+      // Săn Điểm (type: xp) — completion bonus (20 XP for first-time)
+      if (completionXp > 0) {
+        questService.updateProgress(userId, { type: 'xp', xpEarned: completionXp }).catch(err =>
+          console.error('[Quest] Failed to update xp progress:', err.message)
+        );
+      }
+
+      // ── Daily Challenge scoring (always runs — re-dos earn DC XP too) ────────
+      try {
+        const todayKey = getDateKey(new Date());
+        const challenge = await dailyChallengeService.getTodayChallenge();
+        const dcLessonId = challenge?.lesson?._id != null
+          ? String(challenge.lesson._id)
+          : String(challenge?.lesson || '');
+        const currentLessonId = String(lesson._id);
+        console.log('[DailyChallenge] scoring check:', {
+          userId: String(userId),
+          todayKey,
+          dcLessonId,
+          currentLessonId,
+          match: dcLessonId === currentLessonId,
+          challengeId: challenge?._id,
+          challengeDate: challenge?.date,
+          isFirstCompletion,
+        });
+
+        if (dcLessonId && dcLessonId === currentLessonId) {
+          // completedChallenges counts ALL correct answers ever for this lesson.
+          // On re-do, new correct answers increase this count → more DC XP.
+          const lessonChallengeIds = await Challenge.distinct('_id', { lesson: lesson._id });
+          const completedChallenges = await ChallengeProgress.countDocuments({
+            user: userId,
+            completed: true,
+            challenge: { $in: lessonChallengeIds },
+          });
+          const challengeXp = (completedChallenges * POINTS_PER_CORRECT) + completionXp;
+          const result = await dailyChallengeService.addXpForUserOncePerDay({
+            userId,
+            dateKey: todayKey,
+            challengeId: challenge._id,
+            xp: challengeXp,
+          });
+          console.log('[DailyChallenge] score update (once/day):', {
+            userId: String(userId),
+            date: todayKey,
+            lessonId: String(lesson._id),
+            completedChallenges,
+            completionXp,
+            challengeXp,
+            result,
+          });
+
+          // Note: addXpForUserOncePerDay already emits 'dailyChallenge:score_updated'
+          // via its own eventBus.emit() — no duplicate emit needed here.
+        }
+      } catch (err) {
+        console.error('[DailyChallenge] Failed to update score:', err.message);
+      }
     }
 
     return { lesson, unitCompleted: false };

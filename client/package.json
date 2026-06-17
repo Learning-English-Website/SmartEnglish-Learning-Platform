@@ -22,6 +22,7 @@
     "@reduxjs/toolkit": "^2.11.2",
     "axios": "^1.16.0",
     "bootstrap": "^5.3.8",
+    "exceljs": "^4.4.0",
     "framer-motion": "^12.38.0",
     "lucide-react": "^1.16.0",
     "react": "^19.2.5",

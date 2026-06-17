@@ -69,7 +69,7 @@ const QuizletProgressBar = ({
   }, [currentBatchIndex]);
 
   const visibleCount = Math.min(7, totalBatches - visibleStart);
-  const globalItemNum = prevBatchesCorrect + currentQueueIdx + 1;
+  const globalItemNum = prevBatchesCorrect + currentQueueIdx;
 
   return (
     <div className="ql2-progress-bar" role="progressbar" aria-valuenow={globalItemNum} aria-valuemax={totalItems}>
@@ -201,19 +201,6 @@ export default function StudySetLearn() {
 
     if (correct_) {
       playCorrectSound();
-    }
-
-    const currentStreak = cardStreaksRef.current.get(currentItem._id) || 0;
-    const newStreak = correct_ ? currentStreak + 1 : 0;
-    cardStreaksRef.current.set(currentItem._id, newStreak);
-    setCardStreaks(new Map(cardStreaksRef.current));
-
-    if (newStreak >= 2 && !completedCardIdsRef.current.has(currentItem._id)) {
-      completedCardIdsRef.current.add(currentItem._id);
-      progressService.completeLearning(currentItem._id).catch(err => {
-        console.error('[LearnProgress] Failed to complete learning:', err);
-      });
-
       setBatchProgress(prevBp => {
         const nextBp = new Map(prevBp);
         const bp = nextBp.get(currentBatchIdx) || { correct: 0 };
@@ -244,6 +231,18 @@ export default function StudySetLearn() {
         return nextBp;
       });
     }
+
+    const currentStreak = cardStreaksRef.current.get(currentItem._id) || 0;
+    const newStreak = correct_ ? currentStreak + 1 : 0;
+    cardStreaksRef.current.set(currentItem._id, newStreak);
+    setCardStreaks(new Map(cardStreaksRef.current));
+
+    if (newStreak >= 2 && !completedCardIdsRef.current.has(currentItem._id)) {
+      completedCardIdsRef.current.add(currentItem._id);
+      progressService.completeLearning(currentItem._id).catch(err => {
+        console.error('[LearnProgress] Failed to complete learning:', err);
+      });
+    }
   }, [answered, currentItem, currentBatchIdx, totalBatches_, totalItems, playCorrectSound, triggerRewards, id]);
 
   const handleTypeAnswer = useCallback(() => {
@@ -256,19 +255,6 @@ export default function StudySetLearn() {
 
     if (correct_) {
       playCorrectSound();
-    }
-
-    const currentStreak = cardStreaksRef.current.get(currentItem._id) || 0;
-    const newStreak = correct_ ? currentStreak + 1 : 0;
-    cardStreaksRef.current.set(currentItem._id, newStreak);
-    setCardStreaks(new Map(cardStreaksRef.current));
-
-    if (newStreak >= 2 && !completedCardIdsRef.current.has(currentItem._id)) {
-      completedCardIdsRef.current.add(currentItem._id);
-      progressService.completeLearning(currentItem._id).catch(err => {
-        console.error('[LearnProgress] Failed to complete learning:', err);
-      });
-
       setBatchProgress(prevBp => {
         const nextBp = new Map(prevBp);
         const bp = nextBp.get(currentBatchIdx) || { correct: 0 };
@@ -297,6 +283,18 @@ export default function StudySetLearn() {
           }
         }
         return nextBp;
+      });
+    }
+
+    const currentStreak = cardStreaksRef.current.get(currentItem._id) || 0;
+    const newStreak = correct_ ? currentStreak + 1 : 0;
+    cardStreaksRef.current.set(currentItem._id, newStreak);
+    setCardStreaks(new Map(cardStreaksRef.current));
+
+    if (newStreak >= 2 && !completedCardIdsRef.current.has(currentItem._id)) {
+      completedCardIdsRef.current.add(currentItem._id);
+      progressService.completeLearning(currentItem._id).catch(err => {
+        console.error('[LearnProgress] Failed to complete learning:', err);
       });
     }
   }, [answered, typedAnswer, currentItem, currentBatchIdx, totalBatches_, totalItems, playCorrectSound, triggerRewards, id]);
@@ -962,7 +960,7 @@ export default function StudySetLearn() {
             currentBatchIndex={currentBatchIdx}
             batchProgress={batchProgress}
             totalItems={totalItems}
-            currentQueueIdx={queueIdx}
+            currentQueueIdx={batchProgress.get(currentBatchIdx)?.correct || 0}
             prevBatchesCorrect={prevBatchesCorrect}
           />
         </div>
@@ -1018,7 +1016,7 @@ export default function StudySetLearn() {
         <div className="ql2-card-wrapper">
           <AnimatePresence mode="wait">
             <motion.div
-              key={`${currentBatchIdx}-${queueIdx}`}
+              key={`${currentBatchIdx}-${currentItem?._id || ''}-${currentItem?.mode || ''}`}
               className="ql2-card ql2-learn-card"
               initial={{ opacity: 0, y: 20, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}

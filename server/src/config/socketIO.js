@@ -123,7 +123,7 @@ const initSocketIO = (httpServer) => {
     socket.on('dailyChallenge:join', async (payload = {}, callback) => {
       try {
         if (!socket.userId) {
-          return callback({ error: 'unauthorized', message: 'Vui lòng đăng nhập để tham gia Daily Challenge.' });
+          return callback({ error: 'unauthorized', message: 'Vui lòng đăng nhập để tham gia Thử thách hằng ngày.' });
         }
 
         const { challengeId } = payload;
@@ -135,7 +135,7 @@ const initSocketIO = (httpServer) => {
         const challenge = await dailyChallengeService.joinChallenge(socket.userId, challengeId);
 
         if (!challenge) {
-          return callback({ error: 'not_found', message: 'Daily Challenge không tìm thấy.' });
+          return callback({ error: 'not_found', message: 'Thử thách hằng ngày không tìm thấy.' });
         }
 
         callback(null, {
@@ -146,7 +146,7 @@ const initSocketIO = (httpServer) => {
         });
       } catch (err) {
         console.error('[Socket.IO] dailyChallenge:join error:', err.message);
-        callback({ error: 'server_error', message: 'Không thể tham gia Daily Challenge. Vui lòng thử lại.' });
+        callback({ error: 'server_error', message: 'Không thể tham gia Thử thách hằng ngày. Vui lòng thử lại.' });
       }
     });
 

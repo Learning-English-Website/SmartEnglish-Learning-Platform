@@ -446,7 +446,7 @@ export default function AdminFeedbackPage() {
                   <th>Tiêu đề</th>
                   <th>Trạng thái</th>
                   <th>Ngày gửi</th>
-                  <th>Người xử lý</th>
+                  <th>Người trả lời</th>
                   <th style={{ textAlign: 'right' }}>Hành động</th>
                 </tr>
               </thead>

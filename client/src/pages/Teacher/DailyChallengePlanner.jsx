@@ -184,7 +184,7 @@ export default function DailyChallengePlanner() {
           <div className="planner-sparkle-icon-wrapper">
             <Sparkles className="planner-sparkle-icon" size={20} />
           </div>
-          <h2>Lên lịch Thử thách Hàng ngày (Daily Challenge)</h2>
+          <h2>Lên lịch Thử thách hằng ngày</h2>
         </div>
 
       </div>

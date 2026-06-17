@@ -269,7 +269,7 @@ export default function QuestsPanel() {
                         transition: 'all 0.2s',
                       }}
                     >
-                      {claimingId === quest.id ? '...' : 'Claim'}
+                      {claimingId === quest.id ? '...' : 'Nhận'}
                     </motion.button>
                   )}
 

@@ -4,6 +4,20 @@ const Lesson = require('../../models/lesson.model');
 const { getIO } = require('../../config/socketIO');
 const eventBus = require('../../shared/events/eventBus');
 const { getDateKey } = require('../../shared/utils/dateKey');
+const User = require('../user/user.model');
+
+async function isExcludedFromXp(userId) {
+  try {
+    const user = await User.findById(userId).select('username email');
+    if (!user) return false;
+    const email = user.email ? user.email.toLowerCase() : '';
+    const username = user.username ? user.username.toLowerCase() : '';
+    return email.includes('chienthanglb') || username === 'chienthanglb' || username === 'thngl1';
+  } catch (err) {
+    console.error('[XP Exclusion Check Failed]:', err);
+    return false;
+  }
+}
 
 class DailyChallengeService {
   async getTodayChallenge() {
@@ -137,6 +151,10 @@ class DailyChallengeService {
   async addXpForUserOncePerDay({ userId, dateKey, challengeId, xp }) {
     if (!xp || xp <= 0) return { updated: false, reason: 'no_xp' };
 
+    if (await isExcludedFromXp(userId)) {
+      return { updated: false, reason: 'excluded_user' };
+    }
+
     const existing = await DailyChallengeScore.findOne({ date: dateKey, user: userId })
       .select('xp')
       .lean();
@@ -163,6 +181,10 @@ class DailyChallengeService {
 
   async addXpForUser({ userId, dateKey, challengeId, xp }) {
     if (!xp || xp <= 0) return null;
+
+    if (await isExcludedFromXp(userId)) {
+      return null;
+    }
 
     const doc = await DailyChallengeScore.findOneAndUpdate(
       { date: dateKey, user: userId },

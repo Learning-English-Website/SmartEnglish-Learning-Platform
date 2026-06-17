@@ -214,6 +214,20 @@ const awardXP = async (userId, session) => {
   const user = await User.findById(userId);
   if (!user) throw new AppError('User not found', 404);
 
+  const email = user.email ? user.email.toLowerCase() : '';
+  const username = user.username ? user.username.toLowerCase() : '';
+  const isExcluded = email.includes('chienthanglb') || username === 'chienthanglb' || username === 'thngl1';
+  if (isExcluded) {
+    return {
+      xpGained: 0,
+      totalXP: user.gamification?.xp || 0,
+      oldLevel: user.gamification?.level || 1,
+      newLevel: user.gamification?.level || 1,
+      levelUp: false,
+      xpToNextLevel: XP_PER_LEVEL - ((user.gamification?.xp || 0) % XP_PER_LEVEL),
+    };
+  }
+
   const cardsReviewed = session.cardsReviewed || 0;
   const accuracy = session.accuracy || 0;
   const currentStreak = user.streak?.current || 0;
