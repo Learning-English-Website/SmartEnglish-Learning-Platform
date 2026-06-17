@@ -23,6 +23,12 @@ function normalizeLeaderboard(payload) {
   return Array.isArray(rows) ? rows : [];
 }
 
+function getRowUserId(row) {
+  return typeof row?.userId === 'object'
+    ? String(row.userId?._id ?? row.userId?.id ?? '')
+    : String(row?.userId || '');
+}
+
 export default function DailyChallengeCard({ hideLeaderboard = false } = {}) {
   const [challenge, setChallenge] = useState(null);
   const [leaderboard, setLeaderboard] = useState([]);
@@ -39,12 +45,7 @@ export default function DailyChallengeCard({ hideLeaderboard = false } = {}) {
     if (!leaderboard.length && !currentUser) return [];
 
     const currentUid = currentUser?._id ?? currentUser?.id ?? null;
-    const isCurrentUserInList = leaderboard.some((row) => {
-      const uid = typeof row.userId === 'object'
-        ? String(row.userId?._id ?? row.userId?.id ?? '')
-        : String(row.userId || '');
-      return uid === String(currentUid);
-    });
+    const isCurrentUserInList = leaderboard.some((row) => getRowUserId(row) === String(currentUid));
 
     const entries = [...leaderboard];
     if (!isCurrentUserInList && currentUser) {
@@ -71,7 +72,7 @@ export default function DailyChallengeCard({ hideLeaderboard = false } = {}) {
       setLeaderboard(normalizeLeaderboard(leaderboardRes.data));
       setSocketError(null);
     } catch (err) {
-      setSocketError(err?.response?.data?.message || err?.message || 'Không thể tải Daily Challenge');
+      setSocketError(err?.response?.data?.message || err?.message || 'Không thể tải Thử thách hằng ngày');
     } finally {
       setLoading(false);
     }
@@ -163,13 +164,81 @@ export default function DailyChallengeCard({ hideLeaderboard = false } = {}) {
       navigate(`/duolingo/lesson/${challenge.lesson._id}`);
     } catch (err) {
       console.error('[DailyChallengeCard] join failed:', err);
-      setSocketError(err?.response?.data?.message || err?.message || 'Không thể tham gia Daily Challenge.');
+      setSocketError(err?.response?.data?.message || err?.message || 'Không thể tham gia Thử thách hằng ngày.');
     } finally {
       setJoining(false);
     }
   };
 
   const ranked = computeRankedLeaderboard();
+  const currentUserId = String(currentUser?._id ?? currentUser?.id ?? '');
+  const currentUserRow = ranked.find((row) => row.isCurrentUser || getRowUserId(row) === currentUserId);
+  const isCurrentUserOutsideTopFive = Boolean(currentUserRow && currentUserRow.rank > 5);
+  const topLeaderboardRows = ranked.slice(0, isCurrentUserOutsideTopFive ? 4 : 5);
+  const shouldShowCurrentUserFooter = Boolean(isCurrentUserOutsideTopFive);
+
+  const renderLeaderboardRow = (row, i, { isFooter = false } = {}) => {
+    const isMe = row.isCurrentUser || getRowUserId(row) === currentUserId;
+
+    return (
+      <div key={isFooter ? 'current-user-rank' : getRowUserId(row) || i} style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        marginBottom: isFooter ? 0 : 4,
+        background: isMe ? 'rgba(99,91,255,0.08)' : 'transparent',
+        border: isMe ? '1px solid rgba(99,91,255,0.18)' : '1px solid transparent',
+        borderRadius: 10,
+        padding: '5px 8px',
+      }}>
+        <span style={{
+          width: 20,
+          textAlign: 'center',
+          fontWeight: 800,
+          fontSize: '0.75rem',
+          color: row.rank === 1 ? '#f59e0b' : row.rank === 2 ? '#94a3b8' : row.rank === 3 ? '#cd7f32' : '#94a3b8',
+        }}>
+          {row.rank <= 3 ? ['🥇', '🥈', '🥉'][row.rank - 1] : `#${row.rank}`}
+        </span>
+        <div style={{
+          width: 24,
+          height: 24,
+          borderRadius: '50%',
+          background: '#e2e8f0',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '0.7rem',
+          fontWeight: 700,
+          color: '#64748b',
+          flexShrink: 0,
+          overflow: 'hidden',
+        }}>
+          {row.avatar
+            ? <img src={row.avatar} alt={row.username} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            : (row.username?.[0]?.toUpperCase() || '?')
+          }
+        </div>
+        <span style={{
+          flex: 1,
+          fontSize: '0.8rem',
+          fontWeight: isMe ? 700 : 500,
+          color: isMe ? '#1e1b4b' : '#374151',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        }}>
+          {isMe ? 'Bạn' : row.username}
+        </span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+          <Zap size={11} color="#f59e0b" />
+          <span style={{ fontWeight: 700, fontSize: '0.78rem', color: '#f59e0b' }}>
+            {row.xp}
+          </span>
+        </span>
+      </div>
+    );
+  };
 
   if (loading) {
     return (
@@ -180,7 +249,7 @@ export default function DailyChallengeCard({ hideLeaderboard = false } = {}) {
         padding: 16,
         marginBottom: 16,
       }}>
-        <div style={{ color: '#94a3b8' }}>Đang tải Daily Challenge…</div>
+        <div style={{ color: '#94a3b8' }}>Đang tải Thử thách hằng ngày…</div>
       </div>
     );
   }
@@ -194,7 +263,7 @@ export default function DailyChallengeCard({ hideLeaderboard = false } = {}) {
         padding: 16,
         marginBottom: 16,
       }}>
-        <div style={{ fontWeight: 900, color: '#1e1b4b', marginBottom: 6 }}>Daily Challenge</div>
+        <div style={{ fontWeight: 900, color: '#1e1b4b', marginBottom: 6 }}>Thử thách hằng ngày</div>
         <div style={{ color: '#64748b', fontSize: '0.9rem' }}>
           Hôm nay chưa có thử thách (hoặc thiếu dữ liệu bài học).
         </div>
@@ -230,7 +299,7 @@ export default function DailyChallengeCard({ hideLeaderboard = false } = {}) {
           </div>
           <div>
             <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#1e1b4b' }}>
-              Daily Challenge
+              Thử thách hằng ngày
             </div>
             <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: 1 }}>
               {challenge.date || dateKey}
@@ -291,66 +360,17 @@ export default function DailyChallengeCard({ hideLeaderboard = false } = {}) {
           }}>
             Bảng Xếp Hạng · {dateKey}
           </div>
-          {ranked.slice(0, 5).map((row, i) => {
-            const isMe = row.isCurrentUser || row.userId === currentUser?._id || row.userId === currentUser?.id;
-            return (
-              <div key={i} style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                marginBottom: 6,
-                background: isMe ? 'rgba(99,91,255,0.08)' : 'transparent',
-                borderRadius: 10,
-                padding: '6px 8px',
-              }}>
-                <span style={{
-                  width: 20,
-                  textAlign: 'center',
-                  fontWeight: 800,
-                  fontSize: '0.75rem',
-                  color: i === 0 ? '#f59e0b' : i === 1 ? '#94a3b8' : i === 2 ? '#cd7f32' : '#94a3b8',
-                }}>
-                  {row.rank <= 3 ? ['🥇', '🥈', '🥉'][row.rank - 1] : `#${row.rank}`}
-                </span>
-                <div style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: '50%',
-                  background: '#e2e8f0',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '0.7rem',
-                  fontWeight: 700,
-                  color: '#64748b',
-                  flexShrink: 0,
-                  overflow: 'hidden',
-                }}>
-                  {row.avatar
-                    ? <img src={row.avatar} alt={row.username} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    : (row.username?.[0]?.toUpperCase() || '?')
-                  }
-                </div>
-                <span style={{
-                  flex: 1,
-                  fontSize: '0.8rem',
-                  fontWeight: isMe ? 700 : 500,
-                  color: isMe ? '#1e1b4b' : '#374151',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}>
-                  {isMe ? 'Bạn' : row.username}
-                </span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                  <Zap size={11} color="#f59e0b" />
-                  <span style={{ fontWeight: 700, fontSize: '0.78rem', color: '#f59e0b' }}>
-                    {row.xp}
-                  </span>
-                </span>
-              </div>
-            );
-          })}
+          {topLeaderboardRows.map((row, i) => renderLeaderboardRow(row, i))}
+          {shouldShowCurrentUserFooter && (
+            <>
+              <div style={{
+                height: 1,
+                margin: '8px 0',
+                background: 'linear-gradient(90deg, transparent, rgba(99,91,255,0.25), transparent)',
+              }} />
+              {renderLeaderboardRow(currentUserRow, currentUserRow.rank - 1, { isFooter: true })}
+            </>
+          )}
         </div>
       )}
     </motion.div>
