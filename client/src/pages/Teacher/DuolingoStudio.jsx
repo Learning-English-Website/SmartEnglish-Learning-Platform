@@ -57,6 +57,7 @@ export default function DuolingoStudio() {
   const [courseForm, setCourseForm] = useState({ title: '', slug: '', description: '', level: 'beginner', order: 0, isPublished: false });
   const [unitForm, setUnitForm] = useState({ title: '', summary: '', description: '', order: 0, xpReward: 10, isLockedDefault: true });
   const [lessonForm, setLessonForm] = useState({ title: '', subtitle: '', order: 0, xpReward: 5, estimatedMinutes: 5, grammarFocus: '', vocabFocus: '', type: 'challenge' });
+  const [lessonTitleError, setLessonTitleError] = useState('');
   
   const [challengeForm, setChallengeForm] = useState({
     type: 'SELECT', question: '', correctAnswer: '',
@@ -277,6 +278,15 @@ export default function DuolingoStudio() {
   // Lưu node đang chỉnh sửa hoặc lưu node tạo mới
   const saveCurrentNode = async () => {
     if (!selectedNode) return;
+
+    if (['lesson', 'new-lesson'].includes(selectedNode.type) && !lessonForm.title.trim()) {
+      const message = 'Vui lòng nhập tiêu đề bài học';
+      setLessonTitleError(message);
+      toast.error(message);
+      return;
+    }
+    setLessonTitleError('');
+
     setSaving(true);
     try {
       if (selectedNode.type === 'course') {
@@ -818,9 +828,18 @@ export default function DuolingoStudio() {
                     <input 
                       type="text" 
                       value={lessonForm.title} 
-                      onChange={(e) => setLessonForm(f => ({ ...f, title: e.target.value }))}
+                      className={lessonTitleError ? 'input-error' : ''}
+                      aria-invalid={Boolean(lessonTitleError)}
+                      aria-describedby={lessonTitleError ? 'lesson-title-error' : undefined}
+                      onChange={(e) => {
+                        setLessonForm(f => ({ ...f, title: e.target.value }));
+                        if (lessonTitleError) setLessonTitleError('');
+                      }}
                       placeholder="ví dụ: Luyện cấu trúc My name is..."
                     />
+                    {lessonTitleError && (
+                      <p id="lesson-title-error" className="form-error-text">{lessonTitleError}</p>
+                    )}
                   </div>
                   <div className="form-group">
                     <label>Tiêu đề phụ / Mô tả ngắn</label>
