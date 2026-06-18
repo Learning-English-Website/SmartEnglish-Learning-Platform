@@ -217,3 +217,7 @@ environments:
         modified: 1781775651158
         isPrivate: false
         sortKey: 1781775651158
+
+
+        # Run the test collection
+# This will run all tests in the collection and output the results
