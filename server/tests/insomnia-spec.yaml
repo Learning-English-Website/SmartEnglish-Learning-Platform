@@ -12,7 +12,7 @@ collection:
     meta:
       id: req_ed8060b551f44b79a87b5ef6f69078ed
       created: 1781775283593
-      modified: 1781778700001
+      modified: 1781783487899
       isPrivate: false
       description: ""
       sortKey: -1781775283593
@@ -21,8 +21,8 @@ collection:
       mimeType: application/json
       text: |-
         {
-          "email": "nguyendh6g@gmail.com",
-          "password": "Nguyen0702"
+          "email": "admin@gmail.com",
+          "password": "Memoris123"
         }
     headers:
       - name: Content-Type
@@ -132,12 +132,57 @@ collection:
         send: true
         store: true
       rebuildPath: true
+  - url: "{{ base_url }}/gamification/stats"
+    name: getGamificationStats
+    meta:
+      id: req_9d81ba12478c48798919fa0681f99eca
+      created: 1781782951819
+      modified: 1781783554823
+      isPrivate: false
+      description: ""
+      sortKey: -1781782951819
+    method: GET
+    headers:
+      - name: Authorization
+        value: Bearer {% response 'body', 'req_ed8060b551f44b79a87b5ef6f69078ed',
+          'b64::JC5kYXRhLmFjY2Vzc1Rva2Vu::46b', 'always', 60 %}
+        description: ""
+        disabled: false
+    scripts:
+      afterResponse: >
+        insomnia.test("Kiểm tra lấy thống kê Gamification thành công", function
+        () {
+            // 1. Kiểm tra trạng thái HTTP là 200 OK
+            insomnia.expect(insomnia.response.code).to.eql(200);
+
+            const body = insomnia.response.json();
+
+            // 2. Xác thực cấu trúc phản hồi
+            insomnia.expect(body.success).to.be.true;
+            insomnia.expect(body.message).to.eql('Gamification stats fetched');
+
+            // 3. Đảm bảo có chứa thông tin streak và thông tin gamification
+            insomnia.expect(body.data).to.have.property('streak');
+            insomnia.expect(body.data).to.have.property('gamification');
+
+            // 4. Kiểm tra xem có level và xp của người dùng hay không
+            insomnia.expect(body.data.gamification).to.have.property('level');
+            insomnia.expect(body.data.gamification).to.have.property('xp');
+        });
+    settings:
+      renderRequestBody: true
+      encodeUrl: true
+      followRedirects: global
+      cookies:
+        send: true
+        store: true
+      rebuildPath: true
 cookieJar:
   name: Default Jar
   meta:
     id: jar_b9561fb43025e8fb936a7d57d5fa37c04218bc8f
     created: 1781774997859
-    modified: 1781782644359
+    modified: 1781783555572
   cookies:
     - id: 53d95e85-05cf-4ca4-9d95-4c3086cbe222
       key: refreshToken
@@ -160,7 +205,7 @@ environments:
   meta:
     id: env_b9561fb43025e8fb936a7d57d5fa37c04218bc8f
     created: 1781774997857
-    modified: 1781782644360
+    modified: 1781783555574
     isPrivate: false
   data:
     base_url: http://localhost:5000/api
