@@ -80,4 +80,4 @@ jobs:
       # Sử dụng run collection để thực thi toàn bộ request và các mã test (After-response) trong Collection
       - name: Run Insomnia Tests
         run: |
-          inso run collection "BaiThucHanhAutoTest" --env "TestEnvironment" -w server/tests/insomnia-spec.json
+          inso run collection "BaiThucHanhAutoTest" -w server/tests/insomnia-spec.yaml
