@@ -71,14 +71,17 @@ jobs:
           npx wait-on http://localhost:5000/api/health --timeout 30000
           echo "🚀 Backend server is up and running!"
 
-      # 6. Cài đặt Inso CLI để thực thi các test suite
+      # 6. Cài đặt Inso CLI để thực thi các test suite (Tải thủ công để tránh lỗi 404 của Action)
       - name: Setup Inso CLI
-        uses: kong/setup-inso@v2
-        with:
-          inso-version: 13.0.0
+        run: |
+          curl -L -o inso.tar.xz https://github.com/Kong/insomnia/releases/download/core%4013.0.0/inso-linux-x64-13.0.0.tar.xz
+          tar -xf inso.tar.xz
+          sudo mv inso /usr/local/bin/
+          inso --version
 
       # 7. Thực thi kiểm thử tự động với Inso CLI
       # Sử dụng run collection để thực thi toàn bộ request và các mã test (After-response) trong Collection
       - name: Run Insomnia Tests
         run: |
           inso run collection "BaiThucHanhAutoTest" -w server/tests/insomnia-spec.yaml
+
