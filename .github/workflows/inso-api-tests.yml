@@ -75,7 +75,7 @@ jobs:
       - name: Setup Inso CLI
         uses: kong/setup-inso@v2
         with:
-          inso-version: 10.3.1
+          inso-version: 13.0.0
 
       # 7. Thực thi kiểm thử tự động với Inso CLI
       # Sử dụng run collection để thực thi toàn bộ request và các mã test (After-response) trong Collection
