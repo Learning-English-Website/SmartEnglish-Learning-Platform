@@ -59,6 +59,19 @@ export default function StudyPage() {
   const [isShuffled, setIsShuffled] = useState(false);
   const [starredCards, setStarredCards] = useState(new Set());
 
+  // Load starred cards from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(`starred_set_${id}`);
+      if (saved) {
+        setStarredCards(new Set(JSON.parse(saved)));
+      }
+    } catch (e) {
+      console.error('Failed to load starred cards from localStorage', e);
+    }
+  }, [id]);
+
+
   /* ── Auth check ──────────────────────────────────────────────────────── */
   useEffect(() => {
     if (authLoading) return;
@@ -314,9 +327,14 @@ export default function StudyPage() {
         next.add(cardId);
         toast.success('Đã đánh dấu sao');
       }
+      try {
+        localStorage.setItem(`starred_set_${id}`, JSON.stringify([...next]));
+      } catch (e) {
+        console.error('Failed to save starred cards to localStorage', e);
+      }
       return next;
     });
-  }, []);
+  }, [id]);
 
   const speakCard = useCallback((text) => {
     if (!soundEnabled || !text) return;
@@ -365,7 +383,7 @@ export default function StudyPage() {
   if (mode === 'test') {
     return (
       <TestMode
-        cards={cards.map(c => ({ id: c._id, front: c.front, back: c.back }))}
+        cards={cards.map(c => ({ id: c._id, front: c.front, back: c.back, isStarred: starredCards.has(c._id) }))}
         setTitle={studySet.title}
         onClose={() => navigate(returnTo)}
         onModeChange={(newMode) => navigate(`/flashcards/sets/${id}/${newMode}`, { state: { returnTo } })}

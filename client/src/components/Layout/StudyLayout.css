@@ -7,7 +7,7 @@
   flex-direction: column;
   height: 100vh;
   background: #f6f7fb;
-  font-family: 'Hurmegeosans-No2', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-sans);
 }
 
 /* ── Minimal Top Bar ─────────────────────────────────────────────── */

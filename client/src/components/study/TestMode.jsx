@@ -1,15 +1,15 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  CheckCircle, XCircle, ChevronLeft, ChevronRight,
-  ClipboardCheck, X, Volume2, Shuffle, VolumeX, Maximize2, Minimize2,
-  ChevronDown, ArrowLeft, BookOpen, Brain, Box,
+  CheckCircle, XCircle, ClipboardCheck, X, Volume2, Maximize2, Minimize2,
+  ArrowLeft, FileText, ChevronDown, Check, BookOpen, Brain, Box
 } from 'lucide-react';
 import { progressService } from '../../services/progressService';
 import { gamificationService } from '../../api/gamificationService';
 import { useGamification } from '../../context/GamificationContext';
+import { toast } from 'react-hot-toast';
 
+// Study modes for dropdown selector
 const MODES = [
   { id: 'flashcards', label: 'Thẻ ghi nhớ', icon: BookOpen },
   { id: 'learn', label: 'Học', icon: Brain },
@@ -17,49 +17,42 @@ const MODES = [
   { id: 'match', label: 'Khớp thẻ', icon: Box },
 ];
 
-/**
- * TestMode - Quizlet-style Test mode with setup modal and question types
- * @param {array} cards - Array of card objects { id, front, back }
- * @param {string} setTitle - Title of the flashcard set
- * @param {function} onClose - Callback when closed
- * @param {function} onComplete - Callback when test completed with results
- */
+// Vocabulary fallback list used for distractors if the card set is too small (< 4 cards)
+const FALLBACK_VOCAB = [
+  'apple', 'banana', 'orange', 'table', 'chair', 'house', 'car', 'book', 'pen', 'school',
+  'teacher', 'student', 'water', 'bread', 'food', 'friend', 'family', 'time', 'year', 'day',
+  'work', 'life', 'world', 'hand', 'eye', 'head', 'face', 'body', 'heart', 'mother',
+  'father', 'brother', 'sister', 'son', 'daughter', 'baby', 'dog', 'cat', 'bird', 'fish'
+];
 
-// ─── Quizlet-style Header ─────────────────────────────────────────────────────
-function TestHeader({ mode, currentCard, totalCards, progress, onClose, onModeChange, soundEnabled, onSoundToggle, onFullscreen, isFullscreen, isShuffled, onShuffle, showProgress = true, questionCount = 0 }) {
+// Helper to normalize written answers
+const normalizeText = (str) => {
+  if (!str) return '';
+  return str
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/[.,!?]$/, '');
+};
+
+// ─── Test Header ─────────────────────────────────────────────────────────────
+function TestHeader({ setTitle, onClose, onModeChange, soundEnabled, onSoundToggle, isFullscreen, onFullscreen }) {
   const [modeDropdownOpen, setModeDropdownOpen] = useState(false);
-  const [isFS, setIsFS] = useState(false);
-
-  useEffect(() => {
-    const handleFsChange = () => setIsFS(!!document.fullscreenElement);
-    document.addEventListener('fullscreenchange', handleFsChange);
-    return () => document.removeEventListener('fullscreenchange', handleFsChange);
-  }, []);
-
-  const handleFullscreenClick = () => {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen?.();
-    } else {
-      document.exitFullscreen?.();
-    }
-    if (onFullscreen) onFullscreen();
-  };
-
-  const currentModeConfig = MODES.find((m) => m.id === mode) || MODES[0];
+  const currentModeConfig = MODES.find((m) => m.id === 'test') || MODES[2];
   const CurrentIcon = currentModeConfig.icon;
-  const progressPercent = totalCards > 0 ? (currentCard / totalCards) * 100 : 0;
 
   return (
     <header className="ql2-header">
       <div className="ql2-header__left">
-        <button className="ql2-header__back" onClick={onClose}>
+        <button className="ql2-header__back" onClick={onClose} title="Quay lại">
           <ArrowLeft size={20} />
         </button>
 
+        {/* Mode selector dropdown */}
         <div className="study-header__mode-selector" style={{ position: 'relative', marginLeft: '12px' }}>
           <button
             className="study-header__mode-btn"
-            onClick={() => setModeDropdownOpen((v) => !v)}
+            onClick={() => setModeDropdownOpen(!modeDropdownOpen)}
             aria-label="Chuyển chế độ học"
           >
             <CurrentIcon size={18} />
@@ -80,7 +73,7 @@ function TestHeader({ mode, currentCard, totalCards, progress, onClose, onModeCh
                 {MODES.map(({ id: mId, label, icon: Icon }) => (
                   <button
                     key={mId}
-                    className={`study-header__mode-item ${mId === mode ? 'active' : ''}`}
+                    className={`study-header__mode-item ${mId === 'test' ? 'active' : ''}`}
                     onClick={(e) => {
                       e.stopPropagation();
                       onModeChange?.(mId);
@@ -95,56 +88,25 @@ function TestHeader({ mode, currentCard, totalCards, progress, onClose, onModeCh
             )}
           </AnimatePresence>
         </div>
-      </div>
 
-      <div className="ql2-header__center">
-        {showProgress ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
-            <div className="ql2-progress-bar" style={{ flex: 1 }}>
-              <div className="ql2-progress-bar__track">
-                <div className="ql2-progress-bar__batch current" style={{ '--puck-pos': 0 }}>
-                  <div className="ql2-progress-bar__batch-bg" />
-                  <div
-                    className="ql2-progress-bar__batch-fill"
-                    style={{ width: `${progressPercent}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-            <span className="ql2-progress-label" style={{ marginLeft: 0 }}>
-              {currentCard} / {totalCards}
-            </span>
-          </div>
-        ) : (
-          <span style={{ fontSize: '0.875rem', color: 'var(--ql2-text-muted, #9ca3af)', fontWeight: 500 }}>
-            {questionCount > 0 ? `${questionCount} câu hỏi` : 'Kiểm tra'}
-          </span>
-        )}
+        <span style={{ color: 'var(--border-subtle)', marginLeft: '12px', fontSize: '1.2rem', fontWeight: 300 }}>|</span>
+        <span className="ql2-header__title">{setTitle || 'Kiểm tra'}</span>
       </div>
 
       <div className="ql2-header__right">
-        {onShuffle && (
-          <button
-            className={`ql2-header__btn ${isShuffled ? 'active' : ''}`}
-            onClick={onShuffle}
-            title="Xáo trộn"
-          >
-            <Shuffle size={18} />
-          </button>
-        )}
         <button
           className={`ql2-header__btn ${soundEnabled ? 'active' : ''}`}
           onClick={onSoundToggle}
-          title="Âm thanh"
+          title="Phát âm thanh"
         >
-          {soundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
+          <Volume2 size={18} />
         </button>
         <button
           className="ql2-header__btn"
-          onClick={handleFullscreenClick}
-          title="Toàn màn hình"
+          onClick={onFullscreen}
+          title={isFullscreen ? 'Thu nhỏ' : 'Toàn màn hình'}
         >
-          {isFS ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+          {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
         </button>
       </div>
 
@@ -155,1633 +117,1863 @@ function TestHeader({ mode, currentCard, totalCards, progress, onClose, onModeCh
   );
 }
 
-// ─── Setup Modal ──────────────────────────────────────────────────────────────
+// ─── Setup Modal (Ảnh 1) ──────────────────────────────────────────────────────
 function SetupModal({ cards, onStart, onClose }) {
-  const [questionCount, setQuestionCount] = useState(Math.min(cards.length, 10));
-  const [answerWith, setAnswerWith] = useState('both'); // 'term' | 'definition' | 'both'
+  const starredCount = cards.filter(c => c.isStarred).length;
+  
+  const [starOnly, setStarOnly] = useState(false);
   const [types, setTypes] = useState({
-    multipleChoice: true,
     trueFalse: true,
-    typeAnswer: false,
+    multipleChoice: true,
+    typeAnswer: true,
+  });
+
+  // Available question count based on current starOnly toggle
+  const availableCount = starOnly ? starredCount : cards.length;
+  const maxQuestions = availableCount;
+  const canStart = availableCount > 0;
+
+  // States
+  const [questionCount, setQuestionCount] = useState(() => {
+    return Math.min(20, cards.length);
   });
 
   const toggleType = (key) => {
     const newTypes = { ...types, [key]: !types[key] };
-    if (Object.values(newTypes).every((v) => !v)) return; // keep at least one
+    const activeCount = Object.values(newTypes).filter(Boolean).length;
+    if (activeCount === 0) {
+      toast.error('Vui lòng chọn ít nhất một loại câu hỏi!');
+      return;
+    }
     setTypes(newTypes);
   };
 
-  const activeTypes = Object.entries(types).filter(([, v]) => v).map(([k]) => k);
-
-  const handleStart = () => {
-    onStart({ questionCount, answerWith, types: activeTypes });
+  const handleStarToggle = () => {
+    if (!starOnly && starredCount === 0) {
+      toast.error('Không có thẻ gắn sao nào trong bộ này!');
+      return;
+    }
+    setStarOnly(!starOnly);
   };
 
+  const handleStartTest = () => {
+    const numCount = parseInt(questionCount, 10);
+    if (isNaN(numCount) || numCount < 1) {
+      toast.error('Số lượng câu hỏi không hợp lệ!');
+      return;
+    }
+    if (!canStart || numCount > maxQuestions) {
+      toast.error('Không thể tạo bài kiểm tra với cấu hình này!');
+      return;
+    }
+    onStart({ questionCount: numCount, starOnly, types });
+  };
+
+  // Clamp the questionCount value when toggle changes without converting empty string input to 20
+  useEffect(() => {
+    setQuestionCount(prev => {
+      if (prev === '') return '';
+      if (maxQuestions === 0) return 0;
+      return Math.min(Number(prev), maxQuestions);
+    });
+  }, [starOnly, maxQuestions]);
+
   return (
-    <div className="test-modal-overlay">
+    <div className="ql-setup-modal-overlay">
       <motion.div
-        className="test-modal"
-        initial={{ opacity: 0, scale: 0.94, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.94, y: 20 }}
-        transition={{ duration: 0.25 }}
+        className="ql-setup-modal"
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
       >
-        <div className="test-modal__header">
-          <div className="test-modal__icon">
-            <ClipboardCheck size={24} color="#2c5ef5" />
-          </div>
-          <div>
-            <h2 className="test-modal__title">Kiểm tra</h2>
-            <p className="test-modal__subtitle">
-              {cards.length} thẻ trong bộ này
-            </p>
-          </div>
-          <button className="test-modal__close" onClick={onClose} aria-label="Đóng">
+        {/* Header */}
+        <div className="ql-setup-modal__header">
+          <h2 className="ql-setup-modal__title">Tùy chọn</h2>
+          <button className="ql-setup-modal__close-btn" onClick={onClose}>
             <X size={20} />
           </button>
         </div>
 
-        <div className="test-modal__body">
-          {/* Question count */}
-          <div className="test-modal__section">
-            <label className="test-modal__label">Số câu hỏi</label>
-            <div className="test-modal__count-selector">
-              {[5, 10, 15, 20].map((n) => (
-                <button
-                  key={n}
-                  className={`test-modal__count-btn ${questionCount === n ? 'active' : ''}`}
-                  onClick={() => setQuestionCount(Math.min(n, cards.length))}
-                  disabled={n > cards.length}
-                >
-                  {n}
-                </button>
-              ))}
+        {/* Scrollable Body */}
+        <div className="ql-setup-modal__body">
+          {/* Question count input */}
+          <div className="ql-setup-row">
+            <div className="ql-setup-row__label">
+              <span>Câu hỏi</span>
+              <span className="ql-setup-row__subtext">{`(tối đa ${maxQuestions})`}</span>
             </div>
-            <input
-              type="range"
-              min={1}
-              max={cards.length}
-              value={questionCount}
-              onChange={(e) => setQuestionCount(Number(e.target.value))}
-              className="test-modal__range"
-            />
-            <span className="test-modal__range-label">
-              {questionCount} câu hỏi
-            </span>
-          </div>
-
-          {/* Answer with */}
-          <div className="test-modal__section">
-            <label className="test-modal__label">Trả lời bằng</label>
-            <div className="test-modal__toggle-group">
-              {[
-                { id: 'term', label: 'Thuật ngữ' },
-                { id: 'definition', label: 'Định nghĩa' },
-                { id: 'both', label: 'Cả hai' },
-              ].map((opt) => (
-                <button
-                  key={opt.id}
-                  className={`test-modal__toggle-btn ${answerWith === opt.id ? 'active' : ''}`}
-                  onClick={() => setAnswerWith(opt.id)}
-                >
-                  {opt.label}
-                </button>
-              ))}
+            <div className="ql-setup-row__control">
+              <input
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                value={questionCount}
+                disabled={maxQuestions === 0}
+                onChange={(e) => {
+                  if (maxQuestions === 0) {
+                    setQuestionCount(0);
+                    return;
+                  }
+                  const rawVal = e.target.value;
+                  if (rawVal === '') {
+                    setQuestionCount('');
+                    return;
+                  }
+                  // Strict cleaning: Strip non-digit characters
+                  const cleanVal = rawVal.replace(/\D/g, '');
+                  if (cleanVal === '') {
+                    setQuestionCount('');
+                    return;
+                  }
+                  const val = parseInt(cleanVal, 10);
+                  setQuestionCount(Math.min(maxQuestions, Math.max(1, val)));
+                }}
+                className="ql-setup-input-num"
+              />
             </div>
           </div>
 
-          {/* Question types */}
-          <div className="test-modal__section">
-            <label className="test-modal__label">Loại câu hỏi</label>
-            <div className="test-modal__types">
-              {[
-                { key: 'multipleChoice', label: 'Trắc nghiệm', icon: 'A' },
-                { key: 'trueFalse', label: 'Đúng/Sai', icon: 'T/F' },
-                { key: 'typeAnswer', label: 'Tự luận', icon: '✎' },
-              ].map(({ key, label, icon }) => (
-                <button
-                  key={key}
-                  className={`test-modal__type-btn ${types[key] ? 'active' : ''}`}
-                  onClick={() => toggleType(key)}
-                >
-                  <span className="test-modal__type-icon">{icon}</span>
-                  <span>{label}</span>
-                  <span className={`test-modal__type-check ${types[key] ? 'checked' : ''}`}>
-                    {types[key] && <CheckCircle size={14} />}
-                  </span>
-                </button>
-              ))}
+          {/* Cảnh báo bài kiểm tra dài */}
+          {maxQuestions > 100 && Number(questionCount) > 100 && (
+            <div className="ql-setup-warning-text" style={{ fontSize: '0.85rem', color: '#f59e0b', marginTop: '-10px', marginBottom: '8px', paddingLeft: '4px' }}>
+              ⚠️ Bài kiểm tra dài có thể mất nhiều thời gian thực hiện.
+            </div>
+          )}
+
+          {/* Cảnh báo rỗng không có thẻ khả dụng */}
+          {availableCount === 0 && (
+            <div className="ql-setup-error-text" style={{ fontSize: '0.85rem', color: '#ef4444', marginTop: '-10px', marginBottom: '8px', paddingLeft: '4px' }}>
+              ⚠️ Không có thẻ khả dụng để làm bài kiểm tra.
+            </div>
+          )}
+
+          {/* Divider */}
+          <hr className="ql-setup-divider" />
+
+          {/* Toggles for question types (No Ghép thẻ since it is not generated) */}
+          <div className="ql-setup-row">
+            <span className="ql-setup-row__label">Đúng/Sai</span>
+            <div className="ql-setup-row__control">
+              <label className="ql-switch">
+                <input
+                  type="checkbox"
+                  checked={types.trueFalse}
+                  onChange={() => toggleType('trueFalse')}
+                />
+                <span className="ql-slider" />
+              </label>
+            </div>
+          </div>
+
+          <div className="ql-setup-row">
+            <span className="ql-setup-row__label">Trắc nghiệm</span>
+            <div className="ql-setup-row__control">
+              <label className="ql-switch">
+                <input
+                  type="checkbox"
+                  checked={types.multipleChoice}
+                  onChange={() => toggleType('multipleChoice')}
+                />
+                <span className="ql-slider" />
+              </label>
+            </div>
+          </div>
+
+          <div className="ql-setup-row">
+            <span className="ql-setup-row__label">Tự luận</span>
+            <div className="ql-setup-row__control">
+              <label className="ql-switch">
+                <input
+                  type="checkbox"
+                  checked={types.typeAnswer}
+                  onChange={() => toggleType('typeAnswer')}
+                />
+                <span className="ql-slider" />
+              </label>
             </div>
           </div>
         </div>
 
-        <div className="test-modal__footer">
-          <button className="test-modal__start-btn" onClick={handleStart}>
-            Bắt đầu kiểm tra
-            <ChevronRight size={18} />
+        {/* Footer */}
+        <div className="ql-setup-modal__footer">
+          <button 
+            className="ql-setup-btn-start" 
+            onClick={handleStartTest}
+            disabled={!canStart}
+            style={!canStart ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+          >
+            Tạo bài kiểm tra mới
           </button>
+          
+          <div className="ql-setup-modal__footer-links" style={{ justifyContent: 'center' }}>
+            <button className="ql-setup-btn-cancel" onClick={onClose}>
+              Hủy
+            </button>
+          </div>
         </div>
       </motion.div>
-
-      <style>{`
-        .test-modal-overlay {
-          position: fixed;
-          inset: 0;
-          background: rgba(15, 20, 25, 0.4);
-          backdrop-filter: blur(4px);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 200;
-          padding: 16px;
-        }
-
-        .test-modal {
-          background: #fff;
-          border-radius: 28px;
-          width: 100%;
-          max-width: 480px;
-          box-shadow: 0 24px 60px rgba(0, 0, 0, 0.15);
-          overflow: hidden;
-        }
-
-        [data-theme='dark'] .test-modal {
-          background: #151922;
-        }
-
-        .test-modal__header {
-          display: flex;
-          align-items: center;
-          gap: 14px;
-          padding: 28px 28px 20px;
-          border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-        }
-
-        [data-theme='dark'] .test-modal__header {
-          border-bottom-color: rgba(255, 255, 255, 0.06);
-        }
-
-        .test-modal__icon {
-          width: 52px;
-          height: 52px;
-          border-radius: 16px;
-          background: rgba(44, 94, 245, 0.1);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          flex-shrink: 0;
-        }
-
-        .test-modal__title {
-          font-size: 1.25rem;
-          font-weight: 700;
-          color: #1a1a2e;
-          margin: 0 0 2px;
-        }
-
-        [data-theme='dark'] .test-modal__title { color: #e8eaed; }
-
-        .test-modal__subtitle {
-          font-size: 0.85rem;
-          color: #8a8fa8;
-          margin: 0;
-        }
-
-        .test-modal__close {
-          margin-left: auto;
-          width: 36px;
-          height: 36px;
-          border-radius: 10px;
-          border: none;
-          background: transparent;
-          cursor: pointer;
-          color: #8a8fa8;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: all 0.15s;
-          flex-shrink: 0;
-        }
-
-        .test-modal__close:hover {
-          background: #fee2e2;
-          color: #ef4444;
-        }
-
-        .test-modal__body {
-          padding: 24px 28px;
-          display: flex;
-          flex-direction: column;
-          gap: 24px;
-        }
-
-        .test-modal__section {
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-        }
-
-        .test-modal__label {
-          font-size: 0.8rem;
-          font-weight: 700;
-          text-transform: uppercase;
-          letter-spacing: 0.06em;
-          color: #8a8fa8;
-        }
-
-        /* Count selector */
-        .test-modal__count-selector {
-          display: flex;
-          gap: 8px;
-        }
-
-        .test-modal__count-btn {
-          flex: 1;
-          padding: 10px;
-          border-radius: 10px;
-          border: 1.5px solid rgba(0, 0, 0, 0.1);
-          background: transparent;
-          cursor: pointer;
-          font-size: 0.9rem;
-          font-weight: 600;
-          color: #4a5568;
-          transition: all 0.15s;
-        }
-
-        .test-modal__count-btn.active {
-          background: #e8edff;
-          border-color: #2c5ef5;
-          color: #2c5ef5;
-        }
-
-        .test-modal__count-btn:disabled {
-          opacity: 0.3;
-          cursor: not-allowed;
-        }
-
-        .test-modal__range {
-          width: 100%;
-          accent-color: #2c5ef5;
-          cursor: pointer;
-        }
-
-        .test-modal__range-label {
-          font-size: 0.8rem;
-          color: #8a8fa8;
-          text-align: center;
-        }
-
-        /* Toggle group */
-        .test-modal__toggle-group {
-          display: flex;
-          gap: 8px;
-        }
-
-        .test-modal__toggle-btn {
-          flex: 1;
-          padding: 10px;
-          border-radius: 10px;
-          border: 1.5px solid rgba(0, 0, 0, 0.1);
-          background: transparent;
-          cursor: pointer;
-          font-size: 0.85rem;
-          font-weight: 600;
-          color: #4a5568;
-          transition: all 0.15s;
-        }
-
-        .test-modal__toggle-btn.active {
-          background: #e8edff;
-          border-color: #2c5ef5;
-          color: #2c5ef5;
-        }
-
-        [data-theme='dark'] .test-modal__toggle-btn.active {
-          background: rgba(44, 94, 245, 0.15);
-          border-color: #6b8cff;
-          color: #6b8cff;
-        }
-
-        /* Type buttons */
-        .test-modal__types {
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-        }
-
-        .test-modal__type-btn {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          padding: 12px 16px;
-          border-radius: 12px;
-          border: 1.5px solid rgba(0, 0, 0, 0.08);
-          background: transparent;
-          cursor: pointer;
-          font-size: 0.9rem;
-          font-weight: 500;
-          color: #4a5568;
-          text-align: left;
-          transition: all 0.15s;
-        }
-
-        [data-theme='dark'] .test-modal__type-btn {
-          border-color: rgba(255, 255, 255, 0.08);
-          color: #868e96;
-        }
-
-        .test-modal__type-btn.active {
-          background: #e8edff;
-          border-color: #2c5ef5;
-          color: #1a1a2e;
-        }
-
-        [data-theme='dark'] .test-modal__type-btn.active {
-          background: rgba(44, 94, 245, 0.12);
-          border-color: #6b8cff;
-          color: #e8eaed;
-        }
-
-        .test-modal__type-icon {
-          width: 32px;
-          height: 32px;
-          border-radius: 8px;
-          background: rgba(0, 0, 0, 0.05);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 0.8rem;
-          font-weight: 700;
-          flex-shrink: 0;
-        }
-
-        .test-modal__type-btn.active .test-modal__type-icon {
-          background: rgba(44, 94, 245, 0.15);
-          color: #2c5ef5;
-        }
-
-        .test-modal__type-check {
-          margin-left: auto;
-          color: #b0b4c4;
-          display: flex;
-          align-items: center;
-        }
-
-        .test-modal__type-check.checked {
-          color: #2c5ef5;
-        }
-
-        .test-modal__footer {
-          padding: 20px 28px 28px;
-        }
-
-        .test-modal__start-btn {
-          width: 100%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 8px;
-          padding: 14px;
-          background: #2c5ef5;
-          border: none;
-          border-radius: 14px;
-          color: #fff;
-          font-size: 1rem;
-          font-weight: 700;
-          cursor: pointer;
-          transition: all 0.15s;
-        }
-
-        .test-modal__start-btn:hover {
-          background: #1d4fd8;
-          transform: translateY(-1px);
-          box-shadow: 0 6px 20px rgba(44, 94, 245, 0.3);
-        }
-      `}</style>
-    </div>
-  );
-}
-
-// ─── Question Components ───────────────────────────────────────────────────────
-function MultipleChoiceQuestion({ question, options, selected, onSelect, isAnswered }) {
-  return (
-    <div className="test-question">
-      <p className="test-question__label">Chọn đáp án đúng</p>
-      <h3 className="test-question__text">{question}</h3>
-      <div className="test-question__options">
-        {options.map((opt, i) => {
-          const isSelected = selected === opt;
-          const isCorrect = isAnswered && opt === options.find((o, idx) => {
-            // The correct one is the first option in shuffled context
-            return false;
-          });
-          return (
-            <motion.button
-              key={i}
-              className={`test-question__option ${isSelected ? 'selected' : ''} ${isAnswered && isSelected ? 'answered' : ''}`}
-              onClick={() => !isAnswered && onSelect(opt)}
-              disabled={isAnswered}
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: i * 0.05 }}
-            >
-              <span className="test-question__option-letter">
-                {String.fromCharCode(65 + i)}
-              </span>
-              <span>{opt}</span>
-            </motion.button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function TrueFalseQuestion({ question, selected, onSelect, isAnswered }) {
-  return (
-    <div className="test-question">
-      <p className="test-question__label">Đúng hay sai?</p>
-      <h3 className="test-question__text">{question}</h3>
-      <div className="test-question__tf-btns">
-        <button
-          className={`test-question__tf-btn ${selected === true ? 'selected' : ''} ${isAnswered && selected === true ? 'answered' : ''}`}
-          onClick={() => !isAnswered && onSelect(true)}
-          disabled={isAnswered}
-        >
-          <CheckCircle size={20} />
-          Đúng
-        </button>
-        <button
-          className={`test-question__tf-btn ${selected === false ? 'selected' : ''} ${isAnswered && selected === false ? 'answered' : ''}`}
-          onClick={() => !isAnswered && onSelect(false)}
-          disabled={isAnswered}
-        >
-          <XCircle size={20} />
-          Sai
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function TypeAnswerQuestion({ question, value, onChange, isAnswered, correctAnswer, onSubmit }) {
-  const inputRef = useRef(null);
-
-  useEffect(() => {
-    if (!isAnswered && inputRef.current) {
-      setTimeout(() => inputRef.current?.focus(), 100);
-    }
-  }, [isAnswered]);
-
-  return (
-    <div className="test-question">
-      <p className="test-question__label">Đáp án của bạn</p>
-      <h3 className="test-question__text">{question}</h3>
-      <div className="test-question__input-wrap">
-        <input
-          ref={inputRef}
-          type="text"
-          className={`test-question__input ${isAnswered ? (value.trim().toLowerCase() === correctAnswer?.trim().toLowerCase() ? 'correct' : 'wrong') : ''}`}
-          placeholder="Nhập đáp án..."
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && !isAnswered && onSubmit()}
-          disabled={isAnswered}
-          autoComplete="off"
-        />
-        {!isAnswered && (
-          <button
-            className="test-question__submit-btn"
-            onClick={onSubmit}
-            disabled={!value.trim()}
-          >
-            Kiểm tra
-          </button>
-        )}
-      </div>
-      {isAnswered && value.trim().toLowerCase() !== correctAnswer?.trim().toLowerCase() && (
-        <div className="test-question__correct-hint">
-          <CheckCircle size={14} color="#10b981" />
-          Đáp án đúng: <strong>{correctAnswer}</strong>
-        </div>
-      )}
     </div>
   );
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
-export default function TestMode({ cards = [], setTitle = '', onClose, onComplete, onModeChange }) {
+export default function TestMode({ cards = [], setTitle = '', onClose, onModeChange }) {
   const [started, setStarted] = useState(false);
   const [questions, setQuestions] = useState([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [answers, setAnswers] = useState({}); // { questionIndex: answer }
-  const [isAnswered, setIsAnswered] = useState(false);
+  const [answers, setAnswers] = useState({}); // { [questionId]: { status: 'answered' | 'skipped', value } }
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [startTime, setStartTime] = useState(0);
+  const [durationStr, setDurationStr] = useState(''); // Formatted duration
   const [allDone, setAllDone] = useState(false);
-  const [cardResults, setCardResults] = useState({});
-  const [isUpdating, setIsUpdating] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [syncWarning, setSyncWarning] = useState(false);
+  
   const { triggerRewards } = useGamification();
 
-  const currentQ = questions[currentIndex];
-  const progressPercent = questions.length > 0 ? ((currentIndex + 1) / questions.length) * 100 : 0;
+  // Keep fullscreen state in sync
+  useEffect(() => {
+    const handleFs = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFs);
+    return () => document.removeEventListener('fullscreenchange', handleFs);
+  }, []);
 
-  const handleStart = ({ questionCount, answerWith, types }) => {
-    // questionCount = number of cards to study
-    const shuffled = [...cards].sort(() => Math.random() - 0.5).slice(0, questionCount);
-    const built = [];
-
-    // Initialize card results tracker
-    const initialCardResults = {};
-    shuffled.forEach(card => {
-      initialCardResults[card.id] = { total: 0, correct: 0, questions: [] };
-    });
-    setCardResults(initialCardResults);
-
-    shuffled.forEach((card, idx) => {
-      const useTerm = answerWith === 'term' || answerWith === 'both';
-      const useDef = answerWith === 'definition' || answerWith === 'both';
-
-      if (useTerm && types.includes('multipleChoice')) {
-        const others = cards.filter((c) => c.id !== card.id).map((c) => c.front).sort(() => Math.random() - 0.5).slice(0, 3);
-        built.push({
-          id: `${idx}-term-mc`,
-          cardId: card.id,
-          type: 'multipleChoice',
-          question: card.front,
-          answer: card.back,
-          options: [...others, card.back].sort(() => Math.random() - 0.5),
-          isTerm: true,
-        });
-      }
-
-      if (useDef && types.includes('multipleChoice')) {
-        const others = cards.filter((c) => c.id !== card.id).map((c) => c.back).sort(() => Math.random() - 0.5).slice(0, 3);
-        built.push({
-          id: `${idx}-def-mc`,
-          cardId: card.id,
-          type: 'multipleChoice',
-          question: card.back,
-          answer: card.front,
-          options: [...others, card.front].sort(() => Math.random() - 0.5),
-          isTerm: false,
-        });
-      }
-
-      if (useTerm && types.includes('trueFalse')) {
-        built.push({
-          id: `${idx}-term-tf`,
-          cardId: card.id,
-          type: 'trueFalse',
-          question: `"${card.back}" là định nghĩa của "${card.front}"?`,
-          answer: true,
-        });
-      }
-
-      if (useDef && types.includes('typeAnswer')) {
-        built.push({
-          id: `${idx}-def-type`,
-          cardId: card.id,
-          type: 'typeAnswer',
-          question: card.front,
-          answer: card.back,
-          isTerm: true,
-        });
-      }
-    });
-
-    // Take from each card in round-robin (no slice limit - use all questions)
-    const groupedByCard = {};
-    built.forEach(q => {
-      if (!groupedByCard[q.cardId]) {
-        groupedByCard[q.cardId] = [];
-      }
-      groupedByCard[q.cardId].push(q);
-    });
-
-    // Round-robin through all cards
-    const final = [];
-    let cardIds = Object.keys(groupedByCard);
-    let idx2 = 0;
-    const maxIterations = built.length + 10;
-    let iterations = 0;
-    while (cardIds.length > 0 && iterations < maxIterations) {
-      const cardId = cardIds[idx2 % cardIds.length];
-      const cardQuestions = groupedByCard[cardId];
-      if (cardQuestions.length > 0) {
-        final.push(cardQuestions.shift());
-      }
-      if (cardQuestions.length === 0) {
-        delete groupedByCard[cardId];
-        cardIds = Object.keys(groupedByCard);
-        // Don't decrement idx2, just continue
-      }
-      idx2++;
-      iterations++;
-    }
-
-    setQuestions(final);
-    setStarted(true);
+  // TTS speaker
+  const speakWord = (text) => {
+    if (!soundEnabled || !text) return;
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'en-US';
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utterance);
   };
 
-  const handleAnswerSelect = (answer) => {
-    setAnswers((prev) => ({ ...prev, [currentIndex]: answer }));
-    setIsAnswered(true);
-
-    // Track result for this card
-    const question = questions[currentIndex];
-    if (question?.cardId) {
-      const isCorrect = checkAnswerCorrect(question, answer);
-      setCardResults(prev => ({
-        ...prev,
-        [question.cardId]: {
-          ...prev[question.cardId],
-          total: (prev[question.cardId]?.total || 0) + 1,
-          correct: (prev[question.cardId]?.correct || 0) + (isCorrect ? 1 : 0),
-          questions: [...(prev[question.cardId]?.questions || []), { qId: question.id, isCorrect }],
-        },
-      }));
+  // Focus and scroll to the next question card relatively
+  const handleWrittenNext = (e) => {
+    const box = e.currentTarget.closest('.ql-question-card');
+    if (!box) return;
+    const cardsList = Array.from(document.querySelectorAll('.ql-question-card'));
+    const currentCardIdx = cardsList.indexOf(box);
+    const nextCard = cardsList[currentCardIdx + 1];
+    if (nextCard) {
+      nextCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const nextInput = nextCard.querySelector('.ql-question-input');
+      if (nextInput) {
+        // Focus the input only if the next question card is a typeAnswer card
+        setTimeout(() => nextInput.focus(), 150);
+      }
     }
   };
 
-  // Helper to check if answer is correct
-  const checkAnswerCorrect = (question, answer) => {
-    if (question.type === 'multipleChoice') return answer === question.answer;
-    if (question.type === 'trueFalse') return answer === question.answer;
-    if (question.type === 'typeAnswer') return answer?.trim().toLowerCase() === question.answer?.trim().toLowerCase();
-    return false;
-  };
-
-  // Calculate API quality on the backend scale: 0=Again, 3=Hard, 4=Good, 5=Easy.
-  const calculateQuality = (total, correct) => {
-    if (total === 0) return 4; // Default to Good if no questions
-    const ratio = correct / total;
-    if (ratio === 1) return 5; // Easy - all correct
-    if (ratio >= 0.5) return 4; // Good - at least half correct
-    return 0; // Again - less than half correct
-  };
-
-  // Update SM-2 for all cards after test completes
-  const updateAllCardProgress = async () => {
-    if (Object.keys(cardResults).length === 0) return;
-
-    setIsUpdating(true);
-    const updatePromises = Object.entries(cardResults).map(([cardId, result]) => {
-      const quality = calculateQuality(result.total, result.correct);
-      console.log(`[TestMode] Updating card ${cardId}: quality=${quality} (${result.correct}/${result.total})`);
-      return progressService.updateCardProgress(cardId, quality).catch(err => {
-        console.error(`[TestMode] Failed to update card ${cardId}:`, err);
-      });
-    });
-
-    await Promise.all(updatePromises);
-    setIsUpdating(false);
-  };
-
-  const handleNext = () => {
-    if (currentIndex < questions.length - 1) {
-      setCurrentIndex((v) => v + 1);
-      setIsAnswered(false);
-    } else {
-      // Update SM-2 progress for all cards before showing results
-      updateAllCardProgress();
-      setAllDone(true);
-      // Trigger gamification
-      const totalCorrect = Object.entries(answers).reduce((acc, [idx, ans]) => {
-        const q = questions[Number(idx)];
-        if (!q) return acc;
-        if (q.type === 'multipleChoice') return acc + (ans === q.answer ? 1 : 0);
-        if (q.type === 'trueFalse') return acc + (ans === q.answer ? 1 : 0);
-        if (q.type === 'typeAnswer') return acc + (ans?.trim().toLowerCase() === q.answer?.trim().toLowerCase() ? 1 : 0);
-        return acc;
-      }, 0);
-      const acc = questions.length > 0 ? Math.round((totalCorrect / questions.length) * 100) : 0;
-      gamificationService.triggerTestComplete({ accuracy: acc, cardsStudied: cards.length })
-        .then(r => {
-          const data = r.data?.data ?? r.data;
-          console.log('[Gamification] Test result:', data);
-          if (data?.xp || data?.newAchievements?.length > 0) triggerRewards(data);
-        })
-        .catch(err => console.error('[Gamification] Test error:', err));
-    }
-  };
-
-  const handlePrev = () => {
-    if (currentIndex > 0) {
-      setCurrentIndex((v) => v - 1);
-      setIsAnswered(answers[currentIndex - 1] !== undefined);
-    }
-  };
-
+  // Fullscreen support toggler
   const handleFullscreen = () => {
     if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen?.();
-      setIsFullscreen(true);
+      document.documentElement.requestFullscreen?.().then(() => {
+        setIsFullscreen(true);
+      }).catch(() => {});
     } else {
-      document.exitFullscreen?.();
-      setIsFullscreen(false);
+      document.exitFullscreen?.().then(() => {
+        setIsFullscreen(false);
+      }).catch(() => {});
     }
   };
 
-  // Results
-  if (allDone) {
-    const correct = questions.reduce((acc, q, i) => {
-      const userAnswer = answers[i];
-      if (q.type === 'multipleChoice') return acc + (userAnswer === q.answer ? 1 : 0);
-      if (q.type === 'trueFalse') return acc + (userAnswer === q.answer ? 1 : 0);
-      if (q.type === 'typeAnswer') return acc + (userAnswer?.trim().toLowerCase() === q.answer?.trim().toLowerCase() ? 1 : 0);
-      return acc;
-    }, 0);
-    const accuracy = questions.length > 0 ? Math.round((correct / questions.length) * 100) : 0;
+  // Generator
+  const handleStart = ({ questionCount, starOnly, types }) => {
+    let eligibleCards = starOnly ? cards.filter(c => c.isStarred) : [...cards];
+    
+    if (eligibleCards.length === 0) {
+      toast.error('Bộ thẻ rỗng hoặc không có thẻ gắn sao nào!');
+      return;
+    }
 
-    // Build card results summary
-    const cardSummary = Object.entries(cardResults).map(([cardId, result]) => {
-      const card = cards.find(c => c.id === cardId);
-      const quality = calculateQuality(result.total, result.correct);
-      const qualityLabel = quality === 5 ? 'Easy' : quality === 4 ? 'Good' : 'Again';
-      return {
-        cardId,
-        front: card?.front || 'Unknown',
-        total: result.total,
-        correct: result.correct,
-        quality,
-        qualityLabel,
-      };
+    const activeTypes = Object.entries(types)
+      .filter(([k, v]) => v)
+      .map(([k]) => k);
+
+    if (activeTypes.length === 0) {
+      toast.error('Vui lòng chọn ít nhất một loại câu hỏi!');
+      return;
+    }
+
+    const generated = [];
+    let questionIndex = 0;
+
+    // Round-robin selection of cards and active types
+    while (generated.length < questionCount) {
+      const card = eligibleCards[questionIndex % eligibleCards.length];
+      const type = activeTypes[questionIndex % activeTypes.length];
+      const qId = `q_${questionIndex}_${card.id}`;
+
+      if (type === 'trueFalse') {
+        const isTrue = Math.random() < 0.5;
+        let termToShow = card.front;
+
+        if (!isTrue) {
+          // Priority 1: distractor from the same card set (including unstarred cards)
+          const otherCards = cards.filter(c => c.id !== card.id);
+          if (otherCards.length > 0) {
+            termToShow = otherCards[Math.floor(Math.random() * otherCards.length)].front;
+          } else {
+            // Priority 2: fallback vocabulary words
+            termToShow = FALLBACK_VOCAB[Math.floor(Math.random() * FALLBACK_VOCAB.length)];
+          }
+        }
+
+        generated.push({
+          id: qId,
+          cardId: card.id,
+          type: 'trueFalse',
+          definition: card.back,
+          term: termToShow,
+          correctAnswer: isTrue, // boolean true/false
+        });
+      } else if (type === 'multipleChoice') {
+        // Priority 1: distractors from current set
+        const otherTerms = [...new Set(cards.filter(c => c.id !== card.id).map(c => c.front))];
+        
+        // Priority 2: fallback list if set is small
+        let fallbackIdx = 0;
+        while (otherTerms.length < 3) {
+          const word = FALLBACK_VOCAB[fallbackIdx % FALLBACK_VOCAB.length];
+          if (!otherTerms.includes(word) && word !== card.front) {
+            otherTerms.push(word);
+          }
+          fallbackIdx++;
+        }
+
+        const distractors = otherTerms.sort(() => Math.random() - 0.5).slice(0, 3);
+        const options = [card.front, ...distractors].sort(() => Math.random() - 0.5);
+
+        generated.push({
+          id: qId,
+          cardId: card.id,
+          type: 'multipleChoice',
+          definition: card.back,
+          options,
+          correctAnswer: card.front,
+        });
+      } else if (type === 'typeAnswer') {
+        generated.push({
+          id: qId,
+          cardId: card.id,
+          type: 'typeAnswer',
+          definition: card.back,
+          correctAnswer: card.front,
+        });
+      }
+
+      questionIndex++;
+    }
+
+    // Shuffle the generated list
+    const shuffled = generated.sort(() => Math.random() - 0.5);
+
+    setQuestions(shuffled);
+    setAnswers({});
+    setStarted(true);
+    setStartTime(Date.now());
+    setAllDone(false);
+  };
+
+  // Submit test and sync SM-2 sequentially using Promise.allSettled
+  const handleSubmitTest = async () => {
+    setIsSubmitting(true);
+    const endTime = Date.now();
+    const durationMs = endTime - startTime;
+    const seconds = Math.floor((durationMs / 1000) % 60);
+    const minutes = Math.floor(durationMs / 60000);
+    if (minutes > 0) {
+      setDurationStr(`${minutes} phút ${seconds} giây`);
+    } else {
+      setDurationStr(`${seconds} giây`);
+    }
+
+    // Calculate unique cards in the test
+    const resultsByCard = {};
+    const uniqueCardIds = new Set();
+
+    questions.forEach(q => {
+      uniqueCardIds.add(q.cardId);
+      if (!resultsByCard[q.cardId]) {
+        resultsByCard[q.cardId] = { total: 0, correct: 0 };
+      }
+
+      resultsByCard[q.cardId].total += 1;
+
+      const answerObj = answers[q.id];
+      const isUnanswered = !answerObj || (answerObj.status === 'answered' && (answerObj.value === undefined || answerObj.value === ''));
+      const userAnswer = answerObj?.value;
+
+      let isCorrect = false;
+
+      if (!isUnanswered) {
+        if (q.type === 'trueFalse') {
+          isCorrect = userAnswer === q.correctAnswer;
+        } else if (q.type === 'multipleChoice') {
+          isCorrect = userAnswer === q.correctAnswer;
+        } else if (q.type === 'typeAnswer') {
+          isCorrect = normalizeText(userAnswer) === normalizeText(q.correctAnswer);
+        }
+      }
+
+      if (isCorrect) {
+        resultsByCard[q.cardId].correct += 1;
+      }
     });
 
-    return (
-      <div className="study-mode-wrap">
-        <TestHeader
-          mode="test"
-          currentCard={questions.length}
-          totalCards={cards.length}
-          showProgress={true}
-          onClose={onClose}
-          onModeChange={onModeChange}
-          soundEnabled={soundEnabled}
-          onSoundToggle={() => setSoundEnabled((v) => !v)}
-          isFullscreen={isFullscreen}
-          onFullscreen={handleFullscreen}
-        />
-        <div className="test-results">
-          <motion.div
-            className="test-results__card"
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.4 }}
-          >
-            {/* Updating indicator */}
-            {isUpdating && (
-              <div className="test-results__updating">
-                <div className="test-results__updating-spinner" />
-                <span>Đang cập nhật tiến độ học...</span>
-              </div>
-            )}
+    let syncFailed = false;
 
-            <div className="test-results__score-wrap">
-              <div className="test-results__score-ring">
-                <svg viewBox="0 0 100 100" className="test-results__ring-svg">
-                  <circle cx="50" cy="50" r="42" fill="none" stroke="#e8eaf0" strokeWidth="8" />
-                  <motion.circle
-                    cx="50" cy="50" r="42" fill="none"
-                    stroke="#2c5ef5" strokeWidth="8"
-                    strokeLinecap="round"
-                    strokeDasharray={`${accuracy * 2.64} 264`}
-                    initial={{ strokeDasharray: `0 264` }}
-                    animate={{ strokeDasharray: `${accuracy * 2.64} 264` }}
-                    transition={{ duration: 1, ease: 'easeOut', delay: 0.3 }}
-                  />
-                </svg>
-                <span className="test-results__score-num">{accuracy}%</span>
-              </div>
-            </div>
-            <h2 className="test-results__title">
-              {accuracy >= 80 ? 'Xuất sắc!' : accuracy >= 50 ? 'Khá tốt!' : 'Cần cố gắng thêm!'}
-            </h2>
-            <p className="test-results__subtitle">
-              Bạn trả lời đúng {correct} trên {questions.length} câu
-            </p>
+    // Step 1: Update SM-2 progress sequentially (waiting for allSettled)
+    try {
+      const updatePromises = Object.entries(resultsByCard).map(([cardId, stats]) => {
+        const ratio = stats.correct / stats.total;
+        const quality = ratio >= 0.5 ? 4 : 0;
+        return progressService.updateCardProgress(cardId, quality);
+      });
+      const results = await Promise.allSettled(updatePromises);
+      const hasFailure = results.some(r => r.status === 'rejected');
+      if (hasFailure) {
+        syncFailed = true;
+      }
+    } catch (err) {
+      console.error('[TestMode] SM-2 synchronization error:', err);
+      syncFailed = true;
+    }
 
+    // Calculate total correct
+    let totalCorrect = 0;
+    questions.forEach(q => {
+      const answerObj = answers[q.id];
+      const isUnanswered = !answerObj || (answerObj.status === 'answered' && (answerObj.value === undefined || answerObj.value === ''));
+      const userAnswer = answerObj?.value;
 
-            {/* Stats Summary */}
-            <div className="test-results__stats">
-              <div className="test-results__stat correct">
-                <span className="test-results__stat-num">{correct}</span>
-                <span className="test-results__stat-label">Đúng</span>
-              </div>
-              <div className="test-results__stat wrong">
-                <span className="test-results__stat-num">{questions.length - correct}</span>
-                <span className="test-results__stat-label">Sai</span>
-              </div>
-              <div className="test-results__stat total">
-                <span className="test-results__stat-num">{questions.length}</span>
-                <span className="test-results__stat-label">Tổng</span>
-              </div>
-            </div>
+      let isCorrect = false;
+      if (!isUnanswered) {
+        if (q.type === 'trueFalse') {
+          isCorrect = userAnswer === q.correctAnswer;
+        } else if (q.type === 'multipleChoice') {
+          isCorrect = userAnswer === q.correctAnswer;
+        } else if (q.type === 'typeAnswer') {
+          isCorrect = normalizeText(userAnswer) === normalizeText(q.correctAnswer);
+        }
+      }
+      if (isCorrect) totalCorrect++;
+    });
 
-            {/* Card progress summary */}
-            <div className="test-results__card-summary">
-              <h3 className="test-results__section-title">Tiến độ ôn tập thông minh</h3>
-              <div className="test-results__cards-list">
-                {cardSummary.map((summary, idx) => (
-                  <div key={summary.cardId} className={`test-results__card-item quality-${summary.qualityLabel.toLowerCase()}`}>
-                    <div className="test-results__card-info">
-                      <span className="test-results__card-front">{summary.front}</span>
-                      <span className="test-results__card-score">{summary.correct}/{summary.total} câu</span>
-                    </div>
-                    <div className={`test-results__card-quality quality-${summary.qualityLabel.toLowerCase()}`}>
-                      {summary.qualityLabel === 'Easy' && <span className="quality-badge easy">Dễ</span>}
-                      {summary.qualityLabel === 'Good' && <span className="quality-badge good">Khá</span>}
-                      {summary.qualityLabel === 'Again' && <span className="quality-badge again">Học lại</span>}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+    const accuracy = questions.length > 0 ? Math.round((totalCorrect / questions.length) * 100) : 0;
 
-            <div className="test-results__breakdown">
-              <h3 className="test-results__section-title">Chi tiết câu hỏi</h3>
-              {questions.map((q, i) => {
-                const userAnswer = answers[i];
-                let isCorrect = false;
-                if (q.type === 'multipleChoice') isCorrect = userAnswer === q.answer;
-                else if (q.type === 'trueFalse') isCorrect = userAnswer === q.answer;
-                else if (q.type === 'typeAnswer') isCorrect = userAnswer?.trim().toLowerCase() === q.answer?.trim().toLowerCase();
-                return (
-                  <div key={q.id} className={`test-results__item ${isCorrect ? 'correct' : 'wrong'}`}>
-                    {isCorrect ? <CheckCircle size={14} /> : <XCircle size={14} />}
-                    <span className="test-results__item-q">{q.question}</span>
-                  </div>
-                );
-              })}
-            </div>
-            <div className="test-results__actions">
-              <button className="btn-glassline-primary" onClick={() => {
-                setStarted(false);
-                setQuestions([]);
-                setAnswers({});
-                setCurrentIndex(0);
-                setAllDone(false);
-                setIsAnswered(false);
-                setCardResults({});
-              }}>
-                Làm lại
-              </button>
-              <button className="test-results__btn-secondary" onClick={onClose}>
-                Đóng
-              </button>
-            </div>
-          </motion.div>
-        </div>
-        <style>{`
-          .test-results__updating {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            padding: 12px 16px;
-            background: rgba(44, 94, 245, 0.08);
-            border-radius: 12px;
-            margin-bottom: 20px;
-            font-size: 0.875rem;
-            color: #2c5ef5;
-            font-weight: 500;
-          }
-          .test-results__updating-spinner {
-            width: 18px;
-            height: 18px;
-            border: 2px solid rgba(44, 94, 245, 0.2);
-            border-top-color: #2c5ef5;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-          }
-          @keyframes spin {
-            to { transform: rotate(360deg); }
-          }
-          .test-results__stats {
-            display: flex;
-            justify-content: center;
-            gap: 24px;
-            margin-bottom: 24px;
-          }
-          .test-results__stat {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 4px;
-            padding: 16px 24px;
-            border-radius: 16px;
-            min-width: 80px;
-          }
-          .test-results__stat.correct {
-            background: rgba(16, 185, 129, 0.1);
-          }
-          .test-results__stat.wrong {
-            background: rgba(239, 68, 68, 0.1);
-          }
-          .test-results__stat.total {
-            background: rgba(44, 94, 245, 0.1);
-          }
-          .test-results__stat-num {
-            font-size: 1.75rem;
-            font-weight: 700;
-            line-height: 1;
-          }
-          .test-results__stat.correct .test-results__stat-num { color: #10b981; }
-          .test-results__stat.wrong .test-results__stat-num { color: #ef4444; }
-          .test-results__stat.total .test-results__stat-num { color: #2c5ef5; }
-          .test-results__stat-label {
-            font-size: 0.75rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: #8a8fa8;
-          }
-          .test-results__card-summary {
-            margin-bottom: 20px;
-            text-align: left;
-          }
-          .test-results__section-title {
-            font-size: 0.75rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-            color: #8a8fa8;
-            margin: 0 0 12px;
-          }
-          .test-results__cards-list {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            max-height: 160px;
-            overflow-y: auto;
-          }
-          .test-results__card-item {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 10px 14px;
-            border-radius: 10px;
-            background: #f8f9fc;
-            border-left: 3px solid;
-          }
-          [data-theme='dark'] .test-results__card-item {
-            background: #1e2332;
-          }
-          .test-results__card-item.quality-easy {
-            border-left-color: #10b981;
-          }
-          .test-results__card-item.quality-good {
-            border-left-color: #f59e0b;
-          }
-          .test-results__card-item.quality-again {
-            border-left-color: #ef4444;
-          }
-          .test-results__card-info {
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-            flex: 1;
-            min-width: 0;
-          }
-          .test-results__card-front {
-            font-size: 0.875rem;
-            font-weight: 500;
-            color: #1a1a2e;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-          }
-          [data-theme='dark'] .test-results__card-front {
-            color: #e8eaed;
-          }
-          .test-results__card-score {
-            font-size: 0.75rem;
-            color: #8a8fa8;
-          }
-          .test-results__card-quality {
-            flex-shrink: 0;
-          }
-          .quality-badge {
-            display: inline-block;
-            padding: 4px 10px;
-            border-radius: 20px;
-            font-size: 0.7rem;
-            font-weight: 700;
-            text-transform: uppercase;
-          }
-          .quality-badge.easy {
-            background: rgba(16, 185, 129, 0.12);
-            color: #10b981;
-          }
-          .quality-badge.good {
-            background: rgba(245, 158, 11, 0.12);
-            color: #f59e0b;
-          }
-          .quality-badge.again {
-            background: rgba(239, 68, 68, 0.12);
-            color: #ef4444;
-          }
-          .test-results {
-            flex: 1;
-            display: flex;
-            align-items: flex-start;
-            justify-content: center;
-            padding: 32px 16px;
-            background: #f6f7fb;
-            overflow-y: auto;
-          }
-          [data-theme='dark'] .test-results { background: #0b0e12; }
-          .test-results__card {
-            background: #fff;
-            border-radius: 28px;
-            padding: 40px 36px;
-            max-width: 520px;
-            width: 100%;
-            text-align: center;
-            box-shadow: 0 4px 24px rgba(0,0,0,0.08);
-          }
-          [data-theme='dark'] .test-results__card {
-            background: #151922;
-            box-shadow: 0 4px 24px rgba(0,0,0,0.3);
-          }
-          .test-results__score-wrap {
-            display: flex;
-            justify-content: center;
-            margin-bottom: 20px;
-          }
-          .test-results__score-ring {
-            position: relative;
-            width: 120px;
-            height: 120px;
-          }
-          .test-results__ring-svg {
-            width: 100%;
-            height: 100%;
-            transform: rotate(-90deg);
-          }
-          .test-results__score-num {
-            position: absolute;
-            inset: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 2rem;
-            font-weight: 700;
-            color: #2c5ef5;
-          }
-          .test-results__title {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: #1a1a2e;
-            margin: 0 0 8px;
-          }
-          [data-theme='dark'] .test-results__title { color: #e8eaed; }
-          .test-results__subtitle {
-            font-size: 0.95rem;
-            color: #8a8fa8;
-            margin: 0 0 24px;
-          }
-          .test-results__breakdown {
-            text-align: left;
-            max-height: 200px;
-            overflow-y: auto;
-            margin-bottom: 24px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-          }
-          .test-results__item {
-            display: flex;
-            align-items: flex-start;
-            gap: 8px;
-            padding: 10px 14px;
-            border-radius: 10px;
-            font-size: 0.875rem;
-          }
-          .test-results__item.correct {
-            background: rgba(16,185,129,0.08);
-            color: #059669;
-          }
-          .test-results__item.wrong {
-            background: rgba(239,68,68,0.08);
-            color: #dc2626;
-          }
-          .test-results__item svg { flex-shrink: 0; margin-top: 2px; }
-          .test-results__item-q {
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-          }
-          .test-results__actions {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-          }
-          .test-results__btn-secondary {
-            padding: 12px 20px;
-            border-radius: 10px;
-            border: 1.5px solid rgba(0,0,0,0.12);
-            background: transparent;
-            color: #4a5568;
-            font-size: 0.95rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.15s;
-          }
-          [data-theme='dark'] .test-results__btn-secondary {
-            border-color: rgba(255,255,255,0.12);
-            color: #868e96;
-          }
-          .test-results__btn-secondary:hover { background: #f0f1f6; }
-        `}</style>
-      </div>
-    );
+    // Step 2: Trigger gamification and XP updates
+    try {
+      const response = await gamificationService.triggerTestComplete({
+        accuracy,
+        cardsStudied: uniqueCardIds.size
+      });
+      const data = response.data?.data ?? response.data;
+      if (data?.xp || data?.newAchievements?.length > 0) {
+        triggerRewards(data);
+      }
+    } catch (err) {
+      console.error('[TestMode] Gamification failed:', err);
+      syncFailed = true;
+    }
+
+    if (syncFailed) {
+      setSyncWarning(true);
+      toast.error('Không thể đồng bộ tiến độ lên máy chủ. Kết quả của bạn vẫn hiển thị tạm thời.');
+    } else {
+      setSyncWarning(false);
+    }
+
+    setIsSubmitting(false);
+    setAllDone(true);
+
+    // Scroll to top of window and scrollable areas to view the scores immediately
+    setTimeout(() => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      const container = document.querySelector('.ql-test-body');
+      if (container) {
+        container.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    }, 50);
+  };
+
+  // Pre-calculate score metrics for the Results screen (in top-level scope to avoid inner closures issues)
+  let correctCount = 0;
+  let incorrectCount = 0;
+  let accuracy = 0;
+  let scoreMsg = '';
+
+  if (allDone) {
+    questions.forEach(q => {
+      const answerObj = answers[q.id];
+      const isSkipped = answerObj?.status === 'skipped';
+      const isUnanswered = !answerObj || (answerObj.status === 'answered' && (answerObj.value === undefined || answerObj.value === ''));
+      const userAnswer = answerObj?.value;
+
+      let isCorrect = false;
+      if (!isSkipped && !isUnanswered) {
+        if (q.type === 'trueFalse') {
+          isCorrect = userAnswer === q.correctAnswer;
+        } else if (q.type === 'multipleChoice') {
+          isCorrect = userAnswer === q.correctAnswer;
+        } else if (q.type === 'typeAnswer') {
+          isCorrect = normalizeText(userAnswer) === normalizeText(q.correctAnswer);
+        }
+      }
+      if (isCorrect) correctCount++;
+    });
+
+    incorrectCount = questions.length - correctCount;
+    accuracy = questions.length > 0 ? Math.round((correctCount / questions.length) * 100) : 0;
+    scoreMsg = accuracy >= 80 
+      ? 'Tuyệt vời! Kết quả học tập rất xuất sắc.'
+      : accuracy >= 50 
+      ? 'Khá tốt! Hãy tiếp tục phát huy nhé.' 
+      : 'Hãy đối tốt với bản thân, và tiếp tục ôn luyện!';
   }
 
-  // Setup modal
-  if (!started) {
-    return (
-      <div className="study-mode-wrap">
-        <TestHeader
-          mode="test"
-          currentCard={0}
-          totalCards={cards.length}
-          showProgress={false}
-          questionCount={0}
-          onClose={onClose}
-          soundEnabled={soundEnabled}
-          onSoundToggle={() => setSoundEnabled((v) => !v)}
-          isFullscreen={isFullscreen}
-          onFullscreen={handleFullscreen}
-        />
-        <div className="test-mode">
-          <AnimatePresence>
-            <SetupModal
-              cards={cards}
-              onStart={handleStart}
-              onClose={onClose}
-            />
-          </AnimatePresence>
-        </div>
-      </div>
-    );
-  }
-
-  // Test screen
   return (
-    <div className="study-mode-wrap">
+    <div className="ql-test-wrap">
       <TestHeader
-        mode="test"
-        currentCard={currentIndex + 1}
-        totalCards={questions.length}
-        showProgress={true}
+        setTitle={setTitle}
         onClose={onClose}
         onModeChange={onModeChange}
         soundEnabled={soundEnabled}
-        onSoundToggle={() => setSoundEnabled((v) => !v)}
+        onSoundToggle={() => setSoundEnabled(!soundEnabled)}
         isFullscreen={isFullscreen}
         onFullscreen={handleFullscreen}
       />
 
-      <div className="test-mode">
-        <div className="test-mode__container">
-          {/* Progress */}
-          <div className="test-mode__progress-info">
-            <span className="test-mode__progress-label">
-              Câu {currentIndex + 1} / {questions.length}
-            </span>
-          </div>
-
-          {/* Question */}
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={currentIndex}
-              className="test-mode__question-card"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.25 }}
-            >
-              {currentQ?.type === 'multipleChoice' && (
-                <MultipleChoiceQuestion
-                  question={currentQ.question}
-                  options={currentQ.options}
-                  selected={answers[currentIndex]}
-                  onSelect={handleAnswerSelect}
-                  isAnswered={isAnswered}
-                />
-              )}
-
-              {currentQ?.type === 'trueFalse' && (
-                <TrueFalseQuestion
-                  question={currentQ.question}
-                  selected={answers[currentIndex]}
-                  onSelect={handleAnswerSelect}
-                  isAnswered={isAnswered}
-                />
-              )}
-
-              {currentQ?.type === 'typeAnswer' && (
-                <TypeAnswerQuestion
-                  question={currentQ.question}
-                  value={answers[currentIndex] || ''}
-                  onChange={(v) => setAnswers((prev) => ({ ...prev, [currentIndex]: v }))}
-                  isAnswered={isAnswered}
-                  correctAnswer={currentQ.answer}
-                  onSubmit={handleAnswerSelect}
-                />
-              )}
-
-              {/* Feedback */}
-              {isAnswered && currentQ?.type !== 'typeAnswer' && (
-                <motion.div
-                  className={`test-mode__feedback ${answers[currentIndex] === currentQ.answer ? 'correct' : 'wrong'}`}
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                >
-                  {answers[currentIndex] === currentQ.answer ? (
-                    <><CheckCircle size={16} /> Đúng!</>
-                  ) : (
-                    <><XCircle size={16} /> Sai. Đáp án đúng: {currentQ.answer}</>
-                  )}
-                </motion.div>
-              )}
-            </motion.div>
-          </AnimatePresence>
-
-          {/* Navigation */}
-          <div className="test-mode__nav">
-            <button
-              className="test-mode__nav-btn"
-              onClick={handlePrev}
-              disabled={currentIndex === 0}
-            >
-              <ChevronLeft size={20} />
-              <span>Trước</span>
-            </button>
-
-            <div className="test-mode__dots">
-              {questions.map((_, i) => (
-                <button
-                  key={i}
-                  className={`test-mode__dot ${i === currentIndex ? 'active' : ''} ${answers[i] !== undefined ? 'answered' : ''}`}
-                  onClick={() => {
-                    setCurrentIndex(i);
-                    setIsAnswered(answers[i] !== undefined);
-                  }}
-                />
-              ))}
-            </div>
-
-            <button
-              className="test-mode__nav-btn test-mode__nav-btn--next"
-              onClick={handleNext}
-            >
-              <span>{currentIndex === questions.length - 1 ? 'Xong' : 'Tiếp'}</span>
-              <ChevronRight size={20} />
+      {/* Main conditional views inside the single return block to ensure <style> is always loaded */}
+      {cards.length === 0 ? (
+        <div className="ql-test-body">
+          <div className="ql-setup-modal" style={{ padding: '32px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
+            <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, color: '#fff' }}>Bộ thẻ ghi nhớ rỗng!</h3>
+            <p style={{ margin: 0, color: '#9ca3af', fontSize: '0.9rem', lineHeight: 1.5 }}>Vui lòng thêm các thuật ngữ vào bộ thẻ trước khi thực hiện bài kiểm tra.</p>
+            <button className="ql-btn-redo" style={{ width: '100%', maxWidth: '160px', marginTop: '12px' }} onClick={onClose}>
+              Đóng
             </button>
           </div>
         </div>
-      </div>
+      ) : !started ? (
+        <div className="ql-test-body">
+          <SetupModal
+            cards={cards}
+            onClose={onClose}
+            onStart={handleStart}
+          />
+        </div>
+      ) : allDone ? (
+        <div className="ql-test-body results-mode">
+          <div className="ql-results-container">
+            {syncWarning && (
+              <div className="ql-sync-banner">
+                <span>⚠️ Không thể đồng bộ tiến độ lên máy chủ. Kết quả của bạn vẫn hiển thị tạm thời.</span>
+              </div>
+            )}
+
+            {/* Motivational message */}
+            <h1 className="ql-results-msg">{scoreMsg}</h1>
+            <p className="ql-results-duration">Thời gian của bạn: {durationStr}</p>
+
+            {/* Ring charts and score pills */}
+            <div className="ql-results-score-row">
+              <div className="ql-results-circle-progress">
+                <svg className="ql-results-svg" viewBox="0 0 100 100">
+                  <circle className="ql-results-svg-bg" cx="50" cy="50" r="40" />
+                  <circle
+                    className="ql-results-svg-fill"
+                    cx="50" cy="50" r="40"
+                    strokeDasharray={`${accuracy * 2.51} 251`}
+                  />
+                </svg>
+                <span className="ql-results-pct">{accuracy}%</span>
+              </div>
+
+              <div className="ql-results-stats-pills">
+                <div className="ql-stat-pill correct">
+                  <span className="ql-stat-pill__label">Đúng</span>
+                  <span className="ql-stat-pill__count">{correctCount}</span>
+                </div>
+                <div className="ql-stat-pill wrong">
+                  <span className="ql-stat-pill__label">Sai</span>
+                  <span className="ql-stat-pill__count">{incorrectCount}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Review Section */}
+            <div className="ql-review-section">
+              <h2 className="ql-review-section__title">Đáp án của bạn</h2>
+
+              <div className="ql-review-list">
+                {questions.map((q, idx) => {
+                  const answerObj = answers[q.id];
+                  const isUnanswered = !answerObj || (answerObj.status === 'answered' && (answerObj.value === undefined || answerObj.value === ''));
+                  const userAnswer = answerObj?.value;
+
+                  let isCorrect = false;
+                  if (!isUnanswered) {
+                    if (q.type === 'trueFalse') {
+                      isCorrect = userAnswer === q.correctAnswer;
+                    } else if (q.type === 'multipleChoice') {
+                      isCorrect = userAnswer === q.correctAnswer;
+                    } else if (q.type === 'typeAnswer') {
+                      isCorrect = normalizeText(userAnswer) === normalizeText(q.correctAnswer);
+                    }
+                  }
+
+                  return (
+                    <div key={q.id} className="ql-review-card">
+                      {/* Top labels */}
+                      {q.type !== 'trueFalse' && (
+                        <div className="ql-card-header">
+                          <div className="ql-card-meta">
+                            <p className="ql-meta-definition">{q.definition}</p>
+                          </div>
+                          <span className="ql-card-index">{idx + 1}/{questions.length}</span>
+                        </div>
+                      )}
+
+                      {/* Question Specific details */}
+                      {q.type === 'trueFalse' && (
+                        <div className="ql-card-body-tf">
+                          <div className="ql-tf-cols">
+                            <div className="ql-tf-col">
+                              <div className="ql-tf-col-header">
+                                <span className="ql-tf-col-label">Định nghĩa</span>
+                              </div>
+                              <p className="ql-tf-col-text">{q.definition}</p>
+                            </div>
+                            
+                            <div className="ql-tf-col">
+                              <div className="ql-tf-col-header">
+                                <span className="ql-tf-col-label">Thuật ngữ</span>
+                                <button className="ql-tf-sound-btn" onClick={() => speakWord(q.term)}>
+                                  <Volume2 size={14} />
+                                </button>
+                                <span className="ql-tf-col-index">{idx + 1}/{questions.length}</span>
+                              </div>
+                              <p className="ql-tf-col-text">{q.term}</p>
+                            </div>
+                          </div>
+
+                          {!isCorrect && (
+                            <span className="ql-section-label">Thử lại câu hỏi này sau!</span>
+                          )}
+
+                          <div className="ql-tf-bottom-section">
+                            <div className="ql-tf-options-group">
+                              <button
+                                className={`ql-tf-choice-btn ${
+                                  q.correctAnswer === true ? 'selected-correct' : (userAnswer === true && !isCorrect ? 'selected-wrong' : '')
+                                }`}
+                                disabled
+                              >
+                                {q.correctAnswer === true ? (
+                                  <span className="ql-choice-badge correct"><Check size={12} strokeWidth={3} /></span>
+                                ) : (userAnswer === true && !isCorrect) ? (
+                                  <span className="ql-choice-badge wrong"><X size={12} strokeWidth={3} /></span>
+                                ) : null}
+                                <span className="ql-choice-text">Đúng</span>
+                              </button>
+                              <button
+                                className={`ql-tf-choice-btn ${
+                                  q.correctAnswer === false ? 'selected-correct' : (userAnswer === false && !isCorrect ? 'selected-wrong' : '')
+                                }`}
+                                disabled
+                              >
+                                {q.correctAnswer === false ? (
+                                  <span className="ql-choice-badge correct"><Check size={12} strokeWidth={3} /></span>
+                                ) : (userAnswer === false && !isCorrect) ? (
+                                  <span className="ql-choice-badge wrong"><X size={12} strokeWidth={3} /></span>
+                                ) : null}
+                                <span className="ql-choice-text">Sai</span>
+                              </button>
+                            </div>
+                          </div>
+                          {isUnanswered && (
+                            <div className="ql-skipped-label-box">
+                              <XCircle size={16} color="#ef4444" />
+                              <span>Chưa trả lời</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {q.type === 'multipleChoice' && (
+                        <div className="ql-card-body">
+                          {!isCorrect && (
+                            <span className="ql-section-label">Thử lại câu hỏi này sau!</span>
+                          )}
+                          <div className="ql-mcq-grid">
+                            {q.options.map((opt, oIdx) => {
+                              const isSelected = userAnswer === opt;
+                              const isCorrectOption = q.correctAnswer === opt;
+                              
+                              let btnClass = "";
+                              if (isCorrectOption) btnClass = "selected-correct";
+                              else if (isSelected && !isCorrect) btnClass = "selected-wrong";
+
+                              return (
+                                <button key={oIdx} className={`ql-mcq-choice-btn ${btnClass}`} disabled>
+                                  {isCorrectOption ? (
+                                    <span className="ql-choice-badge correct"><Check size={12} strokeWidth={3} /></span>
+                                  ) : (isSelected && !isCorrect) ? (
+                                    <span className="ql-choice-badge wrong"><X size={12} strokeWidth={3} /></span>
+                                  ) : (
+                                    <span className="ql-choice-badge">{oIdx + 1}</span>
+                                  )}
+                                  <span className="ql-choice-text">{opt}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+
+                          {isUnanswered && (
+                            <div className="ql-skipped-label-box">
+                              <XCircle size={16} color="#ef4444" />
+                              <span>Chưa trả lời</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {q.type === 'typeAnswer' && (
+                        <div className="ql-card-body">
+                          <span className="ql-section-label">Đáp án của bạn</span>
+                          <div className="ql-written-review-box">
+                            <input
+                              type="text"
+                              className={`ql-written-input-review ${isCorrect ? 'correct' : 'wrong'}`}
+                              value={isUnanswered ? 'Chưa trả lời' : userAnswer}
+                              disabled
+                            />
+                            {!isCorrect && (
+                              <>
+                                <span className="ql-section-label">Thử lại câu hỏi này sau!</span>
+                                <div className="ql-correct-dashed-box">
+                                  <Check size={16} color="#10b981" />
+                                  <span>{q.correctAnswer}</span>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Actions bottom */}
+            <div className="ql-results-actions">
+              <button
+                className="ql-btn-redo"
+                onClick={() => {
+                  setStarted(false);
+                  setQuestions([]);
+                  setAnswers({});
+                  setAllDone(false);
+                  setSyncWarning(false);
+                  setDurationStr('');
+                  setIsSubmitting(false);
+                }}
+              >
+                Làm lại
+              </button>
+              <button className="ql-btn-close-results" onClick={onClose}>
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="ql-test-body scrollable-questions">
+          <div className="ql-questions-container">
+            {questions.map((q, idx) => {
+              const answerObj = answers[q.id];
+              const currentVal = answerObj?.value;
+
+              return (
+                <div key={q.id} className="ql-question-card">
+                  {/* Header info */}
+                  {q.type !== 'trueFalse' && (
+                    <div className="ql-card-header">
+                      <div className="ql-card-meta">
+                        <p className="ql-meta-definition">{q.definition}</p>
+                      </div>
+                      <span className="ql-card-index">{idx + 1}/{questions.length}</span>
+                    </div>
+                  )}
+
+                  {/* Question Type specific inputs */}
+                  {q.type === 'trueFalse' && (
+                    <div className="ql-card-body-tf">
+                      <div className="ql-tf-cols">
+                        <div className="ql-tf-col">
+                          <div className="ql-tf-col-header">
+                            <span className="ql-tf-col-label">Định nghĩa</span>
+                          </div>
+                          <p className="ql-tf-col-text">{q.definition}</p>
+                        </div>
+                        
+                        <div className="ql-tf-col">
+                          <div className="ql-tf-col-header">
+                            <span className="ql-tf-col-label">Thuật ngữ</span>
+                            <button className="ql-tf-sound-btn" onClick={() => speakWord(q.term)}>
+                              <Volume2 size={14} />
+                            </button>
+                            <span className="ql-tf-col-index">{idx + 1}/{questions.length}</span>
+                          </div>
+                          <p className="ql-tf-col-text">{q.term}</p>
+                        </div>
+                      </div>
+
+                      <div className="ql-tf-bottom-section">
+                        <span className="ql-tf-section-label">Chọn câu trả lời</span>
+                        <div className="ql-tf-options-group">
+                          <button
+                            className={`ql-tf-btn-choice ${currentVal === true ? 'active' : ''}`}
+                            onClick={() => setAnswers(prev => ({ ...prev, [q.id]: { status: 'answered', value: true } }))}
+                          >
+                            <span className="ql-choice-text">Đúng</span>
+                          </button>
+                          <button
+                            className={`ql-tf-btn-choice ${currentVal === false ? 'active' : ''}`}
+                            onClick={() => setAnswers(prev => ({ ...prev, [q.id]: { status: 'answered', value: false } }))}
+                          >
+                            <span className="ql-choice-text">Sai</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {q.type === 'multipleChoice' && (
+                    <div className="ql-card-body">
+                      <div className="ql-mcq-grid">
+                        {q.options.map((opt, oIdx) => (
+                          <button
+                            key={oIdx}
+                            className={`ql-mcq-btn-choice ${currentVal === opt ? 'active' : ''}`}
+                            onClick={() => setAnswers(prev => ({ ...prev, [q.id]: { status: 'answered', value: opt } }))}
+                          >
+                            <span className="ql-choice-badge">{oIdx + 1}</span>
+                            <span className="ql-choice-text">{opt}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {q.type === 'typeAnswer' && (
+                    <div className="ql-card-body">
+                      <div className="ql-written-input-box">
+                        <input
+                          type="text"
+                          className="ql-question-input"
+                          placeholder="Nhập Tiếng Anh"
+                          value={currentVal || ''}
+                          onChange={(e) => setAnswers(prev => ({ ...prev, [q.id]: { status: 'answered', value: e.target.value } }))}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              handleWrittenNext(e);
+                            }
+                          }}
+                        />
+                        <button
+                          className="ql-written-btn-next"
+                          onClick={(e) => handleWrittenNext(e)}
+                        >
+                          Tiếp
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* Bottom Submit Area */}
+            <div className="ql-test-submit-footer">
+              <div className="ql-submit-note-icon">
+                <FileText size={32} color="#2c5ef5" />
+              </div>
+              <p className="ql-submit-text">Tất cả đã xong! Bạn đã sẵn sàng gửi bài kiểm tra?</p>
+              <button
+                className="ql-btn-submit-test"
+                onClick={handleSubmitTest}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Đang gửi...' : 'Gửi bài kiểm tra'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style>{`
-        .study-mode-wrap {
+        /* Global Reset variables & layout */
+        .ql-test-wrap {
           min-height: 100vh;
           background: #f6f7fb;
+          color: var(--text-body);
+          display: flex;
+          flex-direction: column;
+          font-family: var(--font-sans);
+        }
+        [data-theme='dark'] .ql-test-wrap {
+          background: var(--bg-page);
+        }
+
+
+
+        /* Scrollable layout and modal */
+        .ql-test-body {
+          flex: 1;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          position: relative;
+          width: 100%;
+        }
+        .ql-test-body.scrollable-questions, .ql-test-body.results-mode {
+          align-items: flex-start;
+          padding: 40px 16px;
+          overflow-y: auto;
+          max-height: calc(100vh - 64px);
+        }
+
+        /* Modal Settings Options */
+        .ql-setup-modal-overlay {
+          position: absolute;
+          inset: 0;
+          background: rgba(15, 20, 25, 0.5);
+          backdrop-filter: blur(12px);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 10;
+          width: 100%;
+        }
+        [data-theme='dark'] .ql-setup-modal-overlay {
+          background: rgba(11, 14, 23, 0.85);
+        }
+        .ql-setup-modal {
+          background: var(--bg-elevated);
+          border: 1px solid var(--border-subtle);
+          border-radius: 24px;
+          width: 100%;
+          max-width: 520px;
+          box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
+          overflow: hidden;
           display: flex;
           flex-direction: column;
         }
-        [data-theme='dark'] .study-mode-wrap { background: #0b0e12; }
-
-        .test-mode {
-          flex: 1;
+        [data-theme='dark'] .ql-setup-modal {
+          box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+        }
+        .ql-setup-modal__header {
+          padding: 24px 28px;
+          border-bottom: 1px solid var(--border-subtle);
           display: flex;
-          align-items: flex-start;
+          align-items: center;
+          justify-content: space-between;
+        }
+        .ql-setup-modal__title {
+          font-size: 1.4rem;
+          font-weight: 800;
+          color: var(--text-heading);
+          margin: 0;
+        }
+        .ql-setup-modal__close-btn {
+          background: transparent;
+          border: 1px solid var(--border-subtle);
+          color: var(--text-muted);
+          border-radius: 50%;
+          width: 36px;
+          height: 36px;
+          display: flex;
+          align-items: center;
           justify-content: center;
-          padding: 24px 16px 32px;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .ql-setup-modal__close-btn:hover {
+          background: #ef4444;
+          color: #fff;
+        }
+        .ql-setup-modal__body {
+          padding: 24px 28px;
+          overflow-y: auto;
+          max-height: 400px;
+          display: flex;
+          flex-direction: column;
+          gap: 18px;
         }
 
-        .test-mode__container {
+        /* Row Layout */
+        .ql-setup-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          min-height: 48px;
+        }
+        .ql-setup-row__label {
+          display: flex;
+          flex-direction: column;
+          color: var(--text-heading);
+          font-weight: 600;
+          font-size: 0.95rem;
+        }
+        .ql-setup-row__subtext {
+          font-size: 0.8rem;
+          color: var(--text-muted);
+        }
+        .ql-setup-row__badge {
+          background: rgba(44, 94, 245, 0.08);
+          color: var(--gl-tertiary);
+          padding: 2px 8px;
+          border-radius: 6px;
+          font-size: 0.75rem;
+          width: max-content;
+          margin-top: 4px;
+        }
+        [data-theme='dark'] .ql-setup-row__badge {
+          background: rgba(44, 94, 245, 0.15);
+        }
+        .ql-setup-input-num {
+          background: var(--bg-elevated);
+          border: 1px solid var(--border-subtle);
+          border-radius: 10px;
+          color: var(--text-heading);
+          width: 80px;
+          padding: 8px 12px;
+          text-align: center;
+          font-size: 1rem;
+          font-weight: 700;
+          outline: none;
+        }
+        .ql-setup-input-num:focus {
+          border-color: var(--gl-tertiary);
+          box-shadow: 0 0 0 2px rgba(44, 94, 245, 0.2);
+        }
+
+        /* Switch Custom Toggle */
+        .ql-switch {
+          position: relative;
+          display: inline-block;
+          width: 52px;
+          height: 28px;
+        }
+        .ql-switch input {
+          opacity: 0;
+          width: 0;
+          height: 0;
+        }
+        .ql-slider {
+          position: absolute;
+          cursor: pointer;
+          inset: 0;
+          background-color: rgba(15, 20, 25, 0.15);
+          border-radius: 34px;
+          transition: .3s;
+        }
+        [data-theme='dark'] .ql-slider {
+          background-color: #22253c;
+        }
+        .ql-slider:before {
+          position: absolute;
+          content: "";
+          height: 20px;
+          width: 20px;
+          left: 4px;
+          bottom: 4px;
+          background-color: #fff;
+          border-radius: 50%;
+          transition: .3s;
+        }
+        .ql-switch input:checked + .ql-slider {
+          background-color: var(--gl-tertiary);
+        }
+        .ql-switch input:checked + .ql-slider:before {
+          transform: translateX(24px);
+        }
+        .ql-setup-divider {
+          border: 0;
+          height: 1px;
+          background: var(--border-subtle);
+          margin: 8px 0;
+        }
+
+        /* Collapsible menus */
+        .ql-setup-collapsible {
+          border-bottom: 1px solid var(--border-subtle);
+          padding-bottom: 12px;
+        }
+        .ql-setup-collapsible__trigger {
           width: 100%;
-          max-width: 600px;
+          background: transparent;
+          border: none;
+          color: var(--text-heading);
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          font-weight: 600;
+          font-size: 0.95rem;
+          padding: 8px 0;
+          cursor: pointer;
+        }
+        .ql-setup-collapsible__right {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .ql-setup-collapsible__status {
+          font-size: 0.85rem;
+          color: var(--gl-tertiary);
+        }
+        .ql-chevron {
+          transition: transform 0.2s;
+        }
+        .ql-chevron.open {
+          transform: rotate(180deg);
+        }
+        .ql-setup-collapsible__content {
+          overflow: hidden;
+          font-size: 0.85rem;
+          color: var(--text-muted);
+          padding: 4px 0 8px;
+          line-height: 1.5;
+        }
+
+        /* Setup Modal Footer */
+        .ql-setup-modal__footer {
+          padding: 24px 28px;
+          background: var(--bg-elevated);
+          border-top: 1px solid var(--border-subtle);
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+        }
+        .ql-setup-btn-start {
+          background: var(--gl-tertiary);
+          color: var(--gl-on-primary);
+          border: none;
+          padding: 14px;
+          border-radius: 14px;
+          font-weight: 700;
+          font-size: 1rem;
+          cursor: pointer;
+          transition: all 0.2s;
+          box-shadow: 0 4px 12px rgba(44, 94, 245, 0.25);
+        }
+        .ql-setup-btn-start:hover {
+          filter: brightness(1.08);
+        }
+        .ql-setup-modal__footer-links {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        }
+        .ql-privacy-link {
+          font-size: 0.8rem;
+          color: var(--text-muted);
+        }
+        .ql-setup-btn-cancel {
+          background: var(--bg-elevated);
+          border: 1px solid var(--border-subtle);
+          color: var(--text-muted);
+          padding: 8px 18px;
+          border-radius: 10px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .ql-setup-btn-cancel:hover {
+          background: var(--border-subtle);
+          color: var(--text-heading);
+        }
+
+        /* Questions Container (Scrollable) */
+        .ql-questions-container, .ql-results-container {
+          width: 100%;
+          max-width: 720px;
+          margin: 0 auto;
           display: flex;
           flex-direction: column;
           gap: 20px;
         }
 
-        .test-mode__progress-info {
-          display: flex;
-          justify-content: center;
-        }
-
-        .test-mode__progress-label {
-          font-size: 0.8rem;
-          font-weight: 600;
-          color: #8a8fa8;
-        }
-
-        /* Question card */
-        .test-mode__question-card {
-          background: #fff;
-          border-radius: 24px;
+        /* Question card layout */
+        .ql-question-card, .ql-review-card {
+          background: var(--bg-elevated);
+          border: 1px solid var(--border-subtle);
+          border-radius: 20px;
           padding: 32px;
-          box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+          display: flex;
+          flex-direction: column;
+          gap: 20px;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
         }
-        [data-theme='dark'] .test-mode__question-card {
-          background: #151922;
-          box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+        [data-theme='dark'] .ql-question-card, [data-theme='dark'] .ql-review-card {
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
         }
-
-        /* Question styles */
-        .test-question__label {
+        .ql-card-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          padding-bottom: 8px;
+        }
+        .ql-card-meta {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          flex: 1;
+        }
+        .ql-meta-title {
           font-size: 0.75rem;
           font-weight: 700;
           text-transform: uppercase;
-          letter-spacing: 0.08em;
-          color: #8a8fa8;
-          margin: 0 0 12px;
+          color: var(--text-muted);
+          letter-spacing: 0.05em;
+        }
+        .ql-meta-definition {
+          font-size: 1.15rem;
+          font-weight: 600;
+          color: var(--text-heading);
+          margin: 0;
+          line-height: 1.4;
+        }
+        .ql-card-index {
+          font-size: 0.85rem;
+          font-weight: 600;
+          color: var(--text-muted);
         }
 
-        .test-question__text {
-          font-size: clamp(1.1rem, 2.5vw, 1.5rem);
-          font-weight: 700;
-          color: #1a1a2e;
-          margin: 0 0 24px;
-          line-height: 1.3;
-        }
-        [data-theme='dark'] .test-question__text { color: #e8eaed; }
-
-        /* Multiple choice options */
-        .test-question__options {
+        .ql-card-body {
           display: flex;
           flex-direction: column;
-          gap: 10px;
+          gap: 14px;
         }
-
-        .test-question__option {
+        .ql-meta-term-box {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+        }
+        .ql-term-sound-row {
           display: flex;
           align-items: center;
-          gap: 12px;
-          padding: 14px 16px;
-          background: #f8f9fc;
-          border: 2px solid transparent;
-          border-radius: 14px;
-          cursor: pointer;
-          font-size: 0.925rem;
-          font-weight: 500;
-          color: #1a1a2e;
-          text-align: left;
-          transition: all 0.15s;
-          width: 100%;
+          gap: 8px;
         }
-        [data-theme='dark'] .test-question__option {
-          background: #1e2332;
-          color: #e8eaed;
+        .ql-meta-term {
+          font-size: 1.25rem;
+          font-weight: 700;
+          color: var(--text-heading);
         }
-        .test-question__option:hover:not(:disabled) {
-          background: #eef0f7;
-          border-color: #c7d0f0;
-        }
-        [data-theme='dark'] .test-question__option:hover:not(:disabled) {
-          background: #252c3f;
-          border-color: rgba(44,94,245,0.3);
-        }
-        .test-question__option:disabled { cursor: default; }
-        .test-question__option.selected {
-          border-color: #2c5ef5;
-          background: #e8edff;
-        }
-        .test-question__option.answered {
-          border-color: #10b981;
-          background: rgba(16,185,129,0.08);
-          color: #059669;
-        }
-
-        .test-question__option-letter {
+        .ql-speaker-btn {
+          background: transparent;
+          border: 1px solid var(--border-subtle);
+          color: var(--text-muted);
+          width: 36px;
+          height: 36px;
+          border-radius: 50%;
           display: flex;
           align-items: center;
           justify-content: center;
-          width: 28px;
-          height: 28px;
-          border-radius: 8px;
-          background: rgba(44,94,245,0.1);
-          color: #2c5ef5;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .ql-speaker-btn:hover {
+          background: rgba(44, 94, 245, 0.08);
+          border-color: var(--gl-tertiary);
+          color: var(--gl-tertiary);
+        }
+
+        .ql-section-label {
           font-size: 0.8rem;
-          font-weight: 700;
-          flex-shrink: 0;
+          color: var(--text-muted);
+          font-weight: 600;
         }
 
-        .test-question__option.answered .test-question__option-letter {
-          background: rgba(16,185,129,0.15);
-          color: #10b981;
-        }
-
-        /* True/False */
-        .test-question__tf-btns {
+        /* True/False Buttons choices */
+        .ql-options-group {
           display: flex;
           gap: 12px;
         }
-
-        .test-question__tf-btn {
+        .ql-tf-btn-choice {
           flex: 1;
+          background: var(--gl-surface);
+          border: 2px solid var(--border-subtle);
+          color: var(--text-heading);
+          padding: 14px 20px;
+          min-height: 56px;
+          border-radius: 12px;
+          font-weight: 700;
+          font-size: 1rem;
+          cursor: pointer;
+          transition: all 0.15s;
           display: flex;
           align-items: center;
           justify-content: center;
           gap: 8px;
-          padding: 16px;
-          border-radius: 14px;
-          border: 2px solid rgba(0,0,0,0.1);
-          background: #f8f9fc;
+        }
+        .ql-tf-btn-choice:hover {
+          border-color: rgba(44, 94, 245, 0.4);
+          background: rgba(44, 94, 245, 0.03);
+        }
+        .ql-tf-btn-choice.active {
+          border-color: var(--gl-tertiary);
+          background: rgba(44, 94, 245, 0.08);
+          color: var(--gl-tertiary);
+        }
+        [data-theme='dark'] .ql-tf-btn-choice.active {
+          background: rgba(44, 94, 245, 0.15);
+        }
+
+        /* MCQ Grid Layout */
+        .ql-mcq-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 12px;
+        }
+        .ql-mcq-btn-choice {
+          background: var(--gl-surface);
+          border: 2px solid var(--border-subtle);
+          color: var(--text-heading);
+          padding: 14px 20px;
+          min-height: 56px;
+          border-radius: 12px;
+          font-weight: 600;
+          font-size: 0.95rem;
+          text-align: left;
           cursor: pointer;
-          font-size: 1rem;
-          font-weight: 700;
-          color: #4a5568;
           transition: all 0.15s;
-        }
-        [data-theme='dark'] .test-question__tf-btn {
-          background: #1e2332;
-          border-color: rgba(255,255,255,0.1);
-          color: #868e96;
-        }
-        .test-question__tf-btn:hover:not(:disabled) {
-          border-color: #c7d0f0;
-          background: #eef0f7;
-        }
-        [data-theme='dark'] .test-question__tf-btn:hover:not(:disabled) {
-          background: #252c3f;
-          border-color: rgba(44,94,245,0.3);
-        }
-        .test-question__tf-btn:disabled { cursor: default; }
-        .test-question__tf-btn.selected {
-          border-color: #2c5ef5;
-          background: #e8edff;
-          color: #2c5ef5;
-        }
-        .test-question__tf-btn.answered {
-          border-color: #10b981;
-          background: rgba(16,185,129,0.08);
-          color: #10b981;
-        }
-
-        /* Type answer */
-        .test-question__input-wrap {
           display: flex;
-          gap: 10px;
           align-items: center;
+          gap: 14px;
+        }
+        .ql-mcq-btn-choice:hover {
+          border-color: rgba(44, 94, 245, 0.4);
+          background: rgba(44, 94, 245, 0.03);
+        }
+        .ql-mcq-btn-choice.active {
+          border-color: var(--gl-tertiary);
+          background: rgba(44, 94, 245, 0.08);
+          color: var(--gl-tertiary);
+        }
+        [data-theme='dark'] .ql-mcq-btn-choice.active {
+          background: rgba(44, 94, 245, 0.15);
+        }
+        .ql-skip-link {
+          background: transparent;
+          border: none;
+          color: var(--gl-tertiary);
+          font-size: 0.85rem;
+          font-weight: 600;
+          cursor: pointer;
+          width: max-content;
+          padding: 0;
+          text-align: left;
+          margin-top: 4px;
+        }
+        .ql-skip-link:hover {
+          text-decoration: underline;
         }
 
-        .test-question__input {
+        /* Written layout */
+        .ql-written-input-box {
+          display: flex;
+          gap: 12px;
+        }
+        .ql-question-input {
           flex: 1;
+          background: var(--gl-surface);
+          border: 2px solid var(--border-subtle);
+          border-radius: 12px;
+          color: var(--text-heading);
           padding: 14px 16px;
-          border: 2px solid rgba(0,0,0,0.1);
-          border-radius: 14px;
           font-size: 1rem;
-          font-weight: 500;
-          color: #1a1a2e;
-          background: #f8f9fc;
           outline: none;
           transition: all 0.15s;
         }
-        [data-theme='dark'] .test-question__input {
-          background: #1e2332;
-          border-color: rgba(255,255,255,0.1);
-          color: #e8eaed;
+        .ql-question-input:focus {
+          border-color: var(--gl-tertiary);
         }
-        .test-question__input:focus {
-          border-color: #2c5ef5;
-          box-shadow: 0 0 0 3px rgba(44,94,245,0.1);
-        }
-        .test-question__input.correct {
-          border-color: #10b981;
-          background: rgba(16,185,129,0.05);
-        }
-        .test-question__input.wrong {
-          border-color: #ef4444;
-          background: rgba(239,68,68,0.05);
-        }
-
-        .test-question__submit-btn {
-          padding: 12px 20px;
-          border-radius: 12px;
+        .ql-written-btn-next {
+          background: var(--gl-tertiary);
+          color: var(--gl-on-primary);
           border: none;
-          background: #2c5ef5;
-          color: #fff;
-          font-size: 0.9rem;
-          font-weight: 600;
+          padding: 0 24px;
+          border-radius: 12px;
+          font-weight: 700;
           cursor: pointer;
-          transition: all 0.15s;
-          white-space: nowrap;
+          transition: all 0.2s;
         }
-        .test-question__submit-btn:hover:not(:disabled) { background: #1d4fd8; }
-        .test-question__submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .ql-written-btn-next:hover {
+          filter: brightness(1.08);
+        }
 
-        .test-question__correct-hint {
+        /* Bottom Submit Area */
+        .ql-test-submit-footer {
+          background: var(--bg-elevated);
+          border: 1px solid var(--border-subtle);
+          border-radius: 20px;
+          padding: 32px;
+          text-align: center;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 16px;
+          margin-top: 12px;
+        }
+        .ql-submit-note-icon {
+          width: 64px;
+          height: 64px;
+          border-radius: 16px;
+          background: rgba(44, 94, 245, 0.08);
           display: flex;
           align-items: center;
-          gap: 6px;
-          margin-top: 10px;
-          padding: 10px 14px;
-          background: rgba(16,185,129,0.08);
-          border-radius: 10px;
-          font-size: 0.875rem;
-          color: #059669;
+          justify-content: center;
         }
-        .test-question__correct-hint strong { color: #10b981; }
+        .ql-submit-text {
+          font-size: 1.1rem;
+          font-weight: 700;
+          margin: 0;
+          color: var(--text-heading);
+        }
+        .ql-btn-submit-test {
+          background: var(--gl-tertiary);
+          color: var(--gl-on-primary);
+          border: none;
+          width: 100%;
+          max-width: 240px;
+          padding: 14px;
+          border-radius: 12px;
+          font-weight: 700;
+          font-size: 1rem;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .ql-btn-submit-test:hover:not(:disabled) {
+          filter: brightness(1.08);
+        }
+        .ql-btn-submit-test:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
 
-        /* Feedback */
-        .test-mode__feedback {
+        /* Results score screens (Ảnh 3) */
+        .ql-sync-banner {
+          background: rgba(239, 68, 68, 0.05);
+          border: 1px solid rgba(239, 68, 68, 0.15);
+          border-radius: 12px;
+          color: #dc2626;
+          padding: 12px 16px;
+          font-size: 0.85rem;
+          font-weight: 500;
+          text-align: left;
+        }
+        [data-theme='dark'] .ql-sync-banner {
+          color: #fca5a5;
+          background: rgba(239, 68, 68, 0.15);
+          border-color: rgba(239, 68, 68, 0.3);
+        }
+        .ql-results-msg {
+          font-size: 1.8rem;
+          font-weight: 800;
+          color: var(--text-heading);
+          margin: 0 0 4px;
+          text-align: left;
+        }
+        .ql-results-duration {
+          font-size: 0.95rem;
+          color: var(--text-muted);
+          margin: 0 0 24px;
+          text-align: left;
+        }
+        .ql-results-score-row {
+          display: flex;
+          align-items: center;
+          gap: 32px;
+          background: var(--bg-elevated);
+          border: 1px solid var(--border-subtle);
+          border-radius: 20px;
+          padding: 24px 32px;
+          margin-bottom: 24px;
+        }
+        
+        /* Circle Progress */
+        .ql-results-circle-progress {
+          position: relative;
+          width: 100px;
+          height: 100px;
+        }
+        .ql-results-svg {
+          width: 100%;
+          height: 100%;
+          transform: rotate(-90deg);
+        }
+        .ql-results-svg-bg {
+          fill: none;
+          stroke: var(--border-subtle);
+          stroke-width: 8;
+        }
+        .ql-results-svg-fill {
+          fill: none;
+          stroke: var(--gl-tertiary);
+          stroke-width: 8;
+          stroke-linecap: round;
+          transition: stroke-dasharray 0.8s ease-in-out;
+        }
+        .ql-results-pct {
+          position: absolute;
+          inset: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 1.5rem;
+          font-weight: 800;
+          color: var(--text-heading);
+        }
+
+        .ql-results-stats-pills {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          flex: 1;
+        }
+        .ql-stat-pill {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 10px 16px;
+          border-radius: 10px;
+          font-weight: 700;
+          font-size: 0.95rem;
+        }
+        .ql-stat-pill.correct {
+          background: rgba(16, 185, 129, 0.08);
+          color: #10b981;
+          border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+        .ql-stat-pill.wrong {
+          background: rgba(245, 158, 11, 0.08);
+          color: #f59e0b;
+          border: 1px solid rgba(245, 158, 11, 0.2);
+        }
+
+        /* Review Mode Cards Styles */
+        .ql-review-section {
+          margin-top: 8px;
+        }
+        .ql-review-section__title {
+          font-size: 1.2rem;
+          font-weight: 800;
+          color: var(--text-heading);
+          margin-bottom: 16px;
+          text-align: left;
+        }
+        .ql-review-list {
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+        }
+
+        .ql-tf-choice-btn, .ql-mcq-choice-btn {
+          flex: 1;
+          background: var(--gl-surface);
+          border: 2px solid var(--border-subtle);
+          color: var(--text-muted);
+          padding: 14px 20px;
+          min-height: 56px;
+          border-radius: 12px;
+          font-weight: 600;
+          font-size: 0.95rem;
+          display: flex;
+          align-items: center;
+          gap: 14px;
+        }
+        .ql-mcq-choice-btn {
+          text-align: left;
+        }
+        .ql-tf-choice-btn {
+          justify-content: center;
+          gap: 8px;
+        }
+
+        /* Choice prefix badges custom styling */
+        .ql-choice-badge {
+          width: 24px;
+          height: 24px;
+          border-radius: 50%;
+          border: 1px solid var(--border-subtle);
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 0.8rem;
+          font-weight: 700;
+          color: var(--text-muted);
+          flex-shrink: 0;
+          transition: all 0.15s;
+        }
+        .ql-tf-btn-choice:hover .ql-choice-badge, 
+        .ql-mcq-btn-choice:hover .ql-choice-badge {
+          border-color: var(--gl-tertiary);
+          color: var(--gl-tertiary);
+        }
+        .ql-tf-btn-choice.active .ql-choice-badge, 
+        .ql-mcq-btn-choice.active .ql-choice-badge {
+          background: var(--gl-tertiary);
+          border-color: var(--gl-tertiary);
+          color: #fff;
+        }
+        .selected-correct .ql-choice-badge {
+          background: #10b981 !important;
+          border-color: #10b981 !important;
+          color: #fff !important;
+        }
+        .selected-wrong .ql-choice-badge {
+          background: #ef4444 !important;
+          border-color: #ef4444 !important;
+          color: #fff !important;
+        }
+        .ql-choice-text {
+          flex: 1;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .ql-tf-choice-btn {
+          justify-content: center;
+        }
+        
+        /* Correct / Incorrect colors on review */
+        .selected-correct {
+          border-color: #10b981 !important;
+          background: rgba(16, 185, 129, 0.08) !important;
+          color: #10b981 !important;
+          font-weight: 700;
+        }
+        [data-theme='dark'] .selected-correct {
+          background: rgba(16, 185, 129, 0.15) !important;
+        }
+        .selected-wrong {
+          border-color: #ef4444 !important;
+          background: rgba(239, 68, 68, 0.08) !important;
+          color: #ef4444 !important;
+          font-weight: 700;
+          text-decoration: line-through;
+        }
+        [data-theme='dark'] .selected-wrong {
+          background: rgba(239, 68, 68, 0.15) !important;
+        }
+
+        .ql-skipped-label-box {
           display: flex;
           align-items: center;
           gap: 8px;
-          padding: 12px 16px;
-          border-radius: 12px;
-          margin-top: 20px;
+          background: rgba(239, 68, 68, 0.04);
+          border: 1px solid rgba(239, 68, 68, 0.15);
+          padding: 12px;
+          border-radius: 10px;
+          color: #dc2626;
           font-size: 0.9rem;
           font-weight: 600;
+          margin-top: 4px;
         }
-        .test-mode__feedback.correct {
-          background: rgba(16,185,129,0.08);
-          color: #059669;
-        }
-        .test-mode__feedback.wrong {
-          background: rgba(239,68,68,0.08);
-          color: #dc2626;
+        [data-theme='dark'] .ql-skipped-label-box {
+          color: #fca5a5;
+          background: rgba(239, 68, 68, 0.08);
         }
 
-        /* Navigation */
-        .test-mode__nav {
+        /* Written input review style */
+        .ql-written-review-box {
           display: flex;
-          align-items: center;
+          flex-direction: column;
           gap: 12px;
         }
+        .ql-written-input-review {
+          background: var(--gl-surface);
+          border: 2px solid var(--border-subtle);
+          border-radius: 12px;
+          padding: 14px 16px;
+          font-size: 1rem;
+          color: var(--text-heading);
+          outline: none;
+        }
+        .ql-written-input-review.correct {
+          border-color: #10b981;
+          color: #10b981;
+          background: rgba(16, 185, 129, 0.08);
+          font-weight: 700;
+        }
+        .ql-written-input-review.wrong {
+          border-color: #ef4444;
+          color: #ef4444;
+          background: rgba(239, 68, 68, 0.08);
+          text-decoration: line-through;
+        }
 
-        .test-mode__nav-btn {
+        /* Dashed green answer hint */
+        .ql-correct-dashed-box {
+          border: 2px dashed #10b981;
+          border-radius: 12px;
+          padding: 14px 16px;
           display: flex;
           align-items: center;
-          gap: 6px;
-          padding: 10px 18px;
-          border-radius: 10px;
-          border: 1.5px solid rgba(0,0,0,0.1);
-          background: #fff;
-          cursor: pointer;
-          font-size: 0.875rem;
-          font-weight: 600;
-          color: #4a5568;
-          transition: all 0.15s;
-          flex-shrink: 0;
+          gap: 8px;
+          background: rgba(16, 185, 129, 0.05);
+          color: #10b981;
+          font-weight: 700;
+          font-size: 1.05rem;
         }
-        [data-theme='dark'] .test-mode__nav-btn {
-          background: #1e2332;
-          border-color: rgba(255,255,255,0.1);
-          color: #868e96;
-        }
-        .test-mode__nav-btn:hover:not(:disabled) {
-          background: #f0f1f6;
-        }
-        .test-mode__nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
-        .test-mode__nav-btn--next {
-          background: #2c5ef5;
-          border-color: #2c5ef5;
-          color: #fff;
-        }
-        .test-mode__nav-btn--next:hover { background: #1d4fd8; border-color: #1d4fd8; }
 
-        .test-mode__dots {
+        /* Results Footer redos */
+        .ql-results-actions {
           display: flex;
-          gap: 4px;
-          flex: 1;
-          justify-content: center;
-          flex-wrap: wrap;
+          gap: 12px;
+          margin-top: 12px;
         }
-
-        .test-mode__dot {
-          width: 8px;
-          height: 8px;
-          border-radius: 50%;
+        .ql-btn-redo {
+          flex: 1;
+          background: var(--gl-tertiary);
+          color: var(--gl-on-primary);
           border: none;
-          background: #e8eaf0;
+          padding: 14px;
+          border-radius: 12px;
+          font-weight: 700;
+          font-size: 1rem;
           cursor: pointer;
-          padding: 0;
           transition: all 0.2s;
         }
-        .test-mode__dot.answered { background: #c7d0f0; }
-        .test-mode__dot.active {
-          width: 20px;
-          border-radius: 4px;
-          background: #2c5ef5;
+        .ql-btn-redo:hover {
+          filter: brightness(1.08);
+        }
+        .ql-btn-close-results {
+          flex: 1;
+          background: var(--gl-surface);
+          border: 1px solid var(--border-subtle);
+          color: var(--text-muted);
+          padding: 14px;
+          border-radius: 12px;
+          font-weight: 700;
+          font-size: 1rem;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .ql-btn-close-results:hover {
+          background: var(--border-subtle);
+          color: var(--text-heading);
         }
 
-        /* Mobile */
+        /* 2-Column True/False Layout styling */
+        .ql-card-body-tf {
+          display: flex;
+          flex-direction: column;
+          gap: 24px;
+        }
+        .ql-tf-cols {
+          display: flex;
+          gap: 24px;
+          position: relative;
+        }
+        .ql-tf-col {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          min-width: 0;
+        }
+        .ql-tf-col:first-child {
+          border-right: 1px solid var(--border-subtle);
+          padding-right: 24px;
+        }
+        .ql-tf-col-header {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          position: relative;
+        }
+        .ql-tf-col-label {
+          font-size: 0.8rem;
+          font-weight: 700;
+          color: var(--text-muted);
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+        }
+        .ql-tf-sound-btn {
+          background: transparent;
+          border: none;
+          color: var(--text-muted);
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 4px;
+          border-radius: 50%;
+          transition: all 0.2s;
+        }
+        .ql-tf-sound-btn:hover {
+          background: var(--border-subtle);
+          color: var(--gl-tertiary);
+        }
+        .ql-tf-col-index {
+          margin-left: auto;
+          font-size: 0.85rem;
+          font-weight: 600;
+          color: var(--text-muted);
+        }
+        .ql-tf-col-text {
+          font-size: 1.15rem;
+          font-weight: 500;
+          color: var(--text-heading);
+          margin: 0;
+          line-height: 1.5;
+          word-break: break-word;
+        }
+        .ql-tf-bottom-section {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          margin-top: 8px;
+        }
+        .ql-tf-section-label {
+          font-size: 0.85rem;
+          font-weight: 600;
+          color: var(--text-muted);
+        }
+        .ql-tf-options-group {
+          display: flex;
+          gap: 16px;
+        }
+
+        /* Responsive */
         @media (max-width: 640px) {
-          .test-mode {
-            padding: 16px 12px 24px;
+          .ql-tf-cols {
+            flex-direction: column;
+            gap: 16px;
           }
-          .test-mode__question-card {
-            padding: 24px 20px;
-            border-radius: 20px;
+          .ql-tf-col:first-child {
+            border-right: none;
+            border-bottom: 1px solid var(--border-subtle);
+            padding-right: 0;
+            padding-bottom: 16px;
           }
-          .test-question__tf-btns { flex-direction: column; }
+          .ql-tf-options-group {
+            flex-direction: column;
+            gap: 12px;
+          }
+          .ql-mcq-grid {
+            grid-template-columns: 1fr;
+          }
+          .ql-options-group {
+            flex-direction: column;
+          }
         }
       `}</style>
     </div>

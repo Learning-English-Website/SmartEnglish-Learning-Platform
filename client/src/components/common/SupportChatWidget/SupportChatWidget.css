@@ -3,7 +3,7 @@
   bottom: 24px;
   right: 24px;
   z-index: 1000;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-sans);
 }
 
 .support-trigger-btn {

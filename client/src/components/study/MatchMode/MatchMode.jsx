@@ -1,10 +1,20 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
+import {
+  ArrowLeft, ChevronDown, Volume2, VolumeX, Maximize2, Minimize2,
+  BookOpen, Brain, ClipboardCheck, Box, Shuffle
+} from 'lucide-react';
 import { gamificationService } from '../../../api/gamificationService';
-import StudyHeader from '../StudyHeader';
 import { useGamification } from '../../../context/GamificationContext';
 import './MatchMode.css';
+
+const MODES = [
+  { id: 'flashcards', label: 'Thẻ ghi nhớ', icon: BookOpen },
+  { id: 'learn', label: 'Học', icon: Brain },
+  { id: 'test', label: 'Kiểm tra', icon: ClipboardCheck },
+  { id: 'match', label: 'Khớp thẻ', icon: Box },
+];
 
 /**
  * MatchMode — Chế độ Khớp thẻ (Quizlet Match)
@@ -17,6 +27,28 @@ import './MatchMode.css';
  * @param {Function} onClose - Callback khi thoát
  */
 export default function MatchMode({ cards, setId, setTitle, onClose, onModeChange }) {
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [modeDropdownOpen, setModeDropdownOpen] = useState(false);
+
+  useEffect(() => {
+    const handleFsChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFsChange);
+    return () => document.removeEventListener('fullscreenchange', handleFsChange);
+  }, []);
+
+  const handleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen?.().catch(() => {});
+    } else {
+      document.exitFullscreen?.().catch(() => {});
+    }
+  };
+
+  const currentModeConfig = MODES.find((m) => m.id === 'match') || MODES[3];
+  const CurrentIcon = currentModeConfig.icon;
+
   // Lấy tối đa 6 cặp (12 ô) — chuẩn Quizlet
   const MAX_PAIRS = Math.min(6, cards.length);
   const [selectedCards, setSelectedCards] = useState(() => shuffle(cards).slice(0, MAX_PAIRS));
@@ -96,7 +128,9 @@ export default function MatchMode({ cards, setId, setTitle, onClose, onModeChang
         setMatchCount((c) => c + 1);
 
         // Âm thanh / hiệu ứng
-        playMatchSound();
+        if (soundEnabled) {
+          playMatchSound();
+        }
 
         // Kiểm tra hoàn thành
         if (newMatched.size === tiles.length) {
@@ -156,18 +190,95 @@ export default function MatchMode({ cards, setId, setTitle, onClose, onModeChang
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <>
-      <div className="match-page">
-        <StudyHeader
-          mode="match"
-          setTitle={setTitle}
-          currentCard={matchCount}
-          totalCards={MAX_PAIRS}
-          progress={false}
-          onClose={onClose}
-          onModeChange={onModeChange}
-          soundEnabled={soundEnabled}
-          onSoundToggle={() => setSoundEnabled((v) => !v)}
-        />
+      <div className="ql2-page">
+        {/* Floating decorative elements */}
+        <div className="ql2-page__decoration ql2-page__decoration--1" />
+        <div className="ql2-page__decoration ql2-page__decoration--2" />
+
+        <header className="ql2-header">
+          <div className="ql2-header__left">
+            <button className="ql2-header__back" onClick={onClose} title="Quay lại">
+              <ArrowLeft size={20} />
+            </button>
+
+            {/* Mode selector dropdown */}
+            <div className="study-header__mode-selector" style={{ position: 'relative', marginLeft: '12px' }}>
+              <button
+                className="study-header__mode-btn"
+                onClick={() => setModeDropdownOpen(!modeDropdownOpen)}
+                aria-label="Chuyển chế độ học"
+              >
+                <CurrentIcon size={18} />
+                <span className="study-header__mode-label">{currentModeConfig.label}</span>
+                <ChevronDown size={14} className={`study-header__chevron ${modeDropdownOpen ? 'open' : ''}`} />
+              </button>
+
+              <AnimatePresence>
+                {modeDropdownOpen && (
+                  <motion.div
+                    className="study-header__mode-menu"
+                    initial={{ opacity: 0, y: -8, scale: 0.96 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -8, scale: 0.96 }}
+                    transition={{ duration: 0.15 }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {MODES.map(({ id: mId, label, icon: Icon }) => (
+                      <button
+                        key={mId}
+                        className={`study-header__mode-item ${mId === 'match' ? 'active' : ''}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onModeChange?.(mId);
+                          setModeDropdownOpen(false);
+                        }}
+                      >
+                        <Icon size={16} />
+                        {label}
+                      </button>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            <span style={{ color: 'var(--border-subtle)', marginLeft: '12px', fontSize: '1.2rem', fontWeight: 300 }}>|</span>
+            <span className="ql2-header__title">{setTitle || 'Khớp thẻ'}</span>
+          </div>
+
+          <div className="ql2-header__center">
+            {/* Center progress or timer info */}
+          </div>
+
+          <div className="ql2-header__right">
+            {/* Reset/Shuffle button */}
+            <button className="ql2-header__btn" onClick={handleRestart} title="Chơi lại">
+              <Shuffle size={18} />
+            </button>
+
+            {/* Sound Toggle */}
+            <button
+              className={`ql2-header__btn ${soundEnabled ? 'active' : ''}`}
+              onClick={() => setSoundEnabled((v) => !v)}
+              title="Âm thanh"
+            >
+              {soundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
+            </button>
+
+            {/* Fullscreen Toggle */}
+            <button
+              className="ql2-header__btn"
+              onClick={handleFullscreen}
+              title={isFullscreen ? 'Thu nhỏ' : 'Toàn màn hình'}
+            >
+              {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+            </button>
+          </div>
+
+          {modeDropdownOpen && (
+            <div className="study-header__backdrop" onClick={() => setModeDropdownOpen(false)} />
+          )}
+        </header>
 
         <div className="match-header-row">
           <div className="match-timer" aria-live="polite">

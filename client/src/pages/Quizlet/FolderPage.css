@@ -5,14 +5,14 @@
 /* ── Page shell ──────────────────────────────── */
 .folder-page {
   min-height: 100vh;
-  background: #f6f7fb;
+  background: var(--bg-page);
   padding-bottom: 120px;
 }
 
 .folder-container {
-  max-width: 900px;
+  max-width: 1000px;
   margin: 0 auto;
-  padding: 40px 32px 32px;
+  padding: 40px 24px 80px;
 }
 
 .folder-back-link {

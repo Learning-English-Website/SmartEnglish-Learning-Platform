@@ -64,10 +64,23 @@ const updateCardProgress = async (userId, cardId, quality) => {
     throw new AppError('Card not found', 404);
   }
 
-  // Get progress
+  // Get progress or initialize it if it doesn't exist
   let progress = await CardProgress.findOne({ user: userId, card: cardId });
-  if (!progress || progress.status === 'NEW') {
-    throw new AppError('Card has not been learned yet in Learn Mode', 400);
+  if (!progress) {
+    progress = new CardProgress({
+      user: userId,
+      card: cardId,
+      easeFactor: INITIAL_EASE_FACTOR,
+      interval: 0,
+      repetitions: 0,
+      lapses: 0,
+      totalReviews: 0,
+      correctReviews: 0,
+      status: 'LEARNING',
+      flashcardStatus: 'NEW',
+    });
+  } else if (progress.status === 'NEW') {
+    progress.status = 'LEARNING';
   }
 
   // Calculate new SM-2 schedule

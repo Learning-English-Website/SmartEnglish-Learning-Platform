@@ -146,3 +146,35 @@
   transform: none;
   box-shadow: none;
 }
+
+/* ── Dark Theme Overrides ────────────────────────────────────── */
+[data-theme='dark'] .cfm-modal {
+  background: var(--bg-elevated, #1e2332);
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme='dark'] .cfm-icon-wrap {
+  background: rgba(90, 103, 216, 0.15);
+  color: #a78bfa;
+}
+
+[data-theme='dark'] .cfm-input {
+  background: var(--bg-page, #151922);
+  color: var(--text-heading, #e8eaed);
+}
+
+[data-theme='dark'] .cfm-input:focus {
+  background: var(--bg-elevated, #1e2332);
+  border-color: #5a67d8;
+}
+
+[data-theme='dark'] .cfm-btn-secondary {
+  background: var(--bg-page, #151922);
+  color: var(--text-muted, #8a8fa8);
+}
+
+[data-theme='dark'] .cfm-btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-heading, #e8eaed);
+}

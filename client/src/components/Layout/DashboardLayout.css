@@ -8,7 +8,7 @@
   --q-sidebar-w: 236px;
   --q-sidebar-collapsed-w: 60px;
   --q-topbar-h: 58px;
-  --q-bg: #f6f7fb;
+  --q-bg: var(--bg-page, #f1f3f5);
   --q-sidebar-bg: #ffffff;
   --q-sidebar-hover: #f1f5f9;
   --q-sidebar-active: #e8f0fe;
@@ -147,7 +147,7 @@
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--font-sans);
   background: var(--q-bg);
 }
 

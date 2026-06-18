@@ -3,7 +3,7 @@
    ========================================================================== */
 
 .set-card {
-  font-family: 'Be Vietnam Pro', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  font-family: var(--font-sans) !important;
   display: flex;
   align-items: center;
   justify-content: space-between;

@@ -7,6 +7,7 @@ import { setService } from '../../api/setService';
 import { folderService } from '../../api/folderService';
 import { FilterDropdown, ConfirmModal } from '../../components/common';
 import SetCard from '../../components/common/SetCard/SetCard';
+import CreateFolderModal from './CreateFolderModal';
 import './LibraryPage.css';
 
 const TABS = [
@@ -28,6 +29,7 @@ export default function LibraryPage() {
   // Deletion state
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [showCreateFolderModal, setShowCreateFolderModal] = useState(false);
 
   const isOwnProfile = !username || user?.username === username;
 
@@ -93,16 +95,8 @@ export default function LibraryPage() {
     }
   };
 
-  const handleCreateFolder = async () => {
-    const name = window.prompt('Tên thư mục mới:');
-    if (!name?.trim()) return;
-    try {
-      const newFolder = await folderService.create(name.trim());
-      const created = newFolder?.data ?? newFolder;
-      setFolders((prev) => [...prev, created]);
-    } catch (err) {
-      console.error('Failed to create folder:', err);
-    }
+  const handleCreateFolder = () => {
+    setShowCreateFolderModal(true);
   };
 
   const handleOpenFolder = (folder) => {
@@ -352,6 +346,16 @@ export default function LibraryPage() {
         confirmVariant="danger"
         loading={deleting}
       />
+
+      {showCreateFolderModal && (
+        <CreateFolderModal
+          onClose={() => setShowCreateFolderModal(false)}
+          onCreated={(created) => {
+            setFolders((prev) => [...prev, created]);
+            setShowCreateFolderModal(false);
+          }}
+        />
+      )}
     </div>
   );
 }
