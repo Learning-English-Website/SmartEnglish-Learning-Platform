@@ -57,7 +57,7 @@ collection:
     meta:
       id: req_e26ed04657f6495cb2010ee3ab8ae666
       created: 1781775889160
-      modified: 1781778815482
+      modified: 1781782615216
       isPrivate: false
       description: ""
       sortKey: -1781775889160
@@ -92,21 +92,53 @@ collection:
         send: true
         store: true
       rebuildPath: true
+  - url: "{{ base_url }}/flashcard-sets/my"
+    name: getMySets
+    meta:
+      id: req_70404c9f4dec42d38c66f01b41e604a0
+      created: 1781782428310
+      modified: 1781782641324
+      isPrivate: false
+      description: ""
+      sortKey: -1781782428310
+    method: GET
+    headers:
+      - name: Authorization
+        value: Bearer {% response 'body', 'req_ed8060b551f44b79a87b5ef6f69078ed',
+          'b64::JC5kYXRhLmFjY2Vzc1Rva2Vu::46b', 'always', 60 %}
+        description: ""
+        disabled: false
+    scripts:
+      afterResponse: >
+        insomnia.test("Kiểm tra lấy danh sách bộ thẻ học của tôi thành công",
+        function () {
+            // 1. Kiểm tra trạng thái HTTP phản hồi phải là 200 OK
+            insomnia.expect(insomnia.response.code).to.eql(200);
+
+            const body = insomnia.response.json();
+
+            // 2. Xác thực cấu trúc phản hồi API chuẩn
+            insomnia.expect(body.success).to.be.true;
+            insomnia.expect(body.message).to.eql('Sets fetched');
+
+            // 3. Xác thực dữ liệu 'data' trả về phải là một danh sách (Mảng/Array)
+            insomnia.expect(body.data).to.be.an('array');
+        });
+    settings:
+      renderRequestBody: true
+      encodeUrl: true
+      followRedirects: global
+      cookies:
+        send: true
+        store: true
+      rebuildPath: true
 cookieJar:
   name: Default Jar
   meta:
     id: jar_b9561fb43025e8fb936a7d57d5fa37c04218bc8f
     created: 1781774997859
-    modified: 1781781722007
+    modified: 1781782644359
   cookies:
-    - id: a78325a4-cca2-41b4-a141-bf8fb02d7385
-      key: refreshToken
-      value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2YTAwYTM1NTdhOTFmYmRkNzRjM2NiMzYiLCJpYXQiOjE3ODE3ODE3MjEsImV4cCI6MTc4MjM4NjUyMX0.3eAM4kQbH7q6WFGB1QDWCnOPzLmUKIKPOIkn9X6E_aM
-      domain: localhost
-      path: /
-      secure: false
-      httpOnly: true
-      hostOnly: true
     - id: 53d95e85-05cf-4ca4-9d95-4c3086cbe222
       key: refreshToken
       value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2YTAwYTM1NTdhOTFmYmRkNzRjM2NiMzYiLCJpYXQiOjE3ODE3NzU4NTMsImV4cCI6MTc4MjM4MDY1M30.NThXbXz7R27Dg6SGjeSp4iWQkcMDKZmiZbir7bfbl_g
@@ -128,7 +160,7 @@ environments:
   meta:
     id: env_b9561fb43025e8fb936a7d57d5fa37c04218bc8f
     created: 1781774997857
-    modified: 1781781722008
+    modified: 1781782644360
     isPrivate: false
   data:
     base_url: http://localhost:5000/api
