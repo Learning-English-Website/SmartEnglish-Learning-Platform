@@ -2,12 +2,12 @@ name: Insomnia API Tests (CI/CD)
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main, develop, dev ]
     paths:
       - 'server/**'
       - '.github/workflows/inso-api-tests.yml'
   pull_request:
-    branches: [ main, develop ]
+    branches: [ main, develop, dev ]
     paths:
       - 'server/**'
 
