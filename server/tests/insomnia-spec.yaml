@@ -57,7 +57,7 @@ collection:
     meta:
       id: req_e26ed04657f6495cb2010ee3ab8ae666
       created: 1781775889160
-      modified: 1781782615216
+      modified: 1781798144873
       isPrivate: false
       description: ""
       sortKey: -1781775889160
@@ -177,12 +177,58 @@ collection:
         send: true
         store: true
       rebuildPath: true
+  - url: "{{ base_url }}/gamification/achievements"
+    name: New Request
+    meta:
+      id: req_6d54cead2dcb4010ad9c709134fbe4fa
+      created: 1781798156207
+      modified: 1781798237713
+      isPrivate: false
+      description: ""
+      sortKey: -1781798156207
+    method: GET
+    headers:
+      - name: Authorization
+        value: Bearer {% response 'body', 'req_ed8060b551f44b79a87b5ef6f69078ed',
+          'b64::JC5kYXRhLmFjY2Vzc1Rva2Vu::46b', 'always', 60 %}
+        description: ""
+        disabled: false
+    scripts:
+      afterResponse: >-
+        insomnia.test("Kiểm tra lấy danh sách thành tích thành công", function
+        () {
+                    // 1. Kiểm tra mã trạng thái HTTP là 200 OK
+                    insomnia.expect(insomnia.response.code).to.eql(200);
+                    
+                    const body = insomnia.response.json();
+                    
+                    // 2. Xác thực định dạng JSON trả về của API
+                    insomnia.expect(body.success).to.be.true;
+                    insomnia.expect(body.message).to.eql('Achievements fetched');
+                    insomnia.expect(body.data).to.be.an('array');
+                    
+                    // 3. Nếu danh sách có dữ liệu, xác thực thuộc tính của phần tử đầu tiên
+                    if (body.data.length > 0) {
+                        const first = body.data[0];
+                        insomnia.expect(first).to.have.property('key');
+                        insomnia.expect(first).to.have.property('title');
+                        insomnia.expect(first).to.have.property('unlocked');
+                    }
+                });
+    settings:
+      renderRequestBody: true
+      encodeUrl: true
+      followRedirects: global
+      cookies:
+        send: true
+        store: true
+      rebuildPath: true
 cookieJar:
   name: Default Jar
   meta:
     id: jar_b9561fb43025e8fb936a7d57d5fa37c04218bc8f
     created: 1781774997859
-    modified: 1781783555572
+    modified: 1781798238544
   cookies:
     - id: 53d95e85-05cf-4ca4-9d95-4c3086cbe222
       key: refreshToken
@@ -205,7 +251,7 @@ environments:
   meta:
     id: env_b9561fb43025e8fb936a7d57d5fa37c04218bc8f
     created: 1781774997857
-    modified: 1781783555574
+    modified: 1781798238546
     isPrivate: false
   data:
     base_url: http://localhost:5000/api
@@ -217,7 +263,3 @@ environments:
         modified: 1781775651158
         isPrivate: false
         sortKey: 1781775651158
-
-
-        # Run the test collection
-# This will run all tests in the collection and output the results
