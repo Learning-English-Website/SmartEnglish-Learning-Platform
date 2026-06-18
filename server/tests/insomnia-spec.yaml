@@ -1,0 +1,142 @@
+type: collection.insomnia.rest/5.0
+schema_version: "5.1"
+name: BaiThucHanhAutoTest
+meta:
+  id: wrk_87ba56fd1b8c4d21ba27a4a804bb7b43
+  created: 1781774997855
+  modified: 1781780059871
+  description: ""
+collection:
+  - url: "{{base_url}}/auth/login"
+    name: Login
+    meta:
+      id: req_ed8060b551f44b79a87b5ef6f69078ed
+      created: 1781775283593
+      modified: 1781778700001
+      isPrivate: false
+      description: ""
+      sortKey: -1781775283593
+    method: POST
+    body:
+      mimeType: application/json
+      text: |-
+        {
+          "email": "nguyendh6g@gmail.com",
+          "password": "Nguyen0702"
+        }
+    headers:
+      - name: Content-Type
+        value: application/json
+    scripts:
+      afterResponse: |-
+        insomnia.test("Kiểm tra API Đăng nhập thành công", function () {
+            // 1. Kiểm tra Status Code phải là 200
+            insomnia.expect(insomnia.response.code).to.eql(200);
+
+            // 2. Chuyển đổi dữ liệu trả về thành JSON
+            const body = insomnia.response.json();
+
+            // 3. Kiểm tra cấu trúc ApiResponse
+            insomnia.expect(body.success).to.be.true;
+            insomnia.expect(body.message).to.eql('Đăng nhập thành công');
+
+            // 4. Đảm bảo có token trả về
+            insomnia.expect(body.data).to.have.property('accessToken');
+            insomnia.expect(body.data.user).to.have.property('email');
+        });
+    settings:
+      renderRequestBody: true
+      encodeUrl: true
+      followRedirects: global
+      cookies:
+        send: true
+        store: true
+      rebuildPath: true
+  - url: "{{base_url}}/users/profile"
+    name: getProfile
+    meta:
+      id: req_e26ed04657f6495cb2010ee3ab8ae666
+      created: 1781775889160
+      modified: 1781778815482
+      isPrivate: false
+      description: ""
+      sortKey: -1781775889160
+    method: GET
+    headers:
+      - name: Authorization
+        value: Bearer {% response 'body', 'req_ed8060b551f44b79a87b5ef6f69078ed',
+          'b64::JC5kYXRhLmFjY2Vzc1Rva2Vu::46b', 'always', 60 %}
+        description: ""
+        disabled: false
+    scripts:
+      afterResponse: |-
+        insomnia.test("Kiểm tra lấy thông tin Profile hợp lệ", function () {
+            // 1. Kiểm tra trạng thái HTTP là 200
+            insomnia.expect(insomnia.response.code).to.eql(200);
+
+            const body = insomnia.response.json();
+
+            // 2. Xác thực cấu trúc dữ liệu người dùng
+            insomnia.expect(body.success).to.be.true;
+            insomnia.expect(body.data).to.have.property('_id');
+            insomnia.expect(body.data).to.have.property('role');
+
+            // 3. Đảm bảo bảo mật (không được trả về password)
+            insomnia.expect(body.data).to.not.have.property('password'); 
+        });
+    settings:
+      renderRequestBody: true
+      encodeUrl: true
+      followRedirects: global
+      cookies:
+        send: true
+        store: true
+      rebuildPath: true
+cookieJar:
+  name: Default Jar
+  meta:
+    id: jar_b9561fb43025e8fb936a7d57d5fa37c04218bc8f
+    created: 1781774997859
+    modified: 1781781722007
+  cookies:
+    - id: a78325a4-cca2-41b4-a141-bf8fb02d7385
+      key: refreshToken
+      value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2YTAwYTM1NTdhOTFmYmRkNzRjM2NiMzYiLCJpYXQiOjE3ODE3ODE3MjEsImV4cCI6MTc4MjM4NjUyMX0.3eAM4kQbH7q6WFGB1QDWCnOPzLmUKIKPOIkn9X6E_aM
+      domain: localhost
+      path: /
+      secure: false
+      httpOnly: true
+      hostOnly: true
+    - id: 53d95e85-05cf-4ca4-9d95-4c3086cbe222
+      key: refreshToken
+      value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2YTAwYTM1NTdhOTFmYmRkNzRjM2NiMzYiLCJpYXQiOjE3ODE3NzU4NTMsImV4cCI6MTc4MjM4MDY1M30.NThXbXz7R27Dg6SGjeSp4iWQkcMDKZmiZbir7bfbl_g
+      domain: localhost
+      path: /
+      secure: false
+      httpOnly: true
+      hostOnly: true
+    - id: 59a71e3c-21e7-4214-8d7e-8ac15e1c04b9
+      key: accessToken
+      value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2YTAwYTM1NTdhOTFmYmRkNzRjM2NiMzYiLCJyb2xlIjoic3R1ZGVudCIsImlhdCI6MTc4MTc3NTg1MywiZXhwIjoxNzgxNzc2NzUzfQ.5ZiGV-GEk_yz_XmBURAOADKAkfpIpg8fzv_WMJ5GxNA
+      domain: localhost
+      path: /
+      secure: false
+      httpOnly: true
+      hostOnly: true
+environments:
+  name: Base Environment
+  meta:
+    id: env_b9561fb43025e8fb936a7d57d5fa37c04218bc8f
+    created: 1781774997857
+    modified: 1781781722008
+    isPrivate: false
+  data:
+    base_url: http://localhost:5000/api
+  subEnvironments:
+    - name: New Environment
+      meta:
+        id: env_54e3f3df579a446dad185cd7eab5f5ab
+        created: 1781775651158
+        modified: 1781775651158
+        isPrivate: false
+        sortKey: 1781775651158
