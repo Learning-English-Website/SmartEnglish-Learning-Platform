@@ -155,6 +155,24 @@
   background: rgba(255, 255, 255, 0.06);
 }
 
+/* Scrollbar styling for Daily Challenge Leaderboard list inside card */
+.daily-challenge-leaderboard-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.daily-challenge-leaderboard-scroll::-webkit-scrollbar-thumb {
+  background: rgba(99, 91, 255, 0.2);
+  border-radius: 99px;
+}
+
+.daily-challenge-leaderboard-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+[data-theme='dark'] .daily-challenge-leaderboard-scroll::-webkit-scrollbar-thumb {
+  background: rgba(129, 140, 248, 0.25);
+}
+
 @media (max-width: 991.98px) {
   .memoris-home-widgets-row {
     margin-top: 1.5rem;

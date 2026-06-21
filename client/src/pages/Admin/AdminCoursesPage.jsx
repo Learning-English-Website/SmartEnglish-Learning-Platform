@@ -207,7 +207,7 @@ export default function AdminCoursesPage() {
                   <tr key={c._id}>
                     <td className="admin-td-num">{(page - 1) * 10 + i + 1}</td>
                     <td className="admin-td-title">{c.title}</td>
-                    <td className="admin-td-mono">{c.slug}</td>
+                    <td><span className="admin-td-mono">{c.slug}</span></td>
                     <td><span className={`admin-badge ${c.level}`}>{c.level}</span></td>
                     <td>{c.order}</td>
                     <td><span className={`admin-badge ${c.isPublished || c.isActive ? 'published' : 'draft'}`}>

@@ -965,3 +965,35 @@
   border: 1.5px solid var(--q-sidebar-bg, #ffffff);
 }
 
+/* Sidebar recursive folder tree styling */
+.q-nav-folder-children {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.q-sidebar-folder-delete {
+  background: transparent;
+  border: none;
+  color: var(--q-sidebar-title, #a0aec0);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  opacity: 0;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.q-nav-item:hover .q-sidebar-folder-delete {
+  opacity: 1;
+}
+
+.q-sidebar-folder-delete:hover {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #ef4444 !important;
+}
+

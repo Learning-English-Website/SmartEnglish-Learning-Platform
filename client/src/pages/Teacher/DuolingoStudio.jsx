@@ -571,19 +571,21 @@ export default function DuolingoStudio() {
                           <Folder size={15} color="#1cb0f6" />
                           <span className="node-title text-slate-700">Chương {uIdx + 1}: {unit.title}</span>
                           
+                          <button 
+                            className="add-sub-btn"
+                            title="Thêm Bài học mới"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedNode({ type: 'new-lesson', unitId: unit._id });
+                              setLessonForm({ title: '', subtitle: '', order: (unit.lessons || []).length, xpReward: 5, estimatedMinutes: 5, grammarFocus: '', vocabFocus: '', type: 'challenge' });
+                            }}
+                          >
+                            <Plus size={12} />
+                          </button>
+                          
                           <div className="node-actions">
                             <button title="Dịch chuyển lên" onClick={(e) => { e.stopPropagation(); moveNode('unit', uIdx, 'up'); }}><MoveUp size={12} /></button>
                             <button title="Dịch chuyển xuống" onClick={(e) => { e.stopPropagation(); moveNode('unit', uIdx, 'down'); }}><MoveDown size={12} /></button>
-                            <button
-                              title="Thêm Bài học mới"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedNode({ type: 'new-lesson', unitId: unit._id });
-                                setLessonForm({ title: '', subtitle: '', order: (unit.lessons || []).length, xpReward: 5, estimatedMinutes: 5, grammarFocus: '', vocabFocus: '', type: 'challenge' });
-                              }}
-                            >
-                              <Plus size={12} />
-                            </button>
                             <button
                               title="Thiết kế bằng AI"
                               onClick={(e) => {
@@ -619,25 +621,27 @@ export default function DuolingoStudio() {
                                     <FileText size={14} color="#f59e0b" />
                                     <span className="node-title text-slate-700">{lesson.title}</span>
                                     
+                                    <button 
+                                      className="add-sub-btn"
+                                      title="Thêm câu hỏi mới"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedNode({ type: 'new-challenge', lessonId: lesson._id });
+                                        setChallengeForm({
+                                          type: 'SELECT', question: '', correctAnswer: '',
+                                          sourceLang: 'vi', targetLang: 'en', imageSrc: '', audioSrc: '',
+                                          wordBank: '', correctOrder: '', pairs: '', sentence: '', blankIndex: '', hint: '',
+                                          options: [{ text: '', correct: false, imageSrc: '' }, { text: '', correct: false, imageSrc: '' }, { text: '', correct: false, imageSrc: '' }, { text: '', correct: false, imageSrc: '' }],
+                                          order: (lesson.challenges || []).length
+                                        });
+                                      }}
+                                    >
+                                      <Plus size={12} />
+                                    </button>
+                                    
                                     <div className="node-actions">
                                       <button title="Dịch chuyển lên" onClick={(e) => { e.stopPropagation(); moveNode('lesson', lIdx, 'up', unit); }}><MoveUp size={12} /></button>
                                       <button title="Dịch chuyển xuống" onClick={(e) => { e.stopPropagation(); moveNode('lesson', lIdx, 'down', unit); }}><MoveDown size={12} /></button>
-                                      <button 
-                                        title="Thêm câu hỏi mới"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setSelectedNode({ type: 'new-challenge', lessonId: lesson._id });
-                                          setChallengeForm({
-                                            type: 'SELECT', question: '', correctAnswer: '',
-                                            sourceLang: 'vi', targetLang: 'en', imageSrc: '', audioSrc: '',
-                                            wordBank: '', correctOrder: '', pairs: '', sentence: '', blankIndex: '', hint: '',
-                                            options: [{ text: '', correct: false, imageSrc: '' }, { text: '', correct: false, imageSrc: '' }, { text: '', correct: false, imageSrc: '' }, { text: '', correct: false, imageSrc: '' }],
-                                            order: (lesson.challenges || []).length
-                                          });
-                                        }}
-                                      >
-                                        <Plus size={12} />
-                                      </button>
                                       <button title="Xóa Lesson" className="delete-btn" onClick={(e) => { e.stopPropagation(); deleteItem('lesson', lesson._id); }}><Trash2 size={12} /></button>
                                     </div>
                                   </div>

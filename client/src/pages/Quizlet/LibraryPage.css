@@ -471,3 +471,22 @@
     justify-content: center;
   }
 }
+
+.lfc-delete-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted, #a0aec0);
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  margin-left: auto;
+}
+
+.lfc-delete-btn:hover {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}

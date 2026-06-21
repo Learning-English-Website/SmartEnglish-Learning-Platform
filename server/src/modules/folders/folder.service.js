@@ -17,27 +17,29 @@ const getById = async (folderId, userId) => {
   return folder;
 };
 
-const create = async (userId, { name, parent }) => {
-  if (parent) {
-    const parentFolder = await Folder.findOne({ _id: parent, user: userId });
+const create = async (userId, { name, parent, parentId }) => {
+  const finalParent = parent || parentId;
+  if (finalParent) {
+    const parentFolder = await Folder.findOne({ _id: finalParent, user: userId });
     if (!parentFolder) throw new AppError('Parent folder not found', 404);
   }
 
-  return Folder.create({ user: userId, name: name.trim(), parent: parent || null });
+  return Folder.create({ user: userId, name: name.trim(), parent: finalParent || null });
 };
 
-const update = async (folderId, userId, { name, parent }) => {
+const update = async (folderId, userId, { name, parent, parentId }) => {
   const folder = await Folder.findOne({ _id: folderId, user: userId });
   if (!folder) throw new AppError('Folder not found', 404);
 
   if (name !== undefined) folder.name = name.trim();
-  if (parent !== undefined) {
-    if (parent === folderId) throw new AppError('Folder cannot be its own parent', 400);
-    if (parent) {
-      const parentFolder = await Folder.findOne({ _id: parent, user: userId });
+  const finalParent = parent !== undefined ? parent : parentId;
+  if (finalParent !== undefined) {
+    if (finalParent === folderId) throw new AppError('Folder cannot be its own parent', 400);
+    if (finalParent) {
+      const parentFolder = await Folder.findOne({ _id: finalParent, user: userId });
       if (!parentFolder) throw new AppError('Parent folder not found', 404);
     }
-    folder.parent = parent || null;
+    folder.parent = finalParent || null;
   }
 
   return folder.save();
