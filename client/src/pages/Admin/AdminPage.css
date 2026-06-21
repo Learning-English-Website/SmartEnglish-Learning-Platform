@@ -192,6 +192,11 @@
   width: 100%;
 }
 
+td.admin-td-title {
+  display: table-cell;
+  width: auto;
+}
+
 .admin-td-mono {
   font-family: var(--font-mono);
   font-size: 0.775rem;

@@ -194,9 +194,14 @@ export default function FolderPage() {
               </p>
             </div>
           </div>
-          <button className="folder-more-btn">
-            <MoreHorizontal size={20} />
-          </button>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            <button className="folder-empty-btn-secondary" onClick={handleCreateSubfolder} style={{ padding: '8px 18px', fontSize: '0.85rem' }}>
+              <Plus size={14} /> Tạo thư mục con
+            </button>
+            <button className="folder-more-btn">
+              <MoreHorizontal size={20} />
+            </button>
+          </div>
         </div>
 
         {/* Filter Pills */}
@@ -236,7 +241,10 @@ export default function FolderPage() {
 
         {/* Content */}
         {isEmpty ? (
-          <EmptyFolderState onAddStudy={() => handleCreateSet()} />
+          <EmptyFolderState 
+            onAddStudy={() => handleCreateSet()} 
+            onCreateSubfolder={() => handleCreateSubfolder()} 
+          />
         ) : (
           <div className="folder-content">
             {/* Main column */}
@@ -367,7 +375,7 @@ export default function FolderPage() {
 }
 
 /* ── Empty Folder State ─────────────────────────── */
-function EmptyFolderState({ onAddStudy }) {
+function EmptyFolderState({ onAddStudy, onCreateSubfolder }) {
   return (
     <div className="folder-empty-wrap">
       <div className="folder-empty-card">
@@ -386,9 +394,12 @@ function EmptyFolderState({ onAddStudy }) {
 
         <h2 className="folder-empty-title">Bắt đầu xây dựng thư mục của bạn</h2>
 
-        <div className="folder-empty-actions">
+        <div className="folder-empty-actions" style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%', alignItems: 'center' }}>
           <button className="folder-empty-btn-primary" onClick={onAddStudy}>
             Thêm tài liệu học
+          </button>
+          <button className="folder-empty-btn-secondary" onClick={onCreateSubfolder}>
+            <Plus size={16} /> Tạo thư mục con
           </button>
         </div>
       </div>

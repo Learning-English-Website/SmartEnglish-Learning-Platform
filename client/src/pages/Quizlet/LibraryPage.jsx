@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { BookOpen, Folder, Plus, Clock, Search } from 'lucide-react';
+import { BookOpen, Folder, Plus, Clock, Search, Trash2 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { toast } from 'react-hot-toast';
 import { setService } from '../../api/setService';
@@ -28,6 +28,7 @@ export default function LibraryPage() {
 
   // Deletion state
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteFolderTarget, setDeleteFolderTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [showCreateFolderModal, setShowCreateFolderModal] = useState(false);
 
@@ -95,6 +96,27 @@ export default function LibraryPage() {
     }
   };
 
+  const handleDeleteFolder = (folder, e) => {
+    e.stopPropagation();
+    setDeleteFolderTarget(folder);
+  };
+
+  const handleConfirmDeleteFolder = async () => {
+    if (!deleteFolderTarget) return;
+    setDeleting(true);
+    try {
+      await folderService.delete(deleteFolderTarget._id);
+      setFolders((prev) => prev.filter((f) => f._id !== deleteFolderTarget._id));
+      toast.success('Xóa thư mục thành công.');
+      setDeleteFolderTarget(null);
+    } catch (err) {
+      console.error('Delete folder failed:', err);
+      toast.error('Xóa thư mục thất bại.');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const handleCreateFolder = () => {
     setShowCreateFolderModal(true);
   };
@@ -145,9 +167,11 @@ export default function LibraryPage() {
     set.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const filteredFolders = folders.filter((folder) =>
-    folder.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredFolders = folders.filter((folder) => {
+    const matchesSearch = folder.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const isRoot = !folder.parent && !folder.parentId;
+    return matchesSearch && isRoot;
+  });
 
   return (
     <div className="library-page">
@@ -321,10 +345,17 @@ export default function LibraryPage() {
                           <div className="lfc-icon-wrapper">
                             <Folder size={22} />
                           </div>
-                          <div className="lfc-info">
+                          <div className="lfc-info" style={{ flexGrow: 1 }}>
                             <span className="lfc-name">{folder.name}</span>
                             <span className="lfc-count">{folder.sets?.length ?? 0} học phần</span>
                           </div>
+                          <button
+                            className="lfc-delete-btn"
+                            onClick={(e) => handleDeleteFolder(folder, e)}
+                            title="Xóa thư mục"
+                          >
+                            <Trash2 size={16} />
+                          </button>
                         </div>
                       ))}
                     </div>
@@ -342,6 +373,17 @@ export default function LibraryPage() {
         onConfirm={handleConfirmDelete}
         title="Xóa học phần"
         message={`Bạn có chắc chắn muốn xóa học phần "${deleteTarget?.title}"? Hành động này không thể hoàn tác.`}
+        confirmText="Xóa"
+        confirmVariant="danger"
+        loading={deleting}
+      />
+
+      <ConfirmModal
+        show={!!deleteFolderTarget}
+        onHide={() => setDeleteFolderTarget(null)}
+        onConfirm={handleConfirmDeleteFolder}
+        title="Xóa thư mục"
+        message={`Bạn có chắc chắn muốn xóa thư mục "${deleteFolderTarget?.name}"? Các thư mục con bên trong sẽ được đưa ra ngoài thư mục gốc.`}
         confirmText="Xóa"
         confirmVariant="danger"
         loading={deleting}

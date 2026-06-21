@@ -4,7 +4,7 @@ import {
   Search, Bell, Plus, ChevronLeft, ChevronRight,
   Home, LibraryBig, FolderPlus, Folder, CreditCard,
   Menu, X, Check, LogOut, User, Settings,
-  Compass, BookText, Languages, Sun, Moon, Star
+  Compass, BookText, Languages, Sun, Moon, Star, Trash2
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { folderService } from '../../api/folderService';
@@ -80,6 +80,63 @@ export default function DashboardLayout({ children }) {
   const isActive = (path) => location.pathname.startsWith(path);
   const toggleMobileSidebar = () => setMobileSidebarOpen((v) => !v);
   const closeMobileSidebar = () => setMobileSidebarOpen(false);
+
+  const buildFolderTree = (parentId = null) => {
+    return folders
+      .filter((f) => {
+        const pId = f.parentId || f.parent;
+        return parentId === null ? (!pId) : (String(pId) === String(parentId));
+      })
+      .map((folder) => ({
+        ...folder,
+        children: buildFolderTree(folder._id),
+      }));
+  };
+
+  const handleDeleteFolder = async (folderId, e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!window.confirm("Bạn có chắc chắn muốn xóa thư mục này? Các thư mục con bên trong sẽ được đưa ra ngoài thư mục gốc.")) return;
+    try {
+      await folderService.delete(folderId);
+      fetchFolders();
+      if (location.pathname.startsWith(`/folders/${folderId}`)) {
+        navigate('/library');
+      }
+    } catch (err) {
+      console.error('Failed to delete folder:', err);
+    }
+  };
+
+  const renderFolders = (nodes, level = 0) => {
+    return nodes.map((folder) => (
+      <div key={folder._id} className="q-nav-folder-wrapper">
+        <NavLink
+          to={`/folders/${folder._id}/${encodeURIComponent(folder.name)}`}
+          className={({ isActive }) =>
+            `q-nav-item q-nav-folder ${isActive ? 'active' : ''}`
+          }
+          style={{ paddingLeft: `${level * 16 + 10}px` }}
+          onClick={closeMobileSidebar}
+        >
+          <Folder size={17} />
+          <span>{folder.name}</span>
+          <button
+            className="q-sidebar-folder-delete"
+            onClick={(e) => handleDeleteFolder(folder._id, e)}
+            title="Xóa thư mục"
+          >
+            <Trash2 size={13} />
+          </button>
+        </NavLink>
+        {folder.children && folder.children.length > 0 && (
+          <div className="q-nav-folder-children">
+            {renderFolders(folder.children, level + 1)}
+          </div>
+        )}
+      </div>
+    ));
+  };
 
   const isLessonPage = location.pathname.startsWith('/duolingo/lesson/');
 
@@ -356,19 +413,7 @@ export default function DashboardLayout({ children }) {
                 </button>
               ) : (
                 <>
-                  {folders.map((folder) => (
-                    <NavLink
-                      key={folder._id}
-                      to={`/folders/${folder._id}/${encodeURIComponent(folder.name)}`}
-                      className={({ isActive }) =>
-                        `q-nav-item q-nav-folder ${isActive ? 'active' : ''}`
-                      }
-                      onClick={closeMobileSidebar}
-                    >
-                      <Folder size={17} />
-                      <span>{folder.name}</span>
-                    </NavLink>
-                  ))}
+                  {renderFolders(buildFolderTree(null))}
                 </>
               )}
             </div>

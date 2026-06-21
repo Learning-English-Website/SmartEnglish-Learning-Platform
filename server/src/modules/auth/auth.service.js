@@ -89,7 +89,9 @@ class AuthService {
    */
   async login(email, password) {
     const user = await User.findByEmail(normalizeEmail(email));
-    if (!user) throw new AppError('Email hoặc mật khẩu không chính xác', 401);
+    if (!user) {
+      throw new AppError('Email hoặc mật khẩu không chính xác', 401);
+    }
 
     if (!user.password) {
       throw new AppError('Email hoặc mật khẩu không chính xác', 401);
@@ -100,7 +102,9 @@ class AuthService {
     }
 
     const isMatch = await user.comparePassword(password);
-    if (!isMatch) throw new AppError('Email hoặc mật khẩu không chính xác', 401);
+    if (!isMatch) {
+      throw new AppError('Email hoặc mật khẩu không chính xác', 401);
+    }
     if (!user.isVerified) {
       const otp = generateOtpCode();
       await redis.set(
@@ -138,7 +142,7 @@ class AuthService {
   }
 
   /**
-   * Internal: send streak reminders + weekly report on login
+   * Internal: send streak reminders + weekly report on login 
    */
   async _triggerLoginNotifications(user) {
     const notificationService = require('../notification/notification.service');
@@ -464,17 +468,23 @@ class AuthService {
       await redis.del(key);
     } else {
       // New path: use resetToken from verifyResetOtp
-      if (!resetToken) throw new AppError('Reset token required', 400);
+      if (!resetToken) {
+        throw new AppError('Reset token required', 400);
+      }
       const tokenKey = `reset:verified:${resetToken}`;
       const tokenData = await redis.get(tokenKey);
-      if (!tokenData) throw new AppError('Reset token expired or invalid', 400);
+      if (!tokenData) {
+        throw new AppError('Reset token expired or invalid', 400);
+      }
       const parsedToken = JSON.parse(tokenData);
       userId = parsedToken.userId;
       await redis.del(tokenKey);
     }
 
     const user = await User.findById(userId).select('+password');
-    if (!user) throw new AppError('Không tìm thấy người dùng', 404);
+    if (!user) {
+      throw new AppError('Không tìm thấy người dùng', 404);
+    }
 
     user.password = newPassword;
     await user.save();

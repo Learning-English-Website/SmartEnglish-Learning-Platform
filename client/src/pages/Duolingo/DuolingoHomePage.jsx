@@ -108,7 +108,7 @@ export default function DuolingoHomePage() {
           {/* Challenge + Quests (Top section) */}
           <Row className="memoris-home-widgets-row g-4">
             <Col lg={6}>
-              <div className="memoris-home-widget-stretch" style={{ height: '100%', overflow: 'auto' }}>
+              <div className="memoris-home-widget-stretch">
                 <DailyChallengeCard />
               </div>
             </Col>

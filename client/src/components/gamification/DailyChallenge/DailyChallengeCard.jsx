@@ -281,9 +281,11 @@ export default function DailyChallengeCard({ hideLeaderboard = false } = {}) {
         border: '1px solid rgba(99,91,255,0.16)',
         borderRadius: 28,
         padding: 16,
-        marginBottom: 16,
         overflow: 'hidden',
         position: 'relative',
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
@@ -353,24 +355,36 @@ export default function DailyChallengeCard({ hideLeaderboard = false } = {}) {
       </button>
 
       {!hideLeaderboard && ranked.length > 0 && (
-        <div style={{ marginTop: 14 }}>
+        <div style={{
+          marginTop: 14,
+          display: 'flex',
+          flexDirection: 'column',
+          flex: 1,
+          overflow: 'hidden',
+        }}>
           <div style={{
             fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8',
             textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8,
           }}>
             Bảng Xếp Hạng · {dateKey}
           </div>
-          {topLeaderboardRows.map((row, i) => renderLeaderboardRow(row, i))}
-          {shouldShowCurrentUserFooter && (
-            <>
-              <div style={{
-                height: 1,
-                margin: '8px 0',
-                background: 'linear-gradient(90deg, transparent, rgba(99,91,255,0.25), transparent)',
-              }} />
-              {renderLeaderboardRow(currentUserRow, currentUserRow.rank - 1, { isFooter: true })}
-            </>
-          )}
+          <div className="daily-challenge-leaderboard-scroll" style={{
+            flex: 1,
+            overflowY: 'auto',
+            paddingRight: 4,
+          }}>
+            {topLeaderboardRows.map((row, i) => renderLeaderboardRow(row, i))}
+            {shouldShowCurrentUserFooter && (
+              <>
+                <div style={{
+                  height: 1,
+                  margin: '8px 0',
+                  background: 'linear-gradient(90deg, transparent, rgba(99,91,255,0.25), transparent)',
+                }} />
+                {renderLeaderboardRow(currentUserRow, currentUserRow.rank - 1, { isFooter: true })}
+              </>
+            )}
+          </div>
         </div>
       )}
     </motion.div>
