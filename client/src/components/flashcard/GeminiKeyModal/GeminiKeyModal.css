@@ -1,0 +1,190 @@
+/* Cấu hình Gemini Key Modal CSS */
+.gkm-modal.show {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.gkm-modal .modal-dialog {
+  display: flex;
+  align-items: center;
+  min-height: auto;
+  margin: 0 auto !important;
+  position: relative !important;
+  left: 0 !important;
+  right: 0 !important;
+  transition: all 0.3s ease;
+  width: 95% !important;
+  max-width: 560px !important;
+}
+
+.gkm-modal .modal-content {
+  border-radius: 16px;
+  border: 1px solid var(--bs-border-color);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  background: var(--bs-body-bg);
+  backdrop-filter: blur(8px);
+  overflow: hidden;
+  transition: all 0.3s ease;
+  width: 100%;
+}
+
+.gkm-header {
+  border-bottom: 1px solid var(--bs-border-color-translucent);
+  padding: 20px 24px;
+  background: var(--bs-tertiary-bg);
+}
+
+.gkm-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--bs-body-color);
+}
+
+.gkm-title-icon {
+  color: var(--bs-primary);
+}
+
+.gkm-body {
+  padding: 24px;
+}
+
+.gkm-status-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--bs-secondary-bg);
+  border-radius: 10px;
+  border: 1px solid var(--bs-border-color-translucent);
+}
+
+.gkm-status-label {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--bs-secondary-color);
+}
+
+.gkm-badge {
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+}
+
+.gkm-delete-btn {
+  font-size: 0.75rem !important;
+  font-weight: 600;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.gkm-delete-btn:hover {
+  transform: translateY(-1px);
+}
+
+.gkm-info-alert {
+  border-radius: 10px;
+  padding: 16px;
+  border: 1px solid rgba(var(--bs-info-rgb), 0.2);
+  background-color: rgba(var(--bs-info-rgb), 0.05);
+}
+
+.gkm-link {
+  font-size: 0.85rem;
+  text-decoration: none;
+  transition: opacity 0.2s ease;
+}
+
+.gkm-link:hover {
+  text-decoration: underline;
+  opacity: 0.9;
+}
+
+.gkm-input-icon-wrapper {
+  background: var(--bs-secondary-bg);
+  border-right: none;
+  color: var(--bs-secondary-color);
+}
+
+.gkm-input {
+  border-left: none;
+  font-family: inherit;
+  font-size: 0.95rem;
+  padding: 10px 14px;
+  border-radius: 0 8px 8px 0;
+  transition: all 0.2s ease;
+}
+
+.gkm-input:focus {
+  box-shadow: none;
+  border-color: var(--bs-primary);
+}
+
+.gkm-toggle-visibility-btn {
+  border-color: var(--bs-border-color);
+  background: var(--bs-secondary-bg);
+  color: var(--bs-secondary-color);
+  border-left: none;
+  border-radius: 0 8px 8px 0 !important;
+  transition: all 0.2s ease;
+}
+
+.gkm-toggle-visibility-btn:hover {
+  background: var(--bs-tertiary-bg);
+  color: var(--bs-body-color);
+}
+
+.gkm-checkbox .form-check-input {
+  cursor: pointer;
+}
+
+.gkm-checkbox .form-check-label {
+  font-size: 0.85rem;
+  color: var(--bs-secondary-color);
+  cursor: pointer;
+  user-select: none;
+}
+
+.gkm-validation-alert {
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-size: 0.85rem;
+  border: 1px solid rgba(var(--bs-success-rgb), 0.2);
+  animation: slideDown 0.3s ease;
+}
+
+.gkm-validation-alert.alert-danger {
+  border: 1px solid rgba(var(--bs-danger-rgb), 0.2);
+  background-color: rgba(var(--bs-danger-rgb), 0.04);
+}
+
+.gkm-validation-alert.alert-success {
+  background-color: rgba(var(--bs-success-rgb), 0.04);
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── Form Label Font Overrides ────────────────────────────────────── */
+.gkm-modal .form-label {
+  font-family: var(--font-sans) !important;
+  text-transform: none !important;
+  font-size: 0.9rem !important;
+  font-weight: 600 !important;
+  letter-spacing: normal !important;
+  color: var(--bs-body-color) !important;
+}
+

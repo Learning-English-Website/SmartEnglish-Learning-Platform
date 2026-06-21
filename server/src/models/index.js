@@ -30,3 +30,10 @@ require('./notification.model');
 require('./challenge.model');
 require('./challengeOption.model');
 require('./challengeProgress.model');
+
+// AI Module logs
+require('./aiUsageLog.model');
+
+// AI Chatbot Models
+require('./aiChatSession.model');
+require('./aiChatMessage.model');

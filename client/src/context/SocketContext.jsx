@@ -226,6 +226,53 @@ export function SocketProvider({ children }) {
     return () => disconnect();
   }, [auth.isAuthenticated, connect, disconnect]);
 
+  // Register support chat listeners reactively when socket is connected and user is CSKH/Admin
+  useEffect(() => {
+    const socket = socketState;
+    if (!socket) return;
+
+    const isAgent = auth.user?.role === 'admin' || auth.user?.role === 'cskh';
+    if (!isAgent) return;
+
+    const handleGlobalSessionUpdated = (updatedSession) => {
+      if (updatedSession.status === 'waiting') {
+        toast(`Học viên ${updatedSession.student?.username || 'học viên'} đang chờ kết nối hỗ trợ!`, {
+          icon: '🔔',
+          id: `waiting-${updatedSession._id}`,
+          duration: 6000
+        });
+      }
+    };
+
+    const handleGlobalMessageReceive = (payload) => {
+      if (!payload || !payload.session || !payload.message) return;
+      const { message, session: updatedSession } = payload;
+      if (!message || !message._id || message.isSystem) return;
+
+      if (window.location.pathname !== '/admin/support-chat') {
+        const isMe = message.sender === auth.user?._id || message.sender?._id === auth.user?._id;
+        if (!isMe) {
+          const isActiveSession = updatedSession.status === 'waiting' || (updatedSession.status === 'open' && updatedSession.cskh);
+          if (isActiveSession) {
+            toast(`Tin nhắn mới từ ${updatedSession.student?.username || 'học viên'}: ${message.text}`, {
+              icon: '💬',
+              id: message._id
+            });
+          }
+        }
+      }
+    };
+
+    socket.on('support:session:updated', handleGlobalSessionUpdated);
+    socket.on('support:message:receive', handleGlobalMessageReceive);
+
+    return () => {
+      socket.off('support:session:updated', handleGlobalSessionUpdated);
+      socket.off('support:message:receive', handleGlobalMessageReceive);
+    };
+  }, [socketState, isConnected, auth.user]);
+
+
   const markNotificationRead = useCallback((id) => {
     setUnreadCount(prev => Math.max(0, prev - 1));
     setNotifications(prev => prev.map(n => n._id === id ? { ...n, read: true } : n));

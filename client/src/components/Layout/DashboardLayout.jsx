@@ -4,7 +4,7 @@ import {
   Search, Bell, Plus, ChevronLeft, ChevronRight,
   Home, LibraryBig, FolderPlus, Folder, CreditCard,
   Menu, X, Check, LogOut, User, Settings,
-  Compass, BookText, Languages, Sun, Moon, Star, Trash2
+  Compass, BookText, Languages, Sun, Moon, Star, Trash2, MessageSquare
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { folderService } from '../../api/folderService';
@@ -447,6 +447,15 @@ export default function DashboardLayout({ children }) {
               >
                 <Languages size={17} />
                 <span>Học tiếng Anh</span>
+              </NavLink>
+
+              <NavLink
+                to="/ai-chatbot"
+                className={({ isActive }) => `q-nav-item ${isActive ? 'active' : ''}`}
+                onClick={closeMobileSidebar}
+              >
+                <MessageSquare size={17} />
+                <span>Luyện hội thoại AI</span>
               </NavLink>
             </div>
 

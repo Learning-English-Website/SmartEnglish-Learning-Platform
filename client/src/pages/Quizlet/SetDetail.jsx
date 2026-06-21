@@ -9,6 +9,7 @@ import {
   FiChevronLeft, FiChevronRight, FiList,
   FiClock, FiUser, FiBookOpen, FiZap,
   FiGrid, FiLayers, FiTarget, FiCopy, FiUsers,
+  FiCpu,
 } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../../hooks/useAuth';
@@ -46,6 +47,8 @@ import { ConfirmModal } from '../../components/common/Modal/Modal';
 import ShareModal from '../../components/common/ShareModal/ShareModal';
 import Leaderboard from '../../components/gamification/Leaderboard/Leaderboard';
 import PremiumLimitModal from '../../components/common/PremiumLimitModal/PremiumLimitModal';
+import GeminiKeyModal from '../../components/flashcard/GeminiKeyModal/GeminiKeyModal';
+import AiGenerateModal from '../../components/flashcard/AiGenerateModal/AiGenerateModal';
 import './SetDetail.css';
 
 const LAYOUT = { LIST: 'list', GRID: 'grid' };
@@ -94,6 +97,11 @@ export default function SetDetail() {
   const [showShare, setShowShare] = useState(false);
   const [showPremiumModal, setShowPremiumModal] = useState(false);
   const [premiumReason, setPremiumReason] = useState('');
+
+  // AI generation modals
+  const [showGeminiKey, setShowGeminiKey] = useState(false);
+  const [showAiGenerate, setShowAiGenerate] = useState(false);
+  const [aiSaving, setAiSaving] = useState(false);
 
   // Notes tab
   const [selectedCardId, setSelectedCardId] = useState(null);
@@ -307,6 +315,30 @@ export default function SetDetail() {
       } else {
         toast.error(msg);
       }
+    }
+  };
+
+  /* ── AI Draft Save ───────────────────────────────────────────────────── */
+  const handleSaveAiDrafts = async (draftCards) => {
+    setAiSaving(true);
+    try {
+      const res = await cardService.bulkCreate(id, draftCards);
+      const created = res?.data ?? res;
+      const createdArr = Array.isArray(created) ? created : [];
+      setCards((prev) => [...prev, ...createdArr]);
+      setSet((prev) => prev ? { ...prev, cardCount: (prev.cardCount ?? 0) + createdArr.length } : prev);
+      toast.success(`Đã lưu thành công ${createdArr.length} thẻ vào học phần!`);
+    } catch (err) {
+      const msg = err?.response?.data?.error?.message || err?.response?.data?.message || 'Lưu thẻ thất bại.';
+      if (msg.includes('Premium') || msg.includes('miễn phí')) {
+        setPremiumReason(msg);
+        setShowPremiumModal(true);
+      } else {
+        toast.error(msg);
+      }
+      throw err; // rethrow to keep modal open on error
+    } finally {
+      setAiSaving(false);
     }
   };
 
@@ -532,6 +564,10 @@ export default function SetDetail() {
               <div className="sd-terms-actions">
                 {isOwner && (
                   <>
+                    <button className="sd-term-action-btn sd-term-action-btn--ai" onClick={() => setShowAiGenerate(true)}>
+                      <FiCpu size={14} className="me-1" />
+                      Tạo bằng AI
+                    </button>
                     <button className="sd-term-action-btn" onClick={() => setShowBulk(true)}>
                       <FiPlus size={14} />
                       Thêm
@@ -734,6 +770,23 @@ export default function SetDetail() {
         show={showPremiumModal}
         onHide={() => setShowPremiumModal(false)}
         reason={premiumReason}
+      />
+
+      {/* AI Modals */}
+      <GeminiKeyModal
+        show={showGeminiKey}
+        onHide={() => setShowGeminiKey(false)}
+      />
+      <AiGenerateModal
+        show={showAiGenerate}
+        onHide={() => setShowAiGenerate(false)}
+        setId={id}
+        onConfirmSave={handleSaveAiDrafts}
+        saving={aiSaving}
+        onOpenKeyModal={() => {
+          setShowAiGenerate(false);
+          setShowGeminiKey(true);
+        }}
       />
     </div>
   );

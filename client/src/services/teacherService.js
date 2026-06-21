@@ -31,6 +31,7 @@ export const teacherService = {
   getLesson: (id) => axiosClient.get(`${BASE}/lessons/${id}`),
   reorderChallenges: (lessonId, challengeIds) => axiosClient.put(`${BASE}/lessons/${lessonId}/reorder-challenges`, { challengeIds }),
   createLesson: (data) => axiosClient.post(`${BASE}/lessons`, data),
+  saveAiLesson: (unitId, data) => axiosClient.post(`${BASE}/units/${unitId}/lessons/ai-save`, data),
   updateLesson: (id, data) => axiosClient.put(`${BASE}/lessons/${id}`, data),
   deleteLesson: (id) => axiosClient.delete(`${BASE}/lessons/${id}`),
 

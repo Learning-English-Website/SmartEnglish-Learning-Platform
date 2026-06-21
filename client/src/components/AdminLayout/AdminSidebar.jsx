@@ -92,10 +92,14 @@ export default function AdminSidebar({ collapsed, onToggle }) {
       const { session: updatedSession } = payload;
       setSessions(prev => {
         const index = prev.findIndex(s => s._id === updatedSession._id);
+        const isActive = updatedSession.status === 'waiting' || (updatedSession.status === 'open' && updatedSession.cskh);
+        if (!isActive) {
+          return prev.filter(s => s._id !== updatedSession._id);
+        }
         let newSessions = [...prev];
         if (index !== -1) {
           newSessions[index] = updatedSession;
-        } else if (updatedSession.status === 'open') {
+        } else {
           newSessions.push(updatedSession);
         }
         return newSessions;
@@ -105,7 +109,8 @@ export default function AdminSidebar({ collapsed, onToggle }) {
     const handleSessionUpdated = (updatedSession) => {
       if (!updatedSession) return;
       setSessions(prev => {
-        if (updatedSession.status === 'closed') {
+        const isActive = updatedSession.status === 'waiting' || (updatedSession.status === 'open' && updatedSession.cskh);
+        if (!isActive) {
           return prev.filter(s => s._id !== updatedSession._id);
         }
         const index = prev.findIndex(s => s._id === updatedSession._id);

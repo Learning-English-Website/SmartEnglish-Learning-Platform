@@ -562,6 +562,182 @@ const deleteDailyChallenge = async (req, res) => {
   res.json(ApiResponse.success(null, 'Daily challenge deleted successfully'));
 };
 
+const saveAiLessonWithChallenges = async (req, res, next) => {
+  const { unitId } = req.params;
+  const { lesson: lessonInput, challenges: challengesInput } = req.body;
+
+  // 1. Basic validation
+  const mongoose = require('mongoose');
+  if (!mongoose.Types.ObjectId.isValid(unitId)) {
+    throw new AppError('Mã Chương học (unitId) không hợp lệ.', 400);
+  }
+
+  const unit = await Unit.findById(unitId);
+  if (!unit) {
+    throw new AppError('Chương học không tồn tại.', 404);
+  }
+
+  if (!lessonInput || !lessonInput.title || !lessonInput.title.trim()) {
+    throw new AppError('Thiếu tiêu đề bài học.', 400);
+  }
+
+  if (!Array.isArray(challengesInput) || challengesInput.length === 0) {
+    throw new AppError('Mảng câu hỏi không được để trống.', 400);
+  }
+
+  // 2. Validate & Clean challenges input
+  const validChallenges = [];
+  for (const ch of challengesInput) {
+    if (!ch || !ch.type || !ch.question) continue;
+
+    const type = String(ch.type).trim().toUpperCase();
+    if (!['ASSIST', 'TRANSLATE', 'FILL', 'ORDER'].includes(type)) continue;
+
+    const question = String(ch.question).trim().slice(0, 500);
+    const correctAnswer = ch.correctAnswer ? String(ch.correctAnswer).trim().slice(0, 500) : '';
+
+    if (!question) continue;
+
+    if (type === 'ASSIST' || type === 'FILL') {
+      if (!Array.isArray(ch.options) || ch.options.length < 2 || ch.options.length > 6) continue;
+
+      const cleanedOptions = ch.options.map(opt => ({
+        text: opt && opt.text ? String(opt.text).trim().slice(0, 200) : '',
+        correct: opt ? !!opt.correct : false
+      })).filter(opt => opt.text.length > 0);
+
+      if (cleanedOptions.length < 2) continue;
+
+      const correctOpts = cleanedOptions.filter(opt => opt.correct === true);
+      if (correctOpts.length !== 1) continue;
+
+      const payload = {
+        type,
+        question,
+        correctAnswer: correctOpts[0].text,
+        options: cleanedOptions
+      };
+
+      if (type === 'FILL') {
+        const sentence = ch.sentence ? String(ch.sentence).trim().slice(0, 500) : '';
+        if (!sentence) continue;
+        payload.sentence = sentence;
+      }
+      validChallenges.push(payload);
+
+    } else if (type === 'TRANSLATE') {
+      if (!correctAnswer) continue;
+      const rawSource = String(ch.sourceLang || '').trim().toLowerCase();
+      const rawTarget = String(ch.targetLang || '').trim().toLowerCase();
+      const sourceLang = ['en', 'vi'].includes(rawSource) ? rawSource : 'vi';
+      const targetLang = ['en', 'vi'].includes(rawTarget) ? rawTarget : 'en';
+
+      validChallenges.push({
+        type,
+        question,
+        correctAnswer,
+        sourceLang,
+        targetLang
+      });
+
+    } else if (type === 'ORDER') {
+      if (!Array.isArray(ch.wordBank) || ch.wordBank.length === 0) continue;
+      const cleanedWordBank = ch.wordBank.map(w => w ? String(w).trim().slice(0, 100) : '').filter(Boolean);
+      const n = cleanedWordBank.length;
+      if (n === 0) continue;
+
+      if (!Array.isArray(ch.correctOrder) || ch.correctOrder.length !== n) continue;
+      const isPermutation = ch.correctOrder.every(idx => Number.isInteger(idx) && idx >= 0 && idx < n) && new Set(ch.correctOrder).size === n;
+      if (!isPermutation) continue;
+
+      const derivedAnswer = ch.correctOrder.map(idx => cleanedWordBank[idx]).join(' ');
+
+      validChallenges.push({
+        type,
+        question,
+        wordBank: cleanedWordBank,
+        correctOrder: ch.correctOrder,
+        correctAnswer: derivedAnswer.slice(0, 500)
+      });
+    }
+  }
+
+  if (validChallenges.length === 0) {
+    throw new AppError('Không tìm thấy câu hỏi/bài tập hợp lệ nào sau khi kiểm tra.', 422);
+  }
+
+  // 3. Compute dynamic order (max + 1)
+  const lastLesson = await Lesson.findOne({ unit: unitId }).sort({ order: -1 }).select('order');
+  const nextOrder = lastLesson ? lastLesson.order + 1 : 1;
+
+  // 4. Save with Rollback Mechanism
+  let createdLesson = null;
+  const createdChallengeIds = [];
+
+  try {
+    // Create Lesson
+    createdLesson = await Lesson.create({
+      unit: unitId,
+      title: lessonInput.title.trim().slice(0, 200),
+      subtitle: lessonInput.subtitle ? lessonInput.subtitle.trim().slice(0, 300) : '',
+      grammarFocus: Array.isArray(lessonInput.grammarFocus) ? lessonInput.grammarFocus.map(g => String(g).trim().slice(0, 100)).filter(Boolean) : [],
+      vocabFocus: Array.isArray(lessonInput.vocabFocus) ? lessonInput.vocabFocus.map(v => String(v).trim().slice(0, 100)).filter(Boolean) : [],
+      xpReward: parseInt(lessonInput.xpReward, 10) || 10,
+      estimatedMinutes: parseInt(lessonInput.estimatedMinutes, 10) || 5,
+      type: lessonInput.type === 'practice' ? 'practice' : 'challenge',
+      isLocked: true, // defaults to locked, no auto-publish
+      order: nextOrder
+    });
+
+    // Create Challenges and Options
+    for (let i = 0; i < validChallenges.length; i++) {
+      const ch = validChallenges[i];
+      const challengeDoc = await Challenge.create({
+        lesson: createdLesson._id,
+        type: ch.type,
+        question: ch.question,
+        correctAnswer: ch.correctAnswer,
+        sourceLang: ch.sourceLang,
+        targetLang: ch.targetLang,
+        wordBank: ch.wordBank,
+        correctOrder: ch.correctOrder,
+        sentence: ch.sentence,
+        order: i
+      });
+
+      createdChallengeIds.push(challengeDoc._id);
+
+      // Create ChallengeOptions if applicable
+      if (ch.options && Array.isArray(ch.options) && ch.options.length > 0) {
+        const optionDocs = ch.options.map(opt => ({
+          challenge: challengeDoc._id,
+          text: opt.text,
+          correct: opt.correct
+        }));
+        await ChallengeOption.insertMany(optionDocs);
+      }
+    }
+
+    res.status(201).json(ApiResponse.success(createdLesson, 'Tạo bài học bằng AI thành công.'));
+  } catch (err) {
+    console.error('[AI Save Rollback] Error detected, restoring state...', err);
+    // Cleanup if anything fails mid-way
+    try {
+      if (createdChallengeIds.length > 0) {
+        await ChallengeOption.deleteMany({ challenge: { $in: createdChallengeIds } });
+        await Challenge.deleteMany({ _id: { $in: createdChallengeIds } });
+      }
+      if (createdLesson) {
+        await Lesson.findByIdAndDelete(createdLesson._id);
+      }
+    } catch (cleanupErr) {
+      console.error('[AI Save Rollback Failure] Critical: Cleanup failed:', cleanupErr);
+    }
+    
+    throw new AppError(err.message || 'Lưu bài học thất bại. Tiến trình đã được khôi phục.', 500);
+  }
+};
+
 module.exports = {
   getCourses, getCourse, createCourse, updateCourse, deleteCourse,
   getUnits, getUnit, createUnit, updateUnit, deleteUnit,
@@ -570,4 +746,5 @@ module.exports = {
   getChallengeOptions, createChallengeOption, updateChallengeOption, deleteChallengeOption,
   getCourseTree, reorderUnits, reorderLessons, reorderChallenges,
   getDailyChallenges, saveDailyChallenge, deleteDailyChallenge,
+  saveAiLessonWithChallenges,
 };

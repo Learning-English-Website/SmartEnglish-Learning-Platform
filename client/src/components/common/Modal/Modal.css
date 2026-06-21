@@ -49,3 +49,38 @@
 .btn-close:hover {
   opacity: 1;
 }
+
+/* Center all modals globally in the viewport */
+body .modal.show {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+body .modal-dialog {
+  margin: 0 auto !important;
+  position: relative !important;
+  left: 0 !important;
+  right: 0 !important;
+  transition: transform 0.3s ease-out, width 0.3s ease-out, max-width 0.3s ease-out !important;
+}
+
+/* Expand the modal dialog width when the draft table is present */
+body .modal-dialog:has(.am-draft-section) {
+  max-width: 95% !important;
+  width: 95% !important;
+}
+
+@media (min-width: 992px) {
+  body .modal-dialog:has(.am-draft-section) {
+    max-width: 92% !important;
+    width: 92% !important;
+  }
+}
+
+@media (min-width: 1400px) {
+  body .modal-dialog:has(.am-draft-section) {
+    max-width: 85% !important;
+    width: 1350px !important;
+  }
+}

@@ -1,0 +1,336 @@
+/* AI Generate Modal CSS styling */
+.am-modal.show {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.am-modal .modal-dialog {
+  display: flex;
+  align-items: center;
+  min-height: auto;
+  margin: 0 auto !important;
+  position: relative !important;
+  left: 0 !important;
+  right: 0 !important;
+  transition: all 0.3s ease;
+}
+
+/* 1. Configuration Modal styling (Step 1) */
+.am-modal-dialog--config {
+  max-width: 620px !important;
+  width: 100% !important;
+}
+
+/* 2. Draft Modal styling (Step 2 Preview) */
+/* CSS :has selector ensures that if the draft list is rendered inside the dialog, it expands instantly */
+@media (min-width: 576px) {
+  .am-modal-dialog--draft,
+  .am-modal-dialog--config:has(.am-draft-section),
+  .am-modal .modal-dialog:has(.am-draft-section) {
+    max-width: 95% !important;
+    width: 95% !important;
+  }
+}
+
+@media (min-width: 992px) {
+  .am-modal-dialog--draft,
+  .am-modal-dialog--config:has(.am-draft-section),
+  .am-modal .modal-dialog:has(.am-draft-section) {
+    max-width: 92% !important;
+    width: 92% !important;
+  }
+}
+
+@media (min-width: 1400px) {
+  .am-modal-dialog--draft,
+  .am-modal-dialog--config:has(.am-draft-section),
+  .am-modal .modal-dialog:has(.am-draft-section) {
+    max-width: 85% !important;
+    width: 1350px !important;
+  }
+}
+
+.am-modal .modal-content {
+  border-radius: 16px;
+  border: 1px solid var(--bs-border-color);
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
+  background: var(--bs-body-bg);
+  overflow: hidden;
+  position: relative;
+  width: 100%;
+}
+
+.am-header {
+  border-bottom: 1px solid var(--bs-border-color-translucent);
+  padding: 20px 24px;
+  background: var(--bs-tertiary-bg);
+}
+
+.am-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--bs-body-color);
+}
+
+.am-title-icon {
+  color: var(--bs-primary);
+  animation: pulse-ai 2s infinite ease-in-out;
+}
+
+.am-body {
+  padding: 24px;
+  position: relative;
+  min-height: 250px;
+}
+
+/* Tabs styling */
+.am-tabs {
+  border-bottom: 1px solid var(--bs-border-color-translucent);
+}
+
+.am-tabs .nav-link {
+  color: var(--bs-secondary-color);
+  font-weight: 600;
+  border: none;
+  padding: 10px 16px;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.am-tabs .nav-link.active {
+  color: var(--bs-primary);
+  background: transparent;
+}
+
+.am-tabs .nav-link.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--bs-primary);
+  border-radius: 3px 3px 0 0;
+}
+
+.am-input-control {
+  border-radius: 8px;
+  padding: 10px 14px;
+  border: 1px solid var(--bs-border-color);
+  background-color: var(--bs-body-bg);
+  color: var(--bs-body-color);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.am-input-control:focus {
+  border-color: var(--bs-primary);
+  box-shadow: 0 0 0 3px rgba(var(--bs-primary-rgb), 0.15);
+  outline: none;
+  background-color: var(--bs-body-bg);
+}
+
+/* Loading Overlay */
+.am-loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(var(--bs-body-bg-rgb), 0.85);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1050;
+  animation: fadeIn 0.3s ease;
+}
+
+.am-loading-content {
+  text-align: center;
+  max-width: 400px;
+  padding: 24px;
+}
+
+.am-spinner {
+  width: 3.5rem;
+  height: 3.5rem;
+  border-width: 0.3em;
+}
+
+.am-loading-title {
+  font-weight: 700;
+  margin-top: 16px;
+  color: var(--bs-body-color);
+}
+
+.am-loading-text {
+  font-size: 0.9rem;
+  margin-top: 8px;
+  min-height: 48px;
+  animation: text-pulse 1.5s infinite alternate;
+}
+
+/* Draft Table Styling */
+.am-table-responsive {
+  max-height: 500px;
+  overflow-y: auto;
+  border-radius: 10px;
+  border: 1px solid var(--bs-border-color);
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.am-draft-table {
+  margin: 0;
+  background-color: var(--bs-body-bg);
+}
+
+.am-draft-table th {
+  background: var(--bs-tertiary-bg);
+  color: var(--bs-secondary-color);
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 12px 16px;
+  border-bottom: 2px solid var(--bs-border-color);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  text-align: center;
+}
+
+.am-draft-table td {
+  padding: 8px 12px;
+  border-color: var(--bs-border-color-translucent);
+}
+
+/* Inline Table Inputs */
+.am-table-input {
+  border: 1px solid transparent !important;
+  background-color: transparent !important;
+  padding: 6px 10px !important;
+  border-radius: 6px !important;
+  font-size: 0.9rem !important;
+  width: 100% !important;
+  color: var(--bs-body-color) !important;
+  transition: all 0.2s ease !important;
+  box-shadow: none !important;
+  font-family: var(--font-sans) !important;
+}
+
+.am-table-input:hover {
+  background-color: var(--bs-secondary-bg) !important;
+  border-color: var(--bs-border-color) !important;
+}
+
+.am-table-input:focus {
+  background-color: var(--bs-body-bg) !important;
+  border-color: var(--bs-primary) !important;
+  box-shadow: 0 0 0 2px rgba(var(--bs-primary-rgb), 0.1) !important;
+  outline: none !important;
+}
+
+.am-table-input.is-invalid {
+  border-color: var(--bs-danger) !important;
+  background-color: rgba(var(--bs-danger-rgb), 0.05) !important;
+}
+
+.am-table-del-btn {
+  padding: 6px 10px;
+  border-radius: 6px;
+}
+
+/* Animations */
+@keyframes pulse-ai {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.15);
+    opacity: 0.85;
+  }
+}
+
+@keyframes text-pulse {
+  0% { opacity: 0.7; }
+  100% { opacity: 1; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.cursor-pointer {
+  cursor: pointer;
+}
+
+/* Key Alerts */
+.am-key-alert {
+  border-radius: 10px;
+  border: 1px solid rgba(var(--bs-warning-rgb), 0.3);
+}
+
+.text-xs {
+  font-size: 0.75rem;
+}
+
+/* ── Form Label Font Overrides ────────────────────────────────────── */
+.am-modal .form-label {
+  font-family: var(--font-sans) !important;
+  text-transform: none !important;
+  font-size: 0.9rem !important;
+  font-weight: 600 !important;
+  letter-spacing: normal !important;
+  color: var(--bs-body-color) !important;
+}
+
+/* ── Elegant & Slimmer Button Styling ──────────────────────────────── */
+.am-modal .am-btn-slim {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 0.85rem !important;
+  font-weight: 500 !important;
+  padding: 6px 16px !important;
+  height: 36px !important;
+  border-radius: 8px !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  letter-spacing: 0.1px;
+}
+
+.am-modal .am-btn-slim svg {
+  font-size: 0.95rem;
+}
+
+.am-modal .am-btn-slim:active {
+  transform: scale(0.98);
+}
+
+/* ── Modal Footer Layout ─────────────────────────────────────────── */
+.am-modal .am-modal-footer {
+  border-top: 1px solid var(--bs-border-color-translucent);
+  padding-top: 16px;
+  margin-top: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* ── Header Badge Count ───────────────────────────────────────────── */
+.am-modal .am-badge-count {
+  background-color: rgba(var(--bs-primary-rgb), 0.08) !important;
+  color: var(--bs-primary) !important;
+  border: 1px solid rgba(var(--bs-primary-rgb), 0.15) !important;
+  font-weight: 600 !important;
+  font-size: 0.75rem !important;
+  padding: 4px 10px !important;
+  border-radius: 20px !important;
+}
+

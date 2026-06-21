@@ -30,6 +30,7 @@ const DuolingoHomePage = lazy(() => import('./pages/Duolingo/DuolingoHomePage'))
 const CoursesPage = lazy(() => import('./pages/Duolingo/CoursesPage'));
 const DuolingoLearnPage = lazy(() => import('./pages/Duolingo/LearnPage'));
 const LessonPage = lazy(() => import('./pages/Duolingo/LessonPage'));
+const ChatPage = lazy(() => import('./pages/Duolingo/ChatPage'));
 const Browse = lazy(() => import('./pages/Quizlet/Browse'));
 const StudyPage = lazy(() => import('./pages/Quizlet/StudyPage'));
 const SharedSet = lazy(() => import('./pages/Quizlet/SharedSet'));
@@ -122,6 +123,7 @@ const router = createBrowserRouter([
       { path: '/duolingo/courses', element: withSuspense(<CoursesPage />) },
       { path: '/duolingo/learn', element: withSuspense(<DuolingoLearnPage />) },
       { path: '/duolingo/lesson/:lessonId', element: withSuspense(<LessonPage />) },
+      { path: '/ai-chatbot', element: withSuspense(<ChatPage />) },
       { path: '/profile', element: withSuspense(<ProfilePage />) },
       { path: '/user/profile', element: withSuspense(<ProfilePage />) },
       { path: '/profile/edit', element: withSuspense(<EditProfilePage />) },

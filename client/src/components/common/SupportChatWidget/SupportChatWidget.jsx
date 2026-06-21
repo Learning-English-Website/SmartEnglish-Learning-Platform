@@ -3,7 +3,7 @@ import { useSocket } from '../../../context/SocketContext';
 import { useAuth } from '../../../hooks/useAuth';
 import axiosClient from '../../../api/axiosClient';
 import { adminService } from '../../../services/adminService';
-import { MessageSquare, MessageCircle, Send, X, Plus, AlertCircle, Trash2, Image as ImageIcon } from 'lucide-react';
+import { MessageSquare, MessageCircle, Send, X, Plus, AlertCircle, Trash2, Image as ImageIcon, Headphones } from 'lucide-react';
 import toast from 'react-hot-toast';
 import './SupportChatWidget.css';
 
@@ -89,17 +89,21 @@ export default function SupportChatWidget() {
     if (!isAuthenticated || !socket) return;
 
     const handleNewMessage = (payload) => {
-      // Support raw message or { message, session } payload formats
       const msg = payload && payload.message ? payload.message : payload;
-      if (!msg || !msg._id || !msg.sender) return;
+      if (!msg || !msg._id) return;
+      if (!msg.isSystem && !msg.sender) return;
 
       setMessages(prev => {
         if (prev.some(m => m._id === msg._id)) return prev;
         return [...prev, msg];
       });
 
+      if (payload && payload.session) {
+        setSession(payload.session);
+      }
+
       const isMe = msg.sender === user?._id || (msg.sender?._id === user?._id);
-      if (!isMe) {
+      if (!isMe && !msg.isSystem) {
         if (!isOpen || activeTab !== 'chat') {
           setUnreadCount(prev => prev + 1);
           toast(`Tin nhắn mới từ Hỗ trợ viên: ${msg.text}`, { icon: '💬', id: msg._id });
@@ -145,6 +149,19 @@ export default function SupportChatWidget() {
       });
     } catch {
       toast.error('Không thể gửi tin nhắn. Thử lại sau.');
+    }
+  };
+
+  // Request human CSKH
+  const handleRequestCSKH = async () => {
+    if (!isAuthenticated) return;
+    try {
+      const res = await axiosClient.post('/support-chat/request-cskh');
+      setSession(res.data);
+      toast.success('Đã gửi yêu cầu kết nối với nhân viên hỗ trợ.');
+    } catch (err) {
+      const errMsg = err.response?.data?.message || 'Yêu cầu kết nối thất bại.';
+      toast.error(errMsg);
     }
   };
 
@@ -319,9 +336,37 @@ export default function SupportChatWidget() {
                 <div style={{ fontSize: '0.7rem', opacity: 0.9 }}>Luôn sẵn sàng trợ giúp</div>
               </div>
             </div>
-            <button className="support-card-close-btn" onClick={() => setIsOpen(false)}>
-              <X size={16} />
-            </button>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              {isAuthenticated && activeTab === 'chat' && (
+                <button
+                  type="button"
+                  className={`support-request-cskh-btn ${session?.status === 'waiting' ? 'waiting' : ''}`}
+                  onClick={handleRequestCSKH}
+                  disabled={session?.status === 'waiting' || (session?.cskh !== null && session?.cskh !== undefined)}
+                  title={
+                    session?.cskh
+                      ? "Đang có nhân viên hỗ trợ"
+                      : session?.status === 'waiting'
+                        ? "Đang chờ kết nối..."
+                        : "Yêu cầu gặp tư vấn viên"
+                  }
+                >
+                  <Headphones size={13} />
+                  <span className="support-request-btn-text">
+                    {session?.cskh
+                      ? "Đã kết nối"
+                      : session?.status === 'waiting'
+                        ? "Đang chờ..."
+                        : session?.status === 'closed'
+                          ? "Kết nối lại"
+                          : "Gặp nhân viên"}
+                  </span>
+                </button>
+              )}
+              <button className="support-card-close-btn" onClick={() => setIsOpen(false)}>
+                <X size={16} />
+              </button>
+            </div>
           </div>
 
           {/* Tabs */}
@@ -353,34 +398,77 @@ export default function SupportChatWidget() {
                 ) : (
                   <>
                     {messages.map((msg) => {
-                      if (!msg || !msg.sender) return null;
+                      if (!msg) return null;
+
+                      // Render system messages
+                      if (msg.isSystem) {
+                        return (
+                          <div key={msg._id} className="support-chat-msg-system">
+                            <span className="support-system-text">{msg.text}</span>
+                          </div>
+                        );
+                      }
+
+                      if (!msg.sender) return null;
+
                       const isMe = msg.sender === user?._id || (msg.sender?._id === user?._id);
+                      const isAi = msg.sender?.email === 'ai-assistant@smartenglish.com' || msg.sender?.username === 'AI Assistant';
+                      const senderName = isAi ? 'Trợ lý AI' : (msg.sender?.username || 'Hỗ trợ viên');
+                      const avatarUrl = msg.sender?.avatar;
+
                       return (
-                        <div key={msg._id} className={`support-chat-msg-row ${isMe ? 'sent' : 'received'}`}>
-                          <div className="support-bubble" style={{ padding: msg.image ? '4px' : '10px 14px', maxWidth: '75%', wordBreak: 'break-word' }}>
-                            {msg.image && (
-                              <a href={getFullUrl(msg.image)} target="_blank" rel="noopener noreferrer" title="Click để xem ảnh lớn">
-                                <img 
-                                  src={getFullUrl(msg.image)} 
-                                  alt="attachment" 
-                                  style={{ maxWidth: '100%', maxHeight: '180px', borderRadius: '8px', display: 'block', cursor: 'zoom-in' }} 
-                                />
-                              </a>
+                        <div key={msg._id} className={`support-chat-msg-row ${isMe ? 'sent' : 'received'} ${isAi ? 'ai-msg' : ''}`}>
+                          {!isMe && (
+                            <div className="support-msg-avatar-container">
+                              {isAi ? (
+                                <div className="support-ai-avatar-badge" title="Trợ lý AI">
+                                  🤖
+                                </div>
+                              ) : avatarUrl ? (
+                                <img src={getFullUrl(avatarUrl)} alt="avatar" className="support-msg-avatar-img" />
+                              ) : (
+                                <div className="support-msg-avatar-fallback">{senderName.charAt(0)}</div>
+                              )}
+                            </div>
+                          )}
+                          <div className="support-bubble-container">
+                            {!isMe && (
+                              <div className="support-msg-sender-name">
+                                {senderName}
+                                {isAi && <span className="support-ai-badge">Bot</span>}
+                              </div>
                             )}
-                            {msg.text && (
-                              <div style={{ padding: msg.image ? '8px 10px 4px' : '0' }}>{msg.text}</div>
-                            )}
+                            <div className="support-bubble" style={{ padding: msg.image ? '4px' : '10px 14px', maxWidth: '100%', wordBreak: 'break-word' }}>
+                              {msg.image && (
+                                <a href={getFullUrl(msg.image)} target="_blank" rel="noopener noreferrer" title="Click để xem ảnh lớn">
+                                  <img 
+                                    src={getFullUrl(msg.image)} 
+                                    alt="attachment" 
+                                    style={{ maxWidth: '100%', maxHeight: '180px', borderRadius: '8px', display: 'block', cursor: 'zoom-in' }} 
+                                  />
+                                </a>
+                              )}
+                              {msg.text && (
+                                <div style={{ padding: msg.image ? '8px 10px 4px' : '0' }}>{msg.text}</div>
+                              )}
+                            </div>
                           </div>
                         </div>
                       );
                     })}
                     {cskhIsTyping && (
                       <div className="support-chat-msg-row received">
-                        <div className="support-bubble typing-bubble" style={{ display: 'flex', alignItems: 'center', minHeight: 38 }}>
-                          <div className="typing-indicator-dots">
-                            <span></span>
-                            <span></span>
-                            <span></span>
+                        <div className="support-msg-avatar-container">
+                          <div className="support-msg-avatar-fallback">H</div>
+                        </div>
+                        <div className="support-bubble-container">
+                          <div className="support-msg-sender-name">Đang trả lời...</div>
+                          <div className="support-bubble typing-bubble" style={{ display: 'flex', alignItems: 'center', minHeight: 38 }}>
+                            <div className="typing-indicator-dots">
+                              <span></span>
+                              <span></span>
+                              <span></span>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -391,20 +479,53 @@ export default function SupportChatWidget() {
               </div>
 
               {/* Chat Input */}
+              {session?.status === 'waiting' && (
+                <div className="support-waiting-banner">
+                  <div className="support-waiting-pulse" />
+                  <span>Đang kết nối với nhân viên hỗ trợ...</span>
+                </div>
+              )}
+              {session?.status === 'closed' && (
+                <div className="support-closed-banner" style={{
+                  background: 'rgba(239, 68, 68, 0.05)',
+                  padding: '8px 12px',
+                  margin: '8px 12px 0 12px',
+                  borderRadius: '8px',
+                  fontSize: '0.75rem',
+                  color: '#2563eb',
+                  textAlign: 'center',
+                  border: '1px solid rgba(37, 99, 235, 0.15)',
+                  fontWeight: 500
+                }}>
+                  Nhân viên hỗ trợ đã kết thúc phiên. Bạn vẫn có thể nhắn tiếp với Trợ lý AI hoặc bấm Kết nối lại để gặp nhân viên.
+                </div>
+              )}
               <form className="support-chat-footer" onSubmit={handleSendMessage} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <label className="support-chat-upload-btn" title="Gửi hình ảnh" style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', color: 'var(--text-muted, #94a3b8)', padding: '6px' }}>
+                <label 
+                  className="support-chat-upload-btn" 
+                  title="Gửi hình ảnh" 
+                  style={{ 
+                    cursor: loadingHistory ? 'not-allowed' : 'pointer', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    color: 'var(--text-muted, #94a3b8)', 
+                    padding: '6px',
+                    opacity: loadingHistory ? 0.5 : 1
+                  }}
+                >
                   <ImageIcon size={18} />
                   <input
                     type="file"
                     accept="image/*"
                     onChange={handleChatImageUpload}
+                    disabled={loadingHistory}
                     style={{ display: 'none' }}
                   />
                 </label>
                 <input
                   type="text"
                   className="support-chat-input"
-                  placeholder="Nhập tin nhắn..."
+                  placeholder={session?.status === 'closed' ? "Nhập tin nhắn để chat tiếp với Trợ lý AI..." : "Nhập tin nhắn..."}
                   value={chatInput}
                   onChange={handleChatInputChange}
                   disabled={loadingHistory}
