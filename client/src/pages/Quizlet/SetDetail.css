@@ -1017,3 +1017,19 @@
 .sd-modern-page::-webkit-scrollbar-thumb:hover {
   background: var(--sd-text-muted);
 }
+
+/* ── AI Generate Button ─────────────────────────────────────────── */
+.sd-term-action-btn--ai {
+  background: linear-gradient(135deg, rgba(var(--bs-primary-rgb), 0.08), rgba(var(--bs-info-rgb), 0.12));
+  border: 1px solid rgba(var(--bs-primary-rgb), 0.2) !important;
+  color: var(--bs-primary);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+}
+
+.sd-term-action-btn--ai:hover {
+  background: linear-gradient(135deg, var(--bs-primary), var(--bs-info)) !important;
+  color: #fff !important;
+  box-shadow: 0 4px 12px rgba(var(--bs-primary-rgb), 0.25) !important;
+  transform: translateY(-1px);
+}
+

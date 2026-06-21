@@ -930,3 +930,66 @@
   }
 }
 
+/* ── Support Chat Custom Styles ───────────────────────────────────────────── */
+
+.support-tab-container {
+  display: flex;
+  gap: 8px;
+  padding: 10px;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+
+.support-tab-button {
+  flex: 1;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-page);
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.support-tab-button.active {
+  background: var(--color-primary, #6366f1);
+  color: white;
+  border-color: var(--color-primary, #6366f1);
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.25);
+}
+
+.support-tab-button:hover:not(.active) {
+  background: var(--bg-hover);
+  color: var(--text-heading);
+}
+
+.waiting-badge-pulse {
+  background-color: #ef4444;
+  color: white;
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 4px;
+  animation: supportPulse 1.5s infinite;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+@keyframes supportPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
+}
+
+

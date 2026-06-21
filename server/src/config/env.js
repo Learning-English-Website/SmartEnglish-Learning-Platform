@@ -16,6 +16,16 @@ const envSchema = Joi.object({
   SMTP_FROM: Joi.string().optional(),
   RESEND_API_KEY: Joi.string().optional(),
   CLIENT_URL: Joi.string().default('http://localhost:5173'),
+  COOKIE_SECRET: Joi.string().when('NODE_ENV', {
+    is: 'test',
+    then: Joi.optional().default('test_cookie_secret_value_32_bytes_long'),
+    otherwise: Joi.required()
+  }),
+  AI_KEY_ENCRYPTION_SECRET: Joi.string().when('NODE_ENV', {
+    is: 'test',
+    then: Joi.optional().default('test_ai_key_encryption_secret_value_32_bytes_long'),
+    otherwise: Joi.required()
+  }),
 }).unknown();
 
 const { value: env, error } = envSchema.validate(process.env);

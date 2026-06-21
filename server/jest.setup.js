@@ -77,6 +77,7 @@ beforeAll(async () => {
   require('./src/models/challenge.model');
   require('./src/models/challengeProgress.model');
   require('./src/models/userProgress.model');
+  require('./src/models/aiUsageLog.model');
 
   mongoServer = await MongoMemoryServer.create();
   const mongoUri = mongoServer.getUri();

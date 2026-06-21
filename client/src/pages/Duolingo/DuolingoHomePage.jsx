@@ -105,14 +105,88 @@ export default function DuolingoHomePage() {
             </Col>
           </Row>
 
-          {/* Challenge + Quests (Top section) */}
+          {/* Challenge + Chatbot + Quests (Top section) */}
           <Row className="memoris-home-widgets-row g-4">
-            <Col lg={6}>
+            <Col lg={4}>
               <div className="memoris-home-widget-stretch" style={{ height: '100%', overflow: 'auto' }}>
                 <DailyChallengeCard />
               </div>
             </Col>
-            <Col lg={6}>
+            
+            <Col lg={4}>
+              <motion.div
+                whileHover={{ y: -5, scale: 1.02 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                className="memoris-home-widget-stretch chatbot-promo-card"
+                onClick={() => navigate('/ai-chatbot')}
+                style={{
+                  background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.12) 0%, rgba(99, 91, 255, 0.12) 100%)',
+                  backdropFilter: 'blur(20px)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: '24px',
+                  padding: '2rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  cursor: 'pointer',
+                  boxShadow: 'var(--card-shadow)',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  minHeight: '320px'
+                }}
+              >
+                <div className="card-shine" style={{
+                  position: 'absolute',
+                  top: '-50%',
+                  left: '-50%',
+                  width: '200%',
+                  height: '200%',
+                  background: 'radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 60%)',
+                  pointerEvents: 'none'
+                }}></div>
+                <div>
+                  <div className="promo-badge" style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.25rem',
+                    background: 'rgba(6, 182, 212, 0.15)',
+                    color: '#06b6d4',
+                    padding: '0.35rem 0.75rem',
+                    borderRadius: '100px',
+                    fontSize: '0.8rem',
+                    fontWeight: 700,
+                    marginBottom: '1.5rem'
+                  }}>
+                    <Sparkles size={12} />
+                    <span>AI CHATBOT</span>
+                  </div>
+                  <h3 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '0.75rem', color: 'var(--text-heading)' }}>
+                    Luyện Hội Thoại AI
+                  </h3>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.92rem', lineHeight: 1.5 }}>
+                    Trò chuyện trực tiếp cùng AI nhập vai người phục vụ, giáo sư đại học hoặc nhà tuyển dụng để nâng phản xạ giao tiếp tự nhiên.
+                  </p>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '1.5rem' }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--gl-tertiary)' }}>Bắt đầu trò chuyện</span>
+                  <div style={{
+                    width: '40px',
+                    height: '40px',
+                    borderRadius: '12px',
+                    background: 'var(--gl-tertiary)',
+                    color: '#fff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 4px 12px rgba(99, 91, 255, 0.3)'
+                  }}>
+                    <ArrowRight size={18} />
+                  </div>
+                </div>
+              </motion.div>
+            </Col>
+
+            <Col lg={4}>
               <div className="memoris-home-widget-stretch memoris-home-quests-card">
                 <div className="memoris-home-quests-scroll">
                   <QuestsPanel />

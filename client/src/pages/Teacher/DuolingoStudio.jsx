@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  Plus, Edit3, Trash2, Folder, FileText, Target, Play, Save, ChevronRight, ChevronDown, MoveUp, MoveDown, BookOpen, Volume2, HelpCircle, Check, AlertCircle, Copy
+  Plus, Edit3, Trash2, Folder, FileText, Target, Play, Save, ChevronRight, ChevronDown, MoveUp, MoveDown, BookOpen, Volume2, HelpCircle, Check, AlertCircle, Copy, Sparkles
 } from 'lucide-react';
 import { teacherService } from '../../services/teacherService';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import ImageUploader from '../../components/media/ImageUploader';
+import AiLessonModal from '../../components/Teacher/AiLessonModal/AiLessonModal';
 import './DuolingoStudio.css';
 
 const CHALLENGE_TYPES = [
@@ -58,6 +59,14 @@ export default function DuolingoStudio() {
   const [unitForm, setUnitForm] = useState({ title: '', summary: '', description: '', order: 0, xpReward: 10, isLockedDefault: true });
   const [lessonForm, setLessonForm] = useState({ title: '', subtitle: '', order: 0, xpReward: 5, estimatedMinutes: 5, grammarFocus: '', vocabFocus: '', type: 'challenge' });
   const [lessonTitleError, setLessonTitleError] = useState('');
+
+  // AI Lesson Modal States
+  const [showAiLessonModal, setShowAiLessonModal] = useState(false);
+  const [aiUnitId, setAiUnitId] = useState(null);
+  const handleOpenAiLessonModal = (unitId) => {
+    setAiUnitId(unitId);
+    setShowAiLessonModal(true);
+  };
   
   const [challengeForm, setChallengeForm] = useState({
     type: 'SELECT', question: '', correctAnswer: '',
@@ -565,7 +574,7 @@ export default function DuolingoStudio() {
                           <div className="node-actions">
                             <button title="Dịch chuyển lên" onClick={(e) => { e.stopPropagation(); moveNode('unit', uIdx, 'up'); }}><MoveUp size={12} /></button>
                             <button title="Dịch chuyển xuống" onClick={(e) => { e.stopPropagation(); moveNode('unit', uIdx, 'down'); }}><MoveDown size={12} /></button>
-                            <button 
+                            <button
                               title="Thêm Bài học mới"
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -574,6 +583,16 @@ export default function DuolingoStudio() {
                               }}
                             >
                               <Plus size={12} />
+                            </button>
+                            <button
+                              title="Thiết kế bằng AI"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenAiLessonModal(unit._id);
+                              }}
+                              style={{ color: '#a855f7' }}
+                            >
+                              <Sparkles size={12} />
                             </button>
                             <button title="Xóa Unit" className="delete-btn" onClick={(e) => { e.stopPropagation(); deleteItem('unit', unit._id); }}><Trash2 size={12} /></button>
                           </div>
@@ -1487,6 +1506,17 @@ export default function DuolingoStudio() {
           </div>
         )}
       </div>
+
+      <AiLessonModal
+        show={showAiLessonModal}
+        onHide={() => setShowAiLessonModal(false)}
+        unitId={aiUnitId}
+        onSuccess={() => {
+          if (courseId) {
+            loadCourseTree(courseId);
+          }
+        }}
+      />
     </div>
   );
 }

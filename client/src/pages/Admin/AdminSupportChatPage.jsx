@@ -11,6 +11,7 @@ export default function AdminSupportChatPage() {
   const { socket, socketRef } = useSocket();
 
   const [sessions, setSessions] = useState([]);
+  const [activeFilter, setActiveFilter] = useState('active'); // 'active' or 'closed'
   const [selectedSession, setSelectedSession] = useState(null);
   const [messages, setMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
@@ -60,14 +61,14 @@ export default function AdminSupportChatPage() {
   const loadSessions = useCallback(async () => {
     setLoadingSessions(true);
     try {
-      const res = await axiosClient.get('/support-chat/admin/sessions');
+      const res = await axiosClient.get(`/support-chat/admin/sessions?status=${activeFilter}`);
       setSessions(res.data || []);
     } catch {
       toast.error('Không thể tải danh sách cuộc trò chuyện');
     } finally {
       setLoadingSessions(false);
     }
-  }, []);
+  }, [activeFilter]);
 
   useEffect(() => {
     loadSessions();
@@ -99,18 +100,27 @@ export default function AdminSupportChatPage() {
     const handleNewMessage = (payload) => {
       if (!payload || !payload.session || !payload.message) return;
       const { message, session: updatedSession } = payload;
-      if (!message || !message._id || !message.sender) return;
+      if (!message || !message._id) return;
+      if (!message.isSystem && !message.sender) return;
       
       // 1. Update session list in left panel
       setSessions(prev => {
         const index = prev.findIndex(s => s._id === updatedSession._id);
         
+        // Filter based on status (active = waiting or open with CSKH assigned)
+        const isActive = updatedSession.status === 'waiting' || (updatedSession.status === 'open' && updatedSession.cskh);
+        const matchesFilter = activeFilter === 'active' ? isActive : (updatedSession.status === 'closed');
+        
+        if (!matchesFilter) {
+          return prev.filter(s => s._id !== updatedSession._id);
+        }
+
         let newSessions = [...prev];
         if (index !== -1) {
           // If the selected session is currently open, set unread count to 0 in UI
           const unreadCount = (selectedSession && selectedSession._id === updatedSession._id) ? 0 : updatedSession.unreadCount;
           newSessions[index] = { ...updatedSession, unreadCount };
-        } else if (updatedSession.status === 'open') {
+        } else {
           // Add new active session
           newSessions = [updatedSession, ...newSessions];
         }
@@ -128,20 +138,32 @@ export default function AdminSupportChatPage() {
           return [...prev, message];
         });
       } else if (!isMe) {
-        // Show toast notification if we are not looking at this chat session
-        toast(`Tin nhắn mới từ ${updatedSession.student?.username || 'học viên'}: ${message.text}`, {
-          icon: '💬',
-          id: message._id
-        });
+        // Show toast notification only if the session is active
+        const isActiveSession = updatedSession.status === 'waiting' || (updatedSession.status === 'open' && updatedSession.cskh);
+        if (isActiveSession) {
+          toast(`Tin nhắn mới từ ${updatedSession.student?.username || 'học viên'}: ${message.text}`, {
+            icon: '💬',
+            id: message._id
+          });
+        }
       }
     };
 
     // Listen for support session status/assign updates
     const handleSessionUpdated = (updatedSession) => {
+      if (updatedSession.status === 'waiting') {
+        toast(`Học viên ${updatedSession.student?.username || 'học viên'} đang chờ kết nối hỗ trợ!`, {
+          icon: '🔔',
+          id: `waiting-${updatedSession._id}`
+        });
+      }
+
       setSessions(prev => {
-        // If closed, remove from active list
-        if (updatedSession.status === 'closed') {
-          if (selectedSession && selectedSession._id === updatedSession._id) {
+        const isActive = updatedSession.status === 'waiting' || (updatedSession.status === 'open' && updatedSession.cskh);
+        const matchesFilter = activeFilter === 'active' ? isActive : (updatedSession.status === 'closed');
+        
+        if (!matchesFilter) {
+          if (activeFilter === 'closed' && selectedSession && selectedSession._id === updatedSession._id) {
             setSelectedSession(null);
             setMessages([]);
           }
@@ -156,7 +178,7 @@ export default function AdminSupportChatPage() {
           newSessions = [updatedSession, ...newSessions];
         }
 
-        return newSessions;
+        return newSessions.sort((a, b) => new Date(b.lastMessageAt) - new Date(a.lastMessageAt));
       });
 
       if (selectedSession && selectedSession._id === updatedSession._id) {
@@ -183,7 +205,7 @@ export default function AdminSupportChatPage() {
       socket.off('support:session:updated', handleSessionUpdated);
       socket.off('support:typing:receive', handleTypingStatus);
     };
-  }, [selectedSession, socket, currentUser]);
+  }, [selectedSession, socket, currentUser, activeFilter]);
 
   // Send message
   const handleSendMessage = async (e) => {
@@ -252,10 +274,9 @@ export default function AdminSupportChatPage() {
   const handleCloseSession = async () => {
     if (!selectedSession) return;
     try {
-      await axiosClient.put(`/support-chat/admin/sessions/${selectedSession.student._id}/close`);
+      const res = await axiosClient.put(`/support-chat/admin/sessions/${selectedSession.student._id}/close`);
       toast.success('Đã đóng phiên trò chuyện hỗ trợ');
-      setSelectedSession(null);
-      setMessages([]);
+      setSelectedSession(res.data);
       loadSessions();
     } catch {
       toast.error('Đóng cuộc trò chuyện thất bại');
@@ -302,6 +323,17 @@ export default function AdminSupportChatPage() {
     }
   };
 
+  const isClosed = selectedSession?.status === 'closed';
+  const isAssignedToMe = selectedSession && selectedSession.cskh && (selectedSession.cskh._id === currentUser?._id || selectedSession.cskh === currentUser?._id);
+  const isInputDisabled = isClosed || !isAssignedToMe;
+
+  let placeholderText = "Nhập tin nhắn hỗ trợ học sinh...";
+  if (isClosed) {
+    placeholderText = "Phiên trò chuyện đã đóng. Không thể gửi tin nhắn.";
+  } else if (!isAssignedToMe) {
+    placeholderText = "Nhấp 'Nhận hỗ trợ' để bắt đầu tư vấn...";
+  }
+
   return (
     <div className="admin-page" style={{ height: 'calc(100vh - 120px)', display: 'flex', flexDirection: 'column' }}>
       <div className="admin-page-header" style={{ marginBottom: '1rem', flexShrink: 0 }}>
@@ -319,6 +351,32 @@ export default function AdminSupportChatPage() {
         }}>
           <div style={{ padding: '16px', borderBottom: '1px solid var(--border-subtle)', fontWeight: 'bold', fontSize: '0.95rem', color: 'var(--text-heading)' }}>
             Hàng đợi hỗ trợ ({sessions.length})
+          </div>
+
+          {/* Tab Filter Container */}
+          <div className="support-tab-container">
+            <button 
+              type="button"
+              className={`support-tab-button ${activeFilter === 'active' ? 'active' : ''}`}
+              onClick={() => {
+                setActiveFilter('active');
+                setSelectedSession(null);
+                setMessages([]);
+              }}
+            >
+              Hoạt động
+            </button>
+            <button 
+              type="button"
+              className={`support-tab-button ${activeFilter === 'closed' ? 'active' : ''}`}
+              onClick={() => {
+                setActiveFilter('closed');
+                setSelectedSession(null);
+                setMessages([]);
+              }}
+            >
+              Đã đóng
+            </button>
           </div>
           
           <div style={{ flex: 1, overflowY: 'auto', padding: '10px' }}>
@@ -354,13 +412,20 @@ export default function AdminSupportChatPage() {
                           )}
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '4px' }}>
                             <span style={{ fontWeight: 'bold', fontSize: '0.85rem', color: 'var(--text-heading)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               {s.student?.username}
                             </span>
-                            {s.student?.premium === 'premium' && (
-                              <Award size={14} style={{ color: '#f59e0b', flexShrink: 0 }} title="Premium Student" />
-                            )}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+                              {s.status === 'waiting' && (
+                                <span className="waiting-badge-pulse">
+                                  Cần hỗ trợ
+                                </span>
+                              )}
+                              {s.student?.premium === 'premium' && (
+                                <Award size={14} style={{ color: '#f59e0b' }} title="Premium Student" />
+                              )}
+                            </div>
                           </div>
                           <p style={{
                             margin: 0, fontSize: '0.75rem', color: isSelected ? 'rgba(255,255,255,0.8)' : 'var(--text-muted)',
@@ -449,7 +514,16 @@ export default function AdminSupportChatPage() {
                     <button
                       className="btn-primary-admin"
                       onClick={handleAssignSession}
-                      style={{ padding: '6px 12px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+                      disabled={isClosed}
+                      style={{ 
+                        padding: '6px 12px', 
+                        fontSize: '0.8rem', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '6px',
+                        opacity: isClosed ? 0.5 : 1,
+                        cursor: isClosed ? 'not-allowed' : 'pointer'
+                      }}
                     >
                       <UserCheck size={14} />
                       Nhận hỗ trợ
@@ -461,14 +535,16 @@ export default function AdminSupportChatPage() {
                     </span>
                   )}
 
-                  <button
-                    className="btn-danger-admin"
-                    onClick={handleCloseSession}
-                    style={{ padding: '6px 12px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px' }}
-                  >
-                    <XCircle size={14} />
-                    Đóng phiên
-                  </button>
+                  {!isClosed && (
+                    <button
+                      className="btn-danger-admin"
+                      onClick={handleCloseSession}
+                      style={{ padding: '6px 12px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      <XCircle size={14} />
+                      Đóng phiên
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -481,32 +557,96 @@ export default function AdminSupportChatPage() {
                 ) : (
                   <>
                     {messages.map(msg => {
-                      if (!msg || !msg.sender) return null;
+                      if (!msg) return null;
+
+                      // Render system messages
+                      if (msg.isSystem) {
+                        return (
+                          <div key={msg._id} style={{ display: 'flex', justifyContent: 'center', width: '100%', margin: '8px 0' }}>
+                            <span style={{
+                              fontSize: '0.75rem', color: 'var(--text-muted, #6b7280)',
+                              background: 'var(--bg-card, #ffffff)', padding: '4px 12px',
+                              borderRadius: '12px', border: '1px solid var(--border-subtle, rgba(0,0,0,0.04))',
+                              fontWeight: 500
+                            }}>
+                              {msg.text}
+                            </span>
+                          </div>
+                        );
+                      }
+
+                      if (!msg.sender) return null;
+
                       const isMe = msg.sender === currentUser?._id || msg.sender?._id === currentUser?._id;
+                      const isAi = msg.sender?.email === 'ai-assistant@smartenglish.com' || msg.sender?.username === 'AI Assistant';
+                      const senderName = isAi ? 'Trợ lý AI' : (msg.sender?.username || 'Người dùng');
+                      const avatarUrl = msg.sender?.avatar;
+
                       return (
-                        <div key={msg._id} style={{ display: 'flex', justifyContent: isMe ? 'flex-end' : 'flex-start' }}>
-                          <div style={{
-                            maxWidth: '70%', padding: msg.image ? '4px' : '10px 14px', borderRadius: '12px',
-                            borderTopRightRadius: isMe ? '2px' : '12px',
-                            borderTopLeftRadius: !isMe ? '2px' : '12px',
-                            background: isMe ? 'var(--color-primary, #2563eb)' : 'var(--bg-card, #ffffff)',
-                            color: isMe ? 'white' : 'var(--text-body)',
-                            fontSize: '0.88rem', lineHeight: 1.4, wordBreak: 'break-word',
-                            boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-                            border: isMe ? 'none' : '1px solid var(--border-subtle)'
-                          }}>
-                            {msg.image && (
-                              <a href={getFullUrl(msg.image)} target="_blank" rel="noopener noreferrer" title="Click để xem ảnh lớn">
-                                <img 
-                                  src={getFullUrl(msg.image)} 
-                                  alt="attachment" 
-                                  style={{ maxWidth: '100%', maxHeight: '220px', borderRadius: '8px', display: 'block', cursor: 'zoom-in' }} 
-                                />
-                              </a>
+                        <div key={msg._id} style={{ display: 'flex', justifyContent: isMe ? 'flex-end' : 'flex-start', gap: '8px', alignItems: 'flex-start' }}>
+                          {!isMe && (
+                            <div style={{
+                              width: 32, height: 32, borderRadius: '50%', overflow: 'hidden', flexShrink: 0,
+                              display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 4,
+                              background: 'var(--bg-elevated, #ffffff)', border: '1px solid var(--border-subtle, rgba(0,0,0,0.08))'
+                            }}>
+                              {isAi ? (
+                                <span style={{ fontSize: '1.1rem' }}>🤖</span>
+                              ) : avatarUrl ? (
+                                <img src={getFullUrl(avatarUrl)} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              ) : (
+                                <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--text-muted, #6b7280)' }}>
+                                  {senderName.charAt(0)}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                          <div style={{ display: 'flex', flexDirection: 'column', maxWidth: '70%', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
+                            {!isMe && (
+                              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted, #6b7280)', marginBottom: 3, marginLeft: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                {senderName}
+                                {isAi && (
+                                  <span style={{
+                                    background: 'rgba(99, 102, 241, 0.08)', color: '#6366f1',
+                                    border: '1px solid rgba(99, 102, 241, 0.2)', padding: '1px 4px',
+                                    borderRadius: '4px', fontSize: '0.6rem', fontWeight: 'bold', textTransform: 'uppercase'
+                                  }}>
+                                    Bot
+                                  </span>
+                                )}
+                              </div>
                             )}
-                            {msg.text && (
-                              <div style={{ padding: msg.image ? '8px 10px 4px' : '0' }}>{msg.text}</div>
-                            )}
+                            <div style={{
+                              padding: msg.image ? '4px' : '10px 14px', borderRadius: '12px',
+                              borderTopRightRadius: isMe ? '2px' : '12px',
+                              borderTopLeftRadius: !isMe ? '2px' : '12px',
+                              background: isMe 
+                                ? 'var(--color-primary, #2563eb)' 
+                                : isAi 
+                                  ? 'linear-gradient(135deg, #eff6ff, #f8fafc)' 
+                                  : 'var(--bg-card, #ffffff)',
+                              color: isMe 
+                                ? 'white' 
+                                : isAi 
+                                  ? '#1e3a8a' 
+                                  : 'var(--text-body)',
+                              fontSize: '0.88rem', lineHeight: 1.4, wordBreak: 'break-word',
+                              boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+                              border: isMe ? 'none' : isAi ? '1px solid #bfdbfe' : '1px solid var(--border-subtle)'
+                            }}>
+                              {msg.image && (
+                                <a href={getFullUrl(msg.image)} target="_blank" rel="noopener noreferrer" title="Click để xem ảnh lớn">
+                                  <img 
+                                    src={getFullUrl(msg.image)} 
+                                    alt="attachment" 
+                                    style={{ maxWidth: '100%', maxHeight: '220px', borderRadius: '8px', display: 'block', cursor: 'zoom-in' }} 
+                                  />
+                                </a>
+                              )}
+                              {msg.text && (
+                                <div style={{ padding: msg.image ? '8px 10px 4px' : '0' }}>{msg.text}</div>
+                              )}
+                            </div>
                           </div>
                         </div>
                       );
@@ -535,34 +675,42 @@ export default function AdminSupportChatPage() {
 
               {/* Input box */}
               <form onSubmit={handleSendMessage} style={{ padding: '16px', borderTop: '1px solid var(--border-subtle)', display: 'flex', gap: '10px', background: 'var(--bg-card)', alignItems: 'center' }}>
-                <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', color: 'var(--text-muted, #94a3b8)', padding: '6px' }} title="Gửi hình ảnh">
+                <label 
+                  style={{ 
+                    cursor: isInputDisabled ? 'not-allowed' : 'pointer', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    color: 'var(--text-muted, #94a3b8)', 
+                    padding: '6px',
+                    opacity: isInputDisabled ? 0.5 : 1
+                  }} 
+                  title={isInputDisabled ? (isClosed ? "Không thể gửi ảnh khi phiên đã đóng" : "Vui lòng nhận hỗ trợ trước khi gửi ảnh") : "Gửi hình ảnh"}
+                >
                   <ImageIcon size={20} />
                   <input
                     type="file"
                     accept="image/*"
                     onChange={handleChatImageUpload}
+                    disabled={isInputDisabled}
                     style={{ display: 'none' }}
                   />
                 </label>
                 <input
                   type="text"
                   className="form-control-admin"
-                  placeholder={
-                    selectedSession.cskh?._id === currentUser._id
-                      ? "Nhập tin nhắn hỗ trợ học sinh..."
-                      : "Nhấp 'Nhận hỗ trợ' hoặc gõ tin nhắn để bắt đầu tư vấn..."
-                  }
+                  placeholder={placeholderText}
                   value={chatInput}
                   onChange={handleChatInputChange}
+                  disabled={isInputDisabled}
                   style={{ flex: 1, borderRadius: '24px' }}
                 />
                 <button
                   type="submit"
-                  disabled={!chatInput.trim()}
+                  disabled={isInputDisabled || !chatInput.trim()}
                   style={{
                     width: '40px', height: '40px', borderRadius: '50%', background: 'var(--color-primary, #2563eb)',
-                    color: 'white', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
-                    opacity: chatInput.trim() ? 1 : 0.5, transition: 'all 0.2s'
+                    color: 'white', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: isInputDisabled ? 'not-allowed' : 'pointer',
+                    opacity: (!isInputDisabled && chatInput.trim()) ? 1 : 0.5, transition: 'all 0.2s'
                   }}
                 >
                   <Send size={16} />

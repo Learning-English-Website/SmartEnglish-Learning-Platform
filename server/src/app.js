@@ -43,7 +43,7 @@ app.use(cors({
 // ── Body Parsing (must be BEFORE routes and rate limiters) ───────────────────
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
-app.use(cookieParser()); // ✅ Parse HttpOnly cookies từ request
+app.use(cookieParser(process.env.COOKIE_SECRET)); // ✅ Parse HttpOnly cookies từ request và hỗ trợ signed cookies
 
 // ── Disable caching for Daily Challenge leaderboard ──────────────────────────
 // The leaderboard must be fresh; ETag/304 can prevent UI from updating.
@@ -96,6 +96,7 @@ app.use('/api/admin', require('./modules/admin/admin.routes'));
 app.use('/api/teacher', require('./modules/teacher/teacher.routes'));
 app.use('/api/feedback', require('./modules/feedback/feedback.routes'));
 app.use('/api/support-chat', require('./modules/support-chat/supportChat.routes'));
+app.use('/api/ai', require('./modules/ai/ai.routes'));
 
 // ── 404 Handler ───────────────────────────────────────────────────────────────
 app.use('/{*path}', (req, res) => {

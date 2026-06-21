@@ -28,6 +28,7 @@ router.put('/lessons/:lessonId/reorder-challenges', teacherController.reorderCha
 router.get('/units', teacherController.getUnits);
 router.get('/units/:id', teacherController.getUnit);
 router.post('/units', teacherController.createUnit);
+router.post('/units/:unitId/lessons/ai-save', teacherController.saveAiLessonWithChallenges);
 router.put('/units/:id', teacherController.updateUnit);
 router.delete('/units/:id', teacherController.deleteUnit);
 

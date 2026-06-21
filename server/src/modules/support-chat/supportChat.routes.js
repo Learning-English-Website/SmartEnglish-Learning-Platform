@@ -6,6 +6,7 @@ const { authenticate, authorize } = require('../../middleware/auth.middleware');
 // Student endpoints
 router.get('/messages', authenticate, supportChatController.getStudentMessages.bind(supportChatController));
 router.post('/messages', authenticate, supportChatController.sendStudentMessage.bind(supportChatController));
+router.post('/request-cskh', authenticate, supportChatController.requestCSKH.bind(supportChatController));
 
 // CSKH / Admin endpoints
 router.get('/admin/sessions', authenticate, authorize('admin', 'cskh'), supportChatController.getSupportSessions.bind(supportChatController));
