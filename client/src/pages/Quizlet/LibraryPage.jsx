@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { BookOpen, Folder, Plus, Clock, Search, Trash2, Heart } from 'lucide-react';
+import { BookOpen, Folder, Plus, Clock, Search, Trash2 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { toast } from 'react-hot-toast';
 import { setService } from '../../api/setService';
@@ -336,32 +336,26 @@ export default function LibraryPage() {
                       {groups[key].map((folder) => (
                         <div
                           key={folder._id}
-                          className={`library-folder-card ${folder.name.toLowerCase() === 'yêu thích' ? 'library-folder-card--favorite' : ''}`}
+                          className="library-folder-card"
                           onClick={() => handleOpenFolder(folder)}
                           role="button"
                           tabIndex={0}
                           onKeyDown={(e) => { if (e.key === 'Enter') handleOpenFolder(folder); }}
                         >
-                          <div className={`lfc-icon-wrapper ${folder.name.toLowerCase() === 'yêu thích' ? 'lfc-icon-wrapper--favorite' : ''}`}>
-                            {folder.name.toLowerCase() === 'yêu thích' ? (
-                              <Heart size={22} fill="currentColor" />
-                            ) : (
-                              <Folder size={22} />
-                            )}
+                          <div className="lfc-icon-wrapper">
+                            <Folder size={22} />
                           </div>
                           <div className="lfc-info" style={{ flexGrow: 1 }}>
                             <span className="lfc-name">{folder.name}</span>
                             <span className="lfc-count">{folder.sets?.length ?? 0} học phần</span>
                           </div>
-                          {folder.name.toLowerCase() !== 'yêu thích' && (
-                            <button
-                              className="lfc-delete-btn"
-                              onClick={(e) => handleDeleteFolder(folder, e)}
-                              title="Xóa thư mục"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          )}
+                          <button
+                            className="lfc-delete-btn"
+                            onClick={(e) => handleDeleteFolder(folder, e)}
+                            title="Xóa thư mục"
+                          >
+                            <Trash2 size={16} />
+                          </button>
                         </div>
                       ))}
                     </div>

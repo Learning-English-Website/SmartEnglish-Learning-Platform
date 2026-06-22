@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   Folder, Plus, BookOpen, GraduationCap, Clock, MoreHorizontal,
-  Layers, StickyNote, Brain, ArrowLeft, Heart
+  Layers, StickyNote, Brain, ArrowLeft
 } from 'lucide-react';
 import { folderService } from '../../api/folderService';
 import { setService } from '../../api/setService';
@@ -184,12 +184,8 @@ export default function FolderPage() {
         {/* Header */}
         <div className="folder-header">
           <div className="folder-header-left">
-            <div className={`folder-icon-lg ${folder.name.toLowerCase() === 'yêu thích' ? 'folder-icon-lg--favorite' : ''}`}>
-              {folder.name.toLowerCase() === 'yêu thích' ? (
-                <Heart size={36} fill="currentColor" />
-              ) : (
-                <Folder size={36} />
-              )}
+            <div className="folder-icon-lg">
+              <Folder size={36} />
             </div>
             <div className="folder-header-info">
               <h1 className="folder-title-lg">{slug || folder.name}</h1>

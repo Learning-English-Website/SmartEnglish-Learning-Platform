@@ -637,9 +637,3 @@
     grid-template-columns: repeat(2, 1fr);
   }
 }
-
-/* Special styling for Favorite folder header */
-.folder-icon-lg--favorite {
-  color: #ff4757 !important;
-  box-shadow: 0 4px 16px rgba(255, 71, 87, 0.15) !important;
-}

@@ -35,7 +35,6 @@ import {
 import { setService } from '../../api/setService';
 import { cardService } from '../../api/cardService';
 import { noteService } from '../../api/noteService';
-import { shareService } from '../../api/shareService';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { progressService } from '../../services/progressService';
 import CardEditor from '../../components/flashcard/CardEditor/CardEditor';
@@ -96,8 +95,6 @@ export default function SetDetail() {
 
   // Share modal
   const [showShare, setShowShare] = useState(false);
-  const [isBookmarked, setIsBookmarked] = useState(false);
-  const [bookmarkLoading, setBookmarkLoading] = useState(false);
   const [showPremiumModal, setShowPremiumModal] = useState(false);
   const [premiumReason, setPremiumReason] = useState('');
 
@@ -170,29 +167,6 @@ export default function SetDetail() {
 
   useEffect(() => { fetchSet(); fetchCards(); }, [fetchSet, fetchCards]);
 
-  useEffect(() => {
-    if (authLoading || !isAuthenticated) return undefined;
-
-    let cancelled = false;
-    shareService.getBookmarks()
-      .then((res) => {
-        if (cancelled) return;
-        const bookmarks = res?.data ?? res;
-        const bookmarked = Array.isArray(bookmarks) && bookmarks.some((bookmark) => {
-          const bookmarkedSetId = bookmark?.set?._id || bookmark?.set || bookmark?._id;
-          return String(bookmarkedSetId) === String(id);
-        });
-        setIsBookmarked(bookmarked);
-      })
-      .catch(() => {
-        if (!cancelled) setIsBookmarked(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [authLoading, isAuthenticated, id]);
-
   /* ── Ownership Check ─────────────────────────────────────────────────── */
   const isOwner = useMemo(() => {
     if (!set || !currentUser) return false;
@@ -204,30 +178,6 @@ export default function SetDetail() {
   /* ── Tag click ─────────────────────────────────────────────────────── */
   const handleTagClick = (tagName) => {
     navigate(`/flashcards/browse?tag=${encodeURIComponent(tagName)}`);
-  };
-
-  const handleBookmark = async () => {
-    if (bookmarkLoading) return;
-
-    setBookmarkLoading(true);
-    try {
-      if (isBookmarked) {
-        await shareService.unbookmark(id);
-        setIsBookmarked(false);
-        toast.success('Đã bỏ lưu bộ thẻ.');
-      } else {
-        await shareService.bookmark(id);
-        setIsBookmarked(true);
-        toast.success('Đã lưu bộ thẻ.');
-      }
-    } catch (err) {
-      const message = err?.response?.data?.error?.message
-        || err?.response?.data?.message
-        || 'Không thể cập nhật danh sách đã lưu.';
-      toast.error(message);
-    } finally {
-      setBookmarkLoading(false);
-    }
   };
 
   /* ── Keyboard shortcuts ──────────────────────────────────────────────── */
@@ -524,15 +474,9 @@ export default function SetDetail() {
                 <FiShare2 size={16} />
                 Chia sẻ
               </button>
-              <button
-                className={`sd-action-btn sd-action-btn--ghost ${isBookmarked ? 'active' : ''}`}
-                onClick={handleBookmark}
-                disabled={bookmarkLoading}
-                aria-pressed={isBookmarked}
-                title={isBookmarked ? 'Bỏ khỏi danh sách đã lưu' : 'Lưu bộ thẻ'}
-              >
-                <FiBookmark size={16} fill={isBookmarked ? 'currentColor' : 'none'} />
-                {bookmarkLoading ? 'Đang lưu...' : (isBookmarked ? 'Đã lưu' : 'Lưu')}
+              <button className="sd-action-btn sd-action-btn--ghost">
+                <FiBookmark size={16} />
+                Lưu
               </button>
               {isOwner && (
                 <>
