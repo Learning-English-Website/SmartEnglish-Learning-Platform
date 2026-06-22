@@ -25,6 +25,10 @@ export default function CreateFolderModal({ parentId, onClose, onCreated }) {
   const handleCreate = async () => {
     const trimmed = name.trim();
     if (!trimmed) return;
+    if (trimmed.toLowerCase() === 'yêu thích') {
+      alert('Thư mục "Yêu thích" đã tồn tại mặc định.');
+      return;
+    }
     setLoading(true);
     try {
       const res = await folderService.create(trimmed, parentId || null);
