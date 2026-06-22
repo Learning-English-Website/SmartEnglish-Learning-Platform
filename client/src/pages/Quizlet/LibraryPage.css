@@ -490,3 +490,38 @@
   background-color: rgba(239, 68, 68, 0.1);
   color: #ef4444;
 }
+
+/* ==========================================================================
+   Special Styling for Favorite Folder
+   ========================================================================== */
+.library-folder-card--favorite {
+  border-left-color: #ff4757 !important; /* Premium soft red/pink */
+}
+
+.library-folder-card--favorite:hover {
+  border-left-color: #ff2a3b !important;
+}
+
+.lfc-icon-wrapper--favorite {
+  background: rgba(255, 71, 87, 0.08) !important;
+  color: #ff4757 !important;
+}
+
+.library-folder-card--favorite:hover .lfc-icon-wrapper--favorite {
+  background: #ff4757 !important;
+  color: #ffffff !important;
+}
+
+.library-folder-card--favorite:hover .lfc-name {
+  color: #ff4757 !important;
+}
+
+.library-folder-card--favorite .lfc-count {
+  background: rgba(255, 71, 87, 0.08) !important;
+  color: #ff4757 !important;
+}
+
+.library-folder-card--favorite:hover .lfc-count {
+  background: #ff4757 !important;
+  color: #ffffff !important;
+}
