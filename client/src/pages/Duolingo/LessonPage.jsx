@@ -358,6 +358,10 @@ export default function LessonPage() {
 
   // ORDER: Submit
   const handleOrderSubmit = useCallback(async () => {
+    if (!isPro && !isPractice && hearts <= 0) {
+      setShowHeartsModal(true);
+      return;
+    }
     if (status !== 'idle' || orderedWords.length === 0 || !currentChallenge) return;
     try {
       const userOrder = orderedWords.map(w => currentChallenge.wordBank.indexOf(w));
@@ -379,7 +383,7 @@ export default function LessonPage() {
       console.error('Submit failed:', err);
       setStatus('idle');
     }
-  }, [currentChallenge, status, orderedWords]);
+  }, [currentChallenge, status, orderedWords, isPro, isPractice, hearts]);
 
   // MATCH: Select items
   const [selectedMatchLeft, setSelectedMatchLeft] = useState(null);
@@ -437,6 +441,10 @@ export default function LessonPage() {
   }, [status, matchedPairs, selectedMatchLeft]);
 
   const handleMatchSubmit = useCallback(async () => {
+    if (!isPro && !isPractice && hearts <= 0) {
+      setShowHeartsModal(true);
+      return;
+    }
     if (status !== 'idle' || !currentChallenge) return;
     const pairs = currentChallenge.pairs || [];
     if (Object.keys(matchedPairs).length !== pairs.length) return;
@@ -465,10 +473,14 @@ export default function LessonPage() {
       console.error('Submit failed:', err);
       setStatus('idle');
     }
-  }, [currentChallenge, status, matchedPairs]);
+  }, [currentChallenge, status, matchedPairs, isPro, isPractice, hearts]);
 
   // FILL: Submit
   const handleFillSubmit = useCallback(async (optionId) => {
+    if (!isPro && !isPractice && hearts <= 0) {
+      setShowHeartsModal(true);
+      return;
+    }
     if (status !== 'idle' || !currentChallenge) return;
     try {
       const result = await duolingoService.submitAnswer(currentChallenge._id, optionId, null);
@@ -489,10 +501,14 @@ export default function LessonPage() {
       console.error('Submit failed:', err);
       setStatus('idle');
     }
-  }, [currentChallenge, status]);
+  }, [currentChallenge, status, isPro, isPractice, hearts]);
 
   // COMPLETE & TRANSLATE: Submit typed answer
   const handleWordSubmit = useCallback(async () => {
+    if (!isPro && !isPractice && hearts <= 0) {
+      setShowHeartsModal(true);
+      return;
+    }
     if (status !== 'idle' || !currentChallenge || !typedAnswer.trim()) return;
     try {
       const result = await duolingoService.submitAnswer(currentChallenge._id, null, typedAnswer);
@@ -514,7 +530,7 @@ export default function LessonPage() {
       console.error('Submit failed:', err);
       setStatus('idle');
     }
-  }, [currentChallenge, status, typedAnswer]);
+  }, [currentChallenge, status, typedAnswer, isPro, isPractice, hearts]);
 
   // Aliases for TRANSLATE and COMPLETE
   const handleTranslateSubmit = handleWordSubmit;
@@ -561,12 +577,17 @@ export default function LessonPage() {
     try {
       const response = await duolingoService.getHearts();
       const data = response.data || response;
-      setHearts(data?.hearts ?? 5);
-      setIsPro(data?.isPro || false);
+      const currentHearts = data?.hearts ?? 5;
+      const currentIsPro = data?.isPro || false;
+      setHearts(currentHearts);
+      setIsPro(currentIsPro);
+      if (!isPractice && !currentIsPro && currentHearts <= 0) {
+        setShowHeartsModal(true);
+      }
     } catch (err) {
       console.error('Failed to load hearts:', err);
     }
-  }, []);
+  }, [isPractice]);
 
   // Initial data load - after callbacks are defined
   useEffect(() => {
@@ -576,6 +597,10 @@ export default function LessonPage() {
 
   const handleOptionSelect = useCallback(
     async (option) => {
+      if (!isPro && !isPractice && hearts <= 0) {
+        setShowHeartsModal(true);
+        return;
+      }
       if (status !== 'idle' || !currentChallenge || !option) return;
       setSelectedOption(option.text);
 
@@ -607,10 +632,14 @@ export default function LessonPage() {
         setSelectedOption(null);
       }
     },
-    [currentChallenge, status, currentIndex]
+    [currentChallenge, status, currentIndex, isPro, isPractice, hearts]
   );
 
   const handleTypedSubmit = useCallback(async () => {
+    if (!isPro && !isPractice && hearts <= 0) {
+      setShowHeartsModal(true);
+      return;
+    }
     if (status !== 'idle' || !currentChallenge || !typedAnswer.trim()) return;
 
     try {
@@ -637,10 +666,10 @@ export default function LessonPage() {
       console.error('Submit failed:', err);
       setStatus('idle');
     }
-  }, [currentChallenge, status, typedAnswer]);
+  }, [currentChallenge, status, typedAnswer, isPro, isPractice, hearts]);
 
   const handleWrongAnswer = async () => {
-    if (isPro) return; // Pro users never lose hearts or show refill modals
+    if (isPro || isPractice) return; // Pro users and practice mode never lose hearts or show refill modals
     try {
       const heartsResult = await duolingoService.reduceHearts();
       const hData = heartsResult.data || heartsResult;

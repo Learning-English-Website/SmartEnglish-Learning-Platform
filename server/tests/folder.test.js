@@ -107,6 +107,15 @@ describe('Folder API', () => {
       expect(res.status).toBe(400);
     });
 
+    it('should return 400 when trying to create a folder with the name "Yêu thích"', async () => {
+      const res = await request(app)
+        .post('/api/folders')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ name: 'Yêu thích' });
+
+      expect(res.status).toBe(400);
+    });
+
     it('should return 401 without auth', async () => {
       const res = await request(app)
         .post('/api/folders')
@@ -133,7 +142,8 @@ describe('Folder API', () => {
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
-      expect(res.body.data.length).toBe(2);
+      expect(res.body.data.length).toBe(3);
+      expect(res.body.data.some(f => f.name === 'Yêu thích')).toBe(true);
     });
 
     it('should return folders with sets populated', async () => {
@@ -213,6 +223,28 @@ describe('Folder API', () => {
 
       expect(res.status).toBe(404);
     });
+
+    it('should return 400 when trying to rename a folder to "Yêu thích"', async () => {
+      const res = await request(app)
+        .put(`/api/folders/${testFolder._id}`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ name: 'Yêu thích' });
+
+      expect(res.status).toBe(400);
+    });
+
+    it('should return 400 when trying to rename the default "Yêu thích" folder', async () => {
+      const favFolder = await Folder.create({
+        name: 'Yêu thích',
+        user: testUser._id
+      });
+      const res = await request(app)
+        .put(`/api/folders/${favFolder._id}`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ name: 'My Favorites' });
+
+      expect(res.status).toBe(400);
+    });
   });
 
   // ─────────────────────────────────────────────────────────────────
@@ -246,6 +278,18 @@ describe('Folder API', () => {
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(404);
+    });
+
+    it('should return 400 when trying to delete the default "Yêu thích" folder', async () => {
+      const favFolder = await Folder.create({
+        name: 'Yêu thích',
+        user: testUser._id
+      });
+      const res = await request(app)
+        .delete(`/api/folders/${favFolder._id}`)
+        .set('Authorization', `Bearer ${authToken}`);
+
+      expect(res.status).toBe(400);
     });
   });
 
