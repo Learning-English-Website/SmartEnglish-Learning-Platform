@@ -1,5 +1,6 @@
 const Bookmark = require('../../models/bookmark.model');
 const FlashcardSet = require('../../models/flashcardSet.model');
+const Folder = require('../../models/folder.model');
 const { AppError } = require('../../shared/errors/AppError');
 
 /**
@@ -14,6 +15,24 @@ const addBookmark = async (userId, setId) => {
 
   // Check if already bookmarked
   const existing = await Bookmark.findOne({ user: userId, set: setId });
+
+  // Ensure default "Yêu thích" folder exists and contains this set
+  let favoriteFolder = await Folder.findOne({ user: userId, name: 'Yêu thích' });
+  if (!favoriteFolder) {
+    favoriteFolder = await Folder.create({
+      user: userId,
+      name: 'Yêu thích',
+      parent: null,
+      sets: [setId]
+    });
+  } else {
+    if (!favoriteFolder.sets) favoriteFolder.sets = [];
+    if (!favoriteFolder.sets.includes(setId)) {
+      favoriteFolder.sets.push(setId);
+      await favoriteFolder.save();
+    }
+  }
+
   if (existing) {
     return existing;
   }
@@ -37,6 +56,14 @@ const removeBookmark = async (userId, setId) => {
   }
 
   await bookmark.deleteOne();
+
+  // Remove the set from default "Yêu thích" folder if it exists
+  const favoriteFolder = await Folder.findOne({ user: userId, name: 'Yêu thích' });
+  if (favoriteFolder && favoriteFolder.sets) {
+    favoriteFolder.sets = favoriteFolder.sets.filter(id => id.toString() !== setId.toString());
+    await favoriteFolder.save();
+  }
+
   return null;
 };
 

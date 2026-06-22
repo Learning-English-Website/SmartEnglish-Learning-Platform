@@ -2,7 +2,20 @@ const Folder = require('../../models/folder.model');
 const { AppError } = require('../../shared/errors/AppError');
 
 const getAll = async (userId) => {
-  const folders = await Folder.find({ user: userId }).sort({ name: 1 }).lean();
+  let folders = await Folder.find({ user: userId }).sort({ name: 1 }).lean();
+  
+  // Automatically create a "Yêu thích" folder if it doesn't exist
+  const hasFavoriteFolder = folders.some(f => f.name.toLowerCase() === 'yêu thích');
+  if (!hasFavoriteFolder) {
+    const favoriteFolder = await Folder.create({
+      user: userId,
+      name: 'Yêu thích',
+      parent: null
+    });
+    folders.push(favoriteFolder.toObject());
+    folders.sort((a, b) => a.name.localeCompare(b.name));
+  }
+
   // Normalize: rename parent → parentId for frontend compatibility
   return folders.map((f) => ({
     ...f,
@@ -18,6 +31,10 @@ const getById = async (folderId, userId) => {
 };
 
 const create = async (userId, { name, parent, parentId }) => {
+  if (name && name.trim().toLowerCase() === 'yêu thích') {
+    throw new AppError('Thư mục "Yêu thích" đã tồn tại mặc định.', 400);
+  }
+
   const finalParent = parent || parentId;
   if (finalParent) {
     const parentFolder = await Folder.findOne({ _id: finalParent, user: userId });
@@ -30,6 +47,14 @@ const create = async (userId, { name, parent, parentId }) => {
 const update = async (folderId, userId, { name, parent, parentId }) => {
   const folder = await Folder.findOne({ _id: folderId, user: userId });
   if (!folder) throw new AppError('Folder not found', 404);
+
+  if (folder.name.toLowerCase() === 'yêu thích') {
+    if (name && name.trim().toLowerCase() !== 'yêu thích') {
+      throw new AppError('Không thể đổi tên thư mục Yêu thích mặc định.', 400);
+    }
+  } else if (name && name.trim().toLowerCase() === 'yêu thích') {
+    throw new AppError('Không thể đặt tên thư mục trùng với thư mục "Yêu thích" mặc định.', 400);
+  }
 
   if (name !== undefined) folder.name = name.trim();
   const finalParent = parent !== undefined ? parent : parentId;
@@ -46,8 +71,14 @@ const update = async (folderId, userId, { name, parent, parentId }) => {
 };
 
 const remove = async (folderId, userId) => {
-  const folder = await Folder.findOneAndDelete({ _id: folderId, user: userId });
+  const folder = await Folder.findOne({ _id: folderId, user: userId });
   if (!folder) throw new AppError('Folder not found', 404);
+
+  if (folder.name.toLowerCase() === 'yêu thích') {
+    throw new AppError('Không thể xóa thư mục Yêu thích mặc định.', 400);
+  }
+
+  await Folder.deleteOne({ _id: folderId, user: userId });
 
   // Move child folders to root (parent = null)
   await Folder.updateMany({ parent: folderId, user: userId }, { $set: { parent: null } });
@@ -65,6 +96,15 @@ const addSet = async (folderId, setId, userId) => {
     await folder.save();
   }
 
+  // Bidirectional sync: if this is "Yêu thích" folder, add bookmark
+  if (folder.name.toLowerCase() === 'yêu thích') {
+    const Bookmark = require('../../models/bookmark.model');
+    const existingBookmark = await Bookmark.findOne({ user: userId, set: setId });
+    if (!existingBookmark) {
+      await Bookmark.create({ user: userId, set: setId });
+    }
+  }
+
   return folder;
 };
 
@@ -75,6 +115,12 @@ const removeSet = async (folderId, setId, userId) => {
   if (folder.sets) {
     folder.sets = folder.sets.filter((id) => id.toString() !== setId);
     await folder.save();
+  }
+
+  // Bidirectional sync: if this is "Yêu thích" folder, remove bookmark
+  if (folder.name.toLowerCase() === 'yêu thích') {
+    const Bookmark = require('../../models/bookmark.model');
+    await Bookmark.deleteOne({ user: userId, set: setId });
   }
 
   return folder;

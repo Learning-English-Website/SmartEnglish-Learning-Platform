@@ -142,10 +142,18 @@ class DuolingoService {
     return null; // All completed
   }
 
-  // === QUIZ ===
   async submitAnswer(userId, challengeId, selectedOptionId, userAnswer) {
     const challenge = await Challenge.findById(challengeId);
     if (!challenge) throw new Error('Challenge not found');
+
+    // Security check: Make sure user has hearts if it's a non-practice lesson
+    const progress = await UserProgress.findOne({ user: userId });
+    if (progress && !progress.isPro && progress.hearts <= 0) {
+      const lesson = await Lesson.findById(challenge.lesson);
+      if (lesson && lesson.type !== 'practice') {
+        throw new AppError('Bạn đã hết tim. Vui lòng nạp thêm tim để tiếp tục học.', 403);
+      }
+    }
 
     let isCorrect = false;
     const type = challenge.type;
