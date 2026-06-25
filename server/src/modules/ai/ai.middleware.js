@@ -35,11 +35,24 @@ exports.requireCsrfForAiRoutes = (req, res, next) => {
     });
   }
 
+  // Helper to normalize origin by removing protocol and optional www. prefix
+  const getNormalizedHost = (originStr) => {
+    try {
+      const urlObj = new URL(originStr);
+      return urlObj.hostname.replace(/^www\./, '');
+    } catch (e) {
+      // Fallback if it's already a hostname or doesn't have a protocol
+      return originStr.replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0];
+    }
+  };
+
+  const normalizedAllowed = getNormalizedHost(allowedOrigin);
+
   // Verify Origin if present
   if (origin) {
     try {
-      const requestOrigin = new URL(origin).origin;
-      if (requestOrigin !== allowedOrigin) {
+      const normalizedRequest = getNormalizedHost(origin);
+      if (normalizedRequest !== normalizedAllowed) {
         return res.status(403).json({ 
           success: false,
           message: "Không được phép thực hiện từ nguồn gốc này (CSRF Blocked)." 
@@ -54,8 +67,8 @@ exports.requireCsrfForAiRoutes = (req, res, next) => {
   } else if (referer) {
     // Fallback to Referer check only if Origin is completely missing
     try {
-      const requestRefererOrigin = new URL(referer).origin;
-      if (requestRefererOrigin !== allowedOrigin) {
+      const normalizedReferer = getNormalizedHost(referer);
+      if (normalizedReferer !== normalizedAllowed) {
         return res.status(403).json({ 
           success: false,
           message: "Không được phép thực hiện từ liên kết nguồn này (CSRF Blocked)." 
