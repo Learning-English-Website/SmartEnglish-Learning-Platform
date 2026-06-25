@@ -46,4 +46,9 @@ coverage/
 *.tgz
 *.zip
 
+# Playwright test results and reports
+client/test-results/
+client/playwright-report/
+client/playwright/.cache/
+
 # End of .gitignore
