@@ -1,19 +1,18 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Container } from 'react-bootstrap';
-import { FiPlus, FiBook, FiRefreshCw, FiFolder, FiGlobe, FiBookmark } from 'react-icons/fi';
+import { FiPlus, FiBook } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import { setService } from '../../api/setService';
-import { folderService } from '../../api/folderService';
-import { shareService } from '../../api/shareService';
 import SetCard from '../../components/common/SetCard/SetCard';
-import FolderTree from '../../components/common/FolderTree/FolderTree';
 import { ConfirmModal } from '../../components/common/Modal/Modal';
 import { LoadingSpinner, SkeletonPage } from '../../components/common';
+import { useAuth } from '../../hooks/useAuth';
 import './MySets.css';
 
 export default function MySets() {
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const [allSets, setAllSets] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -21,10 +20,6 @@ export default function MySets() {
 
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
-
-  const [folders, setFolders] = useState([]);
-  const [selectedFolderId, setSelectedFolderId] = useState(null);
-  const [deleteFolderTarget, setDeleteFolderTarget] = useState(null);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -36,7 +31,7 @@ export default function MySets() {
       setAllSets(mySetsData);
     } catch (err) {
       console.error(err);
-      setError('Không thể tải danh sách. Vui lòng thử lại.');
+      setError('Không thể tải danh sách học phần. Vui lòng thử lại.');
       setAllSets([]);
     } finally {
       setLoading(false);
@@ -46,38 +41,6 @@ export default function MySets() {
   useEffect(() => {
     Promise.resolve().then(fetchAll);
   }, [fetchAll]);
-
-  useEffect(() => {
-    folderService.getAll()
-      .then((res) => {
-        const foldersData = Array.isArray(res) ? res : (res?.data ?? []);
-        setFolders(foldersData.map((folder) => ({
-          ...folder,
-          parentId: folder.parentId || folder.parent,
-          sets: folder.sets || [],
-        })));
-      })
-      .catch(() => setFolders([]));
-  }, []);
-
-  const filteredSets = useMemo(() => {
-    if (!selectedFolderId) {
-      return allSets;
-    }
-
-    const folder = folders.find((item) => item._id === selectedFolderId);
-    if (!folder || !folder.sets) {
-      return allSets;
-    }
-
-    const folderSetIds = folder.sets.map((setId) => (typeof setId === 'string' ? setId : setId.toString()));
-    return allSets.filter((set) => folderSetIds.includes(set._id.toString()));
-  }, [allSets, folders, selectedFolderId]);
-
-  const selectedFolder = useMemo(
-    () => folders.find((folder) => folder._id === selectedFolderId),
-    [folders, selectedFolderId]
-  );
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
@@ -95,119 +58,44 @@ export default function MySets() {
     }
   };
 
-  const handleCreateFolder = async (name) => {
-    try {
-      const res = await folderService.create(name, null);
-      const newFolder = res?.data ?? res;
-
-      if (newFolder) {
-        setFolders((prev) => [
-          ...prev,
-          {
-            ...newFolder,
-            parentId: newFolder.parentId || newFolder.parent,
-            sets: newFolder.sets || [],
-          },
-        ]);
-        toast.success('Folder created!');
-      }
-    } catch {
-      toast.error('Failed to create folder');
-    }
-  };
-
-  const handleRenameFolder = async (folderId, name) => {
-    try {
-      const res = await folderService.update(folderId, name);
-      const updated = res?.data ?? res;
-      setFolders((prev) => prev.map((folder) => (
-        folder._id === folderId ? { ...folder, ...updated } : folder
-      )));
-      toast.success('Folder renamed');
-    } catch {
-      toast.error('Failed to rename folder');
-    }
-  };
-
-  const handleDeleteFolder = async () => {
-    if (!deleteFolderTarget) return;
-
-    setDeleting(true);
-    try {
-      await folderService.delete(deleteFolderTarget);
-      setFolders((prev) => prev.filter((folder) => String(folder._id) !== String(deleteFolderTarget)));
-      if (selectedFolderId === deleteFolderTarget) {
-        setSelectedFolderId(null);
-      }
-      toast.success('Folder deleted');
-      setDeleteFolderTarget(null);
-    } catch {
-      toast.error('Failed to delete folder');
-    } finally {
-      setDeleting(false);
-    }
-  };
+  const totalCardsCount = useMemo(() => {
+    return allSets.reduce((sum, set) => sum + (set.cards?.length ?? set.cardCount ?? 0), 0);
+  }, [allSets]);
 
   return (
     <div className="page-shell my-sets-page">
       <Container>
-        <div className="my-sets-header">
-          <div>
-            <h1>
-              {selectedFolder ? (
-                <>
-                  <FiFolder className="my-sets-title-icon" />
-                  {selectedFolder.name}
-                </>
-              ) : (
-                <>
-                  <FiBook className="my-sets-title-icon" />
-                  My Flashcard Sets
-                </>
-              )}
-            </h1>
-            <p className="my-sets-subtitle">
-              {loading ? '' : `${filteredSets.length} set${filteredSets.length !== 1 ? 's' : ''}`}
-              {selectedFolder ? ' in folder' : ''}
-            </p>
+        {/* Premium welcome overview banner */}
+        {!loading && allSets.length > 0 && (
+          <div className="my-sets-dashboard-banner animate-fade-in">
+            <div className="banner-glow-bubble" aria-hidden="true"></div>
+            <div className="banner-left-info">
+              <h2>Chào mừng trở lại, {user?.username || 'Học viên'}! 👋</h2>
+              <p>Hôm nay bạn muốn củng cố thêm bao nhiêu từ vựng mới? Hãy ôn tập đều đặn để kích hoạt ghi nhớ dài hạn nhé!</p>
+              <div className="banner-stats-row">
+                <div className="banner-stat-item">
+                  <FiBook className="stat-icon text-blue" />
+                  <div className="stat-meta">
+                    <span className="stat-value">{allSets.length}</span>
+                    <span className="stat-label">Học phần</span>
+                  </div>
+                </div>
+                <div className="banner-stat-item">
+                  <span className="stat-emoji-icon">🎴</span>
+                  <div className="stat-meta">
+                    <span className="stat-value">{totalCardsCount}</span>
+                    <span className="stat-label">Thuật ngữ</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="banner-right-illustration">
+              <span className="illustration-icon">📚</span>
+            </div>
           </div>
-
-          <div className="my-sets-header-actions">
-            <button
-              className="my-sets-btn-refresh"
-              onClick={fetchAll}
-              disabled={loading}
-              title="Lam moi"
-              aria-label="Lam moi danh sach"
-            >
-              <FiRefreshCw size={16} className={loading ? 'spin' : ''} />
-            </button>
-
-            <button
-              className="btn-glassline-primary my-sets-btn-create"
-              onClick={() => navigate('/flashcards/sets/create')}
-              id="create-set-btn"
-            >
-              <FiPlus size={16} />
-              Create New Set
-            </button>
-          </div>
-        </div>
+        )}
 
         <div className="my-sets-content">
-          <aside className="my-sets-sidebar">
-            <FolderTree
-              folders={folders}
-              selectedFolderId={selectedFolderId}
-              onSelectFolder={(id) => {
-                setSelectedFolderId(id);
-              }}
-              onCreateFolder={handleCreateFolder}
-              onRenameFolder={handleRenameFolder}
-              onDeleteFolder={(id) => setDeleteFolderTarget(id)}
-            />
-          </aside>
-
           <main className="my-sets-main">
             {loading ? (
               <SkeletonPage cards={6} />
@@ -215,31 +103,46 @@ export default function MySets() {
               <div className="my-sets-error">
                 <p>{error}</p>
                 <button className="btn-glassline-primary" onClick={fetchAll}>
-                  <FiRefreshCw size={14} /> Thu lai
+                  Thử lại
                 </button>
               </div>
             ) : (
               <>
-                {filteredSets.length === 0 && (
+                {allSets.length === 0 && (
                   <div className="my-sets-empty">
                     <div className="my-sets-empty-icon">📚</div>
-                    <h2>Ban chua co flashcard set nao</h2>
-                    <p>Tao set dau tien de bat dau hoc!</p>
+                    <h2>Bạn chưa có học phần flashcard nào</h2>
+                    <p>Hãy tạo học phần đầu tiên để bắt đầu học và rèn luyện từ vựng tiếng Anh!</p>
                     <button
                       className="btn-glassline-primary"
                       onClick={() => navigate('/flashcards/sets/create')}
                     >
-                      <FiPlus size={16} /> Tao Set Dau Tien
+                      <FiPlus size={16} /> Tạo học phần đầu tiên
                     </button>
                   </div>
                 )}
 
-                {filteredSets.length > 0 && (
+                {allSets.length > 0 && (
                   <div className="my-sets-grid">
-                    {filteredSets.map((set) => (
+                    {/* Integrated Dashed Creation Card */}
+                    <div className="set-card-v2 create-card-dashed" onClick={() => navigate('/flashcards/sets/create')}>
+                      {/* Stack deck layers with dashed borders */}
+                      <div className="deck-shadow-layer layer-2" style={{ borderStyle: 'dashed' }}></div>
+                      <div className="deck-shadow-layer layer-1" style={{ borderStyle: 'dashed' }}></div>
+                      
+                      <div className="set-card-content create-card-content-dashed">
+                        <div className="plus-icon-circle">
+                          <FiPlus size={20} />
+                        </div>
+                        <span className="create-card-text">Tạo học phần mới</span>
+                      </div>
+                    </div>
+
+                    {allSets.map((set) => (
                       <SetCard
                         key={set._id}
                         set={set}
+                        showActions={true}
                         onClick={() => navigate(`/flashcards/sets/${set._id}`)}
                         onEdit={() => navigate(`/flashcards/sets/${set._id}/edit`)}
                         onDelete={() => setDeleteTarget({ id: set._id, title: set.title })}
@@ -257,20 +160,9 @@ export default function MySets() {
         show={!!deleteTarget}
         onHide={() => setDeleteTarget(null)}
         onConfirm={handleDelete}
-        title="Xóa Flashcard Set"
-        message={`Bạn có chắc muốn xóa "${deleteTarget?.title}"? Hành động này không thể hoàn tác.`}
-        confirmText="Xóa"
-        confirmVariant="danger"
-        loading={deleting}
-      />
-
-      <ConfirmModal
-        show={!!deleteFolderTarget}
-        onHide={() => setDeleteFolderTarget(null)}
-        onConfirm={handleDeleteFolder}
-        title="Xóa Thư Mục"
-        message="Bạn có chắc muốn xóa thư mục này? Các thư mục con bên trong sẽ được di chuyển ra ngoài."
-        confirmText="Xóa"
+        title="Xóa học phần flashcard"
+        message={`Bạn có chắc chắn muốn xóa học phần "${deleteTarget?.title}"? Hành động này sẽ xóa vĩnh viễn học phần và không thể khôi phục.`}
+        confirmText="Xóa học phần"
         confirmVariant="danger"
         loading={deleting}
       />

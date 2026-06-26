@@ -812,7 +812,9 @@
 .q-content:has(.memoris-home),
 .q-content:has(.courses-page),
 .q-content:has(.learn-page),
-.q-content:has(.lesson-page) {
+.q-content:has(.lesson-page),
+.q-content:has(.sd-modern-page),
+.q-content:has(.cs-page) {
   padding: 0;
 }
 

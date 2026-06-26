@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Container } from 'react-bootstrap';
 import {
   FiPlus, FiSave, FiArrowLeft,
   FiGlobe, FiLock, FiInfo, FiTrash2,
@@ -250,38 +251,43 @@ export default function CreateSet() {
 
         {/* Top Bar */}
         <div className="cs-topbar">
-          <div className="cs-topbar-left">
-            <button className="cs-back-btn" onClick={() => navigate('/flashcards')}>
-              <FiArrowLeft size={18} />
-            </button>
-            <h1 className="cs-topbar-title">Tạo Flashcard Set Mới</h1>
-            <div className="cs-shortcut-hints">
-              <span><kbd>Ctrl+N</kbd> Thêm thẻ</span>
-              <span><kbd>Ctrl+Enter</kbd> Tạo</span>
+          <Container>
+            <div className="cs-topbar-content">
+              <div className="cs-topbar-left">
+                <button className="cs-back-btn" onClick={() => navigate('/flashcards')}>
+                  <FiArrowLeft size={18} />
+                </button>
+                <h1 className="cs-topbar-title">Tạo Flashcard Set Mới</h1>
+                <div className="cs-shortcut-hints">
+                  <span><kbd>Ctrl+N</kbd> Thêm thẻ</span>
+                  <span><kbd>Ctrl+Enter</kbd> Tạo</span>
+                </div>
+              </div>
+              <div className="cs-topbar-right">
+                <button
+                  className="cs-btn cs-btn--outline"
+                  onClick={handleCreate}
+                  disabled={submitting}
+                  id="cs-create-btn"
+                >
+                  {submitting ? <span className="spinner-border spinner-border-sm" /> : 'Tạo'}
+                </button>
+                <button
+                  className="cs-btn cs-btn--primary"
+                  onClick={handleCreate}
+                  disabled={submitting}
+                  id="cs-create-practice-btn"
+                >
+                  {submitting ? <span className="spinner-border spinner-border-sm" /> : 'Tạo và luyện tập'}
+                </button>
+              </div>
             </div>
-          </div>
-          <div className="cs-topbar-right">
-            <button
-              className="cs-btn cs-btn--outline"
-              onClick={handleCreate}
-              disabled={submitting}
-              id="cs-create-btn"
-            >
-              {submitting ? <span className="spinner-border spinner-border-sm" /> : 'Tạo'}
-            </button>
-            <button
-              className="cs-btn cs-btn--primary"
-              onClick={handleCreate}
-              disabled={submitting}
-              id="cs-create-practice-btn"
-            >
-              {submitting ? <span className="spinner-border spinner-border-sm" /> : 'Tạo và luyện tập'}
-            </button>
-          </div>
+          </Container>
         </div>
 
         {/* Body */}
-        <div className="cs-body">
+        <Container>
+          <div className="cs-body">
 
           {titleError && <p className="cs-title-error">{titleError}</p>}
 
@@ -412,8 +418,8 @@ export default function CreateSet() {
               )}
             </button>
           </div>
-
-        </div>
+          </div>
+        </Container>
       </div>
 
       {/* Import Modal */}

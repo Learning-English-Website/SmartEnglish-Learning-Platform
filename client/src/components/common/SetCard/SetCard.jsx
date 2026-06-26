@@ -7,28 +7,46 @@ export default function SetCard({ set, showActions = false, onEdit, onDelete, on
   const userInitial = username.charAt(0).toUpperCase();
 
   return (
-    <div className="set-card" onClick={onClick} style={{ cursor: onClick ? 'pointer' : 'default' }}>
-      <div className="set-card__main">
-        <div className="set-card__header-row">
-          <span className="set-card__count">{cardCount} thuật ngữ</span>
-          <span className="set-card__separator">|</span>
-          <div className="set-card__user-info">
-            <div className="set-card__avatar">{userInitial}</div>
-            <span className="set-card__username">{username}</span>
+    <div className="set-card-v2" onClick={onClick} style={{ cursor: onClick ? 'pointer' : 'default' }}>
+      {/* Visual stacked card deck shadows */}
+      <div className="deck-shadow-layer layer-2"></div>
+      <div className="deck-shadow-layer layer-1"></div>
+
+      <div className="set-card-content">
+        <div className="set-card-header">
+          <span className="term-badge">{cardCount} thuật ngữ</span>
+          {showActions && (
+            <div className="set-card-actions">
+              <button 
+                className="action-btn edit-btn" 
+                onClick={(e) => { e.stopPropagation(); onEdit(); }} 
+                title="Sửa"
+                aria-label="Sửa học phần"
+              >
+                <Edit size={13} />
+              </button>
+              <button 
+                className="action-btn delete-btn" 
+                onClick={(e) => { e.stopPropagation(); onDelete(); }} 
+                title="Xóa"
+                aria-label="Xóa học phần"
+              >
+                <Trash2 size={13} />
+              </button>
+            </div>
+          )}
+        </div>
+
+        <h3 className="set-card-title">{set.title}</h3>
+
+        <div className="set-card-footer">
+          <div className="user-profile">
+            <div className="avatar-circle">{userInitial}</div>
+            <span className="username-text">{username}</span>
           </div>
+          <span className="arrow-indicator">➔</span>
         </div>
-        <h3 className="set-card__title">{set.title}</h3>
       </div>
-      {showActions && (
-        <div className="set-card__actions">
-          <button className="set-card__btn set-card__btn--edit" onClick={(e) => { e.stopPropagation(); onEdit(); }} title="Sửa">
-            <Edit size={16} />
-          </button>
-          <button className="set-card__btn set-card__btn--delete" onClick={(e) => { e.stopPropagation(); onDelete(); }} title="Xóa">
-            <Trash2 size={16} />
-          </button>
-        </div>
-      )}
     </div>
   );
 }
