@@ -98,4 +98,58 @@ router.post('/verify-email-otp', verifyOtpRateLimiter, validate(verifyEmailOtpSc
 // POST /api/auth/reset-password-otp
 router.post('/reset-password-otp', validate(resetPasswordOtpSchema), resetPasswordWithOtp);
 
+// DEV-ONLY helper to retrieve OTP code (used for automated Postman/E2E test runs)
+if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test') {
+  router.get('/dev-get-otp', async (req, res) => {
+    try {
+      const { email } = req.query;
+      if (!email) {
+        return res.status(400).json({ success: false, message: 'Email query parameter is required' });
+      }
+      
+      const redis = require('../../config/redis');
+      const crypto = require('crypto');
+      
+      const emailKey = `otp:verify:${email.toLowerCase()}`;
+      const resetKey = `otp:reset:${email.toLowerCase()}`;
+      
+      let data = await redis.get(emailKey);
+      let type = 'verify';
+      
+      if (!data) {
+        data = await redis.get(resetKey);
+        type = 'reset';
+      }
+      
+      if (!data) {
+        return res.status(404).json({ success: false, message: 'OTP not found in Redis' });
+      }
+      
+      const { otpHash } = JSON.parse(data);
+      if (!otpHash) {
+        return res.status(500).json({ success: false, message: 'OTP hash not found in cached data' });
+      }
+      
+      // Brute force 6-digit OTP
+      let otp = null;
+      for (let i = 100000; i <= 999999; i++) {
+        const otpStr = String(i);
+        const hash = crypto.createHash('sha256').update(otpStr).digest('hex');
+        if (hash === otpHash) {
+          otp = otpStr;
+          break;
+        }
+      }
+      
+      if (!otp) {
+        return res.status(500).json({ success: false, message: 'Failed to crack OTP hash' });
+      }
+      
+      return res.status(200).json({ success: true, type, otp });
+    } catch (error) {
+      return res.status(500).json({ success: false, error: error.message });
+    }
+  });
+}
+
 module.exports = router;

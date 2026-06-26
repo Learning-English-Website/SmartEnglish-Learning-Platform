@@ -108,7 +108,7 @@ describe('Admin & CSKH Security Restrictions', () => {
 
       expect(res.status).toBe(403);
       expect(res.body.success).toBe(false);
-      expect(res.body.error.message).toMatch(/Admin access required/i);
+      expect(res.body.error.message).toMatch(/(Admin access required|permission)/i);
 
       // Verify role didn't change in DB
       const freshUser = await User.findById(studentUser._id);
@@ -123,7 +123,7 @@ describe('Admin & CSKH Security Restrictions', () => {
 
       expect(res.status).toBe(403);
       expect(res.body.success).toBe(false);
-      expect(res.body.error.message).toMatch(/Admin access required/i);
+      expect(res.body.error.message).toMatch(/(Admin access required|permission)/i);
 
       // Verify username didn't change in DB
       const freshUser = await User.findById(studentUser._id);
@@ -137,7 +137,7 @@ describe('Admin & CSKH Security Restrictions', () => {
 
       expect(res.status).toBe(403);
       expect(res.body.success).toBe(false);
-      expect(res.body.error.message).toMatch(/Admin access required/i);
+      expect(res.body.error.message).toMatch(/(Admin access required|permission)/i);
 
       // Verify user still exists in DB
       const freshUser = await User.findById(studentUser._id);

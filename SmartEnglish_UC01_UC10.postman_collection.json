@@ -1,0 +1,1195 @@
+{
+	"info": {
+		"_postman_id": "7dd7bb01-44cd-4e8b-821f-8899cbdf11aa",
+		"name": "SmartEnglish - UC01 to UC10 API Tests",
+		"description": "Automated Postman Collection to run all API endpoints for UC01 to UC10 sequentially in a single click using Postman Collection Runner.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "UC01 - Đăng ký tài khoản",
+			"item": [
+				{
+					"name": "01. Đăng ký tài khoản mới",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"const uniqueVal = Date.now();",
+									"pm.environment.set(\"test_email\", \"postman\" + uniqueVal + \"@example.com\");",
+									"pm.environment.set(\"test_username\", \"postman\" + uniqueVal);"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Đăng ký thành công - Status 201\", function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"const jsonData = pm.response.json();",
+									"pm.test(\"Yêu cầu xác thực OTP\", function () {",
+									"    pm.expect(jsonData.success).to.eql(true);",
+									"    pm.expect(jsonData.data.requiresEmailVerification).to.eql(true);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"{{test_email}}\",\n  \"username\": \"{{test_username}}\",\n  \"password\": \"{{test_password}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{API_BASE_URL}}/auth/register",
+							"host": [
+								"{{API_BASE_URL}}"
+							],
+							"path": [
+								"auth",
+								"register"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "02. Lấy OTP xác thực (Dev-Only)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Lấy OTP từ Redis thành công\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"const jsonData = pm.response.json();",
+									"if (jsonData.success && jsonData.otp) {",
+									"    pm.environment.set(\"otp\", jsonData.otp);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{API_BASE_URL}}/auth/dev-get-otp?email={{test_email}}",
+							"host": [
+								"{{API_BASE_URL}}"
+							],
+							"path": [
+								"auth",
+								"dev-get-otp"
+							],
+							"query": [
+								{
+									"key": "email",
+									"value": "{{test_email}}"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "03. Xác thực OTP email",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Xác thực OTP thành công - Status 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"const jsonData = pm.response.json();",
+									"if (jsonData.success && jsonData.data) {",
+									"    pm.environment.set(\"accessToken\", jsonData.data.accessToken);",
+									"    pm.environment.set(\"refreshToken\", jsonData.data.refreshToken);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"{{test_email}}\",\n  \"otp\": \"{{otp}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{API_BASE_URL}}/auth/verify-email-otp",
+							"host": [
+								"{{API_BASE_URL}}"
+							],
+							"path": [
+								"auth",
+								"verify-email-otp"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "UC02 & UC03 - Đăng nhập & Đăng xuất",
+			"item": [
+				{
+					"name": "04. Đăng nhập hệ thống",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Đăng nhập thành công - Status 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"const jsonData = pm.response.json();",
+									"if (jsonData.success && jsonData.data) {",
+									"    pm.environment.set(\"accessToken\", jsonData.data.accessToken);",
+									"    pm.environment.set(\"refreshToken\", jsonData.data.refreshToken);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"{{test_email}}\",\n  \"password\": \"{{test_password}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{API_BASE_URL}}/auth/login",
+							"host": [
+								"{{API_BASE_URL}}"
+							],
+							"path": [
+								"auth",
+								"login"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "05. Làm mới token (Refresh Token)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Làm mới token thành công - Status 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"const jsonData = pm.response.json();",
+									"if (jsonData.success && jsonData.data) {",
+									"    pm.environment.set(\"accessToken\", jsonData.data.accessToken);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{API_BASE_URL}}/auth/refresh",
+							"host": [
+								"{{API_BASE_URL}}"
+							],
+							"path": [
+								"auth",
+								"refresh"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "06. Đăng xuất",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Đăng xuất thành công - Status 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{API_BASE_URL}}/auth/logout",
+							"host": [
+								"{{API_BASE_URL}}"
+							],
+							"path": [
+								"auth",
+								"logout"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "UC04 - Khôi phục mật khẩu",
+			"item": [
+				{
+					"name": "07. Yêu cầu khôi phục mật khẩu (Send OTP)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Yêu cầu reset thành công - Status 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"{{test_email}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{API_BASE_URL}}/auth/forgot-password",
+							"host": [
+								"{{API_BASE_URL}}"
+							],
+							"path": [
+								"auth",
+								"forgot-password"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "08. Lấy OTP khôi phục mật khẩu (Dev-Only)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Lấy OTP reset thành công\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"const jsonData = pm.response.json();",
+									"if (jsonData.success && jsonData.otp) {",
+									"    pm.environment.set(\"otp\", jsonData.otp);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{API_BASE_URL}}/auth/dev-get-otp?email={{test_email}}",
+							"host": [
+								"{{API_BASE_URL}}"
+							],
+							"path": [
+								"auth",
+								"dev-get-otp"
+							],
+							"query": [
+								{
+									"key": "email",
+									"value": "{{test_email}}"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "09. Xác thực OTP khôi phục mật khẩu",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Xác thực OTP reset thành công - Status 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"const jsonData = pm.response.json();",
+									"if (jsonData.success && jsonData.data) {",
+									"    pm.environment.set(\"resetToken\", jsonData.data.resetToken);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"{{test_email}}\",\n  \"otp\": \"{{otp}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{API_BASE_URL}}/auth/verify-reset-otp",
+							"host": [
+								"{{API_BASE_URL}}"
+							],
+							"path": [
+								"auth",
+								"verify-reset-otp"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "10. Đặt mật khẩu mới bằng resetToken",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Đặt mật khẩu mới thành công - Status 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.environment.set(\"test_password\", \"NewPassword123!\");"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"{{test_email}}\",\n  \"otp\": \"{{otp}}\",\n  \"newPassword\": \"NewPassword123!\",\n  \"resetToken\": \"{{resetToken}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{API_BASE_URL}}/auth/reset-password-otp",
+							"host": [
+								"{{API_BASE_URL}}"
+							],
+							"path": [
+								"auth",
+								"reset-password-otp"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "11. Đăng nhập lại bằng mật khẩu mới",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Đăng nhập lại bằng mật khẩu mới thành công\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"const jsonData = pm.response.json();",
+									"if (jsonData.success && jsonData.data) {",
+									"    pm.environment.set(\"accessToken\", jsonData.data.accessToken);",
+									"    pm.environment.set(\"refreshToken\", jsonData.data.refreshToken);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"{{test_email}}\",\n  \"password\": \"{{test_password}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{API_BASE_URL}}/auth/login",
+							"host": [
+								"{{API_BASE_URL}}"
+							],
+							"path": [
+								"auth",
+								"login"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "UC05 - Đăng nhập Google (Mobile)",
+			"item": [
+				{
+					"name": "12. Đăng nhập bằng Google ID Token (Mobile API)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Trực quan hóa cấu trúc API Google Mobile\", function () {",
+									"    pm.expect(pm.response.code).to.be.oneOf([200, 400, 401]);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"idToken\": \"google-id-token-stub-string\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{API_BASE_URL}}/auth/google",
+							"host": [
+								"{{API_BASE_URL}}"
+							],
+							"path": [
+								"auth",
+								"google"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "UC06 - Quản lý thông tin cá nhân",
+			"item": [
+				{
+					"name": "13. Xem thông tin cá nhân",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Lấy thông tin cá nhân thành công - Status 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"const jsonData = pm.response.json();",
+									"pm.test(\"Kiểm tra khớp email\", function () {",
+									"    pm.expect(jsonData.data.email).to.eql(pm.environment.get(\"test_email\").toLowerCase());",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{API_BASE_URL}}/users/profile",
+							"host": [
+								"{{API_BASE_URL}}"
+							],
+							"path": [
+								"users",
+								"profile"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "14. Cập nhật thông tin cá nhân",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Cập nhật profile thành công - Status 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"const jsonData = pm.response.json();",
+									"pm.test(\"Kiểm tra dữ liệu cập nhật thành công\", function () {",
+									"    pm.expect(jsonData.data.emailReminderEnabled).to.eql(true);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"{{test_username}}mod\",\n  \"avatar\": \"https://example.com/new-avatar.png\",\n  \"emailReminderEnabled\": true\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{API_BASE_URL}}/users/me",
+							"host": [
+								"{{API_BASE_URL}}"
+							],
+							"path": [
+								"users",
+								"me"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "UC08, UC09, UC10 - Flashcard Sets & Folders",
+			"item": [
+				{
+					"name": "15. Tạo Nhãn học tập (Helper: Create Tag)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Tạo Tag thành công - Status 201\", function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"const jsonData = pm.response.json();",
+									"if (jsonData.success && jsonData.data) {",
+									"    pm.environment.set(\"tagId\", jsonData.data._id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Vocabulary\",\n  \"color\": \"#ff0000\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{API_BASE_URL}}/tags",
+							"host": [
+								"{{API_BASE_URL}}"
+							],
+							"path": [
+								"tags"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "16. Tạo Bộ thẻ học mới (UC08)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Tạo Flashcard Set thành công - Status 201\", function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"const jsonData = pm.response.json();",
+									"if (jsonData.success && jsonData.data) {",
+									"    pm.environment.set(\"setId\", jsonData.data._id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Postman Vocabulary Set\",\n  \"description\": \"Created automatically by Postman collection runner\",\n  \"isPublic\": true,\n  \"tags\": [\"{{tagId}}\"]\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{API_BASE_URL}}/flashcard-sets",
+							"host": [
+								"{{API_BASE_URL}}"
+							],
+							"path": [
+								"flashcard-sets"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "17. Tạo Thư mục học tập (Create Folder)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Tạo Folder thành công - Status 201\", function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"const jsonData = pm.response.json();",
+									"if (jsonData.success && jsonData.data) {",
+									"    pm.environment.set(\"folderId\", jsonData.data._id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Postman Main Folder\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{API_BASE_URL}}/folders",
+							"host": [
+								"{{API_BASE_URL}}"
+							],
+							"path": [
+								"folders"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "18. Đưa Bộ thẻ học vào Thư mục (Link Set to Folder)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Liên kết Set vào Folder thành công\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"setId\": \"{{setId}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{API_BASE_URL}}/folders/{{folderId}}/sets",
+							"host": [
+								"{{API_BASE_URL}}"
+							],
+							"path": [
+								"folders",
+								"{{folderId}}",
+								"sets"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "19. Xem danh sách bộ thẻ cá nhân (UC09)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Lấy sets cá nhân thành công - Status 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{API_BASE_URL}}/flashcard-sets/my",
+							"host": [
+								"{{API_BASE_URL}}"
+							],
+							"path": [
+								"flashcard-sets",
+								"my"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "20. Xem danh sách bộ thẻ công khai (UC09)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Lấy sets công khai thành công - Status 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{API_BASE_URL}}/flashcard-sets/public",
+							"host": [
+								"{{API_BASE_URL}}"
+							],
+							"path": [
+								"flashcard-sets",
+								"public"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "21. Xem chi tiết bộ thẻ học (UC09)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Lấy chi tiết set thành công - Status 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{API_BASE_URL}}/flashcard-sets/{{setId}}",
+							"host": [
+								"{{API_BASE_URL}}"
+							],
+							"path": [
+								"flashcard-sets",
+								"{{setId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "22. Cập nhật Bộ thẻ học (UC10)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Cập nhật set thành công - Status 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Postman Vocabulary Set - Updated\",\n  \"description\": \"Updated by Postman Collection Runner\",\n  \"isPublic\": false,\n  \"tags\": [\"{{tagId}}\"]\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{API_BASE_URL}}/flashcard-sets/{{setId}}",
+							"host": [
+								"{{API_BASE_URL}}"
+							],
+							"path": [
+								"flashcard-sets",
+								"{{setId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "23. Xóa bộ thẻ ra khỏi thư mục (UC10)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Xóa set khỏi folder thành công - Status 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{API_BASE_URL}}/folders/{{folderId}}/sets/{{setId}}",
+							"host": [
+								"{{API_BASE_URL}}"
+							],
+							"path": [
+								"folders",
+								"{{folderId}}",
+								"sets",
+								"{{setId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "24. Xóa bộ thẻ học hoàn toàn (UC10)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Xóa set thành công - Status 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{API_BASE_URL}}/flashcard-sets/{{setId}}",
+							"host": [
+								"{{API_BASE_URL}}"
+							],
+							"path": [
+								"flashcard-sets",
+								"{{setId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "25. Xóa thư mục hoàn toàn",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Xóa folder thành công - Status 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{API_BASE_URL}}/folders/{{folderId}}",
+							"host": [
+								"{{API_BASE_URL}}"
+							],
+							"path": [
+								"folders",
+								"{{folderId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "26. Xóa nhãn hoàn toàn",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Xóa Tag thành công - Status 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{API_BASE_URL}}/tags/{{tagId}}",
+							"host": [
+								"{{API_BASE_URL}}"
+							],
+							"path": [
+								"tags",
+								"{{tagId}}"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Dọn dẹp tài khoản kiểm thử",
+			"item": [
+				{
+					"name": "27. Xóa tài khoản kiểm thử",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Xóa tài khoản thành công - Status 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.environment.set(\"accessToken\", \"\");",
+									"pm.environment.set(\"refreshToken\", \"\");"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{API_BASE_URL}}/users/me",
+							"host": [
+								"{{API_BASE_URL}}"
+							],
+							"path": [
+								"users",
+								"me"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}

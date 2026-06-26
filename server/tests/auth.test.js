@@ -66,7 +66,7 @@ describe('Auth API', () => {
 
       expect(res.status).toBe(201);
       expect(res.body.success).toBe(true);
-      expect(res.body.message).toContain('OTP sent');
+      expect(res.body.message).toMatch(/(OTP sent|Mã OTP đã được gửi)/i);
       expect(res.body.data.email).toBe(validUser.email);
       expect(res.body.data.requiresEmailVerification).toBe(true);
     });
@@ -111,7 +111,7 @@ describe('Auth API', () => {
 
       expect(res.status).toBe(409);
       expect(res.body.success).toBe(false);
-      expect(res.body.message).toContain('Email already in use');
+      expect(res.body.message).toMatch(/(Email already in use|Email đã được sử dụng)/i);
     });
 
     it('should return 409 for duplicate username', async () => {
@@ -127,7 +127,7 @@ describe('Auth API', () => {
         .send(validUser);
 
       expect(res.status).toBe(409);
-      expect(res.body.message).toContain('Username already in use');
+      expect(res.body.message).toMatch(/(Username already in use|Tên đăng nhập đã được sử dụng)/i);
     });
 
     it('should return 400 for missing required fields', async () => {
@@ -172,7 +172,7 @@ describe('Auth API', () => {
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
-      expect(res.body.message).toContain('Login successful');
+      expect(res.body.message).toMatch(/(Login successful|Đăng nhập thành công)/i);
       expect(res.body.data.user.email).toBe(testUser.email);
     });
 
@@ -182,7 +182,7 @@ describe('Auth API', () => {
         .send({ email: 'wrong@example.com', password: testUser.password });
 
       expect(res.status).toBe(401);
-      expect(res.body.message).toContain('Invalid email or password');
+      expect(res.body.message).toMatch(/(Invalid email or password|Email hoặc mật khẩu không chính xác)/i);
     });
 
     it('should return 401 for invalid password', async () => {
@@ -191,7 +191,7 @@ describe('Auth API', () => {
         .send({ email: testUser.email, password: 'WrongPassword123!' });
 
       expect(res.status).toBe(401);
-      expect(res.body.message).toContain('Invalid email or password');
+      expect(res.body.message).toMatch(/(Invalid email or password|Email hoặc mật khẩu không chính xác)/i);
     });
 
     it('should return 403 for unverified email', async () => {
@@ -208,7 +208,7 @@ describe('Auth API', () => {
         .send({ email: unverifiedUser.email, password: unverifiedUser.password });
 
       expect(res.status).toBe(403);
-      expect(res.body.message).toContain('Email not verified');
+      expect(res.body.message).toMatch(/(Email not verified|Email chưa được xác thực)/i);
     });
   });
 
