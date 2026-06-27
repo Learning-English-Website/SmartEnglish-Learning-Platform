@@ -1,20 +1,30 @@
+const mongoose = require('mongoose');
 const Folder = require('../../models/folder.model');
+const FlashcardSet = require('../../models/flashcardSet.model');
 const { AppError } = require('../../shared/errors/AppError');
 
-const getAll = async (userId) => {
-  let folders = await Folder.find({ user: userId }).sort({ name: 1 }).lean();
-  
-  // Automatically create a "Yêu thích" folder if it doesn't exist
-  const hasFavoriteFolder = folders.some(f => f.name.toLowerCase() === 'yêu thích');
-  if (!hasFavoriteFolder) {
-    const favoriteFolder = await Folder.create({
-      user: userId,
-      name: 'Yêu thích',
-      parent: null
-    });
-    folders.push(favoriteFolder.toObject());
-    folders.sort((a, b) => a.name.localeCompare(b.name));
+const FAVORITE_FOLDER_NAME = 'Yêu thích';
+const isFavoriteFolder = (folder) => folder.name?.trim().toLowerCase() === FAVORITE_FOLDER_NAME.toLowerCase();
+
+const getAccessibleSet = async (setId, userId) => {
+  if (!mongoose.Types.ObjectId.isValid(setId)) {
+    throw new AppError('Invalid flashcard set id', 400);
   }
+
+  const set = await FlashcardSet.findById(setId);
+  if (!set) throw new AppError('Flashcard set not found', 404);
+
+  const isOwner = set.user.toString() === userId.toString();
+  if (!set.isPublic && !isOwner) throw new AppError('Access denied', 403);
+
+  return set;
+};
+
+const getAll = async (userId) => {
+  const folders = await Folder.find({
+    user: userId,
+    name: { $ne: FAVORITE_FOLDER_NAME },
+  }).sort({ name: 1 }).lean();
 
   // Normalize: rename parent → parentId for frontend compatibility
   return folders.map((f) => ({
@@ -25,13 +35,17 @@ const getAll = async (userId) => {
 };
 
 const getById = async (folderId, userId) => {
-  const folder = await Folder.findOne({ _id: folderId, user: userId }).lean();
+  const folder = await Folder.findOne({
+    _id: folderId,
+    user: userId,
+    name: { $ne: FAVORITE_FOLDER_NAME },
+  }).lean();
   if (!folder) throw new AppError('Folder not found', 404);
   return folder;
 };
 
 const create = async (userId, { name, parent, parentId }) => {
-  if (name && name.trim().toLowerCase() === 'yêu thích') {
+  if (name && name.trim().toLowerCase() === FAVORITE_FOLDER_NAME.toLowerCase()) {
     throw new AppError('Thư mục "Yêu thích" đã tồn tại mặc định.', 400);
   }
 
@@ -48,11 +62,11 @@ const update = async (folderId, userId, { name, parent, parentId }) => {
   const folder = await Folder.findOne({ _id: folderId, user: userId });
   if (!folder) throw new AppError('Folder not found', 404);
 
-  if (folder.name.toLowerCase() === 'yêu thích') {
-    if (name && name.trim().toLowerCase() !== 'yêu thích') {
+  if (isFavoriteFolder(folder)) {
+    if (name && name.trim().toLowerCase() !== FAVORITE_FOLDER_NAME.toLowerCase()) {
       throw new AppError('Không thể đổi tên thư mục Yêu thích mặc định.', 400);
     }
-  } else if (name && name.trim().toLowerCase() === 'yêu thích') {
+  } else if (name && name.trim().toLowerCase() === FAVORITE_FOLDER_NAME.toLowerCase()) {
     throw new AppError('Không thể đặt tên thư mục trùng với thư mục "Yêu thích" mặc định.', 400);
   }
 
@@ -74,7 +88,7 @@ const remove = async (folderId, userId) => {
   const folder = await Folder.findOne({ _id: folderId, user: userId });
   if (!folder) throw new AppError('Folder not found', 404);
 
-  if (folder.name.toLowerCase() === 'yêu thích') {
+  if (isFavoriteFolder(folder)) {
     throw new AppError('Không thể xóa thư mục Yêu thích mặc định.', 400);
   }
 
@@ -90,19 +104,14 @@ const addSet = async (folderId, setId, userId) => {
   const folder = await Folder.findOne({ _id: folderId, user: userId });
   if (!folder) throw new AppError('Folder not found', 404);
 
+  if (isFavoriteFolder(folder)) throw new AppError('Folder not found', 404);
+
+  await getAccessibleSet(setId, userId);
+
   if (!folder.sets) folder.sets = [];
   if (!folder.sets.includes(setId)) {
     folder.sets.push(setId);
     await folder.save();
-  }
-
-  // Bidirectional sync: if this is "Yêu thích" folder, add bookmark
-  if (folder.name.toLowerCase() === 'yêu thích') {
-    const Bookmark = require('../../models/bookmark.model');
-    const existingBookmark = await Bookmark.findOne({ user: userId, set: setId });
-    if (!existingBookmark) {
-      await Bookmark.create({ user: userId, set: setId });
-    }
   }
 
   return folder;
@@ -112,34 +121,38 @@ const removeSet = async (folderId, setId, userId) => {
   const folder = await Folder.findOne({ _id: folderId, user: userId });
   if (!folder) throw new AppError('Folder not found', 404);
 
+  if (isFavoriteFolder(folder)) throw new AppError('Folder not found', 404);
+
   if (folder.sets) {
     folder.sets = folder.sets.filter((id) => id.toString() !== setId);
     await folder.save();
-  }
-
-  // Bidirectional sync: if this is "Yêu thích" folder, remove bookmark
-  if (folder.name.toLowerCase() === 'yêu thích') {
-    const Bookmark = require('../../models/bookmark.model');
-    await Bookmark.deleteOne({ user: userId, set: setId });
   }
 
   return folder;
 };
 
 const getByParent = async (userId, parentId = null) => {
-  return Folder.find({ user: userId, parent: parentId }).sort({ name: 1 }).lean();
+  return Folder.find({
+    user: userId,
+    parent: parentId,
+    name: { $ne: FAVORITE_FOLDER_NAME },
+  }).sort({ name: 1 }).lean();
 };
 
 const getSets = async (folderId, userId) => {
-  const folder = await Folder.findOne({ _id: folderId, user: userId }).lean();
+  const folder = await Folder.findOne({
+    _id: folderId,
+    user: userId,
+    name: { $ne: FAVORITE_FOLDER_NAME },
+  }).lean();
   if (!folder) throw new AppError('Folder not found', 404);
 
   if (!folder.sets || folder.sets.length === 0) {
     return { ...folder, sets: [] };
   }
 
-  const FlashcardSet = require('../../models/flashcardSet.model');
   const sets = await FlashcardSet.find({ _id: { $in: folder.sets } })
+    .populate('user', 'username avatar')
     .populate('tags', 'name color')
     .lean();
   return { ...folder, sets };

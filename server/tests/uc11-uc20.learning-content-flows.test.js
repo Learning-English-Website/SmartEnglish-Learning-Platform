@@ -194,9 +194,16 @@ describe('Learning Content API Integration Tests (UC11 - UC20)', () => {
       const bookmark = await Bookmark.findOne({ user: viewer._id, set: set._id });
       expect(bookmark).toBeTruthy();
 
+      const bookmarksRes = await request(app)
+        .get('/api/bookmarks')
+        .set('Authorization', `Bearer ${viewerToken}`);
+
+      expect(bookmarksRes.status).toBe(200);
+      expect(bookmarksRes.body.data.map((favorite) => favorite.set._id.toString()))
+        .toContain(set._id.toString());
+
       const favoriteFolder = await Folder.findOne({ user: viewer._id, name: 'Yêu thích' });
-      expect(favoriteFolder).toBeTruthy();
-      expect(favoriteFolder.sets.map((id) => id.toString())).toContain(set._id.toString());
+      expect(favoriteFolder).toBeNull();
     });
   });
 

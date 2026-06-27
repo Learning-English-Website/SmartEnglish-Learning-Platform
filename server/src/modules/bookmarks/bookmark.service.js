@@ -1,47 +1,41 @@
+const mongoose = require('mongoose');
 const Bookmark = require('../../models/bookmark.model');
 const FlashcardSet = require('../../models/flashcardSet.model');
-const Folder = require('../../models/folder.model');
 const { AppError } = require('../../shared/errors/AppError');
 
-/**
- * Add a bookmark for a flashcard set
- */
-const addBookmark = async (userId, setId) => {
-  // Verify set exists
+const validateSetId = (setId) => {
+  if (!mongoose.Types.ObjectId.isValid(setId)) {
+    throw new AppError('Invalid flashcard set id', 400);
+  }
+};
+
+const getAccessibleSet = async (userId, setId) => {
+  validateSetId(setId);
+
   const flashcardSet = await FlashcardSet.findById(setId);
   if (!flashcardSet) {
     throw new AppError('Flashcard set not found', 404);
   }
 
-  // Check if already bookmarked
-  const existing = await Bookmark.findOne({ user: userId, set: setId });
-
-  // Ensure default "Yêu thích" folder exists and contains this set
-  let favoriteFolder = await Folder.findOne({ user: userId, name: 'Yêu thích' });
-  if (!favoriteFolder) {
-    favoriteFolder = await Folder.create({
-      user: userId,
-      name: 'Yêu thích',
-      parent: null,
-      sets: [setId]
-    });
-  } else {
-    if (!favoriteFolder.sets) favoriteFolder.sets = [];
-    if (!favoriteFolder.sets.includes(setId)) {
-      favoriteFolder.sets.push(setId);
-      await favoriteFolder.save();
-    }
+  const isOwner = flashcardSet.user.toString() === userId.toString();
+  if (!flashcardSet.isPublic && !isOwner) {
+    throw new AppError('Access denied', 403);
   }
 
-  if (existing) {
-    return existing;
-  }
+  return flashcardSet;
+};
 
-  // Create bookmark
-  const bookmark = await Bookmark.create({
-    user: userId,
-    set: setId,
-  });
+/**
+ * Add a bookmark for a flashcard set
+ */
+const addBookmark = async (userId, setId) => {
+  await getAccessibleSet(userId, setId);
+
+  const bookmark = await Bookmark.findOneAndUpdate(
+    { user: userId, set: setId },
+    { $setOnInsert: { user: userId, set: setId } },
+    { returnDocument: 'after', upsert: true, setDefaultsOnInsert: true }
+  );
 
   return bookmark;
 };
@@ -50,18 +44,11 @@ const addBookmark = async (userId, setId) => {
  * Remove a bookmark
  */
 const removeBookmark = async (userId, setId) => {
-  const bookmark = await Bookmark.findOne({ user: userId, set: setId });
+  validateSetId(setId);
+
+  const bookmark = await Bookmark.findOneAndDelete({ user: userId, set: setId });
   if (!bookmark) {
     throw new AppError('Bookmark not found', 404);
-  }
-
-  await bookmark.deleteOne();
-
-  // Remove the set from default "Yêu thích" folder if it exists
-  const favoriteFolder = await Folder.findOne({ user: userId, name: 'Yêu thích' });
-  if (favoriteFolder && favoriteFolder.sets) {
-    favoriteFolder.sets = favoriteFolder.sets.filter(id => id.toString() !== setId.toString());
-    await favoriteFolder.save();
   }
 
   return null;
@@ -75,15 +62,20 @@ const getUserBookmarks = async (userId) => {
     .populate({
       path: 'set',
       select: 'title description cardCount language user isPublic tags',
-      populate: {
-        path: 'user',
-        select: 'username avatar',
-      },
+      populate: [
+        { path: 'user', select: 'username avatar' },
+        { path: 'tags', select: 'name color' },
+      ],
     })
-    .sort({ createdAt: -1 });
+    .sort({ createdAt: -1 })
+    .lean();
 
-  // Filter out bookmarks where set was deleted
-  const validBookmarks = bookmarks.filter(b => b.set !== null);
+  // Filter out deleted sets and sets the user can no longer access.
+  const validBookmarks = bookmarks.filter((bookmark) => {
+    if (!bookmark.set) return false;
+    const setUserId = bookmark.set.user?._id || bookmark.set.user;
+    return bookmark.set.isPublic || setUserId?.toString() === userId.toString();
+  });
 
   return validBookmarks;
 };
@@ -92,6 +84,7 @@ const getUserBookmarks = async (userId) => {
  * Check if a set is bookmarked by user
  */
 const isBookmarked = async (userId, setId) => {
+  validateSetId(setId);
   const bookmark = await Bookmark.findOne({ user: userId, set: setId });
   return !!bookmark;
 };

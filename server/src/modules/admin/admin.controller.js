@@ -10,6 +10,9 @@ const User = require('../user/user.model');
 const { ApiResponse } = require('../../shared/utils/apiResponse');
 const { AppError } = require('../../shared/errors/AppError');
 
+const FAVORITE_FOLDER_NAME = 'Yêu thích';
+const isFavoriteFolder = (folder) => folder.name?.trim().toLowerCase() === FAVORITE_FOLDER_NAME.toLowerCase();
+
 const adminOnly = async (req, res, next) => {
   if (!req.user || req.user.role !== 'admin') {
     return next(new AppError('Admin access required', 403));
@@ -453,10 +456,18 @@ const deleteFlashcardSet = async (req, res) => {
 // ── Folders ───────────────────────────────────────────────────────────────────
 
 const getAllFolders = async (req, res) => {
-  const { userId, search, page = 1, limit = 10 } = req.query;
-  const filter = {};
+  const { userId, search, page = 1, limit = 10, includeSystem = 'false' } = req.query;
+  const filter = includeSystem === 'true' ? {} : { name: { $ne: FAVORITE_FOLDER_NAME } };
   if (userId) filter.user = userId;
-  if (search) filter.name = { $regex: search, $options: 'i' };
+  if (search) {
+    const searchFilter = { $regex: search, $options: 'i' };
+    if (filter.name) {
+      filter.$and = [{ name: filter.name }, { name: searchFilter }];
+      delete filter.name;
+    } else {
+      filter.name = searchFilter;
+    }
+  }
 
   const skip = (Number(page) - 1) * Number(limit);
   const [folders, total] = await Promise.all([
@@ -490,8 +501,13 @@ const getFolder = async (req, res) => {
 };
 
 const deleteFolder = async (req, res) => {
-  const folder = await Folder.findByIdAndDelete(req.params.id);
+  const folder = await Folder.findById(req.params.id);
   if (!folder) throw new AppError('Folder not found', 404);
+  if (isFavoriteFolder(folder)) {
+    throw new AppError('Không thể xóa thư mục Yêu thích hệ thống.', 400);
+  }
+
+  await folder.deleteOne();
   res.json(ApiResponse.success(null, 'Folder deleted'));
 };
 

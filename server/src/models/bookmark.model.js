@@ -13,4 +13,4 @@ const bookmarkSchema = new Schema(
 // Ensure unique bookmark per user per set
 bookmarkSchema.index({ user: 1, set: 1 }, { unique: true });
 
-module.exports = mongoose.model('Bookmark', bookmarkSchema);
+module.exports = mongoose.model('Bookmark', bookmarkSchema, 'favorite_flashcard_sets');

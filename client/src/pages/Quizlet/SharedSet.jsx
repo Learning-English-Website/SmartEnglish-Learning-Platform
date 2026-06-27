@@ -65,6 +65,29 @@ export default function SharedSet() {
     }
   }, [isAuthenticated, authLoading, navigate, shareCode]);
 
+  useEffect(() => {
+    if (authLoading || !isAuthenticated || !set?._id) return undefined;
+
+    let cancelled = false;
+    shareService.getBookmarks()
+      .then((res) => {
+        if (cancelled) return;
+        const bookmarks = res?.data ?? res;
+        const bookmarked = Array.isArray(bookmarks) && bookmarks.some((bookmark) => {
+          const bookmarkedSetId = bookmark?.set?._id || bookmark?.set || bookmark?._id;
+          return String(bookmarkedSetId) === String(set._id);
+        });
+        setIsBookmarked(bookmarked);
+      })
+      .catch(() => {
+        if (!cancelled) setIsBookmarked(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authLoading, isAuthenticated, set?._id]);
+
   const handleAddToMySets = async () => {
     if (!set) return;
     setAddingToMySets(true);

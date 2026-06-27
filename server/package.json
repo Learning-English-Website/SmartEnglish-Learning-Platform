@@ -9,6 +9,7 @@
     "start": "node src/server.js",
     "seed": "node src/seeders/index.js",
     "migrate:progress": "node src/scripts/migrateProgressStatus.js",
+    "cleanup:favorite-folders": "node src/scripts/cleanupFavoriteFolders.js",
     "test": "jest --detectOpenHandles --forceExit",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage"

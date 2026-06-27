@@ -5,6 +5,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { toast } from 'react-hot-toast';
 import { setService } from '../../api/setService';
 import { folderService } from '../../api/folderService';
+import { shareService } from '../../api/shareService';
 import { FilterDropdown, ConfirmModal } from '../../components/common';
 import SetCard from '../../components/common/SetCard/SetCard';
 import CreateFolderModal from './CreateFolderModal';
@@ -12,6 +13,7 @@ import './LibraryPage.css';
 
 const TABS = [
   { id: 'sets', label: 'Học phần', icon: BookOpen },
+  { id: 'favorites', label: 'Yêu thích', icon: Heart },
   { id: 'folders', label: 'Thư mục', icon: Folder },
 ];
 
@@ -23,6 +25,7 @@ export default function LibraryPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [sets, setSets] = useState([]);
+  const [favorites, setFavorites] = useState([]);
   const [folders, setFolders] = useState([]);
   const [error, setError] = useState(null);
 
@@ -48,6 +51,24 @@ export default function LibraryPage() {
       })
       .finally(() => setLoading(false));
   }, [activeTab, isOwnProfile, username]);
+
+  useEffect(() => {
+    if (activeTab !== 'favorites' || !isOwnProfile) return;
+
+    setLoading(true);
+    setError(null);
+    shareService.getBookmarks()
+      .then((data) => {
+        const list = Array.isArray(data) ? data : data?.data ?? [];
+        setFavorites(list.map((bookmark) => bookmark.set).filter(Boolean));
+      })
+      .catch((err) => {
+        console.error('Failed to fetch favorites:', err);
+        setError('Không thể tải học phần yêu thích.');
+        setFavorites([]);
+      })
+      .finally(() => setLoading(false));
+  }, [activeTab, isOwnProfile]);
 
   useEffect(() => {
     if (activeTab !== 'folders' || !isOwnProfile) return;
@@ -78,6 +99,17 @@ export default function LibraryPage() {
 
   const handleDeleteSet = (set) => {
     setDeleteTarget(set);
+  };
+
+  const handleRemoveFavorite = async (set) => {
+    try {
+      await shareService.unbookmark(set._id);
+      setFavorites((prev) => prev.filter((item) => item._id !== set._id));
+      toast.success('Đã bỏ lưu học phần.');
+    } catch (err) {
+      console.error('Remove favorite failed:', err);
+      toast.error('Bỏ lưu học phần thất bại.');
+    }
   };
 
   const handleConfirmDelete = async () => {
@@ -164,6 +196,10 @@ export default function LibraryPage() {
   };
 
   const filteredSets = sets.filter((set) =>
+    set.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const filteredFavorites = favorites.filter((set) =>
     set.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -275,6 +311,70 @@ export default function LibraryPage() {
         </div>
       )}
 
+      {activeTab === 'favorites' && (
+        <div className="library-sets-content">
+          <div className="library-actions-bar">
+            <div className="library-filter-left">
+              <FilterDropdown />
+              <div className="library-search-wrapper">
+                <Search size={16} className="library-search-icon" />
+                <input
+                  type="text"
+                  placeholder="Tìm kiếm yêu thích..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="library-search-input"
+                />
+              </div>
+            </div>
+          </div>
+
+          {loading ? (
+            <div className="library-loading">
+              <div className="spinner" />
+              <span>Đang tải...</span>
+            </div>
+          ) : error ? (
+            <div className="library-error">
+              <p>{error}</p>
+            </div>
+          ) : favorites.length === 0 ? (
+            <div className="library-empty">
+              <Heart size={48} />
+              <h3>Chưa có học phần yêu thích</h3>
+              <p>Lưu các bộ flashcard bạn quan tâm để truy cập nhanh tại đây.</p>
+            </div>
+          ) : filteredFavorites.length === 0 ? (
+            <div className="library-search-empty">
+              <h3>Không tìm thấy kết quả</h3>
+              <p>Thử tìm kiếm với từ khóa khác</p>
+            </div>
+          ) : (
+            <div className="library-sets-list">
+              {(() => {
+                const { groupKeys, groups } = getGroupedItems(filteredFavorites);
+                return groupKeys.map((key) => (
+                  <div key={key} className="library-date-group">
+                    <h4 className="library-group-title">{key}</h4>
+                    <div className="library-group-list">
+                      {groups[key].map((set) => (
+                        <SetCard
+                          key={set._id}
+                          set={set}
+                          showActions={isOwnProfile}
+                          onClick={() => navigate(`/flashcards/sets/${set._id}`)}
+                          onDelete={() => handleRemoveFavorite(set)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ));
+              })()}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Folders Tab */}
       {activeTab === 'folders' && (
         <div className="library-folders-section">
@@ -336,32 +436,26 @@ export default function LibraryPage() {
                       {groups[key].map((folder) => (
                         <div
                           key={folder._id}
-                          className={`library-folder-card ${folder.name.toLowerCase() === 'yêu thích' ? 'library-folder-card--favorite' : ''}`}
+                          className="library-folder-card"
                           onClick={() => handleOpenFolder(folder)}
                           role="button"
                           tabIndex={0}
                           onKeyDown={(e) => { if (e.key === 'Enter') handleOpenFolder(folder); }}
                         >
-                          <div className={`lfc-icon-wrapper ${folder.name.toLowerCase() === 'yêu thích' ? 'lfc-icon-wrapper--favorite' : ''}`}>
-                            {folder.name.toLowerCase() === 'yêu thích' ? (
-                              <Heart size={22} fill="currentColor" />
-                            ) : (
-                              <Folder size={22} />
-                            )}
+                          <div className="lfc-icon-wrapper">
+                            <Folder size={22} />
                           </div>
                           <div className="lfc-info" style={{ flexGrow: 1 }}>
                             <span className="lfc-name">{folder.name}</span>
                             <span className="lfc-count">{folder.sets?.length ?? 0} học phần</span>
                           </div>
-                          {folder.name.toLowerCase() !== 'yêu thích' && (
-                            <button
-                              className="lfc-delete-btn"
-                              onClick={(e) => handleDeleteFolder(folder, e)}
-                              title="Xóa thư mục"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          )}
+                          <button
+                            className="lfc-delete-btn"
+                            onClick={(e) => handleDeleteFolder(folder, e)}
+                            title="Xóa thư mục"
+                          >
+                            <Trash2 size={16} />
+                          </button>
                         </div>
                       ))}
                     </div>

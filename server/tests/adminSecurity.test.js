@@ -22,6 +22,7 @@ jest.mock('../src/config/redis', () => ({
 }));
 
 const User = require('../src/modules/user/user.model');
+const Folder = require('../src/models/folder.model');
 const adminRoutes = require('../src/modules/admin/admin.routes');
 
 describe('Admin & CSKH Security Restrictions', () => {
@@ -205,6 +206,45 @@ describe('Admin & CSKH Security Restrictions', () => {
 
       const freshUser = await User.findById(studentUser._id);
       expect(freshUser).toBeNull();
+    });
+
+    it('should hide system favorite folders from admin folder list by default', async () => {
+      await Folder.create([
+        { user: studentUser._id, name: 'Yêu thích' },
+        { user: studentUser._id, name: 'Student Folder' },
+      ]);
+
+      const res = await request(app)
+        .get('/api/admin/folders')
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.folders.some((folder) => folder.name === 'Yêu thích')).toBe(false);
+      expect(res.body.data.folders.some((folder) => folder.name === 'Student Folder')).toBe(true);
+    });
+
+    it('should include system favorite folders only when requested', async () => {
+      await Folder.create({ user: studentUser._id, name: 'Yêu thích' });
+
+      const res = await request(app)
+        .get('/api/admin/folders')
+        .query({ includeSystem: 'true' })
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.folders.some((folder) => folder.name === 'Yêu thích')).toBe(true);
+    });
+
+    it('should not allow Admin to delete system favorite folders', async () => {
+      const favoriteFolder = await Folder.create({ user: studentUser._id, name: 'Yêu thích' });
+
+      const res = await request(app)
+        .delete(`/api/admin/folders/${favoriteFolder._id}`)
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+      expect(await Folder.findById(favoriteFolder._id)).toBeTruthy();
     });
   });
 });

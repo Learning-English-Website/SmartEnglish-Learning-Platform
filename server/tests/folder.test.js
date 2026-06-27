@@ -142,8 +142,21 @@ describe('Folder API', () => {
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
-      expect(res.body.data.length).toBe(3);
-      expect(res.body.data.some(f => f.name === 'Yêu thích')).toBe(true);
+      expect(res.body.data.length).toBe(2);
+      expect(res.body.data.some(f => f.name === 'Yêu thích')).toBe(false);
+    });
+
+    it('should not create a default favorite folder on repeated fetches', async () => {
+      await request(app)
+        .get('/api/folders')
+        .set('Authorization', `Bearer ${authToken}`);
+
+      await request(app)
+        .get('/api/folders')
+        .set('Authorization', `Bearer ${authToken}`);
+
+      const favoriteFolders = await Folder.find({ user: testUser._id, name: 'Yêu thích' });
+      expect(favoriteFolders).toHaveLength(0);
     });
 
     it('should return folders with sets populated', async () => {

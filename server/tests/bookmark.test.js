@@ -16,7 +16,10 @@ jest.mock('../src/shared/events/eventBus', () => ({
 
 const User = require('../src/modules/user/user.model');
 const FlashcardSet = require('../src/models/flashcardSet.model');
+const Folder = require('../src/models/folder.model');
+const Bookmark = require('../src/models/bookmark.model');
 const bookmarkRoutes = require('../src/modules/bookmarks/bookmark.routes');
+const folderRoutes = require('../src/modules/folders/folder.routes');
 
 describe('Bookmark API', () => {
   let app;
@@ -28,6 +31,7 @@ describe('Bookmark API', () => {
     app = express();
     app.use(express.json());
     app.use('/api/bookmarks', bookmarkRoutes);
+    app.use('/api/folders', folderRoutes);
     
     // Add error handler
     app.use((err, req, res, next) => {
@@ -103,6 +107,50 @@ describe('Bookmark API', () => {
       expect(res.status).toBe(404);
     });
 
+    it('should reject bookmarking another user private set', async () => {
+      const otherUser = await User.create({
+        email: 'private-owner@example.com',
+        username: 'privateowner',
+        password: await bcrypt.hash('TestPass123!', 10),
+        isVerified: true,
+      });
+      const privateSet = await FlashcardSet.create({
+        title: 'Private Set',
+        user: otherUser._id,
+        isPublic: false,
+      });
+
+      const res = await request(app)
+        .post('/api/bookmarks')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ setId: privateSet._id.toString() });
+
+      expect(res.status).toBe(403);
+    });
+
+    it('should allow bookmarking another user public set', async () => {
+      const otherUser = await User.create({
+        email: 'public-owner@example.com',
+        username: 'publicowner',
+        password: await bcrypt.hash('TestPass123!', 10),
+        isVerified: true,
+      });
+      const publicSet = await FlashcardSet.create({
+        title: 'Public Set',
+        user: otherUser._id,
+        isPublic: true,
+      });
+
+      const res = await request(app)
+        .post('/api/bookmarks')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ setId: publicSet._id.toString() });
+
+      expect(res.status).toBe(201);
+      const bookmark = await Bookmark.findOne({ user: testUser._id, set: publicSet._id });
+      expect(bookmark).toBeTruthy();
+    });
+
     it('should return 401 without auth', async () => {
       const res = await request(app)
         .post('/api/bookmarks')
@@ -136,6 +184,25 @@ describe('Bookmark API', () => {
         .get('/api/bookmarks');
 
       expect(res.status).toBe(401);
+    });
+  });
+
+  describe('Favorite storage', () => {
+    it('should store favorites in favorite_flashcard_sets without creating a folder', async () => {
+      await request(app)
+        .post('/api/bookmarks')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ setId: testSet._id.toString() });
+
+      const res = await request(app)
+        .get('/api/bookmarks')
+        .set('Authorization', `Bearer ${authToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.map((bookmark) => bookmark.set._id.toString())).toContain(testSet._id.toString());
+
+      const favoriteFolder = await Folder.findOne({ user: testUser._id, name: 'Yêu thích' });
+      expect(favoriteFolder).toBeNull();
     });
   });
 
