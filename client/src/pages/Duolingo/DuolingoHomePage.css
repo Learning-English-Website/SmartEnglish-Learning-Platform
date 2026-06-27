@@ -113,12 +113,18 @@
 }
 
 .memoris-home-quests-card {
-  background: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.75);
   backdrop-filter: blur(20px);
-  border: 1px solid rgba(0, 0, 0, 0.06);
-  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 28px;
   overflow: hidden;
-  box-shadow: var(--card-shadow);
+  box-shadow: var(--card-shadow), inset 0 1px 0 rgba(255,255,255,0.4);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.memoris-home-quests-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--card-shadow-hover);
 }
 
 /* Scrollable body inside the quests card */
@@ -142,8 +148,9 @@
 }
 
 [data-theme='dark'] .memoris-home-quests-card {
-  background: rgba(15, 23, 42, 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: var(--card-shadow), inset 0 1px 0 rgba(255,255,255,0.1);
 }
 
 [data-theme='dark'] .memoris-home-quests-scroll::-webkit-scrollbar-thumb {
@@ -301,7 +308,7 @@
   width: 320px;
   height: 320px;
   background: var(--bg-elevated);
-  border: 1px solid var(--border-subtle);
+  border: 1px solid rgba(255, 255, 255, 0.35);
   border-radius: 40px;
   display: flex;
   align-items: center;
@@ -309,8 +316,14 @@
   position: relative;
   margin: 0 auto;
   backdrop-filter: blur(20px);
-  box-shadow: var(--card-shadow);
+  box-shadow: var(--card-shadow), inset 0 1px 0 rgba(255,255,255,0.3);
   animation: floatCard 6s infinite ease-in-out;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+[data-theme='dark'] .mascot-card {
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: var(--card-shadow), inset 0 1px 0 rgba(255,255,255,0.08);
 }
 
 @keyframes floatCard {

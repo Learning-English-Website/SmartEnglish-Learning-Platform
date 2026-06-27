@@ -63,7 +63,7 @@ const HeartsModal = memo(function HeartsModal({ isOpen, onClose, onRefill, onPra
           >
             <span className="btn-icon">🩷</span>
             <span>{isLoading ? 'Refilling...' : 'Refill Hearts'}</span>
-            <span className="btn-cost">(10 XP)</span>
+            <span className="btn-cost">(300 XP)</span>
           </button>
 
           <button className="btn-pro" onClick={onPractice}>

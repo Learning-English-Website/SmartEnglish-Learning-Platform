@@ -49,6 +49,55 @@ class DuolingoService {
     return progress;
   }
 
+  // Helper to determine if a lesson is locked for a specific user
+  async isLessonLocked(userId, lessonId) {
+    const lesson = await Lesson.findById(lessonId).populate('unit');
+    if (!lesson) return true;
+
+    // Check if this lesson is today's Daily Challenge (bypass lock)
+    try {
+      const dc = await dailyChallengeService.getTodayChallenge();
+      const dcLessonId = dc?.lesson?._id != null
+        ? String(dc.lesson._id)
+        : String(dc?.lesson || '');
+      if (dcLessonId && dcLessonId === String(lessonId)) {
+        return false; // Bypassed for daily challenge
+      }
+    } catch (err) {
+      console.error('[Duolingo] Error checking daily challenge bypass:', err);
+    }
+
+    // Find the preceding published lesson
+    let prevLesson = null;
+    if (lesson.order > 0) {
+      prevLesson = await Lesson.findOne({
+        unit: lesson.unit._id,
+        order: { $lt: lesson.order },
+        isLocked: false
+      }).sort({ order: -1 });
+    }
+
+    if (!prevLesson) {
+      // Under the jump learning policy, the first lesson of each unit/zone
+      // is unlocked by default (unless globally locked).
+      return lesson.isLocked;
+    }
+
+    // Check if prevLesson is completed by the user
+    const challenges = await Challenge.find({ lesson: prevLesson._id });
+    if (challenges.length === 0) {
+      return false; // If no challenges, assume unlocked/completed
+    }
+
+    const completedCount = await ChallengeProgress.countDocuments({
+      user: userId,
+      challenge: { $in: challenges.map(c => c._id) },
+      completed: true,
+    });
+
+    return completedCount < challenges.length;
+  }
+
   // === UNITS ===
   async getUnits(userId) {
     const progress = await UserProgress.findOne({ user: userId });
@@ -56,6 +105,17 @@ class DuolingoService {
 
     const units = await Unit.find({ course: progress.activeCourse }).sort({ order: 1 });
     
+    // Fetch today's Daily Challenge once for performance
+    let dcLessonId = '';
+    try {
+      const dc = await dailyChallengeService.getTodayChallenge();
+      dcLessonId = dc?.lesson?._id != null
+        ? String(dc.lesson._id)
+        : String(dc?.lesson || '');
+    } catch (err) {
+      console.error('[Duolingo] Error fetching daily challenge in getUnits:', err);
+    }
+
     // Populate lessons with challenge progress
     const unitsWithProgress = await Promise.all(units.map(async (unit) => {
       const lessons = await Lesson.find({ unit: unit._id }).sort({ order: 1 });
@@ -79,6 +139,28 @@ class DuolingoService {
       };
     }));
 
+    // Calculate lock status sequentially per user
+    for (let i = 0; i < unitsWithProgress.length; i++) {
+      const unit = unitsWithProgress[i];
+      let previousLessonCompleted = true; // Reset per unit/zone to allow jump learning across zones
+      for (let j = 0; j < unit.lessons.length; j++) {
+        const lesson = unit.lessons[j];
+        const isDailyChallenge = dcLessonId && dcLessonId === String(lesson._id);
+        const isGloballyLocked = lesson.isLocked;
+        if (isDailyChallenge) {
+          lesson.isLocked = false;
+        } else {
+          // If the lesson is globally locked/unpublished in DB, keep it locked.
+          // Otherwise, check if previous lesson was completed.
+          lesson.isLocked = isGloballyLocked || !previousLessonCompleted;
+        }
+        // Only update progression status if this lesson is not globally locked
+        if (!isGloballyLocked) {
+          previousLessonCompleted = lesson.completed;
+        }
+      }
+    }
+
     return unitsWithProgress;
   }
 
@@ -86,6 +168,12 @@ class DuolingoService {
   async getLesson(lessonId, userId) {
     const lesson = await Lesson.findById(lessonId).populate('unit');
     if (!lesson) throw new Error('Lesson not found');
+
+    // Check if lesson is locked for user
+    const isLocked = await this.isLessonLocked(userId, lessonId);
+    if (isLocked) {
+      throw new AppError('Bài học đang bị khóa. Hãy hoàn thành các bài học trước đó.', 403);
+    }
 
     const challenges = await Challenge.find({ lesson: lessonId }).sort({ order: 1 });
     
@@ -128,8 +216,9 @@ class DuolingoService {
     for (const unit of units) {
       const lessons = await Lesson.find({ unit: unit._id }).sort({ order: 1 });
       for (const lesson of lessons) {
-        // Skip locked lessons
-        if (lesson.isLocked) continue;
+        // Skip locked lessons (checked dynamically per user)
+        const isLocked = await this.isLessonLocked(userId, lesson._id);
+        if (isLocked) continue;
         const challenges = await Challenge.find({ lesson: lesson._id });
         for (const challenge of challenges) {
           const cp = await ChallengeProgress.findOne({ user: userId, challenge: challenge._id });
@@ -196,7 +285,15 @@ class DuolingoService {
     } else if (type === 'COMPLETE' || type === 'FILL' || type === 'LISTEN') {
       // COMPLETE / FILL / LISTEN: userAnswer is the filled word or selectedOptionId is the chosen option
       const normalized = (selectedOptionId || userAnswer || '').trim().toLowerCase();
-      const normalizedCorrect = (challenge.correctAnswer || '').trim().toLowerCase();
+      let normalizedCorrect = '';
+      if (challenge.correctAnswer) {
+        normalizedCorrect = challenge.correctAnswer.trim().toLowerCase();
+      } else if (challenge.options && challenge.options.length > 0) {
+        const correctOption = challenge.options.find(o => o.correct);
+        if (correctOption) {
+          normalizedCorrect = correctOption.text.trim().toLowerCase();
+        }
+      }
       isCorrect = normalized === normalizedCorrect;
     } else {
       // SELECT / ASSIST: multiple choice
@@ -300,10 +397,14 @@ class DuolingoService {
     const lesson = await Lesson.findById(lessonId);
     if (!lesson) throw new Error('Lesson not found');
 
+    const progress = await UserProgress.findOne({ user: userId });
+
     // Determine if this is the first-time completion or a re-do.
-    // NOTE: lesson.isCompleted is a global flag (not per-user). For awarding completion XP,
-    // rely on user progress (ChallengeProgress) instead.
-    const isFirstCompletion = !lesson.isCompleted;
+    // Use crownsByLesson Map to track per-user completions.
+    let isFirstCompletion = true;
+    if (progress && progress.crownsByLesson) {
+      isFirstCompletion = !progress.crownsByLesson.get(String(lesson._id));
+    }
 
     // ── Lock check ──────────────────────────────────────────────────────────
     // NOTE: Lesson lock is currently a global flag on the Lesson document (not per-user).
@@ -357,7 +458,6 @@ class DuolingoService {
     }
 
     // ── Streak & first-completion XP bonus (only once per lesson) ───────────
-    const progress = await UserProgress.findOne({ user: userId });
     let completionXp = 0;
     if (progress) {
       const today = new Date();
@@ -381,13 +481,20 @@ class DuolingoService {
         }
       }
 
+      if (isFirstCompletion) {
+        if (!progress.crownsByLesson) {
+          progress.crownsByLesson = new Map();
+        }
+        progress.crownsByLesson.set(String(lesson._id), 1);
+      }
+
       const excluded = await isExcludedFromXp(userId);
       if (isFirstCompletion && !excluded) {
         completionXp = 20;
         progress.points += completionXp;
         progress.totalXP += completionXp;
-        await progress.save();
       }
+      await progress.save();
     }
 
     const excluded = await isExcludedFromXp(userId);
@@ -543,7 +650,7 @@ class DuolingoService {
     }
 
     if (progress.points < POINTS_TO_REFILL) {
-      throw new Error(`Not enough points. Need ${POINTS_TO_REFILL}, have ${progress.points}`);
+      return { error: 'insufficient_points', required: POINTS_TO_REFILL, current: progress.points };
     }
 
     progress.points -= POINTS_TO_REFILL;

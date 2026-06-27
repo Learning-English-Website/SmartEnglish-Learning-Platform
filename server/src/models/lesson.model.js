@@ -19,7 +19,7 @@ const lessonSchema = new Schema(
       enum: ['challenge', 'practice'],
       default: 'challenge'
     },
-    isLocked: { type: Boolean, default: true },
+    isLocked: { type: Boolean, default: false },
     isCompleted: { type: Boolean, default: false },
     completedAt: { type: Date, default: null },
   },

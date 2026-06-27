@@ -59,6 +59,8 @@ export default function LessonPage() {
   const navigate = useNavigate();
 
   const [lesson, setLesson] = useState(null);
+  const [originalTotal, setOriginalTotal] = useState(0);
+  const [correctCount, setCorrectCount] = useState(0);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedOption, setSelectedOption] = useState(null);
   const [typedAnswer, setTypedAnswer] = useState('');
@@ -96,6 +98,22 @@ export default function LessonPage() {
   const hasAutoPlayedTTSRef = useRef(false); // Track if TTS auto-played for current challenge
   const hasAutoPlayedAudioRef = useRef(false); // Track if audio auto-played for current challenge
 
+  const lessonRef = useRef(lesson);
+  const currentIndexRef = useRef(currentIndex);
+  const correctCountRef = useRef(correctCount);
+
+  useEffect(() => {
+    lessonRef.current = lesson;
+  }, [lesson]);
+
+  useEffect(() => {
+    currentIndexRef.current = currentIndex;
+  }, [currentIndex]);
+
+  useEffect(() => {
+    correctCountRef.current = correctCount;
+  }, [correctCount]);
+
   // Text-to-Speech for TYPE challenges
   const tts = useSpeechSynthesis({ lang: 'en-US', rate: 0.9 });
 
@@ -107,7 +125,7 @@ export default function LessonPage() {
     (currentChallenge.question.toLowerCase().includes('nghe') || currentChallenge.question.toLowerCase().includes('luy\u1ec7n nghe'))
   );
   const totalChallenges = lesson?.totalChallenges || 0;
-  const progress = totalChallenges > 0 ? (currentIndex / totalChallenges) * 100 : 0;
+  const progress = originalTotal > 0 ? (correctCount / originalTotal) * 100 : 0;
 
   // Play audio with proper instance management - defined before useEffects that use it
   const playAudio = useCallback((src) => {
@@ -369,6 +387,7 @@ export default function LessonPage() {
       if (result.data?.isCorrect) {
         setStatus('correct');
         setShowCorrectAnswer(false);
+        setCorrectCount(c => c + 1);
         const earnedPoints = result.data.pointsEarned ?? 10;
         pointsRef.current += earnedPoints;
         setTimeout(() => nextChallenge(), 1000);
@@ -459,6 +478,7 @@ export default function LessonPage() {
       if (result.data?.isCorrect) {
         setStatus('correct');
         setShowCorrectAnswer(false);
+        setCorrectCount(c => c + 1);
         const earnedPoints = result.data.pointsEarned ?? 10;
         pointsRef.current += earnedPoints;
         setTimeout(() => nextChallenge(), 1000);
@@ -487,6 +507,7 @@ export default function LessonPage() {
       if (result.data?.isCorrect) {
         setStatus('correct');
         setShowCorrectAnswer(false);
+        setCorrectCount(c => c + 1);
         const earnedPoints = result.data.pointsEarned ?? 10;
         pointsRef.current += earnedPoints;
         setTimeout(() => nextChallenge(), 1000);
@@ -515,6 +536,7 @@ export default function LessonPage() {
       if (result.data?.isCorrect) {
         setStatus('correct');
         setShowCorrectAnswer(false);
+        setCorrectCount(c => c + 1);
         const earnedPoints = result.data.pointsEarned ?? 10;
         pointsRef.current += earnedPoints;
         triggerXpPopup(earnedPoints);
@@ -548,6 +570,8 @@ export default function LessonPage() {
       }
       const fetchedLesson = response.data || response;
       setLesson(fetchedLesson);
+      setOriginalTotal(fetchedLesson?.challenges?.length || 0);
+      setCorrectCount(0);
       setSelectedOption(null);
       setTypedAnswer('');
       setStatus('idle');
@@ -611,6 +635,7 @@ export default function LessonPage() {
         if (result.data?.isCorrect) {
           setStatus('correct');
           setShowCorrectAnswer(false);
+          setCorrectCount(c => c + 1);
           const earnedPoints = result.data.pointsEarned ?? 10;
           pointsRef.current += earnedPoints;
           triggerXpPopup(earnedPoints);
@@ -648,6 +673,7 @@ export default function LessonPage() {
       if (result.data?.isCorrect) {
         setStatus('correct');
         setShowCorrectAnswer(false);
+        setCorrectCount(c => c + 1);
         const earnedPoints = result.data.pointsEarned ?? 10;
         pointsRef.current += earnedPoints;
         setTimeout(() => {
@@ -669,7 +695,21 @@ export default function LessonPage() {
   }, [currentChallenge, status, typedAnswer, isPro, isPractice, hearts]);
 
   const handleWrongAnswer = async () => {
-    if (isPro || isPractice) return; // Pro users and practice mode never lose hearts or show refill modals
+    const currentLesson = lessonRef.current;
+    const curIndex = currentIndexRef.current;
+    const curChallenge = currentLesson?.challenges?.[curIndex];
+
+    if (curChallenge) {
+      setLesson(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          challenges: [...prev.challenges, curChallenge]
+        };
+      });
+    }
+
+    if (isPro) return; // Pro users never lose hearts or show refill modals
     try {
       const heartsResult = await duolingoService.reduceHearts();
       const hData = heartsResult.data || heartsResult;
@@ -700,6 +740,13 @@ export default function LessonPage() {
     if (pendingResumeData) {
       setCurrentIndex(pendingResumeData.currentIndex);
       pointsRef.current = pendingResumeData.points || 0;
+      setCorrectCount(pendingResumeData.correctCount || 0);
+      if (pendingResumeData.challenges) {
+        setLesson(prev => ({
+          ...prev,
+          challenges: pendingResumeData.challenges
+        }));
+      }
     }
     setShowResumeModal(false);
     setPendingResumeData(null);
@@ -709,6 +756,8 @@ export default function LessonPage() {
     localStorage.removeItem(`duolingo_lesson_progress_${lessonId}`);
     setCurrentIndex(0);
     pointsRef.current = 0;
+    setCorrectCount(0);
+    loadLesson();
     setShowResumeModal(false);
     setPendingResumeData(null);
   };
@@ -726,14 +775,20 @@ export default function LessonPage() {
     setSelectedMatchRight(null);
     setListenWordBank([]);
     setListenFlyingWord(null);
-    if (currentIndex < totalChallenges - 1) {
-      const nextIndex = currentIndex + 1;
+    const currentLesson = lessonRef.current;
+    const curIndex = currentIndexRef.current;
+    const currentCorrectCount = correctCountRef.current;
+
+    if (curIndex < (currentLesson?.challenges?.length || 0) - 1) {
+      const nextIndex = curIndex + 1;
       setCurrentIndex(nextIndex);
       localStorage.setItem(
         `duolingo_lesson_progress_${lessonId}`,
         JSON.stringify({
           currentIndex: nextIndex,
-          points: pointsRef.current
+          points: pointsRef.current,
+          correctCount: currentCorrectCount,
+          challenges: currentLesson?.challenges
         })
       );
     } else {
@@ -752,7 +807,7 @@ export default function LessonPage() {
       setStatus('complete');
       setShowConfetti(true);
       setTimeout(() => {
-        navigate('/duolingo');
+        navigate('/duolingo/learn');
       }, 3000);
     } catch (err) {
       console.error('Complete lesson failed:', err);
@@ -761,7 +816,7 @@ export default function LessonPage() {
         || err?.message
         || 'Complete lesson failed';
       alert(message);
-      navigate('/duolingo');
+      navigate('/duolingo/learn');
     }
   };
 
@@ -794,7 +849,7 @@ export default function LessonPage() {
 
       if (status === 'complete') {
         if (e.key === 'Enter' || e.key === ' ') {
-          navigate('/duolingo');
+          navigate('/duolingo/learn');
         }
         return;
       }
@@ -836,7 +891,7 @@ export default function LessonPage() {
             <button className="btn btn-primary" onClick={() => loadLesson()}>
               Try Again
             </button>
-            <button className="btn btn-outline-secondary" onClick={() => navigate('/duolingo')}>
+            <button className="btn btn-outline-secondary" onClick={() => navigate('/duolingo/learn')}>
               Back to Home
             </button>
           </div>
@@ -883,13 +938,13 @@ export default function LessonPage() {
           aria-valuenow={progress}
           aria-valuemin={0}
           aria-valuemax={100}
-          aria-label={`Lesson progress: ${currentIndex + 1} of ${totalChallenges}`}
+          aria-label={`Lesson progress: ${correctCount} of ${originalTotal}`}
         >
           <div className="progress-bar">
             <div className="progress-fill" style={{ width: `${progress}%` }} />
           </div>
           <span className="progress-text" aria-live="polite">
-            {currentIndex + 1} / {totalChallenges}
+            {correctCount} / {originalTotal}
           </span>
         </div>
 
@@ -985,7 +1040,7 @@ export default function LessonPage() {
               exit={{ opacity: 0, x: -50 }}
               transition={{ duration: 0.3 }}
               role="region"
-              aria-label={`Challenge ${currentIndex + 1} of ${totalChallenges}`}
+              aria-label={`Challenge ${correctCount + 1} of ${originalTotal}`}
             >
               {/* Question */}
               <div className="challenge-question" role="question">
@@ -1705,7 +1760,7 @@ export default function LessonPage() {
         isOpen={showExitModal}
         onClose={() => {
           setShowExitModal(false);
-          navigate('/duolingo');
+          navigate('/duolingo/learn');
         }}
         onContinue={() => setShowExitModal(false)}
       />
@@ -1755,7 +1810,7 @@ export default function LessonPage() {
         onRefill={handleRefillHearts}
         onPractice={() => {
           setShowHeartsModal(false);
-          navigate('/duolingo');
+          navigate('/duolingo/learn');
         }}
         error={refillError}
         isLoading={isRefilling}

@@ -29,6 +29,15 @@ connectDB().then(async () => {
     console.error('⚠️ Automatic seeding failed:', error.message);
   }
 
+  // Migrate existing lessons: unlock them globally in DB so progression is handled dynamically
+  try {
+    const Lesson = require('./models/lesson.model');
+    const result = await Lesson.updateMany({}, { $set: { isLocked: false } });
+    console.log(`✅ [Migration] Reset isLocked to false for existing lessons (modified: ${result.modifiedCount || result.nModified || 0})`);
+  } catch (error) {
+    console.error('⚠️ Database migration failed:', error.message);
+  }
+
   const httpServer = app.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT} [${process.env.NODE_ENV}]`);
     console.log(`   Health: http://localhost:${PORT}/api/health`);

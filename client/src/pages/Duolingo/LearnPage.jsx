@@ -90,7 +90,7 @@ export default function LearnPage() {
   const stats = useMemo(() => {
     const totalLessons = units.reduce((sum, unit) => sum + (unit.lessons?.length || 0), 0);
     const completedLessons = units.reduce(
-      (sum, unit) => sum + (unit.lessons?.filter((l) => l.completed || l.isCompleted)?.length || 0),
+      (sum, unit) => sum + (unit.lessons?.filter((l) => l.completed)?.length || 0),
       0
     );
     const progress = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
@@ -99,7 +99,7 @@ export default function LearnPage() {
 
   const activeLessonId = useMemo(() => {
     for (const unit of units) {
-      const firstIncomplete = unit.lessons?.find((l) => !l.completed && !l.isCompleted);
+      const firstIncomplete = unit.lessons?.find((l) => !l.completed && !l.isLocked);
       if (firstIncomplete) {
         return firstIncomplete._id;
       }
@@ -108,7 +108,7 @@ export default function LearnPage() {
   }, [units]);
   
   const handleLessonClick = (lesson) => {
-    const isCompleted = lesson.completed || lesson.isCompleted;
+    const isCompleted = lesson.completed;
     if (isCompleted) {
       navigate(`/duolingo/lesson/${lesson._id}?practice=true`);
     } else {
@@ -117,11 +117,32 @@ export default function LearnPage() {
   };
 
   const handleStartUnit = (unit) => {
-    const firstIncompleteLesson = unit.lessons?.find((l) => !l.completed && !l.isCompleted);
-    if (firstIncompleteLesson) {
-      handleLessonClick(firstIncompleteLesson);
-    } else if (unit.lessons?.length > 0) {
-      handleLessonClick(unit.lessons[0]); // Practice first lesson if all are complete
+    const totalUnitLessons = unit.lessons?.length || 0;
+    const completedUnitLessons = unit.lessons?.filter(l => l.completed)?.length || 0;
+    const isUnitCompleted = completedUnitLessons === totalUnitLessons && totalUnitLessons > 0;
+
+    if (isUnitCompleted) {
+      if (unit.lessons?.length > 0) {
+        handleLessonClick(unit.lessons[0]);
+      }
+    } else {
+      // Find the first incomplete lesson across the entire course that is not locked
+      let activeLesson = null;
+      for (const u of units) {
+        const incomplete = u.lessons?.find((l) => !l.completed && !l.isLocked);
+        if (incomplete) {
+          activeLesson = incomplete;
+          break;
+        }
+      }
+      if (activeLesson) {
+        handleLessonClick(activeLesson);
+      } else {
+        // Fallback: practice first lesson if no unlocked incomplete lesson is found
+        if (unit.lessons?.length > 0) {
+          handleLessonClick(unit.lessons[0]);
+        }
+      }
     }
   };
 
@@ -222,7 +243,7 @@ export default function LearnPage() {
         <div className="roadmap-journey-snake-container-centered">
           {units.map((unit, unitIndex) => {
             const totalUnitLessons = unit.lessons?.length || 0;
-            const completedUnitLessons = unit.lessons?.filter(l => l.completed || l.isCompleted)?.length || 0;
+            const completedUnitLessons = unit.lessons?.filter(l => l.completed)?.length || 0;
             const isUnitCompleted = completedUnitLessons === totalUnitLessons && totalUnitLessons > 0;
 
             return (
@@ -262,13 +283,10 @@ export default function LearnPage() {
 
                 {/* Winding Snake Quest Nodes Path */}
                 <div className="quest-nodes-snake-path">
-                  {/* Vertical Laser Connection Track */}
-                  <div className="snake-path-laser-wire"></div>
-
                   <div className="nodes-zig-zag-container">
                     {unit.lessons?.map((lesson, lessonIndex) => {
-                      const isCompleted = lesson.completed || lesson.isCompleted;
-                      const isLocked = lesson.locked && !isCompleted;
+                      const isCompleted = lesson.completed;
+                      const isLocked = lesson.isLocked && !isCompleted;
                       const isActive = lesson._id === activeLessonId;
                       
                       // Winding zig-zag offsets: [center, right, center, left]
@@ -276,14 +294,74 @@ export default function LearnPage() {
                       const windingClass = `node-pos-${windingPosition}`;
                       const emojiIcon = getLessonIcon(lesson.title);
 
+                      const offsets = [0, 120, 0, -120];
+                      const currentOffset = offsets[lessonIndex % 4];
+                      const nextOffset = lessonIndex < unit.lessons.length - 1 ? offsets[(lessonIndex + 1) % 4] : 0;
+
                       return (
                         <div 
                           key={lesson._id}
                           className={`quest-node-row-wrapper ${windingClass}`}
                           onMouseEnter={() => !isLocked && setHoveredLesson(lesson._id)}
                           onMouseLeave={() => setHoveredLesson(null)}
+                          style={{
+                            '--node-accent-glow': isCompleted ? '#38bdf8' : isActive ? '#10b981' : '#9ca3af'
+                          }}
                         >
-                          <div className="node-anchor-point">
+                          {lessonIndex < unit.lessons.length - 1 && (() => {
+                            const dX = nextOffset - currentOffset;
+                            const absDX = Math.abs(dX);
+                            
+                            let svgStyle = {};
+                            let pathD = '';
+                            let viewBox = '';
+
+                            if (dX > 0) {
+                              svgStyle = { position: 'absolute', top: '38px', left: '50%', width: `${absDX}px`, height: 'calc(100% + 4.5rem)' };
+                              viewBox = `0 0 ${absDX} 100`;
+                              pathD = `M 0 0 C 0 50, ${absDX} 50, ${absDX} 100`;
+                            } else if (dX < 0) {
+                              svgStyle = { position: 'absolute', top: '38px', right: '50%', width: `${absDX}px`, height: 'calc(100% + 4.5rem)' };
+                              viewBox = `0 0 ${absDX} 100`;
+                              pathD = `M ${absDX} 0 C ${absDX} 50, 0 50, 0 100`;
+                            } else {
+                              svgStyle = { position: 'absolute', top: '38px', left: '50%', width: '2px', height: 'calc(100% + 4.5rem)' };
+                              viewBox = '0 0 2 100';
+                              pathD = 'M 1 0 L 1 100';
+                            }
+
+                            return (
+                              <svg 
+                                className="node-connector-svg" 
+                                viewBox={viewBox}
+                                preserveAspectRatio="none"
+                                style={{ 
+                                  ...svgStyle,
+                                  pointerEvents: 'none', 
+                                  zIndex: 0, 
+                                  overflow: 'visible' 
+                                }}
+                              >
+                                <defs>
+                                  <linearGradient id={`laser-glow-${lesson._id}`} x1="0%" y1="0%" x2="0%" y2="100%">
+                                    <stop offset="0%" stopColor={isCompleted ? '#38bdf8' : '#9ca3af'} stopOpacity="0.8" />
+                                    <stop offset="100%" stopColor={(lessonIndex + 1 < unit.lessons.length && unit.lessons[lessonIndex + 1].completed) ? '#38bdf8' : (lessonIndex + 1 < unit.lessons.length && unit.lessons[lessonIndex + 1]._id === activeLessonId) ? '#10b981' : '#9ca3af'} stopOpacity="0.8" />
+                                  </linearGradient>
+                                </defs>
+                                <path
+                                  d={pathD}
+                                  fill="none"
+                                  stroke={`url(#laser-glow-${lesson._id})`}
+                                  strokeWidth="5"
+                                  strokeLinecap="round"
+                                  style={{
+                                    filter: 'drop-shadow(0 0 6px rgba(6, 182, 212, 0.45))'
+                                  }}
+                                />
+                              </svg>
+                            );
+                          })()}
+                          <div className="node-anchor-point" style={{ position: 'relative', zIndex: 2 }}>
                             {/* Minimalist Active Pill Badge (Vercel style) */}
                             {isActive && (
                               <div className="minimal-active-badge">
@@ -299,9 +377,6 @@ export default function LearnPage() {
                               className={`quest-node-button ${isCompleted ? 'is-completed' : ''} ${isLocked ? 'is-locked' : ''} ${isActive ? 'is-active-pulse' : ''}`}
                               onClick={() => !isLocked && handleLessonClick(lesson)}
                               aria-label={`Lesson: ${lesson.title}`}
-                              style={{
-                                '--node-accent-glow': isCompleted ? '#38bdf8' : isActive ? '#10b981' : '#9ca3af'
-                              }}
                             >
                               {/* Active breathing circle rings */}
                               {isActive && (
@@ -339,7 +414,10 @@ export default function LearnPage() {
                                   <p className="tooltip-desc">
                                     {isCompleted ? 'Chúc mừng! Bạn đã hoàn thành xuất sắc bài học này. Nhấp để ôn tập nâng cao.' : 'Thử thách phản xạ từ vựng, rèn phát âm thông minh và tim bền bỉ.'}
                                   </p>
-                                  <button className="btn-tooltip-action">
+                                  <button 
+                                    className="btn-tooltip-action"
+                                    onClick={() => !isLocked && handleLessonClick(lesson)}
+                                  >
                                     <span>{isCompleted ? 'Luyện tập lại' : 'Bắt đầu ngay'}</span>
                                     <ArrowRight size={12} />
                                   </button>

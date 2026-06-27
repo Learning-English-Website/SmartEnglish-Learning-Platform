@@ -22,6 +22,7 @@ const Lesson = require('../src/models/lesson.model');
 const Challenge = require('../src/models/challenge.model');
 const ChallengeProgress = require('../src/models/challengeProgress.model');
 const duolingoRoutes = require('../src/modules/duolingo/duolingo.routes');
+const dailyChallengeService = require('../src/modules/quest/dailyChallenge.service');
 
 describe('Duolingo API', () => {
   let app;
@@ -33,6 +34,9 @@ describe('Duolingo API', () => {
   let testChallenge;
 
   beforeEach(() => {
+    // Stub getTodayChallenge to return null so it doesn't randomly select a lesson from the test database
+    jest.spyOn(dailyChallengeService, 'getTodayChallenge').mockResolvedValue(null);
+
     app = express();
     app.use(express.json());
     app.use('/api/duolingo', duolingoRoutes);
@@ -246,7 +250,7 @@ describe('Duolingo API', () => {
       expect(res.body.data.lesson._id.toString()).toBe(testLesson._id.toString());
     });
 
-    it('should return null when all lessons are locked/completed', async () => {
+    it('should return null when all lessons are completed', async () => {
       // Mark lesson's challenge as completed (needed for getNextLesson check)
       await ChallengeProgress.create({
         user: testUser._id,
@@ -264,12 +268,19 @@ describe('Duolingo API', () => {
         isLocked: true,
         isCompleted: false,
       });
-      await Challenge.create({
+      const challenge2 = await Challenge.create({
         lesson: lockedLesson2._id,
         type: 'SELECT',
         question: 'Test',
         options: [{ text: 'A', correct: true }],
         order: 1,
+      });
+
+      // Complete the second lesson's challenge as well
+      await ChallengeProgress.create({
+        user: testUser._id,
+        challenge: challenge2._id,
+        completed: true,
       });
 
       const res = await request(app)
@@ -278,6 +289,66 @@ describe('Duolingo API', () => {
 
       expect(res.status).toBe(200);
       expect(res.body.data).toBeNull();
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────
+  // GET /api/duolingo/lessons/:id — isLocked security check
+  // ─────────────────────────────────────────────────────────────────
+  describe('GET /api/duolingo/lessons/:id (Lock Enforcement)', () => {
+    let lockedLesson;
+
+    beforeEach(async () => {
+      // Ensure UserProgress exists so XP update works
+      await UserProgress.findOneAndUpdate(
+        { user: testUser._id },
+        { user: testUser._id, activeCourse: testCourse._id },
+        { upsert: true, returnDocument: 'after' }
+      );
+
+      // Create a subsequent lesson in the unit (which is locked by default since order 1 is incomplete)
+      lockedLesson = await Lesson.create({
+        title: 'Locked Lesson',
+        unit: testUnit._id,
+        order: 2,
+        isLocked: true,
+        isCompleted: false,
+      });
+
+      await Challenge.create({
+        lesson: lockedLesson._id,
+        type: 'SELECT',
+        question: 'Is it locked?',
+        options: [{ text: 'Yes', correct: true }],
+        order: 1,
+      });
+    });
+
+    it('should reject access with 403 when accessing a locked lesson directly', async () => {
+      const res = await request(app)
+        .get(`/api/duolingo/lessons/${lockedLesson._id}`)
+        .set('Authorization', `Bearer ${authToken}`);
+
+      expect(res.status).toBe(403);
+      expect(res.body.success).toBe(false);
+      expect(res.body.message).toContain('khóa');
+    });
+
+    it('should allow access to a lesson when the preceding lesson is completed', async () => {
+      // Complete the preceding lesson's challenges
+      await ChallengeProgress.create({
+        user: testUser._id,
+        challenge: testChallenge._id,
+        completed: true,
+      });
+
+      const res = await request(app)
+        .get(`/api/duolingo/lessons/${lockedLesson._id}`)
+        .set('Authorization', `Bearer ${authToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data._id.toString()).toBe(lockedLesson._id.toString());
     });
   });
 });
