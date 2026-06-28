@@ -109,6 +109,13 @@ exports.generateFlashcardDrafts = async (apiKey, { mode, topic, text, level, cou
 
   const prompt = `${instructions}
   
+  OUTPUT CONTRACT:
+  - Return exactly one learner-ready lesson draft that can be saved and played immediately.
+  - Do not include isLocked, locked, published, course, unit, database ids, or progression fields.
+  - Course publish/unpublish is controlled only by the teacher's Course Settings in SmartEnglish. Unit, lesson, and challenge access follow the course publish state.
+  - For typed-answer fields, keep correctAnswer concise and do not add trailing punctuation unless it changes the meaning.
+  - For ORDER challenges, correctOrder MUST be numeric indices into wordBank. Example: wordBank ["I", "go", "to", "school"] and sentence "I go to school" means correctOrder [0, 1, 2, 3].
+
   QUY TẮC BẢO MẬT & ĐỊNH DẠNG:
   1. Chỉ trả về dữ liệu định dạng JSON theo đúng schema mô tả. Không bao gồm các ký tự bọc markdown như \`\`\`json.
   2. Không giải thích thêm, không kèm văn bản ngoài JSON.

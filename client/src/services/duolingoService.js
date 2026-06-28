@@ -10,14 +10,16 @@ export const duolingoService = {
   getUnits: () => axiosClient.get('/duolingo/units'),
 
   // Lessons
-  getLesson: (lessonId) => axiosClient.get(`/duolingo/lessons/${lessonId}`),
+  getLesson: (lessonId, params) => axiosClient.get(`/duolingo/lessons/${lessonId}`, params ? { params } : undefined),
   getNextLesson: () => axiosClient.get('/duolingo/lessons/next'),
   completeLesson: (lessonId) => axiosClient.post(`/duolingo/lessons/${lessonId}/complete`),
+  completeDailyChallenge: (lessonId, dailyChallengeId) =>
+    axiosClient.post(`/duolingo/lessons/${lessonId}/daily-complete`, { dailyChallengeId }),
   practiceLesson: (lessonId) => axiosClient.post(`/duolingo/lessons/${lessonId}/practice`),
 
   // Quiz
-  submitAnswer: (challengeId, selectedOptionId, userAnswer) =>
-    axiosClient.post('/duolingo/quiz/answer', { challengeId, selectedOptionId, userAnswer }),
+  submitAnswer: (challengeId, selectedOptionId, userAnswer, context) =>
+    axiosClient.post('/duolingo/quiz/answer', { challengeId, selectedOptionId, userAnswer, ...context }),
 
   // Hearts
   getHearts: () => axiosClient.get('/duolingo/hearts'),

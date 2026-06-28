@@ -14,6 +14,7 @@ const userProgressSchema = new Schema(
     
     // Duolingo Hearts & Progress
     activeCourse: { type: mongoose.Schema.Types.ObjectId, ref: 'Course', default: null },
+    currentLessonTarget: { type: mongoose.Schema.Types.ObjectId, ref: 'Lesson', default: null },
     hearts: { type: Number, default: 5 },             // Max 5 hearts
     maxHearts: { type: Number, default: 5 },
     points: { type: Number, default: 0 },            // XP

@@ -21,13 +21,18 @@ const COURSE_ICON_MAP = {
   'culture-idioms': '🎭',
 };
 
-// Rich realistic gamified stats for each course
-const COURSE_STATS_MAP = {
-  basics: { lessons: 15, xp: 300, learners: '12.4K', color: '#3b82f6' },
-  'food-drink': { lessons: 12, xp: 240, learners: '8.2K', color: '#f97316' },
-  travel: { lessons: 18, xp: 360, learners: '15.1K', color: '#06b6d4' },
-  'work-business': { lessons: 20, xp: 400, learners: '9.5K', color: '#8b5cf6' },
-  'culture-idioms': { lessons: 10, xp: 200, learners: '5.3K', color: '#ec4899' },
+const COURSE_COLOR_MAP = {
+  basics: '#3b82f6',
+  'food-drink': '#f97316',
+  travel: '#06b6d4',
+  'work-business': '#8b5cf6',
+  'culture-idioms': '#ec4899',
+};
+
+const LEVEL_LABELS = {
+  beginner: 'Cơ bản',
+  intermediate: 'Trung cấp',
+  advanced: 'Nâng cao',
 };
 
 export default function CoursesPage() {
@@ -53,8 +58,15 @@ export default function CoursesPage() {
       const safeCourses = Array.isArray(coursesResponse)
         ? coursesResponse
         : (coursesResponse?.data && Array.isArray(coursesResponse.data) ? coursesResponse.data : []);
-      setCourses(safeCourses);
       const safeStats = statsResponse?.data ?? statsResponse;
+      const activeCourseId = safeStats?.activeCourse?._id || safeStats?.activeCourse || null;
+      setCourses(safeCourses.map((course) => ({
+        ...course,
+        isCurrentCourse: Boolean(
+          course.isCurrentCourse ||
+          (activeCourseId && String(course._id) === String(activeCourseId))
+        ),
+      })));
       if (safeStats) {
         setUserStats({
           hearts: safeStats.hearts ?? 5,
@@ -86,7 +98,19 @@ export default function CoursesPage() {
     return course.level?.toLowerCase() === selectedFilter.toLowerCase();
   });
 
-  const activeCourse = courses.find((c) => c.isActive);
+  const activeCourse = courses.find((c) => c.isCurrentCourse);
+
+  const formatNumber = (value) => new Intl.NumberFormat('vi-VN').format(Number(value) || 0);
+
+  const getCourseStats = (course, difficultyColor) => {
+    const apiStats = course.stats || {};
+    return {
+      lessons: Number(course.lessonCount ?? apiStats.lessonCount ?? 0),
+      xp: Number(course.xpReward ?? apiStats.xpReward ?? 0),
+      learners: Number(course.learnersCount ?? course.learnerCount ?? apiStats.learnersCount ?? 0),
+      color: COURSE_COLOR_MAP[course.slug] || difficultyColor,
+    };
+  };
 
   // Animations configuration
   const listVariants = {
@@ -283,7 +307,8 @@ export default function CoursesPage() {
                     {filteredCourses.map((course, index) => {
                       const difficultyColor = DIFFICULTY_COLORS[course.level] || DIFFICULTY_COLORS.beginner;
                       const courseIcon = COURSE_ICON_MAP[course.slug] || '🇬🇧';
-                      const stats = COURSE_STATS_MAP[course.slug] || { lessons: 10, xp: 200, learners: '1.2K', color: '#2c5ef5' };
+                      const stats = getCourseStats(course, difficultyColor);
+                      const isCurrentCourse = Boolean(course.isCurrentCourse);
 
                       return (
                         <motion.div
@@ -295,7 +320,7 @@ export default function CoursesPage() {
                         >
                           {/* Absolute timeline glowing node dot linking to the timeline laser */}
                           <div 
-                            className={`timeline-station-node ${course.isActive ? 'active-node' : ''}`}
+                            className={`timeline-station-node ${isCurrentCourse ? 'active-node' : ''}`}
                             style={{ 
                               '--node-color': stats.color,
                               '--difficulty-border': difficultyColor
@@ -306,7 +331,7 @@ export default function CoursesPage() {
                           </div>
 
                           <div
-                            className={`horizontal-station-card ${course.isActive ? 'active-station-card' : ''}`}
+                            className={`horizontal-station-card ${isCurrentCourse ? 'active-station-card' : ''}`}
                             style={{ '--accent-glow': stats.color }}
                             onClick={() => handleSelectCourse(course)}
                             role="button"
@@ -332,13 +357,11 @@ export default function CoursesPage() {
                                     borderColor: `${difficultyColor}30`
                                   }}
                                 >
-                                  {course.level === 'beginner' && 'Cơ bản'}
-                                  {course.level === 'intermediate' && 'Trung cấp'}
-                                  {course.level === 'advanced' && 'Nâng cao'}
+                                  {LEVEL_LABELS[course.level] || course.level || 'Cơ bản'}
                                 </span>
                                 <span className="station-learners">
                                   <Users size={12} />
-                                  <span>{stats.learners} đang học</span>
+                                  <span>{formatNumber(stats.learners)} đang học</span>
                                 </span>
                               </div>
 
@@ -352,18 +375,18 @@ export default function CoursesPage() {
                             <div className="station-stats-column">
                               <div className="stat-sub-box">
                                 <BookOpenCheck size={14} className="stat-sub-icon" />
-                                <span className="stat-sub-val">{stats.lessons} Bài học</span>
+                                <span className="stat-sub-val">{formatNumber(stats.lessons)} Bài học</span>
                               </div>
                               <div className="stat-sub-box">
                                 <Trophy size={14} className="stat-sub-icon" />
-                                <span className="stat-sub-val">+{stats.xp} XP Thưởng</span>
+                                <span className="stat-sub-val">+{formatNumber(stats.xp)} XP Thưởng</span>
                               </div>
                             </div>
 
                             {/* Futuristic Action column */}
                             <div className="station-action-column">
                               <div className="btn-station-select">
-                                <span>{course.isActive ? 'Tiếp tục' : 'Bắt đầu'}</span>
+                                <span>{isCurrentCourse ? 'Tiếp tục' : 'Bắt đầu'}</span>
                                 <div className="btn-icon-wrapper">
                                   <ArrowRight size={14} />
                                 </div>
@@ -371,7 +394,7 @@ export default function CoursesPage() {
                             </div>
 
                             {/* Active decorative badge */}
-                            {course.isActive && (
+                            {isCurrentCourse && (
                               <div className="station-active-ribbon">
                                 <CheckCircle2 size={12} />
                                 <span>ĐANG HỌC</span>

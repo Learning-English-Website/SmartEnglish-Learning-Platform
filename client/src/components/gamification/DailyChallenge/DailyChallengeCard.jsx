@@ -158,10 +158,10 @@ export default function DailyChallengeCard({ hideLeaderboard = false } = {}) {
       const result = response?.data?.data || response?.data || response;
       const lessonId = result?.lessonId || result?.challenge?.lesson?._id || challenge.lesson._id;
       if (lessonId) {
-        navigate(`/duolingo/lesson/${lessonId}`);
+        navigate(`/duolingo/lesson/${lessonId}?mode=daily&dailyChallengeId=${challenge._id}`);
         return;
       }
-      navigate(`/duolingo/lesson/${challenge.lesson._id}`);
+      navigate(`/duolingo/lesson/${challenge.lesson._id}?mode=daily&dailyChallengeId=${challenge._id}`);
     } catch (err) {
       console.error('[DailyChallengeCard] join failed:', err);
       setSocketError(err?.response?.data?.message || err?.message || 'Không thể tham gia Thử thách hằng ngày.');

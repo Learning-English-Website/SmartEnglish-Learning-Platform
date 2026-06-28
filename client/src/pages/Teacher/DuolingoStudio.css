@@ -460,26 +460,54 @@
   font-weight: 700;
 }
 
-.form-group-checkbox {
+.course-publish-panel {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  gap: 8px;
   margin-top: 10px;
 }
 
-.form-group-checkbox input[type="checkbox"] {
-  width: 20px;
-  height: 20px;
+.course-publish-toggle {
+  width: fit-content;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border: 2px solid;
+  border-bottom-width: 4px;
+  border-radius: 12px;
+  padding: 10px 16px;
+  font-size: 0.9rem;
+  font-weight: 900;
   cursor: pointer;
-  accent-color: #1cb0f6;
+  transition: transform 0.12s ease, border-color 0.12s ease, background 0.12s ease;
 }
 
-.form-group-checkbox label {
-  font-size: 0.9rem;
+.course-publish-toggle:active {
+  transform: translateY(2px);
+  border-bottom-width: 2px;
+}
+
+.course-publish-toggle.is-published {
+  color: #166534;
+  background: #dcfce7;
+  border-color: #86efac;
+  border-bottom-color: #22c55e;
+}
+
+.course-publish-toggle.is-locked {
+  color: #991b1b;
+  background: #fee2e2;
+  border-color: #fecaca;
+  border-bottom-color: #ef4444;
+}
+
+.course-publish-panel p {
+  margin: 0;
+  max-width: 620px;
+  color: #64748b;
+  font-size: 0.82rem;
   font-weight: 700;
-  color: #4b5563;
-  cursor: pointer;
-  user-select: none;
 }
 
 /* Split Workspace layout for Challenges */
@@ -738,6 +766,38 @@
   flex-shrink: 0;
   margin-top: 2px;
   color: #3b82f6;
+}
+
+.order-config-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.order-config-action-btn {
+  border: 2px solid #1cb0f6;
+  border-bottom-width: 4px;
+  border-radius: 10px;
+  background: #e0f2fe;
+  color: #0284c7;
+  padding: 8px 12px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.order-config-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.order-config-current-answer {
+  color: #475569;
+  font-size: 0.82rem;
+  font-weight: 700;
 }
 
 /* Validation HUD Alert */

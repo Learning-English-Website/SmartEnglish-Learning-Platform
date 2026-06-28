@@ -5,7 +5,7 @@ const { ApiResponse } = require('../../shared/utils/apiResponse');
 class DuolingoController {
   // === COURSES ===
   getCourses = asyncHandler(async (req, res) => {
-    const courses = await duolingoService.getCourses();
+    const courses = await duolingoService.getCourses(req.userId);
     res.json(ApiResponse.success(courses));
   });
 
@@ -28,7 +28,10 @@ class DuolingoController {
 
   // === LESSONS ===
   getLesson = asyncHandler(async (req, res) => {
-    const lesson = await duolingoService.getLesson(req.params.lessonId, req.userId);
+    const lesson = await duolingoService.getLesson(req.params.lessonId, req.userId, {
+      mode: req.query.mode,
+      dailyChallengeId: req.query.dailyChallengeId,
+    });
     res.json(ApiResponse.success(lesson));
   });
 
@@ -39,14 +42,24 @@ class DuolingoController {
 
   // === QUIZ / CHALLENGES ===
   submitAnswer = asyncHandler(async (req, res) => {
-    const { challengeId, selectedOptionId, userAnswer } = req.body;
-    const result = await duolingoService.submitAnswer(req.userId, challengeId, selectedOptionId, userAnswer);
+    const { challengeId, selectedOptionId, userAnswer, mode, dailyChallengeId } = req.body;
+    const result = await duolingoService.submitAnswer(req.userId, challengeId, selectedOptionId, userAnswer, {
+      mode,
+      dailyChallengeId,
+    });
     res.json(ApiResponse.success(result));
   });
 
   completeLesson = asyncHandler(async (req, res) => {
     const { lessonId } = req.params;
     const result = await duolingoService.completeLesson(req.userId, lessonId);
+    res.json(ApiResponse.success(result));
+  });
+
+  completeDailyChallenge = asyncHandler(async (req, res) => {
+    const { lessonId } = req.params;
+    const { dailyChallengeId } = req.body;
+    const result = await duolingoService.completeDailyChallenge(req.userId, lessonId, dailyChallengeId);
     res.json(ApiResponse.success(result));
   });
 

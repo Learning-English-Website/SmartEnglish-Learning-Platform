@@ -10,7 +10,7 @@ const unitSchema = new Schema(
     description: { type: String, default: '' }, // Duolingo support
     order: { type: Number, default: 0 },
     xpReward: { type: Number, default: 10 },
-    isLockedDefault: { type: Boolean, default: true },
+    isLockedDefault: { type: Boolean, default: false },
     isCompleted: { type: Boolean, default: false }, // Duolingo support
   },
   { timestamps: true }

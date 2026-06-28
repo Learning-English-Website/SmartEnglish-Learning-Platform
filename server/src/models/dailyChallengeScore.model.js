@@ -8,6 +8,9 @@ const dailyChallengeScoreSchema = new Schema(
     user: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     challenge: { type: Schema.Types.ObjectId, ref: 'DailyChallenge', required: true, index: true },
     xp: { type: Number, default: 0 },
+    answeredChallenges: [{ type: Schema.Types.ObjectId, ref: 'Challenge' }],
+    failedChallenges: [{ type: Schema.Types.ObjectId, ref: 'Challenge' }],
+    completedAt: { type: Date, default: null },
   },
   { timestamps: true }
 );

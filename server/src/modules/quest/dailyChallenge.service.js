@@ -81,25 +81,6 @@ class DailyChallengeService {
 
     if (!challenge) return null;
 
-    if (challenge.lesson?._id) {
-      try {
-        const unlocked = await Lesson.findOneAndUpdate(
-          { _id: challenge.lesson._id, isLocked: true },
-          { $set: { isLocked: false } },
-          { new: true }
-        );
-        console.log('[DailyChallenge] Unlock attempt on join:', {
-          lessonId: String(challenge.lesson._id),
-          wasLocked: Boolean(challenge.lesson?.isLocked),
-          updated: Boolean(unlocked),
-          challengeId: String(challenge._id),
-          date: challenge.date,
-        });
-      } catch (err) {
-        console.error('[DailyChallenge] Failed to unlock lesson on join:', err);
-      }
-    }
-
     let upserted = false;
     try {
       const res = await DailyChallengeScore.updateOne(
@@ -146,6 +127,134 @@ class DailyChallengeService {
     });
 
     return challenge;
+  }
+
+  async getActiveChallengeForLesson(lessonId, challengeId = null) {
+    const todayKey = getDateKey(new Date());
+    const query = { date: todayKey, lesson: lessonId };
+    if (challengeId) query._id = challengeId;
+    return DailyChallenge.findOne(query).populate('lesson');
+  }
+
+  async assertActiveChallengeForLesson(lessonId, challengeId = null) {
+    const challenge = await this.getActiveChallengeForLesson(lessonId, challengeId);
+    if (!challenge) {
+      const err = new Error('Daily challenge is not active for this lesson.');
+      err.statusCode = 403;
+      throw err;
+    }
+    return challenge;
+  }
+
+  async recordCorrectAnswer({ userId, dailyChallenge, challengeId, xp }) {
+    if (!xp || xp <= 0) return { updated: false, reason: 'no_xp' };
+
+    if (await isExcludedFromXp(userId)) {
+      return { updated: false, reason: 'excluded_user' };
+    }
+
+    let existing = await DailyChallengeScore.findOne({ date: dailyChallenge.date, user: userId })
+      .select('xp answeredChallenges failedChallenges');
+    if (!existing) {
+      existing = await DailyChallengeScore.create({
+        date: dailyChallenge.date,
+        user: userId,
+        challenge: dailyChallenge._id,
+        xp: 0,
+      });
+    }
+
+    const challengeKey = String(challengeId);
+    const wasAlreadyAnswered = (existing.answeredChallenges || []).some(id => String(id) === challengeKey);
+    if (wasAlreadyAnswered) {
+      return { updated: false, reason: 'already_counted', xp: existing.xp || 0, pointsEarned: 0 };
+    }
+
+    const failedBefore = (existing.failedChallenges || []).some(id => String(id) === challengeKey);
+    if (failedBefore) {
+      const doc = await DailyChallengeScore.findOneAndUpdate(
+        { date: dailyChallenge.date, user: userId },
+        {
+          $set: { challenge: dailyChallenge._id },
+          $addToSet: { answeredChallenges: challengeId },
+        },
+        { new: true }
+      );
+      return {
+        updated: false,
+        reason: 'failed_before_correct',
+        xp: doc?.xp || existing.xp || 0,
+        pointsEarned: 0,
+      };
+    }
+
+    await DailyChallengeScore.updateOne(
+      { date: dailyChallenge.date, user: userId },
+      { $setOnInsert: { challenge: dailyChallenge._id, xp: 0 } },
+      { upsert: true }
+    );
+
+    const doc = await DailyChallengeScore.findOneAndUpdate(
+      {
+        date: dailyChallenge.date,
+        user: userId,
+        answeredChallenges: { $ne: challengeId },
+      },
+      {
+        $set: { challenge: dailyChallenge._id },
+        $addToSet: { answeredChallenges: challengeId },
+        $inc: { xp },
+      },
+      { new: true }
+    );
+
+    if (!doc) {
+      const existing = await DailyChallengeScore.findOne({ date: dailyChallenge.date, user: userId }).select('xp');
+      return { updated: false, reason: 'already_counted', xp: existing?.xp || 0 };
+    }
+
+    eventBus.emit('dailyChallenge:score_updated', {
+      date: dailyChallenge.date,
+      userId: String(userId),
+      xp: doc.xp,
+      reason: 'daily_answer_correct',
+    });
+
+    return { updated: true, reason: 'set', xp: doc.xp, pointsEarned: xp };
+  }
+
+  async recordWrongAnswer({ userId, dailyChallenge, challengeId }) {
+    await DailyChallengeScore.updateOne(
+      { date: dailyChallenge.date, user: userId },
+      {
+        $setOnInsert: { challenge: dailyChallenge._id, xp: 0 },
+        $addToSet: { failedChallenges: challengeId },
+      },
+      { upsert: true }
+    );
+
+    return { updated: false, reason: 'wrong_answer', pointsEarned: 0 };
+  }
+
+  async completeChallenge({ userId, lessonId, challengeId = null }) {
+    const dailyChallenge = await this.assertActiveChallengeForLesson(lessonId, challengeId);
+    const doc = await DailyChallengeScore.findOneAndUpdate(
+      { date: dailyChallenge.date, user: userId },
+      {
+        $setOnInsert: { challenge: dailyChallenge._id, xp: 0 },
+        $set: { completedAt: new Date() },
+      },
+      { upsert: true, new: true }
+    );
+
+    eventBus.emit('dailyChallenge:score_updated', {
+      date: dailyChallenge.date,
+      userId: String(userId),
+      xp: doc.xp,
+      reason: 'daily_complete',
+    });
+
+    return { dailyChallengeId: dailyChallenge._id, lessonId, xp: doc.xp, completedAt: doc.completedAt };
   }
 
   async addXpForUserOncePerDay({ userId, dateKey, challengeId, xp }) {

@@ -23,10 +23,12 @@ const Course = require('../src/models/course.model');
 const Lesson = require('../src/models/lesson.model');
 const Challenge = require('../src/models/challenge.model');
 const ChallengeOption = require('../src/models/challengeOption.model');
+const UserProgress = require('../src/models/userProgress.model');
 const AiUsageLog = require('../src/models/aiUsageLog.model');
 const cryptoHelper = require('../src/modules/ai/helpers/crypto');
 const aiRoutes = require('../src/modules/ai/ai.routes');
 const teacherRoutes = require('../src/modules/teacher/teacher.routes');
+const duolingoRoutes = require('../src/modules/duolingo/duolingo.routes');
 
 describe('AI Lesson & Teacher Save API', () => {
   let app;
@@ -67,6 +69,7 @@ describe('AI Lesson & Teacher Save API', () => {
 
     app.use('/api/ai', aiRoutes);
     app.use('/api/teacher', teacherRoutes);
+    app.use('/api/duolingo', duolingoRoutes);
 
     // Global error handler
     app.use((err, req, res, next) => {
@@ -115,7 +118,9 @@ describe('AI Lesson & Teacher Save API', () => {
       slug: 'english-course',
       description: 'Course description',
       level: 'beginner',
-      order: 1
+      order: 1,
+      isPublished: true,
+      isActive: true
     });
 
     unit = await Unit.create({
@@ -135,6 +140,7 @@ describe('AI Lesson & Teacher Save API', () => {
     await Lesson.deleteMany({});
     await Challenge.deleteMany({});
     await ChallengeOption.deleteMany({});
+    await UserProgress.deleteMany({});
     await AiUsageLog.deleteMany({});
     jest.clearAllMocks();
   });
@@ -321,13 +327,62 @@ describe('AI Lesson & Teacher Save API', () => {
       const savedLesson = await Lesson.findOne({ title: 'AI Generated Lesson' });
       expect(savedLesson).toBeDefined();
       expect(savedLesson.order).toBe(6); // max (5) + 1 = 6
-      expect(savedLesson.isLocked).toBe(true); // default locked
+      expect(savedLesson.isLocked).toBe(false); // AI lessons should be playable after saving
 
       const savedChallenges = await Challenge.find({ lesson: savedLesson._id });
       expect(savedChallenges.length).toBe(2);
 
       const savedOptions = await ChallengeOption.find({ challenge: savedChallenges[1]._id });
       expect(savedOptions.length).toBe(2);
+    });
+
+    it('should make a single AI-saved lesson playable for students in that zone', async () => {
+      const res = await request(app)
+        .post(`/api/teacher/units/${unit._id}/lessons/ai-save`)
+        .set('Authorization', `Bearer ${teacherToken}`)
+        .send({
+          lesson: {
+            title: 'Only AI Lesson',
+            subtitle: 'Playable immediately',
+            grammarFocus: ['Greeting'],
+            vocabFocus: ['hello'],
+            type: 'challenge'
+          },
+          challenges: [
+            {
+              type: 'TRANSLATE',
+              question: 'Translate: Xin chao',
+              correctAnswer: 'Hello',
+              sourceLang: 'vi',
+              targetLang: 'en'
+            }
+          ]
+        });
+
+      expect(res.status).toBe(201);
+
+      const savedLesson = await Lesson.findOne({ title: 'Only AI Lesson' });
+      await UserProgress.create({
+        user: studentUser._id,
+        activeCourse: course._id
+      });
+
+      const unitsRes = await request(app)
+        .get('/api/duolingo/units')
+        .set('Authorization', `Bearer ${studentToken}`);
+
+      expect(unitsRes.status).toBe(200);
+      const lessonFromTree = unitsRes.body.data[0].lessons.find(
+        lesson => lesson._id.toString() === savedLesson._id.toString()
+      );
+      expect(lessonFromTree.isLocked).toBe(false);
+
+      const lessonRes = await request(app)
+        .get(`/api/duolingo/lessons/${savedLesson._id}`)
+        .set('Authorization', `Bearer ${studentToken}`);
+
+      expect(lessonRes.status).toBe(200);
+      expect(lessonRes.body.success).toBe(true);
     });
 
     it('should roll back and delete created lesson and challenges if a challenge option insertion fails', async () => {

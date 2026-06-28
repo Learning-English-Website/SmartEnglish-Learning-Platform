@@ -1,5 +1,7 @@
 import axiosClient from './axiosClient';
 
+const AI_REQUEST_TIMEOUT_MS = 90000;
+
 /**
  * AI Module Service
  */
@@ -38,7 +40,7 @@ export const aiService = {
    */
   generateFlashcards: (data) =>
     axiosClient.post('/ai/flashcards/generate', data, {
-      timeout: 35000, // 35 seconds to allow backend's 20-second Gemini API timeout + transit
+      timeout: AI_REQUEST_TIMEOUT_MS,
     }),
 
   /**
@@ -48,7 +50,7 @@ export const aiService = {
    */
   generateLesson: (data) =>
     axiosClient.post('/ai/lessons/generate', data, {
-      timeout: 35000,
+      timeout: AI_REQUEST_TIMEOUT_MS,
     }),
 
   /**
@@ -78,7 +80,7 @@ export const aiService = {
    */
   sendChatMessage: (sessionId, data) =>
     axiosClient.post(`/ai/chat/sessions/${sessionId}/messages`, data, {
-      timeout: 35000,
+      timeout: AI_REQUEST_TIMEOUT_MS,
     }),
 
   /**

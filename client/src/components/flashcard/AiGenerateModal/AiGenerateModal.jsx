@@ -151,7 +151,7 @@ export default function AiGenerateModal({ show, onHide, setId, onConfirmSave, sa
         setErrorText('Nội dung chủ đề hoặc văn bản nhập vào bị Gemini AI chặn do vi phạm chính sách an toàn thông tin.');
       } else if (status === 504) {
         setErrorCode('TIMEOUT');
-        setErrorText('Quá trình sinh thẻ bị quá thời gian chờ (20 giây). Vui lòng rút ngắn nội dung văn bản hoặc thử lại.');
+        setErrorText(serverMsg || 'AI phản hồi lâu hơn dự kiến. Vui lòng thử lại sau ít phút hoặc giảm số lượng thẻ.');
       } else {
         setErrorCode('GENERAL');
         setErrorText(serverMsg || 'Không thể tạo flashcard. Vui lòng thử lại hoặc đổi chủ đề.');

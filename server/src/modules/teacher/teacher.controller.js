@@ -45,7 +45,10 @@ const getCourse = async (req, res) => {
 };
 
 const createCourse = async (req, res) => {
-  const course = await Course.create(req.body);
+  const course = await Course.create({
+    ...req.body,
+    isPublished: req.body.isPublished ?? true,
+  });
   res.status(201).json(ApiResponse.success(course, 'Course created'));
 };
 
@@ -119,13 +122,20 @@ const getUnit = async (req, res) => {
 };
 
 const createUnit = async (req, res) => {
-  const unit = await Unit.create(req.body);
+  const unit = await Unit.create({
+    ...req.body,
+    isLockedDefault: false,
+  });
   await unit.populate('course', 'title');
   res.status(201).json(ApiResponse.success(unit, 'Unit created'));
 };
 
 const updateUnit = async (req, res) => {
-  const unit = await Unit.findByIdAndUpdate(req.params.id, req.body, { new: true }).populate('course', 'title');
+  const unit = await Unit.findByIdAndUpdate(
+    req.params.id,
+    { ...req.body, isLockedDefault: false },
+    { new: true }
+  ).populate('course', 'title');
   if (!unit) throw new AppError('Unit not found', 404);
   res.json(ApiResponse.success(unit, 'Unit updated'));
 };
@@ -669,6 +679,7 @@ const saveAiLessonWithChallenges = async (req, res, next) => {
   // 3. Compute dynamic order (max + 1)
   const lastLesson = await Lesson.findOne({ unit: unitId }).sort({ order: -1 }).select('order');
   const nextOrder = lastLesson ? lastLesson.order + 1 : 1;
+  const shouldLockLesson = typeof lessonInput.isLocked === 'boolean' ? lessonInput.isLocked : false;
 
   // 4. Save with Rollback Mechanism
   let createdLesson = null;
@@ -685,7 +696,7 @@ const saveAiLessonWithChallenges = async (req, res, next) => {
       xpReward: parseInt(lessonInput.xpReward, 10) || 10,
       estimatedMinutes: parseInt(lessonInput.estimatedMinutes, 10) || 5,
       type: lessonInput.type === 'practice' ? 'practice' : 'challenge',
-      isLocked: true, // defaults to locked, no auto-publish
+      isLocked: shouldLockLesson,
       order: nextOrder
     });
 

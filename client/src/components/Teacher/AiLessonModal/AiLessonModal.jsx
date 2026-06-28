@@ -120,7 +120,7 @@ export default function AiLessonModal({ show, onHide, unitId, onSuccess }) {
         setErrorText(serverMsg || 'Nội dung chủ đề vi phạm chính sách an toàn của Gemini AI.');
       } else if (status === 504) {
         setErrorCode('TIMEOUT');
-        setErrorText('Thời gian phản hồi của AI vượt quá 20 giây. Vui lòng thử lại với chủ đề ngắn gọn hơn.');
+        setErrorText(serverMsg || 'AI phản hồi lâu hơn dự kiến. Vui lòng thử lại sau ít phút hoặc giảm số lượng câu hỏi.');
       } else {
         setErrorCode('GENERAL');
         setErrorText(serverMsg || 'Không thể tạo bài học nháp. Vui lòng thử lại.');

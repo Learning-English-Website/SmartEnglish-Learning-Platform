@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { duolingoService } from '../../services/duolingoService';
@@ -51,10 +51,23 @@ const getCorrectAnswerText = (challenge) => {
   return '';
 };
 
+const buildOrderTokens = (wordBank = []) =>
+  wordBank.map((text, index) => ({ text, index }));
+
 export default function LessonPage() {
   const { lessonId } = useParams();
   const [searchParams] = useSearchParams();
   const isPractice = searchParams.get('practice') === 'true';
+  const isDailyChallenge = searchParams.get('mode') === 'daily' || searchParams.get('dailyChallenge') === 'true';
+  const dailyChallengeId = searchParams.get('dailyChallengeId');
+  const returnPath = isDailyChallenge ? '/duolingo' : '/duolingo/learn';
+  const answerContext = useMemo(
+    () => (isDailyChallenge ? { mode: 'daily', dailyChallengeId } : undefined),
+    [isDailyChallenge, dailyChallengeId]
+  );
+  const progressStorageKey = isDailyChallenge
+    ? `duolingo_daily_lesson_progress_${dailyChallengeId || lessonId}`
+    : `duolingo_lesson_progress_${lessonId}`;
 
   const navigate = useNavigate();
 
@@ -97,6 +110,8 @@ export default function LessonPage() {
   const isUnmountingRef = useRef(false); // Track if we're unmounting
   const hasAutoPlayedTTSRef = useRef(false); // Track if TTS auto-played for current challenge
   const hasAutoPlayedAudioRef = useRef(false); // Track if audio auto-played for current challenge
+  const completionRequestRef = useRef(null);
+  const completionNavigateTimerRef = useRef(null);
 
   const lessonRef = useRef(lesson);
   const currentIndexRef = useRef(currentIndex);
@@ -257,6 +272,10 @@ export default function LessonPage() {
       if (tts.isSupported) {
         window.speechSynthesis.cancel();
       }
+
+      if (completionNavigateTimerRef.current) {
+        clearTimeout(completionNavigateTimerRef.current);
+      }
     };
   }, []); // Empty deps - only run on mount/unmount
 
@@ -269,7 +288,7 @@ export default function LessonPage() {
 
     if (type === 'ORDER') {
       // Shuffle word bank for ORDER challenge
-      const shuffled = [...(challenge.wordBank || [])].sort(() => Math.random() - 0.5);
+      const shuffled = buildOrderTokens(challenge.wordBank || []).sort(() => Math.random() - 0.5);
       setOrderedWords([]);
       setOrderedWordBank(shuffled);
     } else if (type === 'MATCH') {
@@ -320,18 +339,18 @@ export default function LessonPage() {
   // ORDER: Move word from bank to answer area
   const handleOrderWordClick = useCallback((wordIndex) => {
     if (status !== 'idle') return;
-    const word = orderedWordBank[wordIndex];
-    if (!word) return;
-    setOrderedWords((prev) => [...prev, word]);
+    const token = orderedWordBank[wordIndex];
+    if (!token) return;
+    setOrderedWords((prev) => [...prev, token]);
     setOrderedWordBank((prev) => prev.filter((_, i) => i !== wordIndex));
   }, [status, orderedWordBank]);
 
   // ORDER: Move word back to bank
   const handleOrderWordRemove = useCallback((wordIndex) => {
     if (status !== 'idle') return;
-    const word = orderedWords[wordIndex];
-    if (!word) return;
-    setOrderedWordBank((prev) => [...prev, word]);
+    const token = orderedWords[wordIndex];
+    if (!token) return;
+    setOrderedWordBank((prev) => [...prev, token]);
     setOrderedWords((prev) => prev.filter((_, i) => i !== wordIndex));
   }, [status, orderedWords]);
 
@@ -382,15 +401,15 @@ export default function LessonPage() {
     }
     if (status !== 'idle' || orderedWords.length === 0 || !currentChallenge) return;
     try {
-      const userOrder = orderedWords.map(w => currentChallenge.wordBank.indexOf(w));
-      const result = await duolingoService.submitAnswer(currentChallenge._id, null, JSON.stringify(userOrder));
+      const userOrder = orderedWords.map(token => token.index);
+      const result = await duolingoService.submitAnswer(currentChallenge._id, null, JSON.stringify(userOrder), answerContext);
       if (result.data?.isCorrect) {
         setStatus('correct');
         setShowCorrectAnswer(false);
         setCorrectCount(c => c + 1);
         const earnedPoints = result.data.pointsEarned ?? 10;
         pointsRef.current += earnedPoints;
-        setTimeout(() => nextChallenge(), 1000);
+        advanceAfterCorrectAnswer();
       } else {
         setStatus('wrong');
         setShowCorrectAnswer(true);
@@ -402,7 +421,7 @@ export default function LessonPage() {
       console.error('Submit failed:', err);
       setStatus('idle');
     }
-  }, [currentChallenge, status, orderedWords, isPro, isPractice, hearts]);
+  }, [currentChallenge, status, orderedWords, isPro, isPractice, hearts, answerContext]);
 
   // MATCH: Select items
   const [selectedMatchLeft, setSelectedMatchLeft] = useState(null);
@@ -474,14 +493,14 @@ export default function LessonPage() {
         leftIndex: leftItem.index,
         rightIndex: matchedPairs[leftItem.index],
       }));
-      const result = await duolingoService.submitAnswer(currentChallenge._id, null, JSON.stringify(userAnswer));
+      const result = await duolingoService.submitAnswer(currentChallenge._id, null, JSON.stringify(userAnswer), answerContext);
       if (result.data?.isCorrect) {
         setStatus('correct');
         setShowCorrectAnswer(false);
         setCorrectCount(c => c + 1);
         const earnedPoints = result.data.pointsEarned ?? 10;
         pointsRef.current += earnedPoints;
-        setTimeout(() => nextChallenge(), 1000);
+        advanceAfterCorrectAnswer();
       } else {
         setStatus('wrong');
         setShowCorrectAnswer(true);
@@ -493,7 +512,7 @@ export default function LessonPage() {
       console.error('Submit failed:', err);
       setStatus('idle');
     }
-  }, [currentChallenge, status, matchedPairs, isPro, isPractice, hearts]);
+  }, [currentChallenge, status, matchedPairs, isPro, isPractice, hearts, answerContext]);
 
   // FILL: Submit
   const handleFillSubmit = useCallback(async (optionId) => {
@@ -503,14 +522,14 @@ export default function LessonPage() {
     }
     if (status !== 'idle' || !currentChallenge) return;
     try {
-      const result = await duolingoService.submitAnswer(currentChallenge._id, optionId, null);
+      const result = await duolingoService.submitAnswer(currentChallenge._id, optionId, null, answerContext);
       if (result.data?.isCorrect) {
         setStatus('correct');
         setShowCorrectAnswer(false);
         setCorrectCount(c => c + 1);
         const earnedPoints = result.data.pointsEarned ?? 10;
         pointsRef.current += earnedPoints;
-        setTimeout(() => nextChallenge(), 1000);
+        advanceAfterCorrectAnswer();
       } else {
         setStatus('wrong');
         setShowCorrectAnswer(true);
@@ -522,7 +541,7 @@ export default function LessonPage() {
       console.error('Submit failed:', err);
       setStatus('idle');
     }
-  }, [currentChallenge, status, isPro, isPractice, hearts]);
+  }, [currentChallenge, status, isPro, isPractice, hearts, answerContext]);
 
   // COMPLETE & TRANSLATE: Submit typed answer
   const handleWordSubmit = useCallback(async () => {
@@ -532,7 +551,7 @@ export default function LessonPage() {
     }
     if (status !== 'idle' || !currentChallenge || !typedAnswer.trim()) return;
     try {
-      const result = await duolingoService.submitAnswer(currentChallenge._id, null, typedAnswer);
+      const result = await duolingoService.submitAnswer(currentChallenge._id, null, typedAnswer, answerContext);
       if (result.data?.isCorrect) {
         setStatus('correct');
         setShowCorrectAnswer(false);
@@ -540,7 +559,7 @@ export default function LessonPage() {
         const earnedPoints = result.data.pointsEarned ?? 10;
         pointsRef.current += earnedPoints;
         triggerXpPopup(earnedPoints);
-        setTimeout(() => nextChallenge(), 1000);
+        advanceAfterCorrectAnswer();
       } else {
         setStatus('wrong');
         setShowCorrectAnswer(true);
@@ -552,7 +571,7 @@ export default function LessonPage() {
       console.error('Submit failed:', err);
       setStatus('idle');
     }
-  }, [currentChallenge, status, typedAnswer, isPro, isPractice, hearts]);
+  }, [currentChallenge, status, typedAnswer, isPro, isPractice, hearts, answerContext]);
 
   // Aliases for TRANSLATE and COMPLETE
   const handleTranslateSubmit = handleWordSubmit;
@@ -566,7 +585,10 @@ export default function LessonPage() {
       if (isPractice) {
         response = await duolingoService.practiceLesson(lessonId);
       } else {
-        response = await duolingoService.getLesson(lessonId);
+        response = await duolingoService.getLesson(
+          lessonId,
+          isDailyChallenge ? { mode: 'daily', dailyChallengeId } : undefined
+        );
       }
       const fetchedLesson = response.data || response;
       setLesson(fetchedLesson);
@@ -577,7 +599,7 @@ export default function LessonPage() {
       setStatus('idle');
 
       // Check if there is saved progress for this specific lesson
-      const savedProgressJSON = localStorage.getItem(`duolingo_lesson_progress_${lessonId}`);
+      const savedProgressJSON = localStorage.getItem(progressStorageKey);
       if (savedProgressJSON) {
         const savedProgress = JSON.parse(savedProgressJSON);
         if (savedProgress && savedProgress.currentIndex > 0 && savedProgress.currentIndex < (fetchedLesson?.challenges?.length || 0)) {
@@ -595,7 +617,7 @@ export default function LessonPage() {
     } finally {
       setLoading(false);
     }
-  }, [lessonId, isPractice]);
+  }, [lessonId, isPractice, isDailyChallenge, dailyChallengeId, progressStorageKey]);
 
   const loadHearts = useCallback(async () => {
     try {
@@ -630,7 +652,7 @@ export default function LessonPage() {
 
       try {
         const optionId = option._id || option.text;
-        const result = await duolingoService.submitAnswer(currentChallenge._id, optionId, null);
+        const result = await duolingoService.submitAnswer(currentChallenge._id, optionId, null, answerContext);
 
         if (result.data?.isCorrect) {
           setStatus('correct');
@@ -639,9 +661,7 @@ export default function LessonPage() {
           const earnedPoints = result.data.pointsEarned ?? 10;
           pointsRef.current += earnedPoints;
           triggerXpPopup(earnedPoints);
-          setTimeout(() => {
-            nextChallenge();
-          }, 1000);
+          advanceAfterCorrectAnswer();
         } else {
           setStatus('wrong');
           setShowCorrectAnswer(true);
@@ -657,7 +677,7 @@ export default function LessonPage() {
         setSelectedOption(null);
       }
     },
-    [currentChallenge, status, currentIndex, isPro, isPractice, hearts]
+    [currentChallenge, status, currentIndex, isPro, isPractice, hearts, answerContext]
   );
 
   const handleTypedSubmit = useCallback(async () => {
@@ -668,7 +688,7 @@ export default function LessonPage() {
     if (status !== 'idle' || !currentChallenge || !typedAnswer.trim()) return;
 
     try {
-      const result = await duolingoService.submitAnswer(currentChallenge._id, null, typedAnswer);
+      const result = await duolingoService.submitAnswer(currentChallenge._id, null, typedAnswer, answerContext);
 
       if (result.data?.isCorrect) {
         setStatus('correct');
@@ -676,9 +696,7 @@ export default function LessonPage() {
         setCorrectCount(c => c + 1);
         const earnedPoints = result.data.pointsEarned ?? 10;
         pointsRef.current += earnedPoints;
-        setTimeout(() => {
-          nextChallenge();
-        }, 1000);
+        advanceAfterCorrectAnswer();
       } else {
         setStatus('wrong');
         setShowCorrectAnswer(true);
@@ -692,7 +710,7 @@ export default function LessonPage() {
       console.error('Submit failed:', err);
       setStatus('idle');
     }
-  }, [currentChallenge, status, typedAnswer, isPro, isPractice, hearts]);
+  }, [currentChallenge, status, typedAnswer, isPro, isPractice, hearts, answerContext]);
 
   const handleWrongAnswer = async () => {
     const currentLesson = lessonRef.current;
@@ -753,7 +771,7 @@ export default function LessonPage() {
   };
 
   const handleStartOver = () => {
-    localStorage.removeItem(`duolingo_lesson_progress_${lessonId}`);
+    localStorage.removeItem(progressStorageKey);
     setCurrentIndex(0);
     pointsRef.current = 0;
     setCorrectCount(0);
@@ -783,7 +801,7 @@ export default function LessonPage() {
       const nextIndex = curIndex + 1;
       setCurrentIndex(nextIndex);
       localStorage.setItem(
-        `duolingo_lesson_progress_${lessonId}`,
+        progressStorageKey,
         JSON.stringify({
           currentIndex: nextIndex,
           points: pointsRef.current,
@@ -796,29 +814,58 @@ export default function LessonPage() {
     }
   };
 
-  const completeLesson = async () => {
-    try {
-      await duolingoService.completeLesson(lessonId);
-      localStorage.removeItem(`duolingo_lesson_progress_${lessonId}`);
+  function advanceAfterCorrectAnswer() {
+    const currentLesson = lessonRef.current;
+    const curIndex = currentIndexRef.current;
+    const isFinalChallenge = curIndex >= (currentLesson?.challenges?.length || 0) - 1;
 
-      // Also refresh quests panel
-      window.dispatchEvent(new CustomEvent('quest:update'));
-
-      setStatus('complete');
-      setShowConfetti(true);
-      setTimeout(() => {
-        navigate('/duolingo/learn');
-      }, 3000);
-    } catch (err) {
-      console.error('Complete lesson failed:', err);
-      const message = err?.response?.data?.error?.message
-        || err?.response?.data?.message
-        || err?.message
-        || 'Complete lesson failed';
-      alert(message);
-      navigate('/duolingo/learn');
+    if (isFinalChallenge) {
+      completeLesson();
+      return;
     }
-  };
+
+    setTimeout(() => nextChallenge(), 1000);
+  }
+
+  async function completeLesson() {
+    if (completionRequestRef.current) {
+      return completionRequestRef.current;
+    }
+
+    completionRequestRef.current = (async () => {
+      try {
+        if (isDailyChallenge) {
+          await duolingoService.completeDailyChallenge(lessonId, dailyChallengeId);
+        } else {
+          await duolingoService.completeLesson(lessonId);
+        }
+        localStorage.removeItem(progressStorageKey);
+
+        // Also refresh quests panel
+        window.dispatchEvent(new CustomEvent('quest:update'));
+
+        if (!isMountedRef.current) return;
+
+        setStatus('complete');
+        setShowConfetti(true);
+        completionNavigateTimerRef.current = setTimeout(() => {
+          navigate(returnPath);
+        }, 3000);
+      } catch (err) {
+        console.error('Complete lesson failed:', err);
+        completionRequestRef.current = null;
+        if (!isMountedRef.current) return;
+        const message = err?.response?.data?.error?.message
+          || err?.response?.data?.message
+          || err?.message
+          || 'Complete lesson failed';
+        alert(message);
+        navigate(returnPath);
+      }
+    })();
+
+    return completionRequestRef.current;
+  }
 
   const handleRefillHearts = async () => {
     setIsRefilling(true);
@@ -849,7 +896,7 @@ export default function LessonPage() {
 
       if (status === 'complete') {
         if (e.key === 'Enter' || e.key === ' ') {
-          navigate('/duolingo/learn');
+          navigate(returnPath);
         }
         return;
       }
@@ -870,7 +917,7 @@ export default function LessonPage() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentChallenge, selectedOption, status, navigate]);
+  }, [currentChallenge, selectedOption, status, navigate, returnPath, handleOptionSelect, handleTypedSubmit]);
 
   if (loading) {
     return (
@@ -891,7 +938,7 @@ export default function LessonPage() {
             <button className="btn btn-primary" onClick={() => loadLesson()}>
               Try Again
             </button>
-            <button className="btn btn-outline-secondary" onClick={() => navigate('/duolingo/learn')}>
+            <button className="btn btn-outline-secondary" onClick={() => navigate(returnPath)}>
               Back to Home
             </button>
           </div>
@@ -1479,9 +1526,9 @@ export default function LessonPage() {
                         <div className="order-placeholder">Tap words below to build your answer</div>
                       ) : (
                         <div className="order-words-row">
-                          {orderedWords.map((word, i) => (
+                          {orderedWords.map((token, i) => (
                             <motion.button
-                              key={`ans-${i}`}
+                              key={`ans-${token.index}-${i}`}
                               className={`order-word-card ${status !== 'idle' ? 'locked' : ''}`}
                               onClick={() => handleOrderWordRemove(i)}
                               disabled={status !== 'idle'}
@@ -1490,7 +1537,7 @@ export default function LessonPage() {
                               initial={{ opacity: 0, scale: 0.8 }}
                               animate={{ opacity: 1, scale: 1 }}
                             >
-                              {word}
+                              {token.text}
                             </motion.button>
                           ))}
                         </div>
@@ -1498,9 +1545,9 @@ export default function LessonPage() {
                     </div>
                     {/* Word bank */}
                     <div className="order-word-bank" aria-label="Word bank">
-                      {orderedWordBank.map((word, i) => (
+                      {orderedWordBank.map((token, i) => (
                         <motion.button
-                          key={`bank-${i}`}
+                          key={`bank-${token.index}-${i}`}
                           className={`order-word-card bank ${status !== 'idle' ? 'locked' : ''}`}
                           onClick={() => handleOrderWordClick(i)}
                           disabled={status !== 'idle'}
@@ -1510,7 +1557,7 @@ export default function LessonPage() {
                           animate={{ opacity: 1, scale: 1 }}
                           transition={{ delay: i * 0.03 }}
                         >
-                          {word}
+                          {token.text}
                         </motion.button>
                       ))}
                     </div>
@@ -1760,7 +1807,7 @@ export default function LessonPage() {
         isOpen={showExitModal}
         onClose={() => {
           setShowExitModal(false);
-          navigate('/duolingo/learn');
+          navigate(returnPath);
         }}
         onContinue={() => setShowExitModal(false)}
       />
@@ -1810,7 +1857,7 @@ export default function LessonPage() {
         onRefill={handleRefillHearts}
         onPractice={() => {
           setShowHeartsModal(false);
-          navigate('/duolingo/learn');
+          navigate(returnPath);
         }}
         error={refillError}
         isLoading={isRefilling}

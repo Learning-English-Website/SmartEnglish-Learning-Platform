@@ -36,6 +36,44 @@ const convertToSlug = (text) => {
     .replace(/-+/g, "-"); // Remove duplicate dashes
 };
 
+const parseCommaList = (value) =>
+  (value || '').split(',').map(s => s.trim()).filter(Boolean);
+
+const parseCorrectOrder = (value) =>
+  parseCommaList(value).map(s => parseInt(s, 10)).filter(n => !Number.isNaN(n));
+
+const getOrderSentence = (wordBank, correctOrder) =>
+  correctOrder.map(idx => wordBank[idx]).filter(Boolean).join(' ');
+
+const normalizeOrderWord = (value) =>
+  String(value || '').trim().toLowerCase().replace(/[.,!?;:]+$/g, '');
+
+const buildCorrectOrderFromSentence = (wordBank, sentence) => {
+  const words = String(sentence || '').trim().split(/\s+/).filter(Boolean);
+  if (wordBank.length === 0 || words.length !== wordBank.length) return null;
+
+  const used = new Set();
+  const order = [];
+  for (const word of words) {
+    const index = wordBank.findIndex((candidate, candidateIndex) =>
+      !used.has(candidateIndex) && normalizeOrderWord(candidate) === normalizeOrderWord(word)
+    );
+    if (index === -1) return null;
+    used.add(index);
+    order.push(index);
+  }
+  return order;
+};
+
+const normalizeTypedAnswer = (value) =>
+  String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .replace(/\s+([.,!?;:])/g, '$1')
+    .replace(/[.!?;:]+$/g, '')
+    .trim();
+
 export default function DuolingoStudio() {
   const { courseId } = useParams();
   const navigate = useNavigate();
@@ -55,8 +93,8 @@ export default function DuolingoStudio() {
   const [expandedNodes, setExpandedNodes] = useState({});
 
   // State các Form nhập liệu
-  const [courseForm, setCourseForm] = useState({ title: '', slug: '', description: '', level: 'beginner', order: 0, isPublished: false });
-  const [unitForm, setUnitForm] = useState({ title: '', summary: '', description: '', order: 0, xpReward: 10, isLockedDefault: true });
+  const [courseForm, setCourseForm] = useState({ title: '', slug: '', description: '', level: 'beginner', order: 0, isPublished: true });
+  const [unitForm, setUnitForm] = useState({ title: '', summary: '', description: '', order: 0, xpReward: 10 });
   const [lessonForm, setLessonForm] = useState({ title: '', subtitle: '', order: 0, xpReward: 5, estimatedMinutes: 5, grammarFocus: '', vocabFocus: '', type: 'challenge' });
   const [lessonTitleError, setLessonTitleError] = useState('');
 
@@ -177,14 +215,14 @@ export default function DuolingoStudio() {
           setCourseForm({
             title: c.title || '', slug: c.slug || '', description: c.description || '',
             level: c.level || 'beginner', order: c.order || 0,
-            isPublished: c.isPublished || c.isActive || false
+            isPublished: c.isPublished === true
           });
         } else if (selectedNode.type === 'unit') {
           const res = await teacherService.getUnit(selectedNode.id);
           const u = res.data;
           setUnitForm({
             title: u.title || '', summary: u.summary || '', description: u.description || '',
-            order: u.order || 0, xpReward: u.xpReward || 10, isLockedDefault: u.isLockedDefault !== false
+            order: u.order || 0, xpReward: u.xpReward || 10
           });
         } else if (selectedNode.type === 'lesson') {
           const res = await teacherService.getLesson(selectedNode.id);
@@ -275,10 +313,12 @@ export default function DuolingoStudio() {
     }
 
     if (form.type === 'ORDER') {
-      const bank = form.wordBank.split(',').map(s => s.trim()).filter(Boolean);
-      const order = form.correctOrder.split(',').map(s => s.trim()).filter(Boolean);
+      const bank = parseCommaList(form.wordBank);
+      const order = parseCorrectOrder(form.correctOrder);
+      const orderFromAnswer = buildCorrectOrderFromSentence(bank, form.correctAnswer);
       if (bank.length === 0) errors.push('Word Bank không được để trống.');
-      if (order.length !== bank.length) errors.push('Số phần tử của Correct Order phải trùng khớp với số từ trong Word Bank.');
+      if (form.correctAnswer.trim() && !orderFromAnswer) errors.push('Câu đúng phải dùng đúng toàn bộ từ trong Word Bank.');
+      if (!orderFromAnswer && order.length !== bank.length) errors.push('Số phần tử của Correct Order phải trùng khớp với số từ trong Word Bank.');
     }
 
     return errors;
@@ -301,7 +341,7 @@ export default function DuolingoStudio() {
       if (selectedNode.type === 'course') {
         await teacherService.updateCourse(selectedNode.id, courseForm);
         toast.success('Đã cập nhật khóa học');
-        const updated = courses.map(c => c._id === selectedNode.id ? { ...c, title: courseForm.title } : c);
+        const updated = courses.map(c => c._id === selectedNode.id ? { ...c, title: courseForm.title, isPublished: courseForm.isPublished } : c);
         setCourses(updated);
         loadCourseTree(selectedNode.id);
       } 
@@ -355,6 +395,13 @@ export default function DuolingoStudio() {
 
         const payload = parseChallengeForm();
         await teacherService.updateChallenge(selectedNode.id, payload);
+        if (payload.type === 'ORDER') {
+          setChallengeForm(f => ({
+            ...f,
+            correctAnswer: payload.correctAnswer || '',
+            correctOrder: (payload.correctOrder || []).join(', ')
+          }));
+        }
         toast.success('Đã cập nhật câu hỏi');
         loadCourseTree(courseId);
       } 
@@ -402,11 +449,12 @@ export default function DuolingoStudio() {
       payload.correctAnswer = challengeForm.correctAnswer;
     }
     if (challengeForm.type === 'ORDER') {
-      const bank = challengeForm.wordBank.split(',').map(s => s.trim()).filter(Boolean);
-      const order = challengeForm.correctOrder.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+      const bank = parseCommaList(challengeForm.wordBank);
+      const orderFromAnswer = buildCorrectOrderFromSentence(bank, challengeForm.correctAnswer);
+      const order = orderFromAnswer || parseCorrectOrder(challengeForm.correctOrder);
       payload.wordBank = bank;
       payload.correctOrder = order;
-      payload.correctAnswer = order.map(idx => bank[idx]).join(' ');
+      payload.correctAnswer = (challengeForm.correctAnswer || '').trim() || getOrderSentence(bank, order);
     }
     if (challengeForm.type === 'MATCH') {
       payload.pairs = challengeForm.pairs.split('\n').map(line => {
@@ -515,7 +563,7 @@ export default function DuolingoStudio() {
             onClick={() => {
               navigate('/teacher/studio');
               setSelectedNode({ type: 'new-course' });
-              setCourseForm({ title: '', slug: '', description: '', level: 'beginner', order: courses.length + 1, isPublished: false });
+              setCourseForm({ title: '', slug: '', description: '', level: 'beginner', order: courses.length + 1, isPublished: true });
             }}
           >
             <Plus size={14} />
@@ -544,7 +592,7 @@ export default function DuolingoStudio() {
                     onClick={(e) => {
                       e.stopPropagation();
                       setSelectedNode({ type: 'new-unit' });
-                      setUnitForm({ title: '', summary: '', description: '', order: treeData.length, xpReward: 10, isLockedDefault: true });
+              setUnitForm({ title: '', summary: '', description: '', order: treeData.length, xpReward: 10 });
                     }}
                   >
                     <Plus size={14} />
@@ -772,14 +820,16 @@ export default function DuolingoStudio() {
                   </div>
 
 
-                  <div className="form-group-checkbox">
-                    <input 
-                      type="checkbox" 
-                      id="course-ispublished"
-                      checked={courseForm.isPublished} 
-                      onChange={(e) => setCourseForm(f => ({ ...f, isPublished: e.target.checked }))}
-                    />
-                    <label htmlFor="course-ispublished">Xuất bản khóa học ngay (Học viên bắt đầu nhìn thấy trên trang chủ)</label>
+                  <div className="course-publish-panel">
+                    <button
+                      type="button"
+                      className={`course-publish-toggle ${courseForm.isPublished ? 'is-published' : 'is-locked'}`}
+                      onClick={() => setCourseForm(f => ({ ...f, isPublished: !f.isPublished }))}
+                    >
+                      {courseForm.isPublished ? <Check size={18} /> : <AlertCircle size={18} />}
+                      <span>{courseForm.isPublished ? 'Đang mở khóa học' : 'Đang khóa khóa học'}</span>
+                    </button>
+                    <p>Trạng thái này áp dụng cho toàn bộ Unit, Lesson và Challenge trong khóa học.</p>
                   </div>
                 </div>
               )}
@@ -830,15 +880,6 @@ export default function DuolingoStudio() {
                         onChange={(e) => setUnitForm(f => ({ ...f, order: parseInt(e.target.value) || 0 }))}
                       />
                     </div>
-                  </div>
-                  <div className="form-group-checkbox">
-                    <input 
-                      type="checkbox" 
-                      id="unit-islocked"
-                      checked={unitForm.isLockedDefault} 
-                      onChange={(e) => setUnitForm(f => ({ ...f, isLockedDefault: e.target.checked }))}
-                    />
-                    <label htmlFor="unit-islocked">Mặc định khóa (Học viên cần hoàn thành Unit trước đó để mở khóa)</label>
                   </div>
                 </div>
               )}
@@ -1075,6 +1116,15 @@ export default function DuolingoStudio() {
                               />
                             </div>
                             <div className="form-group">
+                              <label>Câu hoàn chỉnh đúng (teacher nhập trực tiếp) *</label>
+                              <input
+                                type="text"
+                                value={challengeForm.correctAnswer}
+                                onChange={(e) => setChallengeForm(f => ({ ...f, correctAnswer: e.target.value }))}
+                                placeholder="Where are you from"
+                              />
+                            </div>
+                            <div className="form-group">
                               <label>Chỉ số thứ tự sắp xếp câu hoàn chỉnh (Correct Order, phân cách bằng dấu phẩy) *</label>
                               <input 
                                 type="text"
@@ -1082,6 +1132,40 @@ export default function DuolingoStudio() {
                                 onChange={(e) => setChallengeForm(f => ({ ...f, correctOrder: e.target.value }))}
                                 placeholder="0, 3, 2, 1 (nghĩa là: I go to school)"
                               />
+                            </div>
+                            <div className="order-config-actions">
+                              <button
+                                type="button"
+                                className="order-config-action-btn"
+                                onClick={() => {
+                                  const bank = parseCommaList(challengeForm.wordBank);
+                                  const nextOrder = buildCorrectOrderFromSentence(bank, challengeForm.correctAnswer);
+                                  if (!nextOrder) {
+                                    toast.error('Câu đúng phải dùng đúng toàn bộ từ trong Word Bank.');
+                                    return;
+                                  }
+                                  setChallengeForm(f => ({ ...f, correctOrder: nextOrder.join(', ') }));
+                                  toast.success('Đã tạo Correct Order từ câu đúng.');
+                                }}
+                              >
+                                Tạo thứ tự từ câu đúng
+                              </button>
+                              <button
+                                type="button"
+                                className="order-config-action-btn"
+                                disabled={previewAnswers.length === 0}
+                                onClick={() => {
+                                  const nextOrder = previewAnswers.map(token => token.index).join(', ');
+                                  const nextAnswer = previewAnswers.map(token => token.text).join(' ');
+                                  setChallengeForm(f => ({ ...f, correctOrder: nextOrder, correctAnswer: nextAnswer }));
+                                  toast.success('Đã cập nhật Correct Order từ câu đang ghép trong preview.');
+                                }}
+                              >
+                                Dùng thứ tự đang ghép
+                              </button>
+                              <span className="order-config-current-answer">
+                                Câu sẽ lưu: {(challengeForm.correctAnswer || '').trim() || getOrderSentence(parseCommaList(challengeForm.wordBank), parseCorrectOrder(challengeForm.correctOrder)) || 'Chưa cấu hình'}
+                              </span>
                             </div>
                             <div className="config-help">
                               <HelpCircle size={14} />
@@ -1270,30 +1354,30 @@ export default function DuolingoStudio() {
                             {challengeForm.type === 'ORDER' && (
                               <div className="sim-order-layout">
                                 <div className="sim-order-slot-area">
-                                  {previewAnswers.map((word, idx) => (
+                                  {previewAnswers.map((token, idx) => (
                                     <span 
-                                      key={idx} 
+                                      key={`${token.index}-${idx}`}
                                       className="sim-word-bubble active-bubble"
                                       onClick={() => {
                                         setPreviewAnswers(prev => prev.filter((_, i) => i !== idx));
                                       }}
                                     >
-                                      {word}
+                                      {token.text}
                                     </span>
                                   ))}
                                   {previewAnswers.length === 0 && <span className="text-slate-500 text-sm italic">Nhấp vào từ ở dưới để ghép thành câu...</span>}
                                 </div>
                                 
                                 <div className="sim-order-words-bank">
-                                  {challengeForm.wordBank.split(',').map(s => s.trim()).filter(Boolean).map((word, idx) => {
-                                    const isUsed = previewAnswers.includes(word);
+                                  {parseCommaList(challengeForm.wordBank).map((word, idx) => {
+                                    const isUsed = previewAnswers.some(token => token.index === idx);
                                     return (
                                       <button 
                                         key={idx} 
                                         disabled={isUsed}
                                         className={`sim-word-bubble ${isUsed ? 'disabled-bubble' : ''}`}
                                         onClick={() => {
-                                          setPreviewAnswers(prev => [...prev, word]);
+                                          setPreviewAnswers(prev => [...prev, { text: word, index: idx }]);
                                         }}
                                       >
                                         {word}
@@ -1451,8 +1535,8 @@ export default function DuolingoStudio() {
                                   toast.error('Vui lòng nhập câu trả lời của bạn!');
                                   return;
                                 }
-                                const userAns = previewTextAnswer.trim().toLowerCase();
-                                const correctAns = (challengeForm.correctAnswer || '').trim().toLowerCase();
+                                const userAns = normalizeTypedAnswer(previewTextAnswer);
+                                const correctAns = normalizeTypedAnswer(challengeForm.correctAnswer);
                                 if (userAns === correctAns) {
                                   toast.success('Chính xác! Đáp án đúng.', { icon: '🟢' });
                                 } else {
@@ -1463,11 +1547,12 @@ export default function DuolingoStudio() {
                                   toast.error('Vui lòng sắp xếp các từ thành câu!');
                                   return;
                                 }
-                                const userSentence = previewAnswers.join(' ').trim().toLowerCase();
-                                const bank = challengeForm.wordBank.split(',').map(s => s.trim()).filter(Boolean);
-                                const order = challengeForm.correctOrder.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
-                                const correctSentence = order.map(idx => bank[idx]).join(' ').trim().toLowerCase();
-                                const displayCorrect = order.map(idx => bank[idx]).join(' ');
+                                const userSentence = previewAnswers.map(token => token.text).join(' ').trim().toLowerCase();
+                                const bank = parseCommaList(challengeForm.wordBank);
+                                const order = buildCorrectOrderFromSentence(bank, challengeForm.correctAnswer)
+                                  || parseCorrectOrder(challengeForm.correctOrder);
+                                const displayCorrect = getOrderSentence(bank, order);
+                                const correctSentence = displayCorrect.trim().toLowerCase();
                                 if (userSentence === correctSentence) {
                                   toast.success('Chính xác! Đáp án đúng.', { icon: '🟢' });
                                 } else {

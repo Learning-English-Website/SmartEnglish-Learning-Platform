@@ -26,7 +26,13 @@ const getLessonIcon = (title) => {
 export default function LearnPage() {
   const [units, setUnits] = useState([]);
   const [hearts, setHearts] = useState(5);
-  const [userStats, setUserStats] = useState({ hearts: 5, points: 0, streak: 0, isPro: false });
+  const [userStats, setUserStats] = useState({
+    hearts: 5,
+    points: 0,
+    streak: 0,
+    isPro: false,
+    currentLessonTarget: null,
+  });
   const [activeCourse, setActiveCourse] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -76,6 +82,7 @@ export default function LearnPage() {
           points: safeStats.points ?? 0,
           streak: safeStats.streak ?? 0,
           isPro: safeStats.isPro || false,
+          currentLessonTarget: safeStats.currentLessonTarget || null,
         });
         setActiveCourse(safeStats.activeCourse || null);
       }
@@ -98,6 +105,16 @@ export default function LearnPage() {
   }, [units]);
 
   const activeLessonId = useMemo(() => {
+    const targetId = userStats.currentLessonTarget?._id || userStats.currentLessonTarget;
+    if (targetId) {
+      const targetLesson = units
+        .flatMap((unit) => unit.lessons || [])
+        .find((lesson) => lesson._id === targetId && !lesson.completed && !lesson.isLocked);
+      if (targetLesson) {
+        return targetLesson._id;
+      }
+    }
+
     for (const unit of units) {
       const firstIncomplete = unit.lessons?.find((l) => !l.completed && !l.isLocked);
       if (firstIncomplete) {
@@ -105,7 +122,7 @@ export default function LearnPage() {
       }
     }
     return null;
-  }, [units]);
+  }, [units, userStats.currentLessonTarget]);
   
   const handleLessonClick = (lesson) => {
     const isCompleted = lesson.completed;
@@ -126,13 +143,24 @@ export default function LearnPage() {
         handleLessonClick(unit.lessons[0]);
       }
     } else {
-      // Find the first incomplete lesson across the entire course that is not locked
-      let activeLesson = null;
-      for (const u of units) {
-        const incomplete = u.lessons?.find((l) => !l.completed && !l.isLocked);
-        if (incomplete) {
-          activeLesson = incomplete;
-          break;
+      // Prefer the first available lesson inside the selected zone so jump learning
+      // does not pull the learner back to an older unfinished zone.
+      let activeLesson = unit.lessons?.find((l) => !l.completed && !l.isLocked) || null;
+
+      if (!activeLesson) {
+        const targetId = userStats.currentLessonTarget?._id || userStats.currentLessonTarget;
+        activeLesson = units
+          .flatMap((u) => u.lessons || [])
+          .find((l) => l._id === targetId && !l.completed && !l.isLocked) || null;
+      }
+
+      if (!activeLesson) {
+        for (const u of units) {
+          const incomplete = u.lessons?.find((l) => !l.completed && !l.isLocked);
+          if (incomplete) {
+            activeLesson = incomplete;
+            break;
+          }
         }
       }
       if (activeLesson) {

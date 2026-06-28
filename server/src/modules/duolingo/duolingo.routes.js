@@ -15,6 +15,7 @@ router.post('/courses/select', duolingoController.selectCourse);
 router.get('/units', duolingoController.getUnits);
 router.get('/lessons/next', duolingoController.getNextLesson);
 router.get('/lessons/:lessonId', duolingoController.getLesson);
+router.post('/lessons/:lessonId/daily-complete', duolingoController.completeDailyChallenge);
 router.post('/lessons/:lessonId/complete', duolingoController.completeLesson);
 
 // Quiz

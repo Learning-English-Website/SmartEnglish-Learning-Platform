@@ -6,17 +6,39 @@ const Lesson = require('../../models/lesson.model');
 const Challenge = require('../../models/challenge.model');
 const ChallengeOption = require('../../models/challengeOption.model');
 const ChallengeProgress = require('../../models/challengeProgress.model');
-const DailyChallengeScore = require('../../models/dailyChallengeScore.model');
 const questService = require('../quest/quest.service');
 const dailyChallengeService = require('../quest/dailyChallenge.service');
-const eventBus = require('../../shared/events/eventBus');
-const { getDateKey } = require('../../shared/utils/dateKey');
 const { AppError } = require('../../shared/errors/AppError');
 const mongoose = require('mongoose');
 
 const POINTS_PER_CORRECT = 10;
+const LESSON_COMPLETION_XP = 20;
 const MAX_HEARTS = 5;
-const POINTS_TO_REFILL = 300;async function isExcludedFromXp(userId) {
+const POINTS_TO_REFILL = 300;
+
+function toId(value) {
+  return value ? String(value) : null;
+}
+
+function countMap(rows) {
+  const map = new Map();
+  for (const row of rows) {
+    map.set(toId(row._id), row.count || 0);
+  }
+  return map;
+}
+
+function normalizeTypedAnswer(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .replace(/\s+([.,!?;:])/g, '$1')
+    .replace(/[.!?;:]+$/g, '')
+    .trim();
+}
+
+async function isExcludedFromXp(userId) {
   try {
     const user = await User.findById(userId).select('username email');
     if (!user) return false;
@@ -30,21 +52,202 @@ const POINTS_TO_REFILL = 300;async function isExcludedFromXp(userId) {
 }
 
 class DuolingoService {
+  isCourseLearnable(course) {
+    return Boolean(course?.isPublished && course.isActive !== false);
+  }
+
+  getCourseLockedError() {
+    return new AppError('Khóa học chưa được xuất bản hoặc đang bị khóa.', 403);
+  }
+
+  async getCourseForLesson(lesson) {
+    if (!lesson) return null;
+
+    const unit = lesson.unit?.course !== undefined
+      ? lesson.unit
+      : await Unit.findById(lesson.unit).select('course');
+
+    if (!unit?.course) return null;
+    if (unit.course.isPublished !== undefined) return unit.course;
+
+    return Course.findById(unit.course).select('isPublished isActive');
+  }
+
+  async assertCourseLearnableForLesson(lesson) {
+    const course = await this.getCourseForLesson(lesson);
+    if (!this.isCourseLearnable(course)) {
+      throw this.getCourseLockedError();
+    }
+  }
+
+  async isLessonCompletedForUser(userId, lessonId) {
+    const progress = await UserProgress.findOne({ user: userId }).select('crownsByLesson');
+    if (progress?.crownsByLesson?.get(String(lessonId))) return true;
+
+    const challengeIds = await Challenge.distinct('_id', { lesson: lessonId });
+    if (challengeIds.length === 0) return false;
+
+    const completedCount = await ChallengeProgress.countDocuments({
+      user: userId,
+      challenge: { $in: challengeIds },
+      completed: true,
+    });
+
+    return completedCount === challengeIds.length;
+  }
+
+  async findNextLessonAfter(userId, lesson) {
+    const unit = await Unit.findById(lesson.unit);
+    if (!unit) return null;
+
+    const units = await Unit.find({ course: unit.course }).sort({ order: 1, _id: 1 });
+    const startUnitIndex = units.findIndex((u) => String(u._id) === String(unit._id));
+    if (startUnitIndex === -1) return null;
+
+    for (let i = startUnitIndex; i < units.length; i++) {
+      const query = { unit: units[i]._id };
+      if (i === startUnitIndex) {
+        query.order = { $gt: lesson.order };
+      }
+
+      const lessons = await Lesson.find(query).sort({ order: 1, _id: 1 });
+      for (const candidate of lessons) {
+        const completed = await this.isLessonCompletedForUser(userId, candidate._id);
+        if (completed) continue;
+
+        const isLocked = await this.isLessonLocked(userId, candidate._id);
+        if (!isLocked) return candidate;
+      }
+    }
+
+    return null;
+  }
+
+  async findFirstAvailableIncompleteLesson(userId, courseId) {
+    if (!courseId) return null;
+
+    const units = await Unit.find({ course: courseId }).sort({ order: 1, _id: 1 });
+    for (const unit of units) {
+      const lessons = await Lesson.find({ unit: unit._id }).sort({ order: 1, _id: 1 });
+      for (const lesson of lessons) {
+        const completed = await this.isLessonCompletedForUser(userId, lesson._id);
+        if (completed) continue;
+
+        const isLocked = await this.isLessonLocked(userId, lesson._id);
+        if (!isLocked) return lesson;
+      }
+    }
+
+    return null;
+  }
+
   // === COURSES ===
-  async getCourses() {
-    return Course.find().sort({ order: 1 });
+  async getCourses(userId) {
+    const [courses, progress] = await Promise.all([
+      Course.find({
+        isPublished: true,
+        isActive: { $ne: false },
+      }).sort({ order: 1, createdAt: -1 }).lean(),
+      userId ? UserProgress.findOne({ user: userId }).select('activeCourse').lean() : null,
+    ]);
+
+    if (courses.length === 0) return [];
+
+    const courseIds = courses.map((course) => course._id);
+    const units = await Unit.find({ course: { $in: courseIds } }).select('_id course').lean();
+    const unitIds = units.map((unit) => unit._id);
+    const unitCourseMap = new Map(units.map((unit) => [toId(unit._id), toId(unit.course)]));
+
+    const lessons = unitIds.length > 0
+      ? await Lesson.find({ unit: { $in: unitIds } }).select('_id unit').lean()
+      : [];
+    const lessonIds = lessons.map((lesson) => lesson._id);
+    const lessonCourseMap = new Map(
+      lessons.map((lesson) => [toId(lesson._id), unitCourseMap.get(toId(lesson.unit))])
+    );
+
+    const [lessonRows, challengeRows, learnerRows] = await Promise.all([
+      Lesson.aggregate([
+        { $match: { unit: { $in: unitIds } } },
+        {
+          $lookup: {
+            from: 'units',
+            localField: 'unit',
+            foreignField: '_id',
+            as: 'unitDoc',
+          },
+        },
+        { $unwind: '$unitDoc' },
+        { $group: { _id: '$unitDoc.course', count: { $sum: 1 } } },
+      ]),
+      lessonIds.length > 0
+        ? Challenge.aggregate([
+          { $match: { lesson: { $in: lessonIds } } },
+          { $group: { _id: '$lesson', count: { $sum: 1 } } },
+        ])
+        : [],
+      UserProgress.aggregate([
+        { $match: { activeCourse: { $in: courseIds } } },
+        { $group: { _id: '$activeCourse', count: { $sum: 1 } } },
+      ]),
+    ]);
+
+    const lessonsByCourse = countMap(lessonRows);
+    const learnersByCourse = countMap(learnerRows);
+    const challengesByCourse = new Map();
+    for (const row of challengeRows) {
+      const courseId = lessonCourseMap.get(toId(row._id));
+      if (!courseId) continue;
+      challengesByCourse.set(courseId, (challengesByCourse.get(courseId) || 0) + (row.count || 0));
+    }
+
+    const activeCourseId = toId(progress?.activeCourse);
+
+    return courses.map((course) => {
+      const courseId = toId(course._id);
+      const lessonCount = lessonsByCourse.get(courseId) || 0;
+      const challengeCount = challengesByCourse.get(courseId) || 0;
+      const learnersCount = learnersByCourse.get(courseId) || 0;
+      const xpReward = (challengeCount * POINTS_PER_CORRECT) + (lessonCount * LESSON_COMPLETION_XP);
+
+      return {
+        ...course,
+        isCurrentCourse: activeCourseId === courseId,
+        learnersCount,
+        learnerCount: learnersCount,
+        lessonCount,
+        challengeCount,
+        xpReward,
+        stats: {
+          learnersCount,
+          lessonCount,
+          challengeCount,
+          xpReward,
+        },
+      };
+    });
   }
 
   async getCourseById(courseId) {
-    return Course.findById(courseId);
+    const course = await Course.findById(courseId);
+    if (!this.isCourseLearnable(course)) {
+      throw this.getCourseLockedError();
+    }
+    return course;
   }
 
   async selectCourse(userId, courseId) {
+    const course = await Course.findById(courseId);
+    if (!this.isCourseLearnable(course)) {
+      throw this.getCourseLockedError();
+    }
+
     let progress = await UserProgress.findOne({ user: userId });
     if (!progress) {
       progress = new UserProgress({ user: userId });
     }
     progress.activeCourse = courseId;
+    progress.currentLessonTarget = null;
     await progress.save();
     return progress;
   }
@@ -54,48 +257,19 @@ class DuolingoService {
     const lesson = await Lesson.findById(lessonId).populate('unit');
     if (!lesson) return true;
 
-    // Check if this lesson is today's Daily Challenge (bypass lock)
-    try {
-      const dc = await dailyChallengeService.getTodayChallenge();
-      const dcLessonId = dc?.lesson?._id != null
-        ? String(dc.lesson._id)
-        : String(dc?.lesson || '');
-      if (dcLessonId && dcLessonId === String(lessonId)) {
-        return false; // Bypassed for daily challenge
-      }
-    } catch (err) {
-      console.error('[Duolingo] Error checking daily challenge bypass:', err);
-    }
+    const course = await this.getCourseForLesson(lesson);
+    if (!this.isCourseLearnable(course)) return true;
 
-    // Find the preceding published lesson
-    let prevLesson = null;
-    if (lesson.order > 0) {
-      prevLesson = await Lesson.findOne({
-        unit: lesson.unit._id,
-        order: { $lt: lesson.order },
-        isLocked: false
-      }).sort({ order: -1 });
-    }
+    const completed = await this.isLessonCompletedForUser(userId, lesson._id);
+    if (completed) return false;
 
-    if (!prevLesson) {
-      // Under the jump learning policy, the first lesson of each unit/zone
-      // is unlocked by default (unless globally locked).
-      return lesson.isLocked;
-    }
+    const lessonsInUnit = await Lesson.find({ unit: lesson.unit._id }).sort({ order: 1, _id: 1 });
+    const lessonIndex = lessonsInUnit.findIndex((item) => String(item._id) === String(lesson._id));
+    if (lessonIndex <= 0) return false;
 
-    // Check if prevLesson is completed by the user
-    const challenges = await Challenge.find({ lesson: prevLesson._id });
-    if (challenges.length === 0) {
-      return false; // If no challenges, assume unlocked/completed
-    }
-
-    const completedCount = await ChallengeProgress.countDocuments({
-      user: userId,
-      challenge: { $in: challenges.map(c => c._id) },
-      completed: true,
-    });
-
-    return completedCount < challenges.length;
+    const previousLesson = lessonsInUnit[lessonIndex - 1];
+    const previousCompleted = await this.isLessonCompletedForUser(userId, previousLesson._id);
+    return !previousCompleted;
   }
 
   // === UNITS ===
@@ -103,18 +277,10 @@ class DuolingoService {
     const progress = await UserProgress.findOne({ user: userId });
     if (!progress?.activeCourse) return [];
 
+    const course = await Course.findById(progress.activeCourse).select('isPublished isActive');
+    const courseIsOpen = this.isCourseLearnable(course);
+
     const units = await Unit.find({ course: progress.activeCourse }).sort({ order: 1 });
-    
-    // Fetch today's Daily Challenge once for performance
-    let dcLessonId = '';
-    try {
-      const dc = await dailyChallengeService.getTodayChallenge();
-      dcLessonId = dc?.lesson?._id != null
-        ? String(dc.lesson._id)
-        : String(dc?.lesson || '');
-    } catch (err) {
-      console.error('[Duolingo] Error fetching daily challenge in getUnits:', err);
-    }
 
     // Populate lessons with challenge progress
     const unitsWithProgress = await Promise.all(units.map(async (unit) => {
@@ -126,11 +292,12 @@ class DuolingoService {
           challenge: { $in: challenges.map(c => c._id) },
           completed: true,
         });
+        const completed = await this.isLessonCompletedForUser(userId, lesson._id);
         return {
           ...lesson.toObject(),
           challengesCount: challenges.length,
           completedCount,
-          completed: challenges.length > 0 && completedCount === challenges.length,
+          completed,
         };
       }));
       return {
@@ -139,38 +306,32 @@ class DuolingoService {
       };
     }));
 
-    // Calculate lock status sequentially per user
-    for (let i = 0; i < unitsWithProgress.length; i++) {
-      const unit = unitsWithProgress[i];
-      let previousLessonCompleted = true; // Reset per unit/zone to allow jump learning across zones
-      for (let j = 0; j < unit.lessons.length; j++) {
-        const lesson = unit.lessons[j];
-        const isDailyChallenge = dcLessonId && dcLessonId === String(lesson._id);
-        const isGloballyLocked = lesson.isLocked;
-        if (isDailyChallenge) {
-          lesson.isLocked = false;
-        } else {
-          // If the lesson is globally locked/unpublished in DB, keep it locked.
-          // Otherwise, check if previous lesson was completed.
-          lesson.isLocked = isGloballyLocked || !previousLessonCompleted;
-        }
-        // Only update progression status if this lesson is not globally locked
-        if (!isGloballyLocked) {
-          previousLessonCompleted = lesson.completed;
-        }
-      }
+    for (const unit of unitsWithProgress) {
+      unit.lessons = unit.lessons.map((lesson, index, lessons) => {
+        const previousLesson = index > 0 ? lessons[index - 1] : null;
+        const isSequentiallyLocked = Boolean(previousLesson && !previousLesson.completed && !lesson.completed);
+        return {
+          ...lesson,
+          isLocked: !courseIsOpen || isSequentiallyLocked,
+        };
+      });
     }
 
     return unitsWithProgress;
   }
 
   // === LESSONS ===
-  async getLesson(lessonId, userId) {
+  async getLesson(lessonId, userId, context = {}) {
     const lesson = await Lesson.findById(lessonId).populate('unit');
     if (!lesson) throw new Error('Lesson not found');
 
+    const isDailyChallenge = context.mode === 'daily';
+    if (isDailyChallenge) {
+      await dailyChallengeService.assertActiveChallengeForLesson(lessonId, context.dailyChallengeId);
+    }
+
     // Check if lesson is locked for user
-    const isLocked = await this.isLessonLocked(userId, lessonId);
+    const isLocked = !isDailyChallenge && await this.isLessonLocked(userId, lessonId);
     if (isLocked) {
       throw new AppError('Bài học đang bị khóa. Hãy hoàn thành các bài học trước đó.', 403);
     }
@@ -203,12 +364,32 @@ class DuolingoService {
       ...lesson.toObject(),
       challenges: challengesWithOptions,
       totalChallenges: challenges.length,
+      sessionMode: isDailyChallenge ? 'daily' : 'roadmap',
     };
   }
 
   async getNextLesson(userId) {
-    const progress = await UserProgress.findOne({ user: userId });
+    let progress = await UserProgress.findOne({ user: userId });
+    if (!progress) {
+      progress = await UserProgress.create({ user: userId });
+    }
     if (!progress?.activeCourse) return null;
+
+    const activeCourse = await Course.findById(progress.activeCourse).select('isPublished isActive');
+    if (!this.isCourseLearnable(activeCourse)) return null;
+
+    if (progress.currentLessonTarget) {
+      const targetLesson = await Lesson.findById(progress.currentLessonTarget);
+      if (targetLesson) {
+        const targetCompleted = await this.isLessonCompletedForUser(userId, targetLesson._id);
+        const targetLocked = await this.isLessonLocked(userId, targetLesson._id);
+        if (!targetCompleted && !targetLocked) {
+          const targetUnit = await Unit.findById(targetLesson.unit);
+          const targetChallenge = await Challenge.findOne({ lesson: targetLesson._id }).sort({ order: 1 });
+          return { lesson: targetLesson, unit: targetUnit, challenge: targetChallenge };
+        }
+      }
+    }
 
     // Find first incomplete challenge
     const units = await Unit.find({ course: progress.activeCourse }).sort({ order: 1 });
@@ -216,7 +397,7 @@ class DuolingoService {
     for (const unit of units) {
       const lessons = await Lesson.find({ unit: unit._id }).sort({ order: 1 });
       for (const lesson of lessons) {
-        // Skip locked lessons (checked dynamically per user)
+        // Course publish state controls whether a lesson can be reached.
         const isLocked = await this.isLessonLocked(userId, lesson._id);
         if (isLocked) continue;
         const challenges = await Challenge.find({ lesson: lesson._id });
@@ -231,14 +412,21 @@ class DuolingoService {
     return null; // All completed
   }
 
-  async submitAnswer(userId, challengeId, selectedOptionId, userAnswer) {
+  async submitAnswer(userId, challengeId, selectedOptionId, userAnswer, context = {}) {
     const challenge = await Challenge.findById(challengeId);
     if (!challenge) throw new Error('Challenge not found');
+    const lesson = await Lesson.findById(challenge.lesson);
+    const isDailyChallenge = context.mode === 'daily';
+    let dailyChallenge = null;
+    if (isDailyChallenge) {
+      dailyChallenge = await dailyChallengeService.assertActiveChallengeForLesson(lesson._id, context.dailyChallengeId);
+    } else {
+      await this.assertCourseLearnableForLesson(lesson);
+    }
 
     // Security check: Make sure user has hearts if it's a non-practice lesson
     const progress = await UserProgress.findOne({ user: userId });
     if (progress && !progress.isPro && progress.hearts <= 0) {
-      const lesson = await Lesson.findById(challenge.lesson);
       if (lesson && lesson.type !== 'practice') {
         throw new AppError('Bạn đã hết tim. Vui lòng nạp thêm tim để tiếp tục học.', 403);
       }
@@ -250,8 +438,8 @@ class DuolingoService {
     if (type === 'TYPE' || type === 'TRANSLATE') {
       // Compare typed answer (case-insensitive)
       // Accept either selectedOptionId (from click-select UI) or typed userAnswer
-      const normalized = (selectedOptionId || userAnswer || '').trim().toLowerCase();
-      const normalizedCorrect = (challenge.correctAnswer || '').trim().toLowerCase();
+      const normalized = normalizeTypedAnswer(selectedOptionId || userAnswer);
+      const normalizedCorrect = normalizeTypedAnswer(challenge.correctAnswer);
       isCorrect = normalized === normalizedCorrect;
     } else if (type === 'ORDER') {
       // ORDER: userAnswer is a JSON string of the ordered indices
@@ -284,14 +472,14 @@ class DuolingoService {
       }
     } else if (type === 'COMPLETE' || type === 'FILL' || type === 'LISTEN') {
       // COMPLETE / FILL / LISTEN: userAnswer is the filled word or selectedOptionId is the chosen option
-      const normalized = (selectedOptionId || userAnswer || '').trim().toLowerCase();
+      const normalized = normalizeTypedAnswer(selectedOptionId || userAnswer);
       let normalizedCorrect = '';
       if (challenge.correctAnswer) {
-        normalizedCorrect = challenge.correctAnswer.trim().toLowerCase();
+        normalizedCorrect = normalizeTypedAnswer(challenge.correctAnswer);
       } else if (challenge.options && challenge.options.length > 0) {
         const correctOption = challenge.options.find(o => o.correct);
         if (correctOption) {
-          normalizedCorrect = correctOption.text.trim().toLowerCase();
+          normalizedCorrect = normalizeTypedAnswer(correctOption.text);
         }
       }
       isCorrect = normalized === normalizedCorrect;
@@ -321,22 +509,67 @@ class DuolingoService {
       isCorrect = isOptionCorrect;
     }
 
-    // Duplicate protection: only award XP/quest if not already completed
+    if (isDailyChallenge) {
+      let dailyScore = null;
+      if (isCorrect) {
+        dailyScore = await dailyChallengeService.recordCorrectAnswer({
+          userId,
+          dailyChallenge,
+          challengeId,
+          xp: POINTS_PER_CORRECT,
+        });
+      } else {
+        dailyScore = await dailyChallengeService.recordWrongAnswer({
+          userId,
+          dailyChallenge,
+          challengeId,
+        });
+      }
+
+      const excluded = await isExcludedFromXp(userId);
+      return {
+        isCorrect,
+        pointsEarned: (isCorrect && !excluded) ? (dailyScore?.pointsEarned || 0) : 0,
+        mode: 'daily',
+        dailyScore,
+      };
+    }
+
+    let pointsEarned = 0;
+
+    // Duplicate protection: only award XP when the first scored attempt is correct.
     if (isCorrect) {
-      // Atomically upsert progress only if NOT already completed (prevents double XP)
-      const upsertResult = await ChallengeProgress.findOneAndUpdate(
+      const existingProgress = await ChallengeProgress.findOne({ user: userId, challenge: challengeId });
+      const isFirstCompletion = !existingProgress?.completed;
+      const hadWrongAttempt = Boolean(
+        (existingProgress?.wrongAttempts || 0) > 0 ||
+        existingProgress?.firstAttemptCorrect === false
+      );
+      const shouldAwardXp = isFirstCompletion && !hadWrongAttempt;
+
+      await ChallengeProgress.findOneAndUpdate(
         { user: userId, challenge: challengeId },
-        { $setOnInsert: { user: userId, challenge: challengeId }, $set: { completed: true, completedAt: new Date() } },
+        {
+          $setOnInsert: {
+            user: userId,
+            challenge: challengeId,
+            firstAttemptCorrect: !hadWrongAttempt,
+          },
+          $set: {
+            attempted: true,
+            completed: true,
+            completedAt: new Date(),
+            xpAwarded: Boolean(existingProgress?.xpAwarded || shouldAwardXp),
+          },
+        },
         { upsert: true, new: true }
       );
 
-      // If this was the first time completing, award XP
-      const isFirstAnswer = upsertResult && upsertResult.createdAt &&
-        upsertResult.createdAt.getTime() === upsertResult.updatedAt.getTime();
-
-      if (isFirstAnswer) {
+      if (shouldAwardXp) {
         const excluded = await isExcludedFromXp(userId);
         if (!excluded) {
+          pointsEarned = POINTS_PER_CORRECT;
+
           // Award points (XP) to user progress
           await UserProgress.findOneAndUpdate(
             { user: userId },
@@ -347,57 +580,44 @@ class DuolingoService {
           questService.updateProgress(userId, { type: 'xp', xpEarned: POINTS_PER_CORRECT }).catch(err =>
             console.error('[Quest] Failed to update XP progress:', err.message)
           );
-
-          // ── Daily Challenge: update score and emit realtime event ────────────────
-          try {
-            const todayKey = getDateKey(new Date());
-            const challenge_ = await dailyChallengeService.getTodayChallenge();
-            const dcLessonId = challenge_?.lesson?._id != null
-              ? String(challenge_.lesson._id)
-              : String(challenge_?.lesson || '');
-            const lessonId = challenge.lesson ? String(challenge.lesson) : null;
-
-            if (dcLessonId && lessonId && dcLessonId === lessonId) {
-              const updatedScore = await DailyChallengeScore.findOneAndUpdate(
-                { date: todayKey, user: userId },
-                { $setOnInsert: { challenge: challenge_._id }, $inc: { xp: POINTS_PER_CORRECT } },
-                { upsert: true, new: true }
-              );
-
-              console.log('[DailyChallenge] per-question XP update:', {
-                userId: String(userId),
-                date: todayKey,
-                lessonId,
-                xpDelta: POINTS_PER_CORRECT,
-                totalXp: updatedScore?.xp,
-              });
-
-              // Emit realtime event for User B to see live leaderboard update
-              const user = await User.findById(userId).select('username');
-              eventBus.emit('dailyChallenge:xp_progress', {
-                date: todayKey,
-                userId: String(userId),
-                username: user?.username || 'Anonymous',
-                xpDelta: POINTS_PER_CORRECT,
-                totalXp: updatedScore?.xp || POINTS_PER_CORRECT,
-              });
-            }
-          } catch (err) {
-            console.error('[DailyChallenge] Failed to update per-question XP:', err.message);
-          }
         }
+      }
+    } else {
+      const existingProgress = await ChallengeProgress.findOne({ user: userId, challenge: challengeId });
+      if (!existingProgress?.completed) {
+        await ChallengeProgress.findOneAndUpdate(
+          { user: userId, challenge: challengeId },
+          {
+            $setOnInsert: {
+              user: userId,
+              challenge: challengeId,
+              completed: false,
+              completedAt: null,
+              xpAwarded: false,
+            },
+            $set: {
+              attempted: true,
+              firstAttemptCorrect: false,
+            },
+            $inc: { wrongAttempts: 1 },
+          },
+          { upsert: true, new: true }
+        );
       }
     }
 
-    const excluded = await isExcludedFromXp(userId);
-    return { isCorrect, pointsEarned: (isCorrect && !excluded) ? POINTS_PER_CORRECT : 0 };
+    return { isCorrect, pointsEarned };
   }
 
   async completeLesson(userId, lessonId) {
     const lesson = await Lesson.findById(lessonId);
     if (!lesson) throw new Error('Lesson not found');
+    await this.assertCourseLearnableForLesson(lesson);
 
-    const progress = await UserProgress.findOne({ user: userId });
+    let progress = await UserProgress.findOne({ user: userId });
+    if (!progress) {
+      progress = await UserProgress.create({ user: userId });
+    }
 
     // Determine if this is the first-time completion or a re-do.
     // Use crownsByLesson Map to track per-user completions.
@@ -406,47 +626,28 @@ class DuolingoService {
       isFirstCompletion = !progress.crownsByLesson.get(String(lesson._id));
     }
 
-    // ── Lock check ──────────────────────────────────────────────────────────
-    // NOTE: Lesson lock is currently a global flag on the Lesson document (not per-user).
-    // Users can still access lessons via direct URL; in that case we allow completion
-    // so that quests/streak/progress are recorded. We do NOT rely on this lock for security.
-    if (lesson.isLocked) {
-      const todayKey = getDateKey(new Date());
-      const dc = await dailyChallengeService.getTodayChallenge();
-      const dcLessonId = dc?.lesson?._id != null
-        ? String(dc.lesson._id)
-        : String(dc?.lesson || '');
-
-      const canBypassForDailyChallenge = dcLessonId && dcLessonId === String(lesson._id);
-      if (canBypassForDailyChallenge) {
-        console.warn('[Duolingo] Bypassing lesson lock for Daily Challenge:', {
-          userId: String(userId),
-          lessonId: String(lesson._id),
-          date: todayKey,
-        });
-        lesson.isLocked = false;
-      } else {
-        console.warn('[Duolingo] Completing a locked lesson (direct URL access):', {
-          userId: String(userId),
-          lessonId: String(lesson._id),
-        });
-        // Allow completion without changing lock status globally.
-      }
-    }
-
     // ── Mark lesson completed (idempotent — always save) ────────────────────
     lesson.isCompleted = true;
     lesson.completedAt = new Date();
     await lesson.save();
 
-    // ── Unlock next lesson in unit ──────────────────────────────────────────
-    const nextLesson = await Lesson.findOne({
-      unit: lesson.unit,
-      order: lesson.order + 1,
-    }).sort({ order: 1 });
-    if (nextLesson) {
-      nextLesson.isLocked = false;
-      await nextLesson.save();
+    if (isFirstCompletion) {
+      if (!progress.crownsByLesson) {
+        progress.crownsByLesson = new Map();
+      }
+      progress.crownsByLesson.set(String(lesson._id), 1);
+      await progress.save();
+    }
+
+    // ── Update next lesson target ───────────────────────────────────────────
+    const nextTarget = await this.findNextLessonAfter(userId, lesson);
+    if (nextTarget) {
+      progress.currentLessonTarget = nextTarget._id;
+    } else if (progress.activeCourse) {
+      const fallbackTarget = await this.findFirstAvailableIncompleteLesson(userId, progress.activeCourse);
+      progress.currentLessonTarget = fallbackTarget ? fallbackTarget._id : null;
+    } else {
+      progress.currentLessonTarget = null;
     }
 
     // ── Restore 1 heart on practice lessons ─────────────────────────────────
@@ -481,16 +682,9 @@ class DuolingoService {
         }
       }
 
-      if (isFirstCompletion) {
-        if (!progress.crownsByLesson) {
-          progress.crownsByLesson = new Map();
-        }
-        progress.crownsByLesson.set(String(lesson._id), 1);
-      }
-
       const excluded = await isExcludedFromXp(userId);
       if (isFirstCompletion && !excluded) {
-        completionXp = 20;
+        completionXp = LESSON_COMPLETION_XP;
         progress.points += completionXp;
         progress.totalXP += completionXp;
       }
@@ -530,61 +724,23 @@ class DuolingoService {
           console.error('[Quest] Failed to update xp progress:', err.message)
         );
       }
-
-      // ── Daily Challenge scoring (always runs — re-dos earn DC XP too) ────────
-      try {
-        const todayKey = getDateKey(new Date());
-        const challenge = await dailyChallengeService.getTodayChallenge();
-        const dcLessonId = challenge?.lesson?._id != null
-          ? String(challenge.lesson._id)
-          : String(challenge?.lesson || '');
-        const currentLessonId = String(lesson._id);
-        console.log('[DailyChallenge] scoring check:', {
-          userId: String(userId),
-          todayKey,
-          dcLessonId,
-          currentLessonId,
-          match: dcLessonId === currentLessonId,
-          challengeId: challenge?._id,
-          challengeDate: challenge?.date,
-          isFirstCompletion,
-        });
-
-        if (dcLessonId && dcLessonId === currentLessonId) {
-          // completedChallenges counts ALL correct answers ever for this lesson.
-          // On re-do, new correct answers increase this count → more DC XP.
-          const lessonChallengeIds = await Challenge.distinct('_id', { lesson: lesson._id });
-          const completedChallenges = await ChallengeProgress.countDocuments({
-            user: userId,
-            completed: true,
-            challenge: { $in: lessonChallengeIds },
-          });
-          const challengeXp = (completedChallenges * POINTS_PER_CORRECT) + completionXp;
-          const result = await dailyChallengeService.addXpForUserOncePerDay({
-            userId,
-            dateKey: todayKey,
-            challengeId: challenge._id,
-            xp: challengeXp,
-          });
-          console.log('[DailyChallenge] score update (once/day):', {
-            userId: String(userId),
-            date: todayKey,
-            lessonId: String(lesson._id),
-            completedChallenges,
-            completionXp,
-            challengeXp,
-            result,
-          });
-
-          // Note: addXpForUserOncePerDay already emits 'dailyChallenge:score_updated'
-          // via its own eventBus.emit() — no duplicate emit needed here.
-        }
-      } catch (err) {
-        console.error('[DailyChallenge] Failed to update score:', err.message);
-      }
     }
 
-    return { lesson, unitCompleted: false };
+    return { lesson, unitCompleted: false, currentLessonTarget: progress.currentLessonTarget || null };
+  }
+
+  async completeDailyChallenge(userId, lessonId, dailyChallengeId = null) {
+    const result = await dailyChallengeService.completeChallenge({
+      userId,
+      lessonId,
+      challengeId: dailyChallengeId,
+    });
+
+    return {
+      ...result,
+      mode: 'daily',
+      redirectTo: '/duolingo',
+    };
   }
 
   // === HEARTS & USER PROGRESS ===
@@ -610,6 +766,7 @@ class DuolingoService {
       points: progress.points ?? 0,
       streak: progress.streak ?? 0,
       activeCourse: progress.activeCourse || null,
+      currentLessonTarget: progress.currentLessonTarget || null,
     };
   }
 
@@ -673,6 +830,11 @@ class DuolingoService {
     const unit = await require('../../models/unit.model').findById(lesson.unit);
     if (!unit || String(unit.course) !== String(progress.activeCourse)) {
       throw new Error('Unauthorized: lesson not in active course');
+    }
+
+    const course = await Course.findById(unit.course).select('isPublished isActive');
+    if (!this.isCourseLearnable(course)) {
+      throw this.getCourseLockedError();
     }
     
     if (lesson.type !== 'practice') {
