@@ -38,6 +38,54 @@ function normalizeTypedAnswer(value) {
     .trim();
 }
 
+function normalizeProgressKeyPart(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
+}
+
+function buildCourseProgressKey(course) {
+  if (!course) return null;
+  const stableCourseId = normalizeProgressKeyPart(course.slug || course.title) || toId(course._id);
+  return stableCourseId ? `course:${stableCourseId}` : null;
+}
+
+function buildUnitProgressKey(unit, course) {
+  const courseKey = buildCourseProgressKey(course);
+  if (!courseKey || !unit) return null;
+  const unitOrder = Number.isFinite(Number(unit.order)) ? Number(unit.order) : normalizeProgressKeyPart(unit.title);
+  return `${courseKey}:unit:${unitOrder}`;
+}
+
+function buildLessonProgressKey(lesson, unit, course) {
+  const unitKey = buildUnitProgressKey(unit, course);
+  if (!unitKey || !lesson) return null;
+  const lessonOrder = Number.isFinite(Number(lesson.order)) ? Number(lesson.order) : normalizeProgressKeyPart(lesson.title);
+  return `${unitKey}:lesson:${lessonOrder}`;
+}
+
+function buildChallengeProgressKey(challenge, lessonKey) {
+  if (!challenge || !lessonKey) return null;
+  const challengeOrder = Number.isFinite(Number(challenge.order))
+    ? Number(challenge.order)
+    : normalizeProgressKeyPart(challenge.question);
+  const type = normalizeProgressKeyPart(challenge.type || 'challenge');
+  const contentKey = normalizeProgressKeyPart(
+    [
+      challenge.question,
+      challenge.correctAnswer,
+      Array.isArray(challenge.wordBank) ? challenge.wordBank.join(' ') : '',
+      Array.isArray(challenge.correctOrder) ? challenge.correctOrder.join('-') : '',
+      Array.isArray(challenge.pairs) ? challenge.pairs.map((pair) => `${pair.left}:${pair.right}`).join('|') : '',
+    ].filter(Boolean).join('|')
+  );
+  return `${lessonKey}:challenge:${challengeOrder}:${type}:${contentKey || toId(challenge._id)}`;
+}
+
 async function isExcludedFromXp(userId) {
   try {
     const user = await User.findById(userId).select('username email');
@@ -73,6 +121,91 @@ class DuolingoService {
     return Course.findById(unit.course).select('isPublished isActive');
   }
 
+  async getLessonProgressIdentity(lessonInput) {
+    const isLessonDocument = lessonInput && lessonInput.unit !== undefined;
+    const lesson = isLessonDocument ? lessonInput : await Lesson.findById(lessonInput);
+    if (!lesson) return null;
+
+    let unit = lesson.unit;
+    if (!unit || !unit.course || unit.course.title === undefined) {
+      const unitId = unit?._id || unit;
+      unit = await Unit.findById(unitId).populate('course');
+    } else if (unit.course && unit.course.title === undefined) {
+      unit = await Unit.findById(unit._id).populate('course');
+    }
+    if (!unit) return null;
+
+    let course = unit.course;
+    if (!course || course.title === undefined) {
+      course = await Course.findById(course);
+    }
+
+    const courseKey = buildCourseProgressKey(course);
+    const unitKey = buildUnitProgressKey(unit, course);
+    const lessonKey = buildLessonProgressKey(lesson, unit, course);
+
+    return {
+      course,
+      unit,
+      lesson,
+      courseKey,
+      unitKey,
+      lessonKey,
+    };
+  }
+
+  getChallengeProgressIdentity(challenge, lessonIdentity) {
+    const lessonKey = lessonIdentity?.lessonKey || null;
+    return {
+      courseKey: lessonIdentity?.courseKey || null,
+      lessonKey,
+      challengeKey: buildChallengeProgressKey(challenge, lessonKey),
+    };
+  }
+
+  async findChallengeProgressForUser(userId, challenge, lessonIdentity = null) {
+    const identity = this.getChallengeProgressIdentity(challenge, lessonIdentity);
+    const clauses = [{ challenge: challenge._id }];
+    if (identity.challengeKey) {
+      clauses.push({ challengeKey: identity.challengeKey });
+    }
+
+    return ChallengeProgress.findOne({
+      user: userId,
+      $or: clauses,
+    });
+  }
+
+  async countCompletedChallengesForUser(userId, challenges, lessonIdentity = null) {
+    if (!challenges.length) return 0;
+
+    const challengeIds = challenges.map((challenge) => challenge._id);
+    const challengeKeys = challenges
+      .map((challenge) => this.getChallengeProgressIdentity(challenge, lessonIdentity).challengeKey)
+      .filter(Boolean);
+
+    const clauses = [{ challenge: { $in: challengeIds } }];
+    if (challengeKeys.length) {
+      clauses.push({ challengeKey: { $in: challengeKeys } });
+    }
+
+    const progressRows = await ChallengeProgress.find({
+      user: userId,
+      completed: true,
+      $or: clauses,
+    }).select('challenge challengeKey').lean();
+
+    const completedChallengeIds = new Set(progressRows.map((row) => toId(row.challenge)).filter(Boolean));
+    const completedChallengeKeys = new Set(progressRows.map((row) => row.challengeKey).filter(Boolean));
+
+    return challenges.reduce((count, challenge) => {
+      const identity = this.getChallengeProgressIdentity(challenge, lessonIdentity);
+      const completedById = completedChallengeIds.has(toId(challenge._id));
+      const completedByKey = identity.challengeKey && completedChallengeKeys.has(identity.challengeKey);
+      return count + (completedById || completedByKey ? 1 : 0);
+    }, 0);
+  }
+
   async assertCourseLearnableForLesson(lesson) {
     const course = await this.getCourseForLesson(lesson);
     if (!this.isCourseLearnable(course)) {
@@ -81,19 +214,16 @@ class DuolingoService {
   }
 
   async isLessonCompletedForUser(userId, lessonId) {
-    const progress = await UserProgress.findOne({ user: userId }).select('crownsByLesson');
+    const lessonIdentity = await this.getLessonProgressIdentity(lessonId);
+    const progress = await UserProgress.findOne({ user: userId }).select('crownsByLesson completedLessonKeys');
     if (progress?.crownsByLesson?.get(String(lessonId))) return true;
+    if (lessonIdentity?.lessonKey && progress?.completedLessonKeys?.get(lessonIdentity.lessonKey)) return true;
 
-    const challengeIds = await Challenge.distinct('_id', { lesson: lessonId });
-    if (challengeIds.length === 0) return false;
+    const challenges = await Challenge.find({ lesson: lessonId }).sort({ order: 1, _id: 1 });
+    if (challenges.length === 0) return false;
 
-    const completedCount = await ChallengeProgress.countDocuments({
-      user: userId,
-      challenge: { $in: challengeIds },
-      completed: true,
-    });
-
-    return completedCount === challengeIds.length;
+    const completedCount = await this.countCompletedChallengesForUser(userId, challenges, lessonIdentity);
+    return completedCount === challenges.length;
   }
 
   async findNextLessonAfter(userId, lesson) {
@@ -287,11 +417,8 @@ class DuolingoService {
       const lessons = await Lesson.find({ unit: unit._id }).sort({ order: 1 });
       const lessonsWithProgress = await Promise.all(lessons.map(async (lesson) => {
         const challenges = await Challenge.find({ lesson: lesson._id }).sort({ order: 1 });
-        const completedCount = await ChallengeProgress.countDocuments({
-          user: userId,
-          challenge: { $in: challenges.map(c => c._id) },
-          completed: true,
-        });
+        const lessonIdentity = await this.getLessonProgressIdentity(lesson);
+        const completedCount = await this.countCompletedChallengesForUser(userId, challenges, lessonIdentity);
         const completed = await this.isLessonCompletedForUser(userId, lesson._id);
         return {
           ...lesson.toObject(),
@@ -337,12 +464,10 @@ class DuolingoService {
     }
 
     const challenges = await Challenge.find({ lesson: lessonId }).sort({ order: 1 });
+    const lessonIdentity = await this.getLessonProgressIdentity(lesson);
     
     const challengesWithOptions = await Promise.all(challenges.map(async (challenge) => {
-      const progress = await ChallengeProgress.findOne({
-        user: userId,
-        challenge: challenge._id
-      });
+      const progress = await this.findChallengeProgressForUser(userId, challenge, lessonIdentity);
       // Prefer embedded challenge.options (from seeder) over ChallengeOption collection
       // Embedded: { text, correct } → frontend sends option.text, backend matches o.text
       // ChallengeOption: { _id, text, correct } → frontend sends option._id, backend matches o._id
@@ -401,8 +526,9 @@ class DuolingoService {
         const isLocked = await this.isLessonLocked(userId, lesson._id);
         if (isLocked) continue;
         const challenges = await Challenge.find({ lesson: lesson._id });
+        const lessonIdentity = await this.getLessonProgressIdentity(lesson);
         for (const challenge of challenges) {
-          const cp = await ChallengeProgress.findOne({ user: userId, challenge: challenge._id });
+          const cp = await this.findChallengeProgressForUser(userId, challenge, lessonIdentity);
           if (!cp?.completed) {
             return { lesson, unit, challenge };
           }
@@ -536,10 +662,15 @@ class DuolingoService {
     }
 
     let pointsEarned = 0;
+    const lessonIdentity = await this.getLessonProgressIdentity(lesson);
+    const challengeIdentity = this.getChallengeProgressIdentity(challenge, lessonIdentity);
 
     // Duplicate protection: only award XP when the first scored attempt is correct.
     if (isCorrect) {
-      const existingProgress = await ChallengeProgress.findOne({ user: userId, challenge: challengeId });
+      const existingProgress = await this.findChallengeProgressForUser(userId, challenge, lessonIdentity);
+      const progressFilter = existingProgress
+        ? { _id: existingProgress._id }
+        : { user: userId, challenge: challengeId };
       const isFirstCompletion = !existingProgress?.completed;
       const hadWrongAttempt = Boolean(
         (existingProgress?.wrongAttempts || 0) > 0 ||
@@ -548,14 +679,17 @@ class DuolingoService {
       const shouldAwardXp = isFirstCompletion && !hadWrongAttempt;
 
       await ChallengeProgress.findOneAndUpdate(
-        { user: userId, challenge: challengeId },
+        progressFilter,
         {
           $setOnInsert: {
             user: userId,
-            challenge: challengeId,
             firstAttemptCorrect: !hadWrongAttempt,
           },
           $set: {
+            challenge: challengeId,
+            courseKey: challengeIdentity.courseKey,
+            lessonKey: challengeIdentity.lessonKey,
+            challengeKey: challengeIdentity.challengeKey,
             attempted: true,
             completed: true,
             completedAt: new Date(),
@@ -583,19 +717,25 @@ class DuolingoService {
         }
       }
     } else {
-      const existingProgress = await ChallengeProgress.findOne({ user: userId, challenge: challengeId });
+      const existingProgress = await this.findChallengeProgressForUser(userId, challenge, lessonIdentity);
       if (!existingProgress?.completed) {
+        const progressFilter = existingProgress
+          ? { _id: existingProgress._id }
+          : { user: userId, challenge: challengeId };
         await ChallengeProgress.findOneAndUpdate(
-          { user: userId, challenge: challengeId },
+          progressFilter,
           {
             $setOnInsert: {
               user: userId,
-              challenge: challengeId,
               completed: false,
               completedAt: null,
               xpAwarded: false,
             },
             $set: {
+              challenge: challengeId,
+              courseKey: challengeIdentity.courseKey,
+              lessonKey: challengeIdentity.lessonKey,
+              challengeKey: challengeIdentity.challengeKey,
               attempted: true,
               firstAttemptCorrect: false,
             },
@@ -619,11 +759,17 @@ class DuolingoService {
       progress = await UserProgress.create({ user: userId });
     }
 
+    const lessonIdentity = await this.getLessonProgressIdentity(lesson);
+
     // Determine if this is the first-time completion or a re-do.
-    // Use crownsByLesson Map to track per-user completions.
+    // Use both legacy lesson ObjectId and stable roadmap key so progress survives content reseeding.
     let isFirstCompletion = true;
-    if (progress && progress.crownsByLesson) {
-      isFirstCompletion = !progress.crownsByLesson.get(String(lesson._id));
+    if (progress) {
+      const completedById = Boolean(progress.crownsByLesson?.get(String(lesson._id)));
+      const completedByKey = Boolean(
+        lessonIdentity?.lessonKey && progress.completedLessonKeys?.get(lessonIdentity.lessonKey)
+      );
+      isFirstCompletion = !completedById && !completedByKey;
     }
 
     // ── Mark lesson completed (idempotent — always save) ────────────────────
@@ -631,13 +777,17 @@ class DuolingoService {
     lesson.completedAt = new Date();
     await lesson.save();
 
-    if (isFirstCompletion) {
-      if (!progress.crownsByLesson) {
-        progress.crownsByLesson = new Map();
-      }
-      progress.crownsByLesson.set(String(lesson._id), 1);
-      await progress.save();
+    if (!progress.crownsByLesson) {
+      progress.crownsByLesson = new Map();
     }
+    if (!progress.completedLessonKeys) {
+      progress.completedLessonKeys = new Map();
+    }
+    progress.crownsByLesson.set(String(lesson._id), 1);
+    if (lessonIdentity?.lessonKey) {
+      progress.completedLessonKeys.set(lessonIdentity.lessonKey, 1);
+    }
+    await progress.save();
 
     // ── Update next lesson target ───────────────────────────────────────────
     const nextTarget = await this.findNextLessonAfter(userId, lesson);

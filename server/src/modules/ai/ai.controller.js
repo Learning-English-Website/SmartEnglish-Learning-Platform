@@ -218,7 +218,7 @@ exports.generateFlashcards = async (req, res, next) => {
  */
 exports.generateLesson = async (req, res, next) => {
   const startTime = Date.now();
-  const { topic, level, count } = req.body;
+  const { topic, level, count, challengeTypes } = req.body;
   const userId = req.userId;
 
   try {
@@ -228,6 +228,20 @@ exports.generateLesson = async (req, res, next) => {
     }
 
     const challengeCount = Math.min(Math.max(parseInt(count, 10) || 8, 5), 10); // enforce limit: 5-10
+    const safeLessonTypes = ['ASSIST', 'TYPE', 'TRANSLATE', 'COMPLETE', 'ORDER', 'MATCH', 'FILL'];
+    let selectedChallengeTypes;
+    if (challengeTypes !== undefined) {
+      if (!Array.isArray(challengeTypes)) {
+        return res.status(400).json({ success: false, message: "Danh sách dạng câu hỏi không hợp lệ." });
+      }
+      selectedChallengeTypes = challengeTypes
+        .map(type => String(type || '').trim().toUpperCase())
+        .filter((type, index, arr) => safeLessonTypes.includes(type) && arr.indexOf(type) === index);
+
+      if (selectedChallengeTypes.length === 0) {
+        return res.status(400).json({ success: false, message: "Vui lòng chọn ít nhất một dạng câu hỏi hợp lệ." });
+      }
+    }
 
     // 2. Read and decrypt API key from signed cookie
     const hasCookie = req.cookies.byok_gemini_key !== undefined || req.signedCookies.byok_gemini_key !== undefined;
@@ -261,7 +275,8 @@ exports.generateLesson = async (req, res, next) => {
     const lessonDraft = await aiService.generateLessonDraft(apiKey, { 
       topic: topic.trim(), 
       level: level ? level.trim() : 'B1-B2', 
-      count: challengeCount 
+      count: challengeCount,
+      challengeTypes: selectedChallengeTypes
     });
 
     // 4. Log successful usage metrics (do NOT log api key, prompt, or raw response)

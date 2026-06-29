@@ -46,7 +46,7 @@ export const aiService = {
   /**
    * Generate lesson and exercises using AI
    * POST /api/ai/lessons/generate
-   * @param {{ topic: string, level?: string, count?: number }} data
+   * @param {{ topic: string, level?: string, count?: number, challengeTypes?: string[] }} data
    */
   generateLesson: (data) =>
     axiosClient.post('/ai/lessons/generate', data, {

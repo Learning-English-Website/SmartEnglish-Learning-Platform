@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const CardProgress = require('../../models/cardProgress.model');
 const Flashcard = require('../../models/flashcard.model');
+const FlashcardSet = require('../../models/flashcardSet.model');
 const StudySession = require('../../models/studySession.model');
 const { AppError } = require('../../shared/errors/AppError');
 const {
@@ -8,6 +9,33 @@ const {
   calculateSM2,
   getNextReviewDate,
 } = require('../../shared/services/sm2.service');
+
+const getUserSetIds = async (userId) => {
+  const userSets = await FlashcardSet.find({ user: userId }).select('_id');
+  return userSets.map(set => set._id);
+};
+
+const getUserCardIds = async (userId) => {
+  const setIds = await getUserSetIds(userId);
+  if (setIds.length === 0) return [];
+
+  const cards = await Flashcard.find({ set: { $in: setIds } }).select('_id');
+  return cards.map(card => card._id);
+};
+
+const getValidUserProgress = async (userId) => {
+  const cardIds = await getUserCardIds(userId);
+  if (cardIds.length === 0) {
+    return { cardIds, progressRecords: [] };
+  }
+
+  const progressRecords = await CardProgress.find({
+    user: userId,
+    card: { $in: cardIds },
+  });
+
+  return { cardIds, progressRecords };
+};
 
 /**
  * Get progress for a specific card
@@ -331,8 +359,10 @@ const getDueCardsCount = async (userId, setId) => {
  * Get overall user statistics
  */
 const getOverallStats = async (userId) => {
-  // Get all progress records for user
-  const allProgress = await CardProgress.find({ user: userId });
+  // Only count progress for cards that still exist in this user's sets.
+  // Stale CardProgress rows can remain after card/set recreation and must not
+  // make the dashboard show review items that /progress/due-cards cannot load.
+  const { cardIds, progressRecords: allProgress } = await getValidUserProgress(userId);
 
   // Get all study sessions
   const sessions = await StudySession.find({ user: userId, completedAt: { $exists: true } });
@@ -350,11 +380,7 @@ const getOverallStats = async (userId) => {
   // Calculate newCards count by subtracting active cards from total cards in all user's sets
   let newCards = 0;
   try {
-    const FlashcardSet = require('../../models/flashcardSet.model');
-    const userSets = await FlashcardSet.find({ user: userId }).select('_id');
-    const setIds = userSets.map(s => s._id);
-    const totalCardsInSets = await Flashcard.countDocuments({ set: { $in: setIds } });
-    newCards = Math.max(0, totalCardsInSets - (learningCards + masteredCards));
+    newCards = Math.max(0, cardIds.length - (learningCards + masteredCards));
   } catch (err) {
     console.error('[ProgressService] Failed to calculate total cards for newCards:', err.message);
     newCards = allProgress.filter(p => p.status === 'NEW').length;
@@ -566,9 +592,7 @@ const getNewCards = async (userId, setId, limit = 10) => {
   if (setId) {
     cardQuery.set = setId;
   } else {
-    const FlashcardSet = require('../../models/flashcardSet.model');
-    const userSets = await FlashcardSet.find({ user: userId });
-    const setIds = userSets.map(s => s._id);
+    const setIds = await getUserSetIds(userId);
     cardQuery.set = { $in: setIds };
   }
 
@@ -597,6 +621,7 @@ const getNewCards = async (userId, setId, limit = 10) => {
  */
 const getDueCards = async (userId, setId) => {
   const now = new Date();
+  let cardIds = [];
 
   let progressQuery = {
     user: userId,
@@ -606,9 +631,16 @@ const getDueCards = async (userId, setId) => {
 
   if (setId) {
     const cardsInSet = await Flashcard.find({ set: setId }).select('_id');
-    const cardIds = cardsInSet.map(c => c._id);
-    progressQuery.card = { $in: cardIds };
+    cardIds = cardsInSet.map(c => c._id);
+  } else {
+    cardIds = await getUserCardIds(userId);
   }
+
+  if (cardIds.length === 0) {
+    return [];
+  }
+
+  progressQuery.card = { $in: cardIds };
 
   const dueProgress = await CardProgress.find(progressQuery)
     .populate({

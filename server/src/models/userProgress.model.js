@@ -11,6 +11,7 @@ const userProgressSchema = new Schema(
     lastActivityDate: { type: Date, default: null },
     skillLevels: { type: Map, of: Number, default: () => new Map() },
     crownsByLesson: { type: Map, of: Number, default: () => new Map() },
+    completedLessonKeys: { type: Map, of: Number, default: () => new Map() },
     
     // Duolingo Hearts & Progress
     activeCourse: { type: mongoose.Schema.Types.ObjectId, ref: 'Course', default: null },

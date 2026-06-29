@@ -9,17 +9,18 @@
   display: flex;
   align-items: center;
   min-height: auto;
-  margin: 0 auto !important;
+  margin: 0.75rem auto !important;
   position: relative !important;
   left: 0 !important;
   right: 0 !important;
   transition: all 0.3s ease;
+  max-width: calc(100vw - 24px);
 }
 
 /* 1. Configuration Modal Sizing */
 .al-modal-dialog--config {
-  max-width: 620px !important;
-  width: 100% !important;
+  max-width: min(620px, calc(100vw - 24px)) !important;
+  width: calc(100vw - 24px) !important;
 }
 
 /* 2. Draft Modal Sizing (Expands wide for draft table/forms) */
@@ -62,7 +63,7 @@
 
 .al-header {
   border-bottom: 1px solid var(--bs-border-color-translucent);
-  padding: 20px 24px;
+  padding: 18px 22px;
   background: var(--bs-tertiary-bg);
 }
 
@@ -70,18 +71,27 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 1.25rem;
+  min-width: 0;
+  font-size: clamp(1.05rem, 2.6vw, 1.25rem);
+  line-height: 1.25;
   font-weight: 700;
   color: var(--bs-body-color);
 }
 
+.al-title span {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 .al-title-icon {
+  flex: 0 0 auto;
   color: var(--bs-primary);
   animation: pulse-ai 2s infinite ease-in-out;
 }
 
 .al-body {
-  padding: 24px;
+  padding: 22px;
   position: relative;
   min-height: 250px;
   max-height: 80vh;
@@ -91,6 +101,7 @@
 .al-input-control {
   border-radius: 8px;
   padding: 10px 14px;
+  min-height: 44px;
   border: 1px solid var(--bs-border-color);
   background-color: var(--bs-body-bg);
   color: var(--bs-body-color);
@@ -101,6 +112,54 @@
   border-color: var(--bs-primary);
   box-shadow: 0 0 0 3px rgba(var(--bs-primary-rgb), 0.15);
   outline: none;
+}
+
+.al-type-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 10px;
+}
+
+.al-type-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: 72px;
+  padding: 12px;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 10px;
+  background: var(--bs-body-bg);
+  cursor: pointer;
+  transition: border-color 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.al-type-option.active {
+  border-color: rgba(var(--bs-primary-rgb), 0.7);
+  background: rgba(var(--bs-primary-rgb), 0.08);
+  box-shadow: 0 0 0 2px rgba(var(--bs-primary-rgb), 0.08);
+}
+
+.al-type-option .form-check {
+  min-height: 0;
+  margin: 2px 0 0;
+}
+
+.al-type-option-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  line-height: 1.2;
+}
+
+.al-type-option-text strong {
+  font-size: 0.82rem;
+  color: var(--bs-body-color);
+}
+
+.al-type-option-text small {
+  color: var(--bs-secondary-color);
+  overflow-wrap: anywhere;
 }
 
 /* Loading Overlay */
@@ -191,8 +250,10 @@
   text-transform: none !important;
   font-size: 0.9rem !important;
   font-weight: 600 !important;
+  line-height: 1.35 !important;
   letter-spacing: normal !important;
   color: var(--bs-body-color) !important;
+  margin-bottom: 8px !important;
 }
 
 /* ── Elegant & Slimmer Button Styling ──────────────────────────────── */
@@ -203,11 +264,14 @@
   gap: 8px;
   font-size: 0.85rem !important;
   font-weight: 500 !important;
-  padding: 6px 16px !important;
-  height: 36px !important;
+  padding: 8px 16px !important;
+  min-height: 38px !important;
+  height: auto !important;
   border-radius: 8px !important;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
   letter-spacing: 0.1px;
+  line-height: 1.2 !important;
+  white-space: nowrap !important;
 }
 
 .al-modal .al-btn-slim svg {
@@ -226,6 +290,27 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.al-modal .al-modal-footer > .d-flex:last-child {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.al-modal .row {
+  row-gap: 12px;
+}
+
+.al-modal input[type="range"].form-range {
+  min-width: 110px;
+}
+
+.al-modal input[type="number"].form-control {
+  min-width: 72px;
+  flex: 0 0 72px;
+  text-align: center;
 }
 
 /* ── Header Badge Count ───────────────────────────────────────────── */
@@ -311,5 +396,61 @@
   padding: 6px 14px !important;
   height: 36px !important;
   border-radius: 8px !important;
+}
+
+@media (max-width: 575.98px) {
+  .al-modal .modal-dialog {
+    align-items: flex-start;
+    margin: 0.5rem auto !important;
+  }
+
+  .al-header {
+    padding: 16px 18px;
+  }
+
+  .al-body {
+    padding: 18px;
+    max-height: calc(100vh - 44px);
+  }
+
+  .al-modal .modal-content {
+    border-radius: 14px;
+  }
+
+  .al-modal .al-modal-footer {
+    align-items: stretch;
+  }
+
+  .al-modal .al-modal-footer > .d-flex:first-child,
+  .al-modal .al-modal-footer > .d-flex:last-child {
+    width: 100%;
+  }
+
+  .al-modal .al-modal-footer > .d-flex:last-child {
+    display: grid !important;
+    grid-template-columns: minmax(92px, 0.42fr) minmax(0, 1fr);
+    gap: 10px !important;
+  }
+
+  .al-modal .al-btn-slim {
+    width: 100%;
+    min-height: 44px !important;
+    padding: 9px 12px !important;
+  }
+
+  .al-modal .form-label {
+    font-size: 0.86rem !important;
+  }
+
+  .al-modal .text-xs {
+    display: block;
+    line-height: 1.45;
+  }
+}
+
+@media (max-width: 430px) {
+  .al-modal .al-modal-footer > .d-flex:last-child {
+    grid-template-columns: 1fr;
+  }
 }
 

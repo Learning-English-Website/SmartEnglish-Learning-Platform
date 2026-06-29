@@ -16,10 +16,38 @@ const LOADING_MESSAGES = [
   'Sắp hoàn tất bài học rồi, vui lòng đợi một chút...',
 ];
 
+const AI_CHALLENGE_TYPES = [
+  { id: 'ASSIST', label: 'Trắc nghiệm chữ', desc: 'Chọn 1 đáp án đúng' },
+  { id: 'TYPE', label: 'Gõ đáp án', desc: 'Nhập câu trả lời ngắn' },
+  { id: 'TRANSLATE', label: 'Dịch thuật', desc: 'Dịch Anh - Việt hoặc Việt - Anh' },
+  { id: 'COMPLETE', label: 'Hoàn thành câu', desc: 'Nhập từ/cụm từ còn thiếu' },
+  { id: 'ORDER', label: 'Sắp xếp từ', desc: 'Ghép từ thành câu đúng' },
+  { id: 'MATCH', label: 'Ghép cặp', desc: 'Nối cặp từ/nghĩa tương ứng' },
+  { id: 'FILL', label: 'Điền khuyết', desc: 'Chọn đáp án điền vào chỗ trống' },
+];
+
+const DEFAULT_AI_CHALLENGE_TYPES = ['ASSIST', 'TRANSLATE', 'FILL', 'ORDER'];
+
+const getChallengeTypeLabel = (type) => {
+  const found = AI_CHALLENGE_TYPES.find(item => item.id === type);
+  return found ? `${found.label} (${found.id})` : type;
+};
+
+const parsePairsText = (value) => value
+  .split('\n')
+  .map(line => line.split('|').map(part => part.trim()))
+  .filter(parts => parts.length >= 2 && parts[0] && parts[1])
+  .map(parts => ({ left: parts[0], right: parts.slice(1).join(' | ') }));
+
+const stringifyPairs = (pairs) => Array.isArray(pairs)
+  ? pairs.map(pair => `${pair.left || ''} | ${pair.right || ''}`).join('\n')
+  : '';
+
 export default function AiLessonModal({ show, onHide, unitId, onSuccess }) {
   const [topic, setTopic] = useState('');
   const [level, setLevel] = useState('B1-B2');
   const [count, setCount] = useState(8);
+  const [selectedChallengeTypes, setSelectedChallengeTypes] = useState(DEFAULT_AI_CHALLENGE_TYPES);
   
   // API key status
   const [hasKey, setHasKey] = useState(false);
@@ -84,6 +112,11 @@ export default function AiLessonModal({ show, onHide, unitId, onSuccess }) {
       return;
     }
 
+    if (selectedChallengeTypes.length === 0) {
+      toast.error('Vui lòng chọn ít nhất 1 dạng câu hỏi để AI tạo.');
+      return;
+    }
+
     setGenerating(true);
     setErrorText('');
     setErrorCode(null);
@@ -93,6 +126,7 @@ export default function AiLessonModal({ show, onHide, unitId, onSuccess }) {
         topic: topic.trim(),
         level,
         count: Number(count),
+        challengeTypes: selectedChallengeTypes,
       });
 
       const responseData = res?.data ?? res;
@@ -129,6 +163,14 @@ export default function AiLessonModal({ show, onHide, unitId, onSuccess }) {
     } finally {
       setGenerating(false);
     }
+  };
+
+  const handleToggleChallengeType = (type) => {
+    setSelectedChallengeTypes((prev) => (
+      prev.includes(type)
+        ? prev.filter(item => item !== type)
+        : [...prev, type]
+    ));
   };
 
   // Editing handlers for Draft Lesson
@@ -273,6 +315,13 @@ export default function AiLessonModal({ show, onHide, unitId, onSuccess }) {
     } else if (type === 'ORDER') {
       newCh.wordBank = [];
       newCh.correctOrder = [];
+    } else if (type === 'COMPLETE') {
+      newCh.sentence = 'He ___ a student.';
+    } else if (type === 'MATCH') {
+      newCh.pairs = [
+        { left: '', right: '' },
+        { left: '', right: '' },
+      ];
     }
 
     setDraftLesson((prev) => ({
@@ -316,13 +365,28 @@ export default function AiLessonModal({ show, onHide, unitId, onSuccess }) {
           return;
         }
       }
-      if (ch.type === 'TRANSLATE' && !ch.correctAnswer?.trim()) {
-        toast.error(`Câu số ${i + 1} chưa điền đáp án dịch đúng.`);
+      if (ch.type === 'FILL' && !ch.sentence?.includes('___')) {
+        toast.error(`Cau so ${i + 1} can co cau dien khuyet chua ky hieu ___.`);
+        return;
+      }
+      if (['TYPE', 'TRANSLATE', 'COMPLETE'].includes(ch.type) && !ch.correctAnswer?.trim()) {
+        toast.error(`Cau so ${i + 1} chua dien dap an dung.`);
+        return;
+      }
+      if (ch.type === 'COMPLETE' && !ch.sentence?.includes('___')) {
+        toast.error(`Cau so ${i + 1} can co cau hoan thanh chua ky hieu ___.`);
         return;
       }
       if (ch.type === 'ORDER' && !ch.correctAnswer?.trim()) {
-        toast.error(`Câu số ${i + 1} chưa điền câu hoàn chỉnh.`);
+        toast.error(`Cau so ${i + 1} chua dien cau hoan chinh.`);
         return;
+      }
+      if (ch.type === 'MATCH') {
+        const validPairs = (ch.pairs || []).filter(pair => pair.left?.trim() && pair.right?.trim());
+        if (validPairs.length < 2) {
+          toast.error(`Cau so ${i + 1} can co it nhat 2 cap ghep hop le.`);
+          return;
+        }
       }
     }
 
@@ -494,6 +558,32 @@ export default function AiLessonModal({ show, onHide, unitId, onSuccess }) {
                   </div>
                 </div>
 
+                <Form.Group className="mb-4">
+                  <Form.Label className="fw-semibold">Dạng câu hỏi muốn AI tạo *</Form.Label>
+                  <div className="al-type-picker">
+                    {AI_CHALLENGE_TYPES.map((type) => (
+                      <label
+                        key={type.id}
+                        className={`al-type-option ${selectedChallengeTypes.includes(type.id) ? 'active' : ''}`}
+                      >
+                        <Form.Check
+                          type="checkbox"
+                          checked={selectedChallengeTypes.includes(type.id)}
+                          onChange={() => handleToggleChallengeType(type.id)}
+                          disabled={generating}
+                        />
+                        <span className="al-type-option-text">
+                          <strong>{type.id}</strong>
+                          <small>{type.label} - {type.desc}</small>
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                  <Form.Text className="text-muted text-xs">
+                    SELECT không được AI tạo vì cần dữ liệu hình ảnh. Giáo viên vẫn có thể tạo SELECT thủ công trong Studio.
+                  </Form.Text>
+                </Form.Group>
+
                 <div className="al-modal-footer">
                   <div className="d-flex align-items-center gap-1 text-muted cursor-pointer" onClick={() => setShowKeyModal(true)}>
                     <FiSettings size={14} />
@@ -596,9 +686,7 @@ export default function AiLessonModal({ show, onHide, unitId, onSuccess }) {
                           Câu {idx + 1}
                         </Badge>
                         <Badge bg="info" className="text-uppercase py-1.5 px-2 text-xs">
-                          {ch.type === 'ASSIST' ? 'Trắc nghiệm (ASSIST)' :
-                           ch.type === 'FILL' ? 'Điền khuyết (FILL)' :
-                           ch.type === 'ORDER' ? 'Sắp xếp câu (ORDER)' : 'Dịch thuật (TRANSLATE)'}
+                          {getChallengeTypeLabel(ch.type)}
                         </Badge>
                       </div>
                       <Button
@@ -678,6 +766,46 @@ export default function AiLessonModal({ show, onHide, unitId, onSuccess }) {
                       </Form.Group>
                     )}
 
+                    {/* TYPE SPECIFIC: TYPED ANSWER */}
+                    {ch.type === 'TYPE' && (
+                      <Form.Group className="mb-3 border-start ps-3">
+                        <Form.Label className="small fw-semibold text-secondary">Đáp án đúng để học viên gõ *</Form.Label>
+                        <Form.Control
+                          type="text"
+                          value={ch.correctAnswer || ''}
+                          onChange={(e) => handleEditChallenge(idx, 'correctAnswer', e.target.value)}
+                          placeholder="e.g. Good morning"
+                          className="form-control-sm"
+                        />
+                      </Form.Group>
+                    )}
+
+                    {/* COMPLETE SPECIFIC: SENTENCE + TYPED ANSWER */}
+                    {ch.type === 'COMPLETE' && (
+                      <div className="border-start ps-3 mb-3">
+                        <Form.Group className="mb-2">
+                          <Form.Label className="small fw-semibold text-secondary">Câu chứa ô trống ___ *</Form.Label>
+                          <Form.Control
+                            type="text"
+                            value={ch.sentence || ''}
+                            onChange={(e) => handleEditChallenge(idx, 'sentence', e.target.value)}
+                            placeholder="e.g. She ___ a student."
+                            className="form-control-sm"
+                          />
+                        </Form.Group>
+                        <Form.Group>
+                          <Form.Label className="small fw-semibold text-secondary">Đáp án đúng để điền *</Form.Label>
+                          <Form.Control
+                            type="text"
+                            value={ch.correctAnswer || ''}
+                            onChange={(e) => handleEditChallenge(idx, 'correctAnswer', e.target.value)}
+                            placeholder="e.g. is"
+                            className="form-control-sm"
+                          />
+                        </Form.Group>
+                      </div>
+                    )}
+
                     {/* ORDER SPECIFIC: CORRECT ANSWER SENTENCE */}
                     {ch.type === 'ORDER' && (
                       <div className="border-start ps-3 mb-3">
@@ -697,6 +825,21 @@ export default function AiLessonModal({ show, onHide, unitId, onSuccess }) {
                           )) : <em>Trống</em>}
                         </div>
                       </div>
+                    )}
+
+                    {/* MATCH SPECIFIC: PAIRS */}
+                    {ch.type === 'MATCH' && (
+                      <Form.Group className="mb-3 border-start ps-3">
+                        <Form.Label className="small fw-semibold text-secondary">Các cặp ghép (mỗi dòng: trái | phải) *</Form.Label>
+                        <Form.Control
+                          as="textarea"
+                          rows={4}
+                          value={stringifyPairs(ch.pairs)}
+                          onChange={(e) => handleEditChallenge(idx, 'pairs', parsePairsText(e.target.value))}
+                          placeholder={'hello | xin chào\nthank you | cảm ơn'}
+                          className="form-control-sm"
+                        />
+                      </Form.Group>
                     )}
 
                     {/* TRANSLATE SPECIFIC: TRANSLATION ANSWER */}
@@ -750,18 +893,16 @@ export default function AiLessonModal({ show, onHide, unitId, onSuccess }) {
               <div className="al-add-challenge-container">
                 <span className="al-add-challenge-title">Thêm câu hỏi mới thủ công:</span>
                 <div className="al-add-challenge-buttons">
-                  <Button variant="outline-primary" className="al-btn-slim al-btn-add" onClick={() => handleAddChallenge('ASSIST')}>
-                    + Trắc nghiệm (ASSIST)
-                  </Button>
-                  <Button variant="outline-primary" className="al-btn-slim al-btn-add" onClick={() => handleAddChallenge('FILL')}>
-                    + Điền khuyết (FILL)
-                  </Button>
-                  <Button variant="outline-primary" className="al-btn-slim al-btn-add" onClick={() => handleAddChallenge('ORDER')}>
-                    + Sắp xếp từ (ORDER)
-                  </Button>
-                  <Button variant="outline-primary" className="al-btn-slim al-btn-add" onClick={() => handleAddChallenge('TRANSLATE')}>
-                    + Dịch thuật (TRANSLATE)
-                  </Button>
+                  {AI_CHALLENGE_TYPES.map((type) => (
+                    <Button
+                      key={type.id}
+                      variant="outline-primary"
+                      className="al-btn-slim al-btn-add"
+                      onClick={() => handleAddChallenge(type.id)}
+                    >
+                      + {type.label} ({type.id})
+                    </Button>
+                  ))}
                 </div>
               </div>
 

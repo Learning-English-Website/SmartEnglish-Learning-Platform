@@ -92,6 +92,7 @@ export default function LessonPage() {
   const [isRefilling, setIsRefilling] = useState(false);
   const [autoPlayTTS, setAutoPlayTTS] = useState(true); // TTS setting
   const [xpPopup, setXpPopup] = useState(null); // XP popup animation state
+  const [lastEarnedPoints, setLastEarnedPoints] = useState(0);
   // State for new challenge types
   const [orderedWords, setOrderedWords] = useState([]); // ORDER: user's word order
   const [orderedWordBank, setOrderedWordBank] = useState([]); // ORDER: shuffled word bank
@@ -408,6 +409,7 @@ export default function LessonPage() {
         setShowCorrectAnswer(false);
         setCorrectCount(c => c + 1);
         const earnedPoints = result.data.pointsEarned ?? 10;
+        setLastEarnedPoints(earnedPoints);
         pointsRef.current += earnedPoints;
         advanceAfterCorrectAnswer();
       } else {
@@ -499,6 +501,7 @@ export default function LessonPage() {
         setShowCorrectAnswer(false);
         setCorrectCount(c => c + 1);
         const earnedPoints = result.data.pointsEarned ?? 10;
+        setLastEarnedPoints(earnedPoints);
         pointsRef.current += earnedPoints;
         advanceAfterCorrectAnswer();
       } else {
@@ -528,6 +531,7 @@ export default function LessonPage() {
         setShowCorrectAnswer(false);
         setCorrectCount(c => c + 1);
         const earnedPoints = result.data.pointsEarned ?? 10;
+        setLastEarnedPoints(earnedPoints);
         pointsRef.current += earnedPoints;
         advanceAfterCorrectAnswer();
       } else {
@@ -557,6 +561,7 @@ export default function LessonPage() {
         setShowCorrectAnswer(false);
         setCorrectCount(c => c + 1);
         const earnedPoints = result.data.pointsEarned ?? 10;
+        setLastEarnedPoints(earnedPoints);
         pointsRef.current += earnedPoints;
         triggerXpPopup(earnedPoints);
         advanceAfterCorrectAnswer();
@@ -591,8 +596,17 @@ export default function LessonPage() {
         );
       }
       const fetchedLesson = response.data || response;
+      const challengeCount = Array.isArray(fetchedLesson?.challenges) ? fetchedLesson.challenges.length : 0;
+      if (challengeCount === 0) {
+        setLesson(null);
+        setOriginalTotal(0);
+        setCurrentIndex(0);
+        pointsRef.current = 0;
+        setError('Bài học này chưa có câu hỏi. Giáo viên cần thêm hoặc tạo lại nội dung AI trước khi học viên bắt đầu.');
+        return;
+      }
       setLesson(fetchedLesson);
-      setOriginalTotal(fetchedLesson?.challenges?.length || 0);
+      setOriginalTotal(challengeCount);
       setCorrectCount(0);
       setSelectedOption(null);
       setTypedAnswer('');
@@ -656,12 +670,13 @@ export default function LessonPage() {
 
         if (result.data?.isCorrect) {
           setStatus('correct');
-          setShowCorrectAnswer(false);
-          setCorrectCount(c => c + 1);
-          const earnedPoints = result.data.pointsEarned ?? 10;
-          pointsRef.current += earnedPoints;
-          triggerXpPopup(earnedPoints);
-          advanceAfterCorrectAnswer();
+        setShowCorrectAnswer(false);
+        setCorrectCount(c => c + 1);
+        const earnedPoints = result.data.pointsEarned ?? 10;
+        setLastEarnedPoints(earnedPoints);
+        pointsRef.current += earnedPoints;
+        triggerXpPopup(earnedPoints);
+        advanceAfterCorrectAnswer();
         } else {
           setStatus('wrong');
           setShowCorrectAnswer(true);
@@ -695,6 +710,7 @@ export default function LessonPage() {
         setShowCorrectAnswer(false);
         setCorrectCount(c => c + 1);
         const earnedPoints = result.data.pointsEarned ?? 10;
+        setLastEarnedPoints(earnedPoints);
         pointsRef.current += earnedPoints;
         advanceAfterCorrectAnswer();
       } else {
@@ -785,6 +801,7 @@ export default function LessonPage() {
     setTypedAnswer('');
     setStatus('idle');
     setShowCorrectAnswer(false);
+    setLastEarnedPoints(0);
     setOrderedWords([]);
     setOrderedWordBank([]);
     setMatchedPairs({});
@@ -1756,7 +1773,7 @@ export default function LessonPage() {
             >
               ✨
             </motion.span>
-            <span className="feedback-text">Correct! +10 XP</span>
+            <span className="feedback-text">Correct! +{lastEarnedPoints} XP</span>
           </motion.div>
         )}
         {status === 'wrong' && (

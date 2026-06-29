@@ -601,7 +601,7 @@ const saveAiLessonWithChallenges = async (req, res, next) => {
     if (!ch || !ch.type || !ch.question) continue;
 
     const type = String(ch.type).trim().toUpperCase();
-    if (!['ASSIST', 'TRANSLATE', 'FILL', 'ORDER'].includes(type)) continue;
+    if (!['ASSIST', 'TYPE', 'TRANSLATE', 'COMPLETE', 'ORDER', 'MATCH', 'FILL'].includes(type)) continue;
 
     const question = String(ch.question).trim().slice(0, 500);
     const correctAnswer = ch.correctAnswer ? String(ch.correctAnswer).trim().slice(0, 500) : '';
@@ -630,10 +630,19 @@ const saveAiLessonWithChallenges = async (req, res, next) => {
 
       if (type === 'FILL') {
         const sentence = ch.sentence ? String(ch.sentence).trim().slice(0, 500) : '';
-        if (!sentence) continue;
+        if (!sentence || !sentence.includes('___')) continue;
         payload.sentence = sentence;
       }
       validChallenges.push(payload);
+
+    } else if (type === 'TYPE') {
+      if (!correctAnswer) continue;
+
+      validChallenges.push({
+        type,
+        question,
+        correctAnswer
+      });
 
     } else if (type === 'TRANSLATE') {
       if (!correctAnswer) continue;
@@ -650,24 +659,54 @@ const saveAiLessonWithChallenges = async (req, res, next) => {
         targetLang
       });
 
-    } else if (type === 'ORDER') {
-      if (!Array.isArray(ch.wordBank) || ch.wordBank.length === 0) continue;
-      const cleanedWordBank = ch.wordBank.map(w => w ? String(w).trim().slice(0, 100) : '').filter(Boolean);
-      const n = cleanedWordBank.length;
-      if (n === 0) continue;
-
-      if (!Array.isArray(ch.correctOrder) || ch.correctOrder.length !== n) continue;
-      const isPermutation = ch.correctOrder.every(idx => Number.isInteger(idx) && idx >= 0 && idx < n) && new Set(ch.correctOrder).size === n;
-      if (!isPermutation) continue;
-
-      const derivedAnswer = ch.correctOrder.map(idx => cleanedWordBank[idx]).join(' ');
+    } else if (type === 'COMPLETE') {
+      if (!correctAnswer) continue;
+      const sentence = ch.sentence ? String(ch.sentence).trim().slice(0, 500) : '';
+      if (!sentence || !sentence.includes('___')) continue;
 
       validChallenges.push({
         type,
         question,
-        wordBank: cleanedWordBank,
-        correctOrder: ch.correctOrder,
-        correctAnswer: derivedAnswer.slice(0, 500)
+        correctAnswer,
+        sentence
+      });
+
+    } else if (type === 'ORDER') {
+      if (!correctAnswer) continue;
+      const words = correctAnswer.split(/\s+/).map(word => word.trim()).filter(Boolean);
+      if (words.length < 2) continue;
+
+      validChallenges.push({
+        type,
+        question,
+        wordBank: words,
+        correctOrder: words.map((_, idx) => idx),
+        correctAnswer: words.join(' ').slice(0, 500)
+      });
+    } else if (type === 'MATCH') {
+      if (!Array.isArray(ch.pairs)) continue;
+
+      const seen = new Set();
+      const pairs = ch.pairs
+        .map(pair => ({
+          left: pair && pair.left ? String(pair.left).trim().slice(0, 120) : '',
+          right: pair && pair.right ? String(pair.right).trim().slice(0, 120) : ''
+        }))
+        .filter(pair => pair.left && pair.right)
+        .filter(pair => {
+          const key = `${pair.left.toLowerCase()}::${pair.right.toLowerCase()}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        })
+        .slice(0, 6);
+
+      if (pairs.length < 2) continue;
+
+      validChallenges.push({
+        type,
+        question,
+        pairs
       });
     }
   }
@@ -712,6 +751,7 @@ const saveAiLessonWithChallenges = async (req, res, next) => {
         targetLang: ch.targetLang,
         wordBank: ch.wordBank,
         correctOrder: ch.correctOrder,
+        pairs: ch.pairs,
         sentence: ch.sentence,
         order: i
       });

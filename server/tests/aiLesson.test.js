@@ -235,6 +235,76 @@ describe('AI Lesson & Teacher Save API', () => {
       expect(logs[0].status).toBe('success');
     });
 
+    it('should honor teacher-selected safe challenge types and reject unselected or SELECT output', async () => {
+      const encryptedKey = cryptoHelper.encrypt('mock-gemini-api-key');
+      const cookieHeader = getSignedCookieHeader(encryptedKey);
+
+      geminiProvider.generateStructuredData.mockResolvedValueOnce({
+        title: 'Selected types lesson',
+        subtitle: 'Only selected types',
+        grammarFocus: ['Basics'],
+        vocabFocus: ['hello'],
+        challenges: [
+          {
+            type: 'TYPE',
+            question: 'Type the greeting',
+            correctAnswer: 'Hello'
+          },
+          {
+            type: 'COMPLETE',
+            question: 'Complete the sentence',
+            sentence: 'She ___ a student.',
+            correctAnswer: 'is'
+          },
+          {
+            type: 'MATCH',
+            question: 'Match the words',
+            pairs: [
+              { left: 'hello', right: 'xin chao' },
+              { left: 'bye', right: 'tam biet' }
+            ]
+          },
+          {
+            type: 'SELECT',
+            question: 'Unsafe image question',
+            options: [
+              { text: 'A', correct: true },
+              { text: 'B', correct: false }
+            ]
+          },
+          {
+            type: 'ASSIST',
+            question: 'Unselected type',
+            options: [
+              { text: 'A', correct: true },
+              { text: 'B', correct: false }
+            ]
+          }
+        ]
+      });
+
+      const res = await request(app)
+        .post('/api/ai/lessons/generate')
+        .set('Origin', mockClientUrl)
+        .set('Authorization', `Bearer ${teacherToken}`)
+        .set('Cookie', [cookieHeader])
+        .send({
+          topic: 'Greetings',
+          level: 'A1-A2',
+          count: 5,
+          challengeTypes: ['TYPE', 'COMPLETE', 'MATCH']
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.lesson.challenges.map(ch => ch.type)).toEqual(['TYPE', 'COMPLETE', 'MATCH']);
+      expect(res.body.lesson.challenges.find(ch => ch.type === 'MATCH').pairs).toHaveLength(2);
+
+      const [, prompt] = geminiProvider.generateStructuredData.mock.calls[0];
+      expect(prompt).toContain('TYPE, COMPLETE, MATCH');
+      expect(prompt).toContain('SELECT is forbidden');
+    });
+
     it('should throw 422 error if AI generates 0 valid challenges', async () => {
       const encryptedKey = cryptoHelper.encrypt('mock-gemini-api-key');
       const cookieHeader = getSignedCookieHeader(encryptedKey);
@@ -264,7 +334,7 @@ describe('AI Lesson & Teacher Save API', () => {
         .send({ topic: 'Invalid Topic', level: 'A1-A2', count: 5 });
 
       expect(res.status).toBe(422);
-      expect(res.body.message).toContain('không thể tạo được bất kỳ câu hỏi/bài tập hợp lệ nào');
+      expect(res.body.message).toContain('could not generate any valid lesson challenge');
     });
   });
 
@@ -334,6 +404,58 @@ describe('AI Lesson & Teacher Save API', () => {
 
       const savedOptions = await ChallengeOption.find({ challenge: savedChallenges[1]._id });
       expect(savedOptions.length).toBe(2);
+    });
+
+    it('should save AI lesson with TYPE, COMPLETE, ORDER and MATCH challenges', async () => {
+      const res = await request(app)
+        .post(`/api/teacher/units/${unit._id}/lessons/ai-save`)
+        .set('Authorization', `Bearer ${teacherToken}`)
+        .send({
+          lesson: {
+            title: 'Seven Mode Safe Lesson',
+            type: 'challenge'
+          },
+          challenges: [
+            {
+              type: 'TYPE',
+              question: 'Type the greeting',
+              correctAnswer: 'Good morning'
+            },
+            {
+              type: 'COMPLETE',
+              question: 'Complete the sentence',
+              sentence: 'She ___ a student.',
+              correctAnswer: 'is'
+            },
+            {
+              type: 'ORDER',
+              question: 'Arrange the sentence',
+              correctAnswer: 'I go to school'
+            },
+            {
+              type: 'MATCH',
+              question: 'Match the words',
+              pairs: [
+                { left: 'hello', right: 'xin chao' },
+                { left: 'goodbye', right: 'tam biet' }
+              ]
+            }
+          ]
+        });
+
+      expect(res.status).toBe(201);
+
+      const savedLesson = await Lesson.findOne({ title: 'Seven Mode Safe Lesson' });
+      const savedChallenges = await Challenge.find({ lesson: savedLesson._id }).sort({ order: 1 }).lean();
+
+      expect(savedChallenges.map(ch => ch.type)).toEqual(['TYPE', 'COMPLETE', 'ORDER', 'MATCH']);
+      expect(savedChallenges[1].sentence).toBe('She ___ a student.');
+      expect(savedChallenges[2].wordBank).toEqual(['I', 'go', 'to', 'school']);
+      expect(savedChallenges[2].correctOrder).toEqual([0, 1, 2, 3]);
+      expect(savedChallenges[3].pairs.map(pair => ({ left: pair.left, right: pair.right }))).toEqual([
+        { left: 'hello', right: 'xin chao' },
+        { left: 'goodbye', right: 'tam biet' }
+      ]);
     });
 
     it('should make a single AI-saved lesson playable for students in that zone', async () => {

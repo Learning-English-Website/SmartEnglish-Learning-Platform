@@ -342,6 +342,108 @@ describe('Duolingo API', () => {
       expect(secondRes.body.data.pointsEarned).toBe(0);
     });
 
+    it('should preserve challenge completion and XP idempotency when challenge ObjectId is recreated', async () => {
+      await UserProgress.findOneAndUpdate(
+        { user: testUser._id },
+        { user: testUser._id, activeCourse: testCourse._id, points: 0, totalXP: 0 },
+        { upsert: true, new: true }
+      );
+
+      const firstRes = await request(app)
+        .post('/api/duolingo/quiz/answer')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ challengeId: testChallenge._id.toString(), selectedOptionId: testChallenge.options[0].text });
+
+      expect(firstRes.status).toBe(200);
+      expect(firstRes.body.data.pointsEarned).toBe(10);
+
+      const storedProgress = await ChallengeProgress.findOne({
+        user: testUser._id,
+        challenge: testChallenge._id,
+      });
+      expect(storedProgress.challengeKey).toBeTruthy();
+
+      await Challenge.deleteOne({ _id: testChallenge._id });
+      const recreatedChallenge = await Challenge.create({
+        lesson: testLesson._id,
+        type: 'SELECT',
+        question: testChallenge.question,
+        options: [
+          { text: 'Hello', correct: true },
+          { text: 'Goodbye', correct: false },
+        ],
+        order: 1,
+      });
+
+      const unitsRes = await request(app)
+        .get('/api/duolingo/units')
+        .set('Authorization', `Bearer ${authToken}`);
+
+      expect(unitsRes.status).toBe(200);
+      const lessonFromTree = unitsRes.body.data[0].lessons.find(
+        (lesson) => lesson._id.toString() === testLesson._id.toString()
+      );
+      expect(lessonFromTree.completed).toBe(true);
+
+      const retryRes = await request(app)
+        .post('/api/duolingo/quiz/answer')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ challengeId: recreatedChallenge._id.toString(), selectedOptionId: recreatedChallenge.options[0].text });
+
+      expect(retryRes.status).toBe(200);
+      expect(retryRes.body.data.isCorrect).toBe(true);
+      expect(retryRes.body.data.pointsEarned).toBe(0);
+
+      const repairedProgress = await ChallengeProgress.findOne({
+        user: testUser._id,
+        challenge: recreatedChallenge._id,
+      });
+      expect(repairedProgress._id.toString()).toBe(storedProgress._id.toString());
+    });
+
+    it('should award XP for every distinct correct challenge even when order and type repeat', async () => {
+      await UserProgress.findOneAndUpdate(
+        { user: testUser._id },
+        { user: testUser._id, activeCourse: testCourse._id, points: 0, totalXP: 0 },
+        { upsert: true, new: true }
+      );
+
+      const duplicateOrderChallenge = await Challenge.create({
+        lesson: testLesson._id,
+        type: 'SELECT',
+        question: 'Which word means goodbye?',
+        options: [
+          { text: 'Goodbye', correct: true },
+          { text: 'Hello', correct: false },
+        ],
+        order: testChallenge.order,
+      });
+
+      const firstRes = await request(app)
+        .post('/api/duolingo/quiz/answer')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ challengeId: testChallenge._id.toString(), selectedOptionId: testChallenge.options[0].text });
+
+      const secondRes = await request(app)
+        .post('/api/duolingo/quiz/answer')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ challengeId: duplicateOrderChallenge._id.toString(), selectedOptionId: duplicateOrderChallenge.options[0].text });
+
+      expect(firstRes.status).toBe(200);
+      expect(secondRes.status).toBe(200);
+      expect(firstRes.body.data.pointsEarned).toBe(10);
+      expect(secondRes.body.data.pointsEarned).toBe(10);
+
+      const progressRows = await ChallengeProgress.find({
+        user: testUser._id,
+        challenge: { $in: [testChallenge._id, duplicateOrderChallenge._id] },
+      });
+      expect(progressRows).toHaveLength(2);
+
+      const userProgress = await UserProgress.findOne({ user: testUser._id });
+      expect(userProgress.points).toBe(20);
+    });
+
     it('should complete a retried roadmap answer without awarding XP after an earlier wrong answer', async () => {
       const wrongRes = await request(app)
         .post('/api/duolingo/quiz/answer')
@@ -573,6 +675,52 @@ describe('Duolingo API', () => {
         .set('Authorization', `Bearer ${authToken}`);
       expect(nextRes.status).toBe(200);
       expect(nextRes.body.data.lesson._id.toString()).toBe(jumpLesson2._id.toString());
+    });
+
+    it('should preserve roadmap lesson completion when lesson ObjectId is recreated', async () => {
+      await UserProgress.findOneAndUpdate(
+        { user: testUser._id },
+        { user: testUser._id, activeCourse: testCourse._id },
+        { upsert: true, new: true }
+      );
+
+      const completeRes = await request(app)
+        .post(`/api/duolingo/lessons/${testLesson._id}/complete`)
+        .set('Authorization', `Bearer ${authToken}`);
+
+      expect(completeRes.status).toBe(200);
+
+      const savedProgress = await UserProgress.findOne({ user: testUser._id });
+      expect(savedProgress.crownsByLesson.get(String(testLesson._id))).toBe(1);
+      expect(savedProgress.completedLessonKeys.size).toBe(1);
+
+      await Challenge.deleteMany({ lesson: testLesson._id });
+      await Lesson.deleteOne({ _id: testLesson._id });
+
+      const recreatedLesson = await Lesson.create({
+        title: 'Recreated Lesson Title',
+        unit: testUnit._id,
+        order: 1,
+        isLocked: false,
+      });
+      await Challenge.create({
+        lesson: recreatedLesson._id,
+        type: 'SELECT',
+        question: 'What is hello after recreate?',
+        options: [{ text: 'Hello', correct: true }],
+        order: 1,
+      });
+
+      const unitsRes = await request(app)
+        .get('/api/duolingo/units')
+        .set('Authorization', `Bearer ${authToken}`);
+
+      expect(unitsRes.status).toBe(200);
+      const recreatedLessonInTree = unitsRes.body.data[0].lessons.find(
+        (lesson) => lesson._id.toString() === recreatedLesson._id.toString()
+      );
+      expect(recreatedLessonInTree.completed).toBe(true);
+      expect(recreatedLessonInTree.isLocked).toBe(false);
     });
   });
 

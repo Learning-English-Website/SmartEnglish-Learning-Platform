@@ -125,6 +125,10 @@ export default function LearnPage() {
   }, [units, userStats.currentLessonTarget]);
   
   const handleLessonClick = (lesson) => {
+    if ((lesson.challengesCount ?? 0) <= 0) {
+      window.alert('Bài học này chưa có câu hỏi. Giáo viên cần thêm hoặc tạo lại nội dung AI trước khi học viên bắt đầu.');
+      return;
+    }
     const isCompleted = lesson.completed;
     if (isCompleted) {
       navigate(`/duolingo/lesson/${lesson._id}?practice=true`);
@@ -145,18 +149,18 @@ export default function LearnPage() {
     } else {
       // Prefer the first available lesson inside the selected zone so jump learning
       // does not pull the learner back to an older unfinished zone.
-      let activeLesson = unit.lessons?.find((l) => !l.completed && !l.isLocked) || null;
+      let activeLesson = unit.lessons?.find((l) => !l.completed && !l.isLocked && (l.challengesCount ?? 0) > 0) || null;
 
       if (!activeLesson) {
         const targetId = userStats.currentLessonTarget?._id || userStats.currentLessonTarget;
         activeLesson = units
           .flatMap((u) => u.lessons || [])
-          .find((l) => l._id === targetId && !l.completed && !l.isLocked) || null;
+          .find((l) => l._id === targetId && !l.completed && !l.isLocked && (l.challengesCount ?? 0) > 0) || null;
       }
 
       if (!activeLesson) {
         for (const u of units) {
-          const incomplete = u.lessons?.find((l) => !l.completed && !l.isLocked);
+          const incomplete = u.lessons?.find((l) => !l.completed && !l.isLocked && (l.challengesCount ?? 0) > 0);
           if (incomplete) {
             activeLesson = incomplete;
             break;
