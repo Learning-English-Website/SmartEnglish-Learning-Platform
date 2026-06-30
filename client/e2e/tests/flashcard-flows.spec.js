@@ -4,25 +4,12 @@ import { test, expect } from '@playwright/test';
  * Quick auth helper - registers a new user
  */
 async function quickAuth(page) {
-  const email = `playwright${Date.now()}@test.com`;
-  const password = 'TestPass123!';
-  
-  await page.goto('/register');
+  await page.goto('/login');
   await page.waitForLoadState('networkidle');
-  
-  await page.locator('#register-email').fill(email);
-  await page.locator('#register-username').fill(`user${Date.now().toString().slice(-6)}`);
-  await page.locator('#register-password').fill(password);
-  await page.locator('#register-confirm').fill(password);
-  await page.locator('#register-submit').click();
-  
-  // Wait and skip OTP by going to flashcards
-  await page.waitForTimeout(2000);
-  if (page.url().includes('/register/otp')) {
-    await page.goto('/flashcards');
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(1000);
-  }
+  await page.locator('#login-email').fill('student@gmail.com');
+  await page.locator('#login-password').fill('Memoris123');
+  await page.locator('#login-submit').click();
+  await page.waitForURL(/\/(dashboard|quizlet|$)/, { timeout: 15000 });
 }
 
 /**

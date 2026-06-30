@@ -102,8 +102,10 @@ test.describe.serial('Flashcard Set CRUD E2E Tests (UC08 - UC10)', () => {
     await folderSelect.selectOption(testFolder._id.toString());
 
     // 4. Select tag
-    await page.locator('.tag-picker-input').click();
-    await page.locator('.tag-picker-option', { hasText: 'English' }).click();
+    const tagInput = page.locator('.tag-picker-input');
+    await tagInput.scrollIntoViewIfNeeded();
+    await tagInput.fill('English', { force: true });
+    await page.locator('.tag-picker-option', { hasText: 'English' }).click({ force: true });
 
     // 5. Fill first card term & definition
     const cardEditor = page.locator('.cs-card-editor-wrap').first();

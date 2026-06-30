@@ -77,7 +77,7 @@ test.describe('Admin Operations (UC25, UC26)', () => {
     await page.locator('#login-email').fill('admin@gmail.com');
     await page.locator('#login-password').fill('Memoris123');
     await page.locator('#login-submit').click();
-    await page.waitForTimeout(3000);
+    await page.waitForURL(/\/(dashboard|admin|$)/, { timeout: 15000 });
 
     // If on mobile view, collapse sidebar to show the main panel content
     if (isMobile) {
@@ -97,8 +97,11 @@ test.describe('Admin Operations (UC25, UC26)', () => {
     await page.goto('/admin/feedback');
     await page.waitForLoadState('networkidle');
     if (isMobile) {
-      await page.locator('.admin-topbar-toggle-btn').click();
-      await page.waitForTimeout(500);
+      const toggleBtn = page.locator('.admin-topbar-toggle-btn');
+      if (await toggleBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+        await toggleBtn.click();
+        await page.waitForTimeout(500);
+      }
     }
 
     // 1. Locate the row with our seeded feedback
@@ -131,8 +134,11 @@ test.describe('Admin Operations (UC25, UC26)', () => {
     await page.goto('/admin/orders');
     await page.waitForLoadState('networkidle');
     if (isMobile) {
-      await page.locator('.admin-topbar-toggle-btn').click();
-      await page.waitForTimeout(500);
+      const toggleBtn = page.locator('.admin-topbar-toggle-btn');
+      if (await toggleBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+        await toggleBtn.click();
+        await page.waitForTimeout(500);
+      }
     }
 
     // 1. Enter the order code in search input

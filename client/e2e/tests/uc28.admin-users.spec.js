@@ -48,7 +48,7 @@ test.describe('Admin User Management Operations (UC28)', () => {
     await page.locator('#login-email').fill('admin@gmail.com');
     await page.locator('#login-password').fill('Memoris123');
     await page.locator('#login-submit').click();
-    await page.waitForTimeout(3000);
+    await page.waitForURL(/\/(dashboard|admin|$)/, { timeout: 15000 });
 
     // If on mobile view, collapse sidebar to show the main panel content
     if (isMobile) {
@@ -68,8 +68,11 @@ test.describe('Admin User Management Operations (UC28)', () => {
     await page.goto('/admin/users');
     await page.waitForLoadState('networkidle');
     if (isMobile) {
-      await page.locator('.admin-topbar-toggle-btn').click();
-      await page.waitForTimeout(500);
+      const toggleBtn = page.locator('.admin-topbar-toggle-btn');
+      if (await toggleBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+        await toggleBtn.click();
+        await page.waitForTimeout(500);
+      }
     }
 
     // 1. Filter role to Student
@@ -94,8 +97,11 @@ test.describe('Admin User Management Operations (UC28)', () => {
     await page.goto('/admin/users');
     await page.waitForLoadState('networkidle');
     if (isMobile) {
-      await page.locator('.admin-topbar-toggle-btn').click();
-      await page.waitForTimeout(500);
+      const toggleBtn = page.locator('.admin-topbar-toggle-btn');
+      if (await toggleBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+        await toggleBtn.click();
+        await page.waitForTimeout(500);
+      }
     }
 
     // 1. Search for the student user

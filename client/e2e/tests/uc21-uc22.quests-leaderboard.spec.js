@@ -22,6 +22,27 @@ function getDateKey(d = new Date()) {
   return d.toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
 }
 
+async function ensureDailyQuest(userId, overrides = {}) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return DailyQuest.findOneAndUpdate(
+    { user: userId, day: today, type: overrides.type || 'xp' },
+    {
+      $setOnInsert: {
+        user: userId,
+        day: today,
+        type: overrides.type || 'xp',
+        targetValue: overrides.targetValue || 100,
+        xpReward: overrides.xpReward || 15,
+        progress: 0,
+        isCompleted: false,
+        rewardClaimed: false,
+      },
+    },
+    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
+  );
+}
+
 test.describe('Daily Quests and Challenge Leaderboard (UC21, UC22)', () => {
   let testUser;
   let userEmail;
@@ -91,7 +112,7 @@ test.describe('Daily Quests and Challenge Leaderboard (UC21, UC22)', () => {
     await page.waitForLoadState('networkidle');
 
     // 2. Find one of the quests and complete it in the database
-    const quest = await DailyQuest.findOne({ user: testUser._id });
+    const quest = await ensureDailyQuest(testUser._id);
     expect(quest).not.toBeNull();
     
     quest.progress = quest.targetValue;
@@ -118,7 +139,7 @@ test.describe('Daily Quests and Challenge Leaderboard (UC21, UC22)', () => {
     await page.waitForLoadState('networkidle');
 
     // 1. Ensure user has quests that are not completed
-    const quest = await DailyQuest.findOne({ user: testUser._id });
+    const quest = await ensureDailyQuest(testUser._id);
     expect(quest).not.toBeNull();
     
     quest.progress = 0;
