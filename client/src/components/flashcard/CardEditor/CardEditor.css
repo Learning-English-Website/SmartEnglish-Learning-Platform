@@ -40,10 +40,10 @@
 }
 
 .ce-label {
-  font-size: 0.6rem;
-  font-family: var(--font-mono);
-  font-weight: 700;
-  letter-spacing: 0.07em;
+  font-size: 0.75rem;
+  font-family: var(--font-sans);
+  font-weight: 650;
+  letter-spacing: 0.05em;
   color: var(--text-muted);
   text-transform: uppercase;
 }
@@ -109,6 +109,8 @@
 .ce-input::placeholder {
   color: var(--text-muted);
   opacity: 0.55;
+  font-size: 0.825rem;
+  font-weight: 400;
 }
 
 .ce-error {
@@ -273,7 +275,7 @@
 
 .ce-suggest-ipa {
   font-size: 0.875rem;
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   color: var(--gl-tertiary);
   flex: 1;
 }
@@ -358,13 +360,13 @@
 .ce-suggest-def-item:hover { background: rgba(44, 94, 245, 0.05); }
 
 .ce-suggest-pos {
-  font-size: 0.6rem;
-  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-family: var(--font-sans);
   font-style: italic;
-  font-weight: 700;
+  font-weight: 650;
   color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.05em;
   margin-bottom: 2px;
 }
 
@@ -413,7 +415,7 @@
 
 .ce-suggest-ipa {
   font-size: 0.875rem;
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   color: var(--gl-tertiary);
   flex: 1;
 }
@@ -504,13 +506,13 @@
 }
 
 .ce-suggest-pos {
-  font-size: 0.6rem;
-  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-family: var(--font-sans);
   font-style: italic;
-  font-weight: 700;
+  font-weight: 650;
   color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.05em;
   margin-bottom: 2px;
 }
 
@@ -735,4 +737,81 @@
   border-color: var(--gl-tertiary);
   background: rgba(44, 94, 245, 0.08);
   color: var(--gl-tertiary);
+}
+
+/* ── Custom Quizlet-Style Clean Inputs ───────────────────────────────── */
+.ce-row:not(.ce-row--extra) .ce-input {
+  border: none !important;
+  border-bottom: 1.5px solid var(--border-subtle) !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+  padding: 14px 0 !important;
+  font-size: 1.05rem !important;
+  font-weight: 500;
+  box-shadow: none !important;
+  transition: border-color 0.2s ease;
+}
+
+.ce-row:not(.ce-row--extra) .ce-input:focus {
+  border-bottom-color: var(--gl-tertiary) !important;
+}
+
+.ce-row:not(.ce-row--extra) .ce-input::placeholder {
+  font-size: 0.875rem !important;
+  font-weight: 400;
+}
+
+/* Adjust the search icon position for the Term input line */
+.ce-row:not(.ce-row--extra) .ce-input-icon {
+  left: 0;
+}
+
+.ce-row:not(.ce-row--extra) .ce-input--icon {
+  padding-left: 24px !important;
+}
+
+/* ── Toggle Advanced Fields ──────────────────────────────────────────── */
+.ce-extra-toggle-row {
+  display: flex;
+  justify-content: flex-start;
+  padding: 4px 0;
+}
+
+.ce-extra-toggle-btn {
+  background: none;
+  border: none;
+  color: var(--gl-tertiary);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  font-family: var(--font-sans);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: opacity 0.15s;
+}
+
+.ce-extra-toggle-btn:hover {
+  opacity: 0.8;
+}
+
+.ce-extra-toggle-btn.active {
+  color: var(--text-muted);
+}
+
+/* ── Animations ──────────────────────────────────────────────────────── */
+@keyframes ce-slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-down {
+  animation: ce-slide-down 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }

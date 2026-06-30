@@ -291,68 +291,77 @@ export default function CreateSet() {
 
           {titleError && <p className="cs-title-error">{titleError}</p>}
 
-          {/* Visibility + saved indicator */}
-          <div className="cs-meta-row">
-            <button
-              className={`cs-visibility-btn ${isPublic ? 'public' : 'private'}`}
-              onClick={() => setIsPublic((v) => !v)}
-              type="button"
-            >
-              {isPublic ? <FiGlobe size={13} /> : <FiLock size={13} />}
-              {isPublic ? 'Công khai' : 'Riêng tư'}
-            </button>
-            {savedAt ? (
-              <span className="cs-saved-label cs-saved-label--active">
-                ✓ Đã lưu bản nháp {savedAt.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
-              </span>
-            ) : (
-              <span className="cs-saved-label">Tự động lưu đang bật</span>
-            )}
-          </div>
-
-          {/* Title input */}
-          <input
-            id="cs-title-input"
-            className={`cs-title-input ${titleError ? 'cs-title-input--error' : ''}`}
-            type="text"
-            placeholder="Tiêu đề"
-            value={title}
-            onChange={(e) => { setTitle(e.target.value); if (titleError) setTitleError(''); }}
-            autoFocus
-          />
-
-          {/* Description input */}
-          <input
-            className="cs-desc-input"
-            type="text"
-            placeholder="Mô tả"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-          />
-
-          {/* Options row */}
-          <div className="cs-options-row">
-            <div className="cs-options-left">
-              <select
-                className="cs-folder-select"
-                value={selectedFolder || ''}
-                onChange={(e) => setSelectedFolder(e.target.value || null)}
-                aria-label="Thư mục"
+          {/* Header Card (Title, Description, Folder, Tags) */}
+          <div className="cs-header-card">
+            {/* Visibility + saved indicator */}
+            <div className="cs-meta-row">
+              <button
+                className={`cs-visibility-btn ${isPublic ? 'public' : 'private'}`}
+                onClick={() => setIsPublic((v) => !v)}
+                type="button"
               >
-                <option value="">Không có thư mục</option>
-                {folders.map((f) => (
-                  <option key={f._id} value={f._id}>{f.name}</option>
-                ))}
-              </select>
+                {isPublic ? <FiGlobe size={14} /> : <FiLock size={14} />}
+                {isPublic ? 'Công khai' : 'Riêng tư'}
+              </button>
+              {savedAt && (
+                <span className="cs-saved-label cs-saved-label--active">
+                  ✓ Đã lưu bản nháp {savedAt.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              )}
             </div>
-            <div className="cs-options-right">
-              <label className="cs-tags-label">Tags</label>
-              <TagPicker
-                selectedTags={tags}
-                onChange={setTags}
-                placeholder="Thêm tag..."
-                folderId={searchParams.get('folderId')}
+
+            {/* Title input */}
+            <div className="cs-input-group">
+              <label className="cs-option-label">Tiêu đề học phần *</label>
+              <input
+                id="cs-title-input"
+                className={`cs-title-input ${titleError ? 'cs-title-input--error' : ''}`}
+                type="text"
+                placeholder="Nhập tiêu đề, ví dụ: 'Từ vựng IELTS - Chủ đề Môi trường'"
+                value={title}
+                onChange={(e) => { setTitle(e.target.value); if (titleError) setTitleError(''); }}
+                autoFocus
               />
+            </div>
+
+            {/* Description input */}
+            <div className="cs-input-group">
+              <label className="cs-option-label">Mô tả</label>
+              <textarea
+                className="cs-desc-input"
+                placeholder="Thêm mô tả ngắn gọn về học phần này..."
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={3}
+              />
+            </div>
+
+            {/* Options row */}
+            <div className="cs-options-row">
+              <div className="cs-option-group">
+                <label className="cs-option-label">Thư mục</label>
+                <div className="cs-select-wrapper">
+                  <select
+                    className="cs-folder-select"
+                    value={selectedFolder || ''}
+                    onChange={(e) => setSelectedFolder(e.target.value || null)}
+                  >
+                    <option value="">Không có thư mục</option>
+                    {folders.map((f) => (
+                      <option key={f._id} value={f._id}>{f.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="cs-option-group">
+                <label className="cs-option-label">Tags</label>
+                <TagPicker
+                  selectedTags={tags}
+                  onChange={setTags}
+                  placeholder="Thêm tag..."
+                  folderId={searchParams.get('folderId')}
+                />
+              </div>
             </div>
           </div>
 

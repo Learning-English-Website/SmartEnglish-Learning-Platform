@@ -1,85 +1,6 @@
 /* ============================================================
-   CreateSet — Quizlet-style layout
+   CreateSet — Modern Premium Layout
    ============================================================ */
-
-/* Draft restore banner */
-.cs-draft-banner {
-  position: fixed;
-  top: calc(var(--q-topbar-h, 58px) + 80px);
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 200;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 18px;
-  background: var(--bg-elevated);
-  border: 1.5px solid rgba(44, 94, 245, 0.4);
-  border-radius: 10px;
-  box-shadow: 0 8px 24px rgba(44, 94, 245, 0.15);
-  font-size: 0.85rem;
-  color: var(--text-body);
-  white-space: nowrap;
-}
-
-.cs-draft-btn {
-  padding: 4px 12px;
-  background: var(--gl-tertiary);
-  color: #fff;
-  border: none;
-  border-radius: 6px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  cursor: pointer;
-  font-family: var(--font-sans);
-}
-
-.cs-draft-dismiss {
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  font-size: 1rem;
-  cursor: pointer;
-  padding: 0 4px;
-  line-height: 1;
-}
-
-/* Shortcut hints in topbar */
-.cs-shortcut-hints {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-left: 8px;
-}
-
-.cs-shortcut-hints span {
-  font-size: 0.72rem;
-  color: var(--text-muted);
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-/* Saved label active state */
-.cs-saved-label--active {
-  color: #34d399 !important;
-  font-weight: 600;
-}
-
-/* kbd styles */
-kbd {
-  display: inline-flex;
-  align-items: center;
-  padding: 1px 5px;
-  border-radius: 4px;
-  border: 1px solid var(--border-subtle);
-  background: var(--bg-elevated);
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-  font-size: 0.65rem;
-  line-height: 1.4;
-  box-shadow: 0 1px 0 var(--border-subtle);
-}
 
 /* Page wrapper */
 .cs-page {
@@ -96,17 +17,17 @@ kbd {
   position: sticky;
   top: var(--q-topbar-h, 58px);
   z-index: 100;
-  background: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
-  padding: 18px 0;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 14px 0;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+  transition: background 0.3s;
 }
 
 [data-theme='dark'] .cs-topbar {
-  background: rgba(30, 30, 45, 0.92) !important;
-  border-bottom-color: rgba(255, 255, 255, 0.05);
+  background: rgba(21, 25, 34, 0.85) !important;
 }
 
 .cs-topbar-content {
@@ -114,7 +35,6 @@ kbd {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 0 1.75rem;
 }
 
 .cs-topbar-left {
@@ -127,38 +47,58 @@ kbd {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
-  border: none;
-  background: var(--bg-page);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-elevated);
   color: var(--text-body);
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.2s ease;
   flex-shrink: 0;
-}
-
-[data-theme='dark'] .cs-back-btn {
-  background: rgba(255, 255, 255, 0.04);
 }
 
 .cs-back-btn:hover {
   background: rgba(44, 94, 245, 0.08);
   color: var(--gl-tertiary);
+  border-color: rgba(44, 94, 245, 0.2);
   transform: translateX(-2px);
 }
 
-[data-theme='dark'] .cs-back-btn:hover {
-  background: rgba(44, 94, 245, 0.15);
-}
-
 .cs-topbar-title {
-  font-size: 1.625rem;
+  font-size: 1.25rem;
   font-weight: 700;
   color: var(--text-heading);
   margin: 0;
-  line-height: 1.2;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
+}
+
+.cs-shortcut-hints {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: 8px;
+}
+
+.cs-shortcut-hints span {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+kbd {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 5px;
+  border-radius: 4px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  line-height: 1.4;
 }
 
 .cs-topbar-right {
@@ -171,16 +111,17 @@ kbd {
 .cs-btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
-  padding: 11px 20px;
-  border-radius: 9999px; /* Pill shape */
+  padding: 10px 20px;
+  border-radius: 10px;
   font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
-  border: none;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1.5px solid transparent;
+  transition: all 0.2s ease;
   white-space: nowrap;
-  letter-spacing: 0.01em;
+  font-family: var(--font-sans);
 }
 
 .cs-btn:disabled {
@@ -189,28 +130,15 @@ kbd {
 }
 
 .cs-btn--outline {
-  background: var(--bg-page);
-  border: 1.5px solid var(--border-subtle);
+  background: var(--bg-elevated);
+  border-color: var(--border-subtle);
   color: var(--text-body);
 }
 
 .cs-btn--outline:hover:not(:disabled) {
-  background: #ffffff;
-  border-color: rgba(44, 94, 245, 0.22);
+  border-color: var(--gl-tertiary);
   color: var(--gl-tertiary);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-  transform: translateY(-1px);
-}
-
-[data-theme='dark'] .cs-btn--outline {
-  background: rgba(255, 255, 255, 0.02);
-  border-color: var(--border-subtle);
-}
-
-[data-theme='dark'] .cs-btn--outline:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--gl-tertiary);
-  border-color: rgba(44, 94, 245, 0.35);
+  background: rgba(44, 94, 245, 0.02);
 }
 
 .cs-btn--primary {
@@ -220,31 +148,47 @@ kbd {
 
 .cs-btn--primary:hover:not(:disabled) {
   filter: brightness(1.08);
-  transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(44, 94, 245, 0.15);
 }
 
 .cs-btn--lg {
-  padding: 13px 32px;
-  font-size: 1rem;
+  padding: 12px 28px;
+  font-size: 0.95rem;
 }
 
-/* ── Body ─────────────────────────────────────────────────────────────── */
+/* ── Body Layout ──────────────────────────────────────────────────────── */
 .cs-body {
   flex: 1;
-  max-width: 1100px;
+  max-width: 900px;
   width: 100%;
   margin: 0 auto;
-  padding: 36px 1.75rem 64px;
+  padding: 32px 0 64px;
 }
 
-/* Title error */
+/* Header Card (Title, Description, etc.) */
+.cs-header-card {
+  background: var(--bg-elevated);
+  border: 1.5px solid var(--border-subtle);
+  border-radius: 16px;
+  padding: 28px;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.015);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.cs-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .cs-title-error {
   color: #ef4444;
   font-size: 0.825rem;
   font-weight: 600;
-  margin-bottom: 8px;
-  margin-top: 0;
+  margin-bottom: 12px;
 }
 
 /* Meta row: visibility + saved */
@@ -252,32 +196,28 @@ kbd {
   display: flex;
   align-items: center;
   gap: 14px;
-  margin-bottom: 14px;
 }
 
 .cs-visibility-btn {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 4px 12px;
+  gap: 6px;
+  padding: 6px 14px;
   border-radius: 20px;
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
   border: 1.5px solid var(--border-subtle);
-  background: var(--bg-elevated);
+  background: var(--bg-page);
+  color: var(--text-muted);
   transition: all 0.15s ease;
   font-family: var(--font-sans);
 }
 
 .cs-visibility-btn.public {
-  border-color: rgba(44, 94, 245, 0.4);
+  border-color: rgba(44, 94, 245, 0.3);
   color: var(--gl-tertiary);
-  background: rgba(44, 94, 245, 0.06);
-}
-
-.cs-visibility-btn.private {
-  color: var(--text-muted);
+  background: rgba(44, 94, 245, 0.05);
 }
 
 .cs-visibility-btn:hover {
@@ -285,24 +225,29 @@ kbd {
 }
 
 .cs-saved-label {
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   color: var(--text-muted);
+}
+
+.cs-saved-label--active {
+  color: #10b981 !important;
+  font-weight: 600;
 }
 
 /* Title input */
 .cs-title-input {
   display: block;
   width: 100%;
-  padding: 16px 18px;
-  font-size: 1rem;
+  padding: 14px 18px;
+  font-size: 1.1rem;
+  font-weight: 600;
   font-family: var(--font-sans);
   color: var(--text-body);
-  background: var(--bg-elevated);
+  background: var(--bg-page);
   border: 1.5px solid var(--border-subtle);
   border-radius: 10px;
   outline: none;
   transition: border-color 0.18s ease, box-shadow 0.18s ease;
-  margin-bottom: 10px;
 }
 
 .cs-title-input:focus {
@@ -317,183 +262,158 @@ kbd {
 
 .cs-title-input::placeholder {
   color: var(--text-muted);
-  opacity: 0.7;
+  opacity: 0.6;
+  font-size: 0.9rem;
+  font-weight: 400;
 }
 
 /* Description input */
 .cs-desc-input {
   display: block;
   width: 100%;
-  padding: 12px 18px;
-  font-size: 0.9rem;
+  padding: 14px 18px;
+  font-size: 0.95rem;
   font-family: var(--font-sans);
-  color: var(--text-muted);
-  background: transparent;
-  border: none;
-  border-bottom: 1.5px solid var(--border-subtle);
-  border-radius: 0;
+  color: var(--text-body);
+  background: var(--bg-page);
+  border: 1.5px solid var(--border-subtle);
+  border-radius: 10px;
   outline: none;
-  transition: border-color 0.18s ease;
-  margin-bottom: 20px;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+  resize: vertical;
+  min-height: 80px;
 }
 
 .cs-desc-input:focus {
-  border-bottom-color: var(--gl-tertiary);
-  color: var(--text-body);
+  border-color: var(--gl-tertiary);
+  box-shadow: 0 0 0 3px rgba(44, 94, 245, 0.1);
 }
 
 .cs-desc-input::placeholder {
   color: var(--text-muted);
-  opacity: 0.7;
+  opacity: 0.6;
+  font-size: 0.875rem;
+  font-weight: 400;
 }
 
 /* Options row */
 .cs-options-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+@media (max-width: 768px) {
+  .cs-options-row {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+}
+
+.cs-option-group {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 28px;
-  flex-wrap: wrap;
-}
-
-.cs-options-left {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.cs-lang-select,
-.cs-folder-select {
-  padding: 7px 14px;
-  border-radius: 8px;
-  border: 1.5px solid var(--border-subtle);
-  background: var(--bg-elevated);
-  color: var(--text-body);
-  font-family: var(--font-sans);
-  font-size: 0.875rem;
-  cursor: pointer;
-  outline: none;
-  transition: border-color 0.15s;
-  min-width: 140px;
-}
-
-.cs-lang-select:focus,
-.cs-folder-select:focus {
-  border-color: var(--gl-tertiary);
-}
-
-.cs-options-right {
-  flex: 1;
-  max-width: 300px;
-}
-
-/* Add card row */
-.cs-add-card-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-  margin-bottom: 24px;
-}
-
-.cs-add-card-row .cs-add-card-btn {
-  display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 8px;
-  padding: 10px 18px;
-  background: var(--bg-elevated);
-  border: 1.5px dashed var(--border-subtle);
-  border-radius: 10px;
-  color: var(--text-muted);
-  font-size: 0.875rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.15s;
-  font-family: var(--font-sans);
-  width: auto;
-  margin: 0;
-  letter-spacing: 0;
 }
 
-.cs-add-card-row .cs-add-card-btn:hover {
-  border-color: var(--gl-tertiary);
-  color: var(--gl-tertiary);
-  background: rgba(99, 102, 241, 0.05);
-}
-
-.cs-add-card-row .cs-add-card-plus {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.cs-import-btn {
-  background: rgba(99, 102, 241, 0.05) !important;
-  border-color: var(--gl-tertiary) !important;
-  color: var(--gl-tertiary) !important;
-}
-
-.cs-import-btn:hover {
-  background: var(--gl-tertiary) !important;
-  color: #fff !important;
-}
-
-.cs-tags-label {
+.cs-option-label {
   display: block;
   font-size: 0.75rem;
   font-weight: 600;
   color: var(--text-muted);
-  margin-bottom: 6px;
   font-family: var(--font-sans);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Custom select wrapper */
+.cs-select-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.cs-folder-select {
+  width: 100%;
+  height: 44px;
+  padding: 10px 40px 10px 16px;
+  border-radius: 10px;
+  border: 1.5px solid var(--border-subtle);
+  background: var(--bg-page);
+  color: var(--text-body);
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+}
+
+.cs-folder-select:focus {
+  border-color: var(--gl-tertiary);
+  box-shadow: 0 0 0 3px rgba(44, 94, 245, 0.1);
+}
+
+.cs-select-wrapper::after {
+  content: '';
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid var(--text-muted);
+  border-bottom: 2px solid var(--text-muted);
+  transform: translateY(-70%) rotate(45deg);
+  pointer-events: none;
+  transition: border-color 0.18s;
+}
+
+.cs-select-wrapper:focus-within::after {
+  border-color: var(--gl-tertiary);
 }
 
 /* ── Card List ────────────────────────────────────────────────────────── */
 .cs-cards-list {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  margin-bottom: 16px;
+  gap: 20px;
+  margin-bottom: 24px;
 }
 
 /* Individual card row */
-.cs-card-row {
+.cs-card-editor-wrap {
   background: var(--bg-elevated);
-  border: 1px solid var(--border-subtle);
+  border: 1.5px solid var(--border-subtle);
   border-radius: 16px;
   overflow: hidden;
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.015);
+  transition: all 0.25s ease;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.015);
 }
 
-.cs-card-row:hover {
-  border-color: rgba(44, 94, 245, 0.22);
-  box-shadow: 0 8px 24px rgba(44, 94, 245, 0.05);
-  transform: translateY(-2px);
+.cs-card-editor-wrap:focus-within {
+  border-color: var(--gl-tertiary);
+  box-shadow: 0 8px 24px rgba(44, 94, 245, 0.06);
 }
 
 /* Card top bar */
-.cs-card-header {
+.cs-card-editor-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 18px;
-  border-bottom: 1px solid var(--border-subtle);
-  background: var(--bg-page);
+  padding: 12px 24px;
+  border-bottom: 1.5px solid var(--border-subtle);
+  background: rgba(0, 0, 0, 0.015);
+}
+
+[data-theme='dark'] .cs-card-editor-header {
+  background: rgba(255, 255, 255, 0.015);
 }
 
 .cs-card-index {
-  font-size: 0.825rem;
+  font-size: 0.9rem;
   font-weight: 700;
   color: var(--text-muted);
-  font-family: var(--font-mono);
-}
-
-.cs-card-actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
 }
 
 .cs-card-icon-btn {
@@ -502,180 +422,165 @@ kbd {
   justify-content: center;
   width: 32px;
   height: 32px;
-  border-radius: 7px;
+  border-radius: 8px;
   border: none;
-  background: none;
+  background: transparent;
   color: var(--text-muted);
   cursor: pointer;
   transition: all 0.15s;
 }
 
 .cs-card-icon-btn:hover {
-  background: rgba(44, 94, 245, 0.08);
-  color: var(--gl-tertiary);
-}
-
-.cs-card-icon-btn--delete:hover {
   background: rgba(239, 68, 68, 0.08);
   color: #ef4444;
 }
 
-/* Term + Definition fields */
-.cs-card-fields {
-  display: grid;
-  grid-template-columns: 1fr 1fr auto;
-  gap: 0;
-  align-items: stretch;
+/* Remove CardEditor default border when embedded */
+.cs-card-editor-wrap .ce-form {
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 24px !important;
 }
 
-.cs-card-field {
-  position: relative;
+/* ── Add card row ──────────────────────────────────────────────────── */
+.cs-add-card-row {
   display: flex;
-  flex-direction: column;
-  border-right: 1px solid var(--border-subtle);
-}
-
-.cs-card-field:last-of-type {
-  border-right: none;
-}
-
-.cs-card-input {
-  flex: 1;
-  padding: 18px 18px 28px;
-  font-size: 0.9375rem;
-  font-family: var(--font-sans);
-  color: var(--text-body);
-  background: transparent;
-  border: none;
-  outline: none;
-  resize: none;
-  width: 100%;
-  transition: background 0.15s;
-}
-
-.cs-card-input:focus {
-  background: rgba(44, 94, 245, 0.03);
-}
-
-.cs-card-input::placeholder {
-  color: var(--text-muted);
-  opacity: 0.6;
-}
-
-.cs-card-field-label {
-  position: absolute;
-  bottom: 10px;
-  left: 18px;
-  font-size: 0.65rem;
-  font-family: var(--font-mono);
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  pointer-events: none;
-}
-
-/* Image button */
-.cs-card-image-btn {
-  display: flex;
-  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 4px;
-  padding: 0 16px;
-  background: none;
-  border: none;
-  border-left: 1px solid var(--border-subtle);
-  color: var(--text-muted);
-  cursor: pointer;
-  font-size: 0.65rem;
-  font-weight: 600;
-  font-family: var(--font-mono);
-  letter-spacing: 0.04em;
-  transition: color 0.15s;
-  min-width: 72px;
+  gap: 16px;
+  margin-bottom: 32px;
 }
 
-.cs-card-image-btn:hover {
-  color: var(--gl-tertiary);
-}
-
-/* ── Add card button ──────────────────────────────────────────────────── */
 .cs-add-card-btn {
+  flex: 2;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  width: 100%;
-  padding: 16px 28px;
+  gap: 12px;
+  height: 58px;
   background: var(--bg-elevated);
   border: 2px dashed var(--border-subtle);
-  border-radius: 9999px; /* Pill shape */
-  color: var(--text-muted);
-  font-size: 0.9375rem;
+  border-radius: 12px;
+  color: var(--text-body);
+  font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
+  font-family: var(--font-sans);
 }
 
 .cs-add-card-btn:hover {
-  background: rgba(44, 94, 245, 0.04);
   border-color: var(--gl-tertiary);
   color: var(--gl-tertiary);
+  background: rgba(44, 94, 245, 0.02);
+  transform: translateY(-1px);
 }
 
 .cs-add-card-plus {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   background: var(--gl-tertiary);
   color: #fff;
   flex-shrink: 0;
 }
 
+.cs-import-btn {
+  flex: 1;
+  background: transparent;
+  border: 1.5px solid var(--border-subtle);
+  color: var(--text-muted);
+}
+
+.cs-import-btn:hover {
+  background: var(--bg-elevated);
+  border-color: var(--text-body);
+  color: var(--text-body);
+}
+
 /* ── Footer ───────────────────────────────────────────────────────────── */
 .cs-footer {
   display: flex;
-  justify-content: flex-start;
-  padding-top: 32px;
+  justify-content: flex-end;
+  padding-top: 24px;
+  border-top: 1.5px solid var(--border-subtle);
+}
+
+/* Draft restore banner */
+.cs-draft-banner {
+  position: fixed;
+  top: calc(var(--q-topbar-h, 58px) + 20px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  background: var(--bg-elevated);
+  border: 1.5px solid var(--gl-tertiary);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(44, 94, 245, 0.15);
+  font-size: 0.875rem;
+  color: var(--text-body);
+}
+
+.cs-draft-btn {
+  padding: 6px 14px;
+  background: var(--gl-tertiary);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  transition: opacity 0.15s;
+}
+
+.cs-draft-btn:hover {
+  opacity: 0.9;
+}
+
+.cs-draft-dismiss {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 0 4px;
 }
 
 /* ── Responsive ───────────────────────────────────────────────────────── */
-@media (max-width: 640px) {
-  .cs-topbar {
-    padding: 12px 16px;
+@media (max-width: 768px) {
+  .cs-topbar-content {
+    padding: 0 8px;
   }
 
   .cs-topbar-title {
-    font-size: 0.9rem;
+    font-size: 1.1rem;
   }
 
-  .cs-topbar-right .cs-btn:first-child {
-    display: none; /* hide "Create" outline btn on mobile */
+  .cs-shortcut-hints {
+    display: none;
   }
 
   .cs-body {
     padding: 20px 16px 48px;
   }
 
-  .cs-card-fields {
-    grid-template-columns: 1fr;
+  .cs-header-card {
+    padding: 20px;
   }
 
-  .cs-card-field {
-    border-right: none;
-    border-bottom: 1px solid var(--border-subtle);
+  .cs-add-card-row {
+    flex-direction: column;
   }
 
-  .cs-card-image-btn {
-    border-left: none;
-    border-top: 1px solid var(--border-subtle);
-    flex-direction: row;
-    padding: 12px 16px;
-    justify-content: flex-start;
-    min-width: unset;
+  .cs-add-card-btn {
+    width: 100%;
   }
 }

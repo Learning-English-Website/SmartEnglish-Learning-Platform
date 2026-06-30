@@ -26,6 +26,9 @@ export default function CardEditor({ card, onSave, onCancel, loading = false, in
   const [showImagePicker, setShowImagePicker] = useState(false);
   const [imageTab, setImageTab] = useState('search'); // 'search' | 'upload'
   const [autoFilling, setAutoFilling] = useState(false); // loading state for auto-fill all
+  const [showExtra, setShowExtra] = useState(() => {
+    return !!(card?.pronunciation || card?.example || card?.collocation || card?.relatedWords || card?.note);
+  });
 
   /* ── Suggest state ───────────────────────────────────────────────── */
   // Phase 1 — word list from Datamuse
@@ -119,6 +122,7 @@ export default function CardEditor({ card, onSave, onCancel, loading = false, in
         relatedWords:  prev.relatedWords  || related            || '',
         collocation:   prev.collocation   || collocations       || '',
       }));
+      setShowExtra(true);
       // store audio for playback
       if (dictData?.audio && !dictData_ref.current) dictData_ref.current = dictData;
     } catch (err) {
@@ -459,59 +463,71 @@ export default function CardEditor({ card, onSave, onCancel, loading = false, in
         </div>
       </div>
 
-      {/* ── Row 2: Extra fields ──────────────────────────────────────── */}
-      <div className="ce-row ce-row--extra">
-        <div className="ce-field-block">
-          <label className="ce-label">PHÁT ÂM</label>
-          <input
-            name="pronunciation"
-            className="ce-input"
-            placeholder="/prəˌnʌnsiˈeɪʃən/"
-            value={form.pronunciation}
-            onChange={handleChange}
-          />
-        </div>
-        <div className="ce-field-block">
-          <label className="ce-label">VÍ DỤ</label>
-          <input
-            name="example"
-            className="ce-input"
-            placeholder="Ví dụ: Hello, how are you?"
-            value={form.example}
-            onChange={handleChange}
-          />
-        </div>
-        <div className="ce-field-block">
-          <label className="ce-label">COLLOCATION</label>
-          <input
-            name="collocation"
-            className="ce-input"
-            placeholder="Ví dụ: make a decision, take a photo"
-            value={form.collocation}
-            onChange={handleChange}
-          />
-        </div>
-        <div className="ce-field-block">
-          <label className="ce-label">TỪ LIÊN QUAN</label>
-          <input
-            name="relatedWords"
-            className="ce-input"
-            placeholder="Ví dụ: quick, fast, rapid"
-            value={form.relatedWords}
-            onChange={handleChange}
-          />
-        </div>
-        <div className="ce-field-block">
-          <label className="ce-label">GHI CHÚ</label>
-          <input
-            name="note"
-            className="ce-input"
-            placeholder="Ghi chú thêm..."
-            value={form.note}
-            onChange={handleChange}
-          />
-        </div>
+      {/* ── Toggle Extra Fields ────────────────────────────────────────── */}
+      <div className="ce-extra-toggle-row">
+        <button
+          type="button"
+          className={`ce-extra-toggle-btn ${showExtra ? 'active' : ''}`}
+          onClick={() => setShowExtra(!showExtra)}
+        >
+          {showExtra ? 'Ẩn chi tiết nâng cao' : '+ Thêm phát âm, ví dụ, ghi chú...'}
+        </button>
       </div>
+
+      {showExtra && (
+        <div className="ce-row ce-row--extra animate-slide-down">
+          <div className="ce-field-block">
+            <label className="ce-label">PHÁT ÂM</label>
+            <input
+              name="pronunciation"
+              className="ce-input"
+              placeholder="/prəˌnʌnsiˈeɪʃən/"
+              value={form.pronunciation}
+              onChange={handleChange}
+            />
+          </div>
+          <div className="ce-field-block">
+            <label className="ce-label">VÍ DỤ</label>
+            <input
+              name="example"
+              className="ce-input"
+              placeholder="Ví dụ: Hello, how are you?"
+              value={form.example}
+              onChange={handleChange}
+            />
+          </div>
+          <div className="ce-field-block">
+            <label className="ce-label">COLLOCATION</label>
+            <input
+              name="collocation"
+              className="ce-input"
+              placeholder="Ví dụ: make a decision, take a photo"
+              value={form.collocation}
+              onChange={handleChange}
+            />
+          </div>
+          <div className="ce-field-block">
+            <label className="ce-label">TỪ LIÊN QUAN</label>
+            <input
+              name="relatedWords"
+              className="ce-input"
+              placeholder="Ví dụ: quick, fast, rapid"
+              value={form.relatedWords}
+              onChange={handleChange}
+            />
+          </div>
+          <div className="ce-field-block">
+            <label className="ce-label">GHI CHÚ</label>
+            <input
+              name="note"
+              className="ce-input"
+              placeholder="Ghi chú thêm..."
+              value={form.note}
+              onChange={handleChange}
+            />
+          </div>
+        </div>
+      )}
 
       {/* ── Image section ─────────────────────────────────────────────── */}
       <div className="ce-image-section">

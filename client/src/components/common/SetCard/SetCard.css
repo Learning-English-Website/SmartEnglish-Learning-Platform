@@ -221,3 +221,23 @@
   transform: translateX(4px);
   color: var(--gl-tertiary);
 }
+
+/* ── Tags inside SetCard ────────────────────────────────────────────── */
+.set-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+  max-height: 22px;
+  overflow: hidden;
+}
+
+.set-card-tag-pill {
+  font-size: 0.65rem;
+  font-weight: 650;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
