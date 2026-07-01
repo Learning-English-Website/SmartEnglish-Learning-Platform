@@ -61,12 +61,15 @@ export default function LessonPage() {
   const isDailyChallenge = searchParams.get('mode') === 'daily' || searchParams.get('dailyChallenge') === 'true';
   const dailyChallengeId = searchParams.get('dailyChallengeId');
   const returnPath = isDailyChallenge ? '/duolingo' : '/duolingo/learn';
-  const answerContext = useMemo(
-    () => (isDailyChallenge ? { mode: 'daily', dailyChallengeId } : undefined),
-    [isDailyChallenge, dailyChallengeId]
-  );
+  const answerContext = useMemo(() => {
+    if (isDailyChallenge) return { mode: 'daily', dailyChallengeId };
+    if (isPractice) return { mode: 'practice' };
+    return undefined;
+  }, [isDailyChallenge, isPractice, dailyChallengeId]);
   const progressStorageKey = isDailyChallenge
     ? `duolingo_daily_lesson_progress_${dailyChallengeId || lessonId}`
+    : isPractice
+      ? `duolingo_practice_lesson_progress_${lessonId}`
     : `duolingo_lesson_progress_${lessonId}`;
 
   const navigate = useNavigate();
@@ -560,10 +563,10 @@ export default function LessonPage() {
         setStatus('correct');
         setShowCorrectAnswer(false);
         setCorrectCount(c => c + 1);
-        const earnedPoints = result.data.pointsEarned ?? 10;
+        const earnedPoints = result.data.pointsEarned ?? 0;
         setLastEarnedPoints(earnedPoints);
         pointsRef.current += earnedPoints;
-        triggerXpPopup(earnedPoints);
+        if (earnedPoints > 0) triggerXpPopup(earnedPoints);
         advanceAfterCorrectAnswer();
       } else {
         setStatus('wrong');
@@ -672,10 +675,10 @@ export default function LessonPage() {
           setStatus('correct');
         setShowCorrectAnswer(false);
         setCorrectCount(c => c + 1);
-        const earnedPoints = result.data.pointsEarned ?? 10;
+        const earnedPoints = result.data.pointsEarned ?? 0;
         setLastEarnedPoints(earnedPoints);
         pointsRef.current += earnedPoints;
-        triggerXpPopup(earnedPoints);
+        if (earnedPoints > 0) triggerXpPopup(earnedPoints);
         advanceAfterCorrectAnswer();
         } else {
           setStatus('wrong');
@@ -709,7 +712,7 @@ export default function LessonPage() {
         setStatus('correct');
         setShowCorrectAnswer(false);
         setCorrectCount(c => c + 1);
-        const earnedPoints = result.data.pointsEarned ?? 10;
+        const earnedPoints = result.data.pointsEarned ?? 0;
         setLastEarnedPoints(earnedPoints);
         pointsRef.current += earnedPoints;
         advanceAfterCorrectAnswer();
@@ -853,7 +856,7 @@ export default function LessonPage() {
       try {
         if (isDailyChallenge) {
           await duolingoService.completeDailyChallenge(lessonId, dailyChallengeId);
-        } else {
+        } else if (!isPractice) {
           await duolingoService.completeLesson(lessonId);
         }
         localStorage.removeItem(progressStorageKey);
@@ -1773,7 +1776,9 @@ export default function LessonPage() {
             >
               ✨
             </motion.span>
-            <span className="feedback-text">Correct! +{lastEarnedPoints} XP</span>
+            <span className="feedback-text">
+              {lastEarnedPoints > 0 ? `Correct! +${lastEarnedPoints} XP` : 'Correct!'}
+            </span>
           </motion.div>
         )}
         {status === 'wrong' && (
