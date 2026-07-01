@@ -10,16 +10,27 @@ import './components/common/Card/Card.css';
 import './components/common/Badge/Badge.css';
 import App from './App';
 
+window.addEventListener('vite:preloadError', (event) => {
+  event.preventDefault();
+
+  const reloadKey = 'memoris:last-preload-error-reload';
+  const lastReloadAt = Number(sessionStorage.getItem(reloadKey) || 0);
+  const now = Date.now();
+
+  if (now - lastReloadAt > 10000) {
+    sessionStorage.setItem(reloadKey, String(now));
+    window.location.reload();
+  }
+});
+
 // Register PWA service worker
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     import('virtual:pwa-register').then(({ registerSW }) => {
-      registerSW({
+      const updateSW = registerSW({
         immediate: true,
         onNeedRefresh() {
-          if (confirm('New content available. Reload?')) {
-            window.location.reload();
-          }
+          updateSW(true);
         },
         onOfflineReady() {
           console.log('App ready to work offline');
