@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { duolingoService } from '../../services/duolingoService';
+import { aiService } from '../../api/aiService';
 import { useSpeechSynthesis } from '../../hooks/useAudio';
 import { PageSkeleton } from '../../components/common/LoadingSkeleton';
 import ExitModal from '../../components/duolingo/ExitModal';
@@ -54,6 +55,28 @@ const getCorrectAnswerText = (challenge) => {
 const buildOrderTokens = (wordBank = []) =>
   wordBank.map((text, index) => ({ text, index }));
 
+const stringifyCoachAnswer = (value) => {
+  if (value === null || value === undefined) return '';
+  if (Array.isArray(value)) return value.join(' ');
+  if (typeof value === 'object') return JSON.stringify(value);
+  return String(value);
+};
+
+const getChallengeQuestionForCoach = (challenge) =>
+  challenge?.question || challenge?.prompt || challenge?.sentence || '';
+
+const getChallengeOptionsForCoach = (challenge) =>
+  Array.isArray(challenge?.options)
+    ? challenge.options.map(option => option?.text).filter(Boolean)
+    : [];
+
+const getChallengePairsForCoach = (challenge) =>
+  Array.isArray(challenge?.pairs)
+    ? challenge.pairs
+        .map(pair => ({ left: pair?.left || '', right: pair?.right || '' }))
+        .filter(pair => pair.left && pair.right)
+    : [];
+
 export default function LessonPage() {
   const { lessonId } = useParams();
   const [searchParams] = useSearchParams();
@@ -96,6 +119,9 @@ export default function LessonPage() {
   const [autoPlayTTS, setAutoPlayTTS] = useState(true); // TTS setting
   const [xpPopup, setXpPopup] = useState(null); // XP popup animation state
   const [lastEarnedPoints, setLastEarnedPoints] = useState(0);
+  const [mistakeCoach, setMistakeCoach] = useState(null);
+  const [mistakeCoachLoading, setMistakeCoachLoading] = useState(false);
+  const [mistakeCoachError, setMistakeCoachError] = useState('');
   // State for new challenge types
   const [orderedWords, setOrderedWords] = useState([]); // ORDER: user's word order
   const [orderedWordBank, setOrderedWordBank] = useState([]); // ORDER: shuffled word bank
@@ -116,6 +142,8 @@ export default function LessonPage() {
   const hasAutoPlayedAudioRef = useRef(false); // Track if audio auto-played for current challenge
   const completionRequestRef = useRef(null);
   const completionNavigateTimerRef = useRef(null);
+  const mistakeChallengeIdsRef = useRef(new Set());
+  const mistakeSamplesRef = useRef([]);
 
   const lessonRef = useRef(lesson);
   const currentIndexRef = useRef(currentIndex);
@@ -397,6 +425,32 @@ export default function LessonPage() {
     }
   }, [status, typedAnswer, currentChallenge]);
 
+  const recordMistakeForCoach = (challenge, userAnswer, resultData) => {
+    if (!challenge || isDailyChallenge || isPractice) return;
+
+    const challengeId = challenge._id || `${currentIndexRef.current}:${getChallengeQuestionForCoach(challenge)}`;
+    if (mistakeChallengeIdsRef.current.has(challengeId)) return;
+
+    const correctAnswer = resultData?.correctAnswer || getCorrectAnswerText(challenge);
+    const question = getChallengeQuestionForCoach(challenge);
+    if (!question || !correctAnswer) return;
+
+    mistakeChallengeIdsRef.current.add(challengeId);
+    mistakeSamplesRef.current = [
+      ...mistakeSamplesRef.current,
+      {
+        type: challenge.type,
+        question,
+        sentence: challenge.sentence || '',
+        userAnswer: stringifyCoachAnswer(userAnswer),
+        correctAnswer,
+        options: getChallengeOptionsForCoach(challenge),
+        wordBank: Array.isArray(challenge.wordBank) ? challenge.wordBank : [],
+        pairs: getChallengePairsForCoach(challenge),
+      }
+    ].slice(0, 10);
+  };
+
   // ORDER: Submit
   const handleOrderSubmit = useCallback(async () => {
     if (!isPro && !isPractice && hearts <= 0) {
@@ -418,7 +472,7 @@ export default function LessonPage() {
       } else {
         setStatus('wrong');
         setShowCorrectAnswer(true);
-        await handleWrongAnswer();
+        await handleWrongAnswer(orderedWords.map(token => token.text).join(' '), result.data);
         // Auto advance to next challenge after 2 seconds
         setTimeout(() => nextChallenge(), 2000);
       }
@@ -498,6 +552,9 @@ export default function LessonPage() {
         leftIndex: leftItem.index,
         rightIndex: matchedPairs[leftItem.index],
       }));
+      const userAnswerText = userAnswer
+        .map(({ leftIndex, rightIndex }) => `${pairs[leftIndex]?.left || leftIndex} -> ${pairs[rightIndex]?.right || rightIndex}`)
+        .join('; ');
       const result = await duolingoService.submitAnswer(currentChallenge._id, null, JSON.stringify(userAnswer), answerContext);
       if (result.data?.isCorrect) {
         setStatus('correct');
@@ -510,7 +567,7 @@ export default function LessonPage() {
       } else {
         setStatus('wrong');
         setShowCorrectAnswer(true);
-        await handleWrongAnswer();
+        await handleWrongAnswer(userAnswerText, result.data);
         // Auto advance to next challenge after 2 seconds
         setTimeout(() => nextChallenge(), 2000);
       }
@@ -528,6 +585,7 @@ export default function LessonPage() {
     }
     if (status !== 'idle' || !currentChallenge) return;
     try {
+      const selected = currentChallenge.options?.find(option => (option._id || option.text) === optionId);
       const result = await duolingoService.submitAnswer(currentChallenge._id, optionId, null, answerContext);
       if (result.data?.isCorrect) {
         setStatus('correct');
@@ -540,7 +598,7 @@ export default function LessonPage() {
       } else {
         setStatus('wrong');
         setShowCorrectAnswer(true);
-        await handleWrongAnswer();
+        await handleWrongAnswer(selected?.text || optionId, result.data);
         // Auto advance to next challenge after 2 seconds
         setTimeout(() => nextChallenge(), 2000);
       }
@@ -571,7 +629,7 @@ export default function LessonPage() {
       } else {
         setStatus('wrong');
         setShowCorrectAnswer(true);
-        await handleWrongAnswer();
+        await handleWrongAnswer(typedAnswer, result.data);
         // Auto advance to next challenge after 2 seconds
         setTimeout(() => nextChallenge(), 2000);
       }
@@ -614,6 +672,10 @@ export default function LessonPage() {
       setSelectedOption(null);
       setTypedAnswer('');
       setStatus('idle');
+      mistakeChallengeIdsRef.current = new Set();
+      mistakeSamplesRef.current = [];
+      setMistakeCoach(null);
+      setMistakeCoachError('');
 
       // Check if there is saved progress for this specific lesson
       const savedProgressJSON = localStorage.getItem(progressStorageKey);
@@ -683,7 +745,7 @@ export default function LessonPage() {
         } else {
           setStatus('wrong');
           setShowCorrectAnswer(true);
-          await handleWrongAnswer();
+          await handleWrongAnswer(option.text, result.data);
           // Auto advance to next challenge after 2 seconds (enough time to see correct answer)
           setTimeout(() => {
             nextChallenge();
@@ -719,7 +781,7 @@ export default function LessonPage() {
       } else {
         setStatus('wrong');
         setShowCorrectAnswer(true);
-        await handleWrongAnswer();
+        await handleWrongAnswer(typedAnswer, result.data);
         // Auto advance to next challenge after 2 seconds (enough time to see correct answer)
         setTimeout(() => {
           nextChallenge();
@@ -731,10 +793,12 @@ export default function LessonPage() {
     }
   }, [currentChallenge, status, typedAnswer, isPro, isPractice, hearts, answerContext]);
 
-  const handleWrongAnswer = async () => {
+  const handleWrongAnswer = async (userAnswer, resultData) => {
     const currentLesson = lessonRef.current;
     const curIndex = currentIndexRef.current;
     const curChallenge = currentLesson?.challenges?.[curIndex];
+
+    recordMistakeForCoach(curChallenge, userAnswer, resultData);
 
     if (curChallenge) {
       setLesson(prev => {
@@ -794,6 +858,10 @@ export default function LessonPage() {
     setCurrentIndex(0);
     pointsRef.current = 0;
     setCorrectCount(0);
+    mistakeChallengeIdsRef.current = new Set();
+    mistakeSamplesRef.current = [];
+    setMistakeCoach(null);
+    setMistakeCoachError('');
     loadLesson();
     setShowResumeModal(false);
     setPendingResumeData(null);
@@ -868,9 +936,12 @@ export default function LessonPage() {
 
         setStatus('complete');
         setShowConfetti(true);
-        completionNavigateTimerRef.current = setTimeout(() => {
-          navigate(returnPath);
-        }, 3000);
+        const shouldOfferMistakeCoach = !isDailyChallenge && !isPractice && mistakeSamplesRef.current.length > 0;
+        if (!shouldOfferMistakeCoach) {
+          completionNavigateTimerRef.current = setTimeout(() => {
+            navigate(returnPath);
+          }, 3000);
+        }
       } catch (err) {
         console.error('Complete lesson failed:', err);
         completionRequestRef.current = null;
@@ -939,6 +1010,28 @@ export default function LessonPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [currentChallenge, selectedOption, status, navigate, returnPath, handleOptionSelect, handleTypedSubmit]);
 
+  const handleGenerateMistakeCoach = async () => {
+    if (mistakeCoachLoading || mistakeSamplesRef.current.length === 0) return;
+
+    setMistakeCoachLoading(true);
+    setMistakeCoachError('');
+    try {
+      const response = await aiService.generateMistakeCoach({
+        lessonTitle: lesson?.title,
+        level: lesson?.level || lesson?.course?.level || '',
+        mistakes: mistakeSamplesRef.current,
+      });
+      setMistakeCoach(response.coach || null);
+    } catch (err) {
+      const message = err?.response?.data?.message
+        || err?.message
+        || 'Không thể tạo phân tích AI lúc này.';
+      setMistakeCoachError(message);
+    } finally {
+      setMistakeCoachLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="lesson-page">
@@ -968,6 +1061,7 @@ export default function LessonPage() {
   }
 
   const isLastChallenge = currentIndex === totalChallenges - 1;
+  const canUseMistakeCoach = !isDailyChallenge && !isPractice && mistakeSamplesRef.current.length > 0;
 
   return (
     <div className="lesson-page">
@@ -1089,13 +1183,96 @@ export default function LessonPage() {
               >
                 {isPractice && <span>Practiced: {lesson.title}</span>}
               </motion.div>
+              {canUseMistakeCoach && (
+                <motion.section
+                  className="mistake-coach-panel"
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.7 }}
+                >
+                  <div className="mistake-coach-heading">
+                    <span className="mistake-coach-kicker">AI Mistake Coach</span>
+                    <h3>Phân tích {mistakeSamplesRef.current.length} câu sai trong bài này</h3>
+                    <p>AI chỉ dùng các câu bạn vừa trả lời sai để giải thích lỗi và gợi ý luyện tập.</p>
+                  </div>
+
+                  {!mistakeCoach && (
+                    <button
+                      type="button"
+                      className="mistake-coach-primary"
+                      onClick={handleGenerateMistakeCoach}
+                      disabled={mistakeCoachLoading}
+                    >
+                      {mistakeCoachLoading ? 'Đang phân tích...' : 'Tạo phân tích bằng AI'}
+                    </button>
+                  )}
+
+                  {mistakeCoachError && (
+                    <div className="mistake-coach-error" role="alert">
+                      {mistakeCoachError}
+                    </div>
+                  )}
+
+                  {mistakeCoach && (
+                    <div className="mistake-coach-result">
+                      <p className="mistake-coach-summary">{mistakeCoach.summary}</p>
+
+                      {Array.isArray(mistakeCoach.weakPoints) && mistakeCoach.weakPoints.length > 0 && (
+                        <div className="mistake-coach-block">
+                          <h4>Điểm cần ôn</h4>
+                          <ul>
+                            {mistakeCoach.weakPoints.map((point, index) => (
+                              <li key={`weak-${index}`}>{point}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {Array.isArray(mistakeCoach.explanations) && mistakeCoach.explanations.length > 0 && (
+                        <div className="mistake-coach-block">
+                          <h4>Giải thích lỗi</h4>
+                          {mistakeCoach.explanations.slice(0, 3).map((item, index) => (
+                            <article className="mistake-coach-explanation" key={`explanation-${index}`}>
+                              <strong>{item.issue}</strong>
+                              <span>Bạn trả lời: {item.userAnswer || '(trống)'}</span>
+                              <span>Đáp án đúng: {item.correctAnswer}</span>
+                              <p>{item.explanationVi}</p>
+                              <em>{item.tip}</em>
+                            </article>
+                          ))}
+                        </div>
+                      )}
+
+                      {Array.isArray(mistakeCoach.practiceItems) && mistakeCoach.practiceItems.length > 0 && (
+                        <div className="mistake-coach-block">
+                          <h4>Bài luyện nhanh</h4>
+                          {mistakeCoach.practiceItems.slice(0, 3).map((item, index) => (
+                            <article className="mistake-coach-practice" key={`practice-${index}`}>
+                              <span>{item.prompt}</span>
+                              <strong>{item.answer}</strong>
+                            </article>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    className="mistake-coach-secondary"
+                    onClick={() => navigate(returnPath)}
+                  >
+                    Về lộ trình
+                  </button>
+                </motion.section>
+              )}
               <motion.p
                 className="continue-hint"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: [0, 1, 1, 0.5] }}
                 transition={{ delay: 0.8, duration: 1.5, repeat: Infinity }}
               >
-                Press Enter to continue
+                {canUseMistakeCoach ? 'Nhấn Enter để bỏ qua và quay về lộ trình' : 'Press Enter to continue'}
               </motion.p>
             </motion.div>
           ) : (
