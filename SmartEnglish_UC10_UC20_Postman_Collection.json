@@ -1,0 +1,2896 @@
+{
+  "info": {
+    "_postman_id": "123a1a9a-5e7e-4b45-9856-2dbdf92b95b8",
+    "name": "SmartEnglish - UC10 đến UC20 API Tests",
+    "description": "Postman Collection tự động chạy tuần tự UC10-UC20 cho SmartEnglish, tự lưu token/ID vào Environment và dọn dữ liệu kiểm thử ở cuối luồng.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Setup - Đăng nhập và khởi tạo dữ liệu mẫu",
+      "description": "Đăng nhập bằng tài khoản học viên/giáo viên và tạo dữ liệu nền cho các UC sau.",
+      "item": [
+        {
+          "name": "01. Đăng nhập Học viên",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function json() { try { return pm.response.json(); } catch (e) { return {}; } }",
+                  "function pick(obj, paths) {",
+                  "  for (const path of paths) {",
+                  "    const value = path.split(\".\").reduce((acc, key) => acc && acc[key] !== undefined ? acc[key] : undefined, obj);",
+                  "    if (value !== undefined && value !== null && value !== \"\") return value;",
+                  "  }",
+                  "  return undefined;",
+                  "}",
+                  "function expectStatus(codes) {",
+                  "  pm.test(\"Mã trạng thái hợp lệ: \" + codes.join(\"/\"), function () { pm.expect(pm.response.code).to.be.oneOf(codes); });",
+                  "}",
+                  "function expectObject() { pm.test(\"Phản hồi là JSON object\", function () { pm.expect(json()).to.be.an(\"object\"); }); }",
+                  "function saveEnv(name, paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Lưu biến môi trường \" + name, function () { pm.expect(value, name).to.exist; });",
+                  "  if (value) pm.environment.set(name, value);",
+                  "}",
+                  "function expectArray(paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Dữ liệu trả về là danh sách\", function () { pm.expect(value).to.be.an(\"array\"); });",
+                  "}",
+                  "",
+                  "expectStatus([200]);",
+                  "expectObject();",
+                  "saveEnv(\"accessToken\", [\"accessToken\",\"data.accessToken\",\"tokens.accessToken\",\"data.tokens.accessToken\"]);",
+                  "saveEnv(\"refreshToken\", [\"refreshToken\",\"data.refreshToken\",\"tokens.refreshToken\",\"data.tokens.refreshToken\"]);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{API_BASE_URL}}/auth/login",
+              "host": [
+                "{{API_BASE_URL}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "01. Đăng nhập Học viên",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{studentEmail}}\",\n  \"password\": \"{{studentPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "02. Đăng nhập Giáo viên",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function json() { try { return pm.response.json(); } catch (e) { return {}; } }",
+                  "function pick(obj, paths) {",
+                  "  for (const path of paths) {",
+                  "    const value = path.split(\".\").reduce((acc, key) => acc && acc[key] !== undefined ? acc[key] : undefined, obj);",
+                  "    if (value !== undefined && value !== null && value !== \"\") return value;",
+                  "  }",
+                  "  return undefined;",
+                  "}",
+                  "function expectStatus(codes) {",
+                  "  pm.test(\"Mã trạng thái hợp lệ: \" + codes.join(\"/\"), function () { pm.expect(pm.response.code).to.be.oneOf(codes); });",
+                  "}",
+                  "function expectObject() { pm.test(\"Phản hồi là JSON object\", function () { pm.expect(json()).to.be.an(\"object\"); }); }",
+                  "function saveEnv(name, paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Lưu biến môi trường \" + name, function () { pm.expect(value, name).to.exist; });",
+                  "  if (value) pm.environment.set(name, value);",
+                  "}",
+                  "function expectArray(paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Dữ liệu trả về là danh sách\", function () { pm.expect(value).to.be.an(\"array\"); });",
+                  "}",
+                  "",
+                  "expectStatus([200]);",
+                  "expectObject();",
+                  "saveEnv(\"teacherAccessToken\", [\"accessToken\",\"data.accessToken\",\"tokens.accessToken\",\"data.tokens.accessToken\"]);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{API_BASE_URL}}/auth/login",
+              "host": [
+                "{{API_BASE_URL}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "02. Đăng nhập Giáo viên",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{teacherEmail}}\",\n  \"password\": \"{{teacherPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "03. Tạo Khóa học kiểm thử",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function json() { try { return pm.response.json(); } catch (e) { return {}; } }",
+                  "function pick(obj, paths) {",
+                  "  for (const path of paths) {",
+                  "    const value = path.split(\".\").reduce((acc, key) => acc && acc[key] !== undefined ? acc[key] : undefined, obj);",
+                  "    if (value !== undefined && value !== null && value !== \"\") return value;",
+                  "  }",
+                  "  return undefined;",
+                  "}",
+                  "function expectStatus(codes) {",
+                  "  pm.test(\"Mã trạng thái hợp lệ: \" + codes.join(\"/\"), function () { pm.expect(pm.response.code).to.be.oneOf(codes); });",
+                  "}",
+                  "function expectObject() { pm.test(\"Phản hồi là JSON object\", function () { pm.expect(json()).to.be.an(\"object\"); }); }",
+                  "function saveEnv(name, paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Lưu biến môi trường \" + name, function () { pm.expect(value, name).to.exist; });",
+                  "  if (value) pm.environment.set(name, value);",
+                  "}",
+                  "function expectArray(paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Dữ liệu trả về là danh sách\", function () { pm.expect(value).to.be.an(\"array\"); });",
+                  "}",
+                  "",
+                  "expectStatus([201, 200]);",
+                  "expectObject();",
+                  "saveEnv(\"courseId\", [\"course\",\"data.course\",\"data.course._id\",\"data.course.id\",\"data._id\",\"data.id\",\"_id\",\"id\"]);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{teacherAccessToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{API_BASE_URL}}/teacher/courses",
+              "host": [
+                "{{API_BASE_URL}}"
+              ],
+              "path": [
+                "teacher",
+                "courses"
+              ]
+            },
+            "description": "03. Tạo Khóa học kiểm thử",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Postman Roadmap Course\",\n  \"description\": \"Created for UC18-19 testing\",\n  \"languageFrom\": \"vi\",\n  \"languageTo\": \"en\",\n  \"level\": \"beginner\",\n  \"order\": 99,\n  \"isPublished\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "04. Tạo Chương học kiểm thử",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function json() { try { return pm.response.json(); } catch (e) { return {}; } }",
+                  "function pick(obj, paths) {",
+                  "  for (const path of paths) {",
+                  "    const value = path.split(\".\").reduce((acc, key) => acc && acc[key] !== undefined ? acc[key] : undefined, obj);",
+                  "    if (value !== undefined && value !== null && value !== \"\") return value;",
+                  "  }",
+                  "  return undefined;",
+                  "}",
+                  "function expectStatus(codes) {",
+                  "  pm.test(\"Mã trạng thái hợp lệ: \" + codes.join(\"/\"), function () { pm.expect(pm.response.code).to.be.oneOf(codes); });",
+                  "}",
+                  "function expectObject() { pm.test(\"Phản hồi là JSON object\", function () { pm.expect(json()).to.be.an(\"object\"); }); }",
+                  "function saveEnv(name, paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Lưu biến môi trường \" + name, function () { pm.expect(value, name).to.exist; });",
+                  "  if (value) pm.environment.set(name, value);",
+                  "}",
+                  "function expectArray(paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Dữ liệu trả về là danh sách\", function () { pm.expect(value).to.be.an(\"array\"); });",
+                  "}",
+                  "",
+                  "expectStatus([201, 200]);",
+                  "expectObject();",
+                  "saveEnv(\"unitId\", [\"unit\",\"data.unit\",\"data.unit._id\",\"data.unit.id\",\"data._id\",\"data.id\",\"_id\",\"id\"]);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{teacherAccessToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{API_BASE_URL}}/teacher/units",
+              "host": [
+                "{{API_BASE_URL}}"
+              ],
+              "path": [
+                "teacher",
+                "units"
+              ]
+            },
+            "description": "04. Tạo Chương học kiểm thử",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Postman Unit 1\",\n  \"summary\": \"Vocabulary\",\n  \"course\": \"{{courseId}}\",\n  \"order\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "05. Tạo Bài học kiểm thử",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function json() { try { return pm.response.json(); } catch (e) { return {}; } }",
+                  "function pick(obj, paths) {",
+                  "  for (const path of paths) {",
+                  "    const value = path.split(\".\").reduce((acc, key) => acc && acc[key] !== undefined ? acc[key] : undefined, obj);",
+                  "    if (value !== undefined && value !== null && value !== \"\") return value;",
+                  "  }",
+                  "  return undefined;",
+                  "}",
+                  "function expectStatus(codes) {",
+                  "  pm.test(\"Mã trạng thái hợp lệ: \" + codes.join(\"/\"), function () { pm.expect(pm.response.code).to.be.oneOf(codes); });",
+                  "}",
+                  "function expectObject() { pm.test(\"Phản hồi là JSON object\", function () { pm.expect(json()).to.be.an(\"object\"); }); }",
+                  "function saveEnv(name, paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Lưu biến môi trường \" + name, function () { pm.expect(value, name).to.exist; });",
+                  "  if (value) pm.environment.set(name, value);",
+                  "}",
+                  "function expectArray(paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Dữ liệu trả về là danh sách\", function () { pm.expect(value).to.be.an(\"array\"); });",
+                  "}",
+                  "",
+                  "expectStatus([201, 200]);",
+                  "expectObject();",
+                  "saveEnv(\"lessonId\", [\"lesson\",\"data.lesson\",\"data.lesson._id\",\"data.lesson.id\",\"data._id\",\"data.id\",\"_id\",\"id\"]);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{teacherAccessToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{API_BASE_URL}}/teacher/lessons",
+              "host": [
+                "{{API_BASE_URL}}"
+              ],
+              "path": [
+                "teacher",
+                "lessons"
+              ]
+            },
+            "description": "05. Tạo Bài học kiểm thử",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"unit\": \"{{unitId}}\",\n  \"title\": \"Postman Lesson 1\",\n  \"subtitle\": \"Greetings\",\n  \"xpReward\": 10,\n  \"estimatedMinutes\": 5,\n  \"type\": \"challenge\",\n  \"order\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "06. Tạo Thử thách kiểm thử",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function json() { try { return pm.response.json(); } catch (e) { return {}; } }",
+                  "function pick(obj, paths) {",
+                  "  for (const path of paths) {",
+                  "    const value = path.split(\".\").reduce((acc, key) => acc && acc[key] !== undefined ? acc[key] : undefined, obj);",
+                  "    if (value !== undefined && value !== null && value !== \"\") return value;",
+                  "  }",
+                  "  return undefined;",
+                  "}",
+                  "function expectStatus(codes) {",
+                  "  pm.test(\"Mã trạng thái hợp lệ: \" + codes.join(\"/\"), function () { pm.expect(pm.response.code).to.be.oneOf(codes); });",
+                  "}",
+                  "function expectObject() { pm.test(\"Phản hồi là JSON object\", function () { pm.expect(json()).to.be.an(\"object\"); }); }",
+                  "function saveEnv(name, paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Lưu biến môi trường \" + name, function () { pm.expect(value, name).to.exist; });",
+                  "  if (value) pm.environment.set(name, value);",
+                  "}",
+                  "function expectArray(paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Dữ liệu trả về là danh sách\", function () { pm.expect(value).to.be.an(\"array\"); });",
+                  "}",
+                  "",
+                  "expectStatus([201, 200]);",
+                  "expectObject();",
+                  "saveEnv(\"challengeId\", [\"challenge\",\"data.challenge\",\"data.challenge._id\",\"data.challenge.id\",\"data._id\",\"data.id\",\"_id\",\"id\"]);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{teacherAccessToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{API_BASE_URL}}/teacher/challenges",
+              "host": [
+                "{{API_BASE_URL}}"
+              ],
+              "path": [
+                "teacher",
+                "challenges"
+              ]
+            },
+            "description": "06. Tạo Thử thách kiểm thử",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"lesson\": \"{{lessonId}}\",\n  \"type\": \"SELECT\",\n  \"question\": \"What is 'hello' in Vietnamese?\",\n  \"options\": [\n    {\n      \"text\": \"Xin chào\",\n      \"correct\": true\n    },\n    {\n      \"text\": \"Tạm biệt\",\n      \"correct\": false\n    }\n  ],\n  \"order\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "07. Tạo Bộ thẻ học chính",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function json() { try { return pm.response.json(); } catch (e) { return {}; } }",
+                  "function pick(obj, paths) {",
+                  "  for (const path of paths) {",
+                  "    const value = path.split(\".\").reduce((acc, key) => acc && acc[key] !== undefined ? acc[key] : undefined, obj);",
+                  "    if (value !== undefined && value !== null && value !== \"\") return value;",
+                  "  }",
+                  "  return undefined;",
+                  "}",
+                  "function expectStatus(codes) {",
+                  "  pm.test(\"Mã trạng thái hợp lệ: \" + codes.join(\"/\"), function () { pm.expect(pm.response.code).to.be.oneOf(codes); });",
+                  "}",
+                  "function expectObject() { pm.test(\"Phản hồi là JSON object\", function () { pm.expect(json()).to.be.an(\"object\"); }); }",
+                  "function saveEnv(name, paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Lưu biến môi trường \" + name, function () { pm.expect(value, name).to.exist; });",
+                  "  if (value) pm.environment.set(name, value);",
+                  "}",
+                  "function expectArray(paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Dữ liệu trả về là danh sách\", function () { pm.expect(value).to.be.an(\"array\"); });",
+                  "}",
+                  "",
+                  "expectStatus([201]);",
+                  "expectObject();",
+                  "saveEnv(\"setId\", [\"set\",\"data.set\",\"data.set._id\",\"data.set.id\",\"data._id\",\"data.id\",\"_id\",\"id\"]);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{API_BASE_URL}}/flashcard-sets",
+              "host": [
+                "{{API_BASE_URL}}"
+              ],
+              "path": [
+                "flashcard-sets"
+              ]
+            },
+            "description": "07. Tạo Bộ thẻ học chính",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Postman Main Flashcard Set\",\n  \"description\": \"Vocabulary for UC11-UC20 tests\",\n  \"isPublic\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "08. Tạo Bộ thẻ học phụ để xóa",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function json() { try { return pm.response.json(); } catch (e) { return {}; } }",
+                  "function pick(obj, paths) {",
+                  "  for (const path of paths) {",
+                  "    const value = path.split(\".\").reduce((acc, key) => acc && acc[key] !== undefined ? acc[key] : undefined, obj);",
+                  "    if (value !== undefined && value !== null && value !== \"\") return value;",
+                  "  }",
+                  "  return undefined;",
+                  "}",
+                  "function expectStatus(codes) {",
+                  "  pm.test(\"Mã trạng thái hợp lệ: \" + codes.join(\"/\"), function () { pm.expect(pm.response.code).to.be.oneOf(codes); });",
+                  "}",
+                  "function expectObject() { pm.test(\"Phản hồi là JSON object\", function () { pm.expect(json()).to.be.an(\"object\"); }); }",
+                  "function saveEnv(name, paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Lưu biến môi trường \" + name, function () { pm.expect(value, name).to.exist; });",
+                  "  if (value) pm.environment.set(name, value);",
+                  "}",
+                  "function expectArray(paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Dữ liệu trả về là danh sách\", function () { pm.expect(value).to.be.an(\"array\"); });",
+                  "}",
+                  "",
+                  "expectStatus([201]);",
+                  "expectObject();",
+                  "saveEnv(\"deleteSetId\", [\"set\",\"data.set\",\"data.set._id\",\"data.set.id\",\"data._id\",\"data.id\",\"_id\",\"id\"]);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{API_BASE_URL}}/flashcard-sets",
+              "host": [
+                "{{API_BASE_URL}}"
+              ],
+              "path": [
+                "flashcard-sets"
+              ]
+            },
+            "description": "08. Tạo Bộ thẻ học phụ để xóa",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Postman Set to Delete\",\n  \"description\": \"This set will be deleted in UC10\",\n  \"isPublic\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "UC10 - Xóa bộ thẻ học",
+      "description": "Xác minh học viên có thể xóa bộ thẻ do mình tạo.",
+      "item": [
+        {
+          "name": "09. Xóa bộ thẻ học phụ",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function json() { try { return pm.response.json(); } catch (e) { return {}; } }",
+                  "function pick(obj, paths) {",
+                  "  for (const path of paths) {",
+                  "    const value = path.split(\".\").reduce((acc, key) => acc && acc[key] !== undefined ? acc[key] : undefined, obj);",
+                  "    if (value !== undefined && value !== null && value !== \"\") return value;",
+                  "  }",
+                  "  return undefined;",
+                  "}",
+                  "function expectStatus(codes) {",
+                  "  pm.test(\"Mã trạng thái hợp lệ: \" + codes.join(\"/\"), function () { pm.expect(pm.response.code).to.be.oneOf(codes); });",
+                  "}",
+                  "function expectObject() { pm.test(\"Phản hồi là JSON object\", function () { pm.expect(json()).to.be.an(\"object\"); }); }",
+                  "function saveEnv(name, paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Lưu biến môi trường \" + name, function () { pm.expect(value, name).to.exist; });",
+                  "  if (value) pm.environment.set(name, value);",
+                  "}",
+                  "function expectArray(paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Dữ liệu trả về là danh sách\", function () { pm.expect(value).to.be.an(\"array\"); });",
+                  "}",
+                  "",
+                  "expectStatus([200, 204]);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{API_BASE_URL}}/flashcard-sets/{{deleteSetId}}",
+              "host": [
+                "{{API_BASE_URL}}"
+              ],
+              "path": [
+                "flashcard-sets",
+                "{{deleteSetId}}"
+              ]
+            },
+            "description": "09. Xóa bộ thẻ học phụ"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "UC11 - Quản lý thẻ ghi nhớ",
+      "description": "Tạo, cập nhật và đọc danh sách thẻ ghi nhớ trong một bộ thẻ.",
+      "item": [
+        {
+          "name": "10. Tạo thẻ ghi nhớ thứ nhất",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function json() { try { return pm.response.json(); } catch (e) { return {}; } }",
+                  "function pick(obj, paths) {",
+                  "  for (const path of paths) {",
+                  "    const value = path.split(\".\").reduce((acc, key) => acc && acc[key] !== undefined ? acc[key] : undefined, obj);",
+                  "    if (value !== undefined && value !== null && value !== \"\") return value;",
+                  "  }",
+                  "  return undefined;",
+                  "}",
+                  "function expectStatus(codes) {",
+                  "  pm.test(\"Mã trạng thái hợp lệ: \" + codes.join(\"/\"), function () { pm.expect(pm.response.code).to.be.oneOf(codes); });",
+                  "}",
+                  "function expectObject() { pm.test(\"Phản hồi là JSON object\", function () { pm.expect(json()).to.be.an(\"object\"); }); }",
+                  "function saveEnv(name, paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Lưu biến môi trường \" + name, function () { pm.expect(value, name).to.exist; });",
+                  "  if (value) pm.environment.set(name, value);",
+                  "}",
+                  "function expectArray(paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Dữ liệu trả về là danh sách\", function () { pm.expect(value).to.be.an(\"array\"); });",
+                  "}",
+                  "",
+                  "expectStatus([201]);",
+                  "expectObject();",
+                  "saveEnv(\"cardId\", [\"card\",\"data.card\",\"data.card._id\",\"data.card.id\",\"data._id\",\"data.id\",\"_id\",\"id\"]);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{API_BASE_URL}}/flashcards/set/{{setId}}",
+              "host": [
+                "{{API_BASE_URL}}"
+              ],
+              "path": [
+                "flashcards",
+                "set",
+                "{{setId}}"
+              ]
+            },
+            "description": "10. Tạo thẻ ghi nhớ thứ nhất",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"front\": \"Hello\",\n  \"back\": \"Xin chào\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "11. Tạo thẻ ghi nhớ thứ hai",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function json() { try { return pm.response.json(); } catch (e) { return {}; } }",
+                  "function pick(obj, paths) {",
+                  "  for (const path of paths) {",
+                  "    const value = path.split(\".\").reduce((acc, key) => acc && acc[key] !== undefined ? acc[key] : undefined, obj);",
+                  "    if (value !== undefined && value !== null && value !== \"\") return value;",
+                  "  }",
+                  "  return undefined;",
+                  "}",
+                  "function expectStatus(codes) {",
+                  "  pm.test(\"Mã trạng thái hợp lệ: \" + codes.join(\"/\"), function () { pm.expect(pm.response.code).to.be.oneOf(codes); });",
+                  "}",
+                  "function expectObject() { pm.test(\"Phản hồi là JSON object\", function () { pm.expect(json()).to.be.an(\"object\"); }); }",
+                  "function saveEnv(name, paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Lưu biến môi trường \" + name, function () { pm.expect(value, name).to.exist; });",
+                  "  if (value) pm.environment.set(name, value);",
+                  "}",
+                  "function expectArray(paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Dữ liệu trả về là danh sách\", function () { pm.expect(value).to.be.an(\"array\"); });",
+                  "}",
+                  "",
+                  "expectStatus([201]);",
+                  "expectObject();",
+                  "saveEnv(\"cardId2\", [\"card\",\"data.card\",\"data.card._id\",\"data.card.id\",\"data._id\",\"data.id\",\"_id\",\"id\"]);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{API_BASE_URL}}/flashcards/set/{{setId}}",
+              "host": [
+                "{{API_BASE_URL}}"
+              ],
+              "path": [
+                "flashcards",
+                "set",
+                "{{setId}}"
+              ]
+            },
+            "description": "11. Tạo thẻ ghi nhớ thứ hai",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"front\": \"Goodbye\",\n  \"back\": \"Tạm biệt\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "12. Cập nhật thẻ ghi nhớ",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function json() { try { return pm.response.json(); } catch (e) { return {}; } }",
+                  "function pick(obj, paths) {",
+                  "  for (const path of paths) {",
+                  "    const value = path.split(\".\").reduce((acc, key) => acc && acc[key] !== undefined ? acc[key] : undefined, obj);",
+                  "    if (value !== undefined && value !== null && value !== \"\") return value;",
+                  "  }",
+                  "  return undefined;",
+                  "}",
+                  "function expectStatus(codes) {",
+                  "  pm.test(\"Mã trạng thái hợp lệ: \" + codes.join(\"/\"), function () { pm.expect(pm.response.code).to.be.oneOf(codes); });",
+                  "}",
+                  "function expectObject() { pm.test(\"Phản hồi là JSON object\", function () { pm.expect(json()).to.be.an(\"object\"); }); }",
+                  "function saveEnv(name, paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Lưu biến môi trường \" + name, function () { pm.expect(value, name).to.exist; });",
+                  "  if (value) pm.environment.set(name, value);",
+                  "}",
+                  "function expectArray(paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Dữ liệu trả về là danh sách\", function () { pm.expect(value).to.be.an(\"array\"); });",
+                  "}",
+                  "",
+                  "expectStatus([200]);",
+                  "expectObject();",
+                  "pm.test(\"Nội dung front đã cập nhật\", function () { pm.expect(pick(json(), [\"data.front\", \"front\"])).to.include(\"Hello\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{API_BASE_URL}}/flashcards/{{cardId}}",
+              "host": [
+                "{{API_BASE_URL}}"
+              ],
+              "path": [
+                "flashcards",
+                "{{cardId}}"
+              ]
+            },
+            "description": "12. Cập nhật thẻ ghi nhớ",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"front\": \"Hello (Pronunciation: /həˈloʊ/)\",\n  \"back\": \"Xin chào (Chào hỏi)\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "13. Lấy danh sách thẻ trong bộ",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function json() { try { return pm.response.json(); } catch (e) { return {}; } }",
+                  "function pick(obj, paths) {",
+                  "  for (const path of paths) {",
+                  "    const value = path.split(\".\").reduce((acc, key) => acc && acc[key] !== undefined ? acc[key] : undefined, obj);",
+                  "    if (value !== undefined && value !== null && value !== \"\") return value;",
+                  "  }",
+                  "  return undefined;",
+                  "}",
+                  "function expectStatus(codes) {",
+                  "  pm.test(\"Mã trạng thái hợp lệ: \" + codes.join(\"/\"), function () { pm.expect(pm.response.code).to.be.oneOf(codes); });",
+                  "}",
+                  "function expectObject() { pm.test(\"Phản hồi là JSON object\", function () { pm.expect(json()).to.be.an(\"object\"); }); }",
+                  "function saveEnv(name, paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Lưu biến môi trường \" + name, function () { pm.expect(value, name).to.exist; });",
+                  "  if (value) pm.environment.set(name, value);",
+                  "}",
+                  "function expectArray(paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Dữ liệu trả về là danh sách\", function () { pm.expect(value).to.be.an(\"array\"); });",
+                  "}",
+                  "",
+                  "expectStatus([200]);",
+                  "expectObject();",
+                  "expectArray([\"data\", \"items\", \"cards\"]);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{API_BASE_URL}}/flashcards/set/{{setId}}",
+              "host": [
+                "{{API_BASE_URL}}"
+              ],
+              "path": [
+                "flashcards",
+                "set",
+                "{{setId}}"
+              ]
+            },
+            "description": "13. Lấy danh sách thẻ trong bộ"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "UC12 - Sắp xếp thứ tự thẻ",
+      "description": "Đảo thứ tự hai thẻ ghi nhớ vừa tạo.",
+      "item": [
+        {
+          "name": "14. Thay đổi thứ tự thẻ",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function json() { try { return pm.response.json(); } catch (e) { return {}; } }",
+                  "function pick(obj, paths) {",
+                  "  for (const path of paths) {",
+                  "    const value = path.split(\".\").reduce((acc, key) => acc && acc[key] !== undefined ? acc[key] : undefined, obj);",
+                  "    if (value !== undefined && value !== null && value !== \"\") return value;",
+                  "  }",
+                  "  return undefined;",
+                  "}",
+                  "function expectStatus(codes) {",
+                  "  pm.test(\"Mã trạng thái hợp lệ: \" + codes.join(\"/\"), function () { pm.expect(pm.response.code).to.be.oneOf(codes); });",
+                  "}",
+                  "function expectObject() { pm.test(\"Phản hồi là JSON object\", function () { pm.expect(json()).to.be.an(\"object\"); }); }",
+                  "function saveEnv(name, paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Lưu biến môi trường \" + name, function () { pm.expect(value, name).to.exist; });",
+                  "  if (value) pm.environment.set(name, value);",
+                  "}",
+                  "function expectArray(paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Dữ liệu trả về là danh sách\", function () { pm.expect(value).to.be.an(\"array\"); });",
+                  "}",
+                  "",
+                  "expectStatus([200]);",
+                  "expectObject();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{API_BASE_URL}}/flashcards/set/{{setId}}/reorder",
+              "host": [
+                "{{API_BASE_URL}}"
+              ],
+              "path": [
+                "flashcards",
+                "set",
+                "{{setId}}",
+                "reorder"
+              ]
+            },
+            "description": "14. Thay đổi thứ tự thẻ",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cardIds\": [\n    \"{{cardId2}}\",\n    \"{{cardId}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "UC13 - Tạo thư mục",
+      "description": "Tạo thư mục để tổ chức bộ thẻ học.",
+      "item": [
+        {
+          "name": "15. Tạo thư mục mới",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function json() { try { return pm.response.json(); } catch (e) { return {}; } }",
+                  "function pick(obj, paths) {",
+                  "  for (const path of paths) {",
+                  "    const value = path.split(\".\").reduce((acc, key) => acc && acc[key] !== undefined ? acc[key] : undefined, obj);",
+                  "    if (value !== undefined && value !== null && value !== \"\") return value;",
+                  "  }",
+                  "  return undefined;",
+                  "}",
+                  "function expectStatus(codes) {",
+                  "  pm.test(\"Mã trạng thái hợp lệ: \" + codes.join(\"/\"), function () { pm.expect(pm.response.code).to.be.oneOf(codes); });",
+                  "}",
+                  "function expectObject() { pm.test(\"Phản hồi là JSON object\", function () { pm.expect(json()).to.be.an(\"object\"); }); }",
+                  "function saveEnv(name, paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Lưu biến môi trường \" + name, function () { pm.expect(value, name).to.exist; });",
+                  "  if (value) pm.environment.set(name, value);",
+                  "}",
+                  "function expectArray(paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Dữ liệu trả về là danh sách\", function () { pm.expect(value).to.be.an(\"array\"); });",
+                  "}",
+                  "",
+                  "expectStatus([201]);",
+                  "expectObject();",
+                  "saveEnv(\"folderId\", [\"folder\",\"data.folder\",\"data.folder._id\",\"data.folder.id\",\"data._id\",\"data.id\",\"_id\",\"id\"]);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{API_BASE_URL}}/folders",
+              "host": [
+                "{{API_BASE_URL}}"
+              ],
+              "path": [
+                "folders"
+              ]
+            },
+            "description": "15. Tạo thư mục mới",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Thư mục học tập tiếng Anh\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "UC14 - Sửa tên và xóa thư mục",
+      "description": "Cập nhật tên thư mục; thao tác xóa thư mục được thực hiện trong phần Cleanup.",
+      "item": [
+        {
+          "name": "16. Đổi tên thư mục",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function json() { try { return pm.response.json(); } catch (e) { return {}; } }",
+                  "function pick(obj, paths) {",
+                  "  for (const path of paths) {",
+                  "    const value = path.split(\".\").reduce((acc, key) => acc && acc[key] !== undefined ? acc[key] : undefined, obj);",
+                  "    if (value !== undefined && value !== null && value !== \"\") return value;",
+                  "  }",
+                  "  return undefined;",
+                  "}",
+                  "function expectStatus(codes) {",
+                  "  pm.test(\"Mã trạng thái hợp lệ: \" + codes.join(\"/\"), function () { pm.expect(pm.response.code).to.be.oneOf(codes); });",
+                  "}",
+                  "function expectObject() { pm.test(\"Phản hồi là JSON object\", function () { pm.expect(json()).to.be.an(\"object\"); }); }",
+                  "function saveEnv(name, paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Lưu biến môi trường \" + name, function () { pm.expect(value, name).to.exist; });",
+                  "  if (value) pm.environment.set(name, value);",
+                  "}",
+                  "function expectArray(paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Dữ liệu trả về là danh sách\", function () { pm.expect(value).to.be.an(\"array\"); });",
+                  "}",
+                  "",
+                  "expectStatus([200]);",
+                  "expectObject();",
+                  "pm.test(\"Tên thư mục đã cập nhật\", function () { pm.expect(pick(json(), [\"data.name\", \"name\"])).to.include(\"giao tiếp\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{API_BASE_URL}}/folders/{{folderId}}",
+              "host": [
+                "{{API_BASE_URL}}"
+              ],
+              "path": [
+                "folders",
+                "{{folderId}}"
+              ]
+            },
+            "description": "16. Đổi tên thư mục",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Thư mục học tập tiếng Anh giao tiếp nâng cao\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "UC15 - Quản lý học phần trong thư mục",
+      "description": "Thêm và gỡ bộ thẻ khỏi thư mục.",
+      "item": [
+        {
+          "name": "17. Thêm học phần vào thư mục",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function json() { try { return pm.response.json(); } catch (e) { return {}; } }",
+                  "function pick(obj, paths) {",
+                  "  for (const path of paths) {",
+                  "    const value = path.split(\".\").reduce((acc, key) => acc && acc[key] !== undefined ? acc[key] : undefined, obj);",
+                  "    if (value !== undefined && value !== null && value !== \"\") return value;",
+                  "  }",
+                  "  return undefined;",
+                  "}",
+                  "function expectStatus(codes) {",
+                  "  pm.test(\"Mã trạng thái hợp lệ: \" + codes.join(\"/\"), function () { pm.expect(pm.response.code).to.be.oneOf(codes); });",
+                  "}",
+                  "function expectObject() { pm.test(\"Phản hồi là JSON object\", function () { pm.expect(json()).to.be.an(\"object\"); }); }",
+                  "function saveEnv(name, paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Lưu biến môi trường \" + name, function () { pm.expect(value, name).to.exist; });",
+                  "  if (value) pm.environment.set(name, value);",
+                  "}",
+                  "function expectArray(paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Dữ liệu trả về là danh sách\", function () { pm.expect(value).to.be.an(\"array\"); });",
+                  "}",
+                  "",
+                  "expectStatus([200, 201]);",
+                  "expectObject();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{API_BASE_URL}}/folders/{{folderId}}/sets",
+              "host": [
+                "{{API_BASE_URL}}"
+              ],
+              "path": [
+                "folders",
+                "{{folderId}}",
+                "sets"
+              ]
+            },
+            "description": "17. Thêm học phần vào thư mục",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"setId\": \"{{setId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "18. Xóa học phần khỏi thư mục",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function json() { try { return pm.response.json(); } catch (e) { return {}; } }",
+                  "function pick(obj, paths) {",
+                  "  for (const path of paths) {",
+                  "    const value = path.split(\".\").reduce((acc, key) => acc && acc[key] !== undefined ? acc[key] : undefined, obj);",
+                  "    if (value !== undefined && value !== null && value !== \"\") return value;",
+                  "  }",
+                  "  return undefined;",
+                  "}",
+                  "function expectStatus(codes) {",
+                  "  pm.test(\"Mã trạng thái hợp lệ: \" + codes.join(\"/\"), function () { pm.expect(pm.response.code).to.be.oneOf(codes); });",
+                  "}",
+                  "function expectObject() { pm.test(\"Phản hồi là JSON object\", function () { pm.expect(json()).to.be.an(\"object\"); }); }",
+                  "function saveEnv(name, paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Lưu biến môi trường \" + name, function () { pm.expect(value, name).to.exist; });",
+                  "  if (value) pm.environment.set(name, value);",
+                  "}",
+                  "function expectArray(paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Dữ liệu trả về là danh sách\", function () { pm.expect(value).to.be.an(\"array\"); });",
+                  "}",
+                  "",
+                  "expectStatus([200, 204]);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{API_BASE_URL}}/folders/{{folderId}}/sets/{{setId}}",
+              "host": [
+                "{{API_BASE_URL}}"
+              ],
+              "path": [
+                "folders",
+                "{{folderId}}",
+                "sets",
+                "{{setId}}"
+              ]
+            },
+            "description": "18. Xóa học phần khỏi thư mục"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "UC16 - Quản lý nhãn của học phần",
+      "description": "Tạo, cập nhật, gắn và xóa nhãn cho bộ thẻ học.",
+      "item": [
+        {
+          "name": "19. Tạo nhãn mới",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function json() { try { return pm.response.json(); } catch (e) { return {}; } }",
+                  "function pick(obj, paths) {",
+                  "  for (const path of paths) {",
+                  "    const value = path.split(\".\").reduce((acc, key) => acc && acc[key] !== undefined ? acc[key] : undefined, obj);",
+                  "    if (value !== undefined && value !== null && value !== \"\") return value;",
+                  "  }",
+                  "  return undefined;",
+                  "}",
+                  "function expectStatus(codes) {",
+                  "  pm.test(\"Mã trạng thái hợp lệ: \" + codes.join(\"/\"), function () { pm.expect(pm.response.code).to.be.oneOf(codes); });",
+                  "}",
+                  "function expectObject() { pm.test(\"Phản hồi là JSON object\", function () { pm.expect(json()).to.be.an(\"object\"); }); }",
+                  "function saveEnv(name, paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Lưu biến môi trường \" + name, function () { pm.expect(value, name).to.exist; });",
+                  "  if (value) pm.environment.set(name, value);",
+                  "}",
+                  "function expectArray(paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Dữ liệu trả về là danh sách\", function () { pm.expect(value).to.be.an(\"array\"); });",
+                  "}",
+                  "",
+                  "expectStatus([201]);",
+                  "expectObject();",
+                  "saveEnv(\"tagId\", [\"tag\",\"data.tag\",\"data.tag._id\",\"data.tag.id\",\"data._id\",\"data.id\",\"_id\",\"id\"]);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{API_BASE_URL}}/tags",
+              "host": [
+                "{{API_BASE_URL}}"
+              ],
+              "path": [
+                "tags"
+              ]
+            },
+            "description": "19. Tạo nhãn mới",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Nhãn kiểm thử Postman\",\n  \"color\": \"#e74c3c\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "20. Cập nhật nhãn",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function json() { try { return pm.response.json(); } catch (e) { return {}; } }",
+                  "function pick(obj, paths) {",
+                  "  for (const path of paths) {",
+                  "    const value = path.split(\".\").reduce((acc, key) => acc && acc[key] !== undefined ? acc[key] : undefined, obj);",
+                  "    if (value !== undefined && value !== null && value !== \"\") return value;",
+                  "  }",
+                  "  return undefined;",
+                  "}",
+                  "function expectStatus(codes) {",
+                  "  pm.test(\"Mã trạng thái hợp lệ: \" + codes.join(\"/\"), function () { pm.expect(pm.response.code).to.be.oneOf(codes); });",
+                  "}",
+                  "function expectObject() { pm.test(\"Phản hồi là JSON object\", function () { pm.expect(json()).to.be.an(\"object\"); }); }",
+                  "function saveEnv(name, paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Lưu biến môi trường \" + name, function () { pm.expect(value, name).to.exist; });",
+                  "  if (value) pm.environment.set(name, value);",
+                  "}",
+                  "function expectArray(paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Dữ liệu trả về là danh sách\", function () { pm.expect(value).to.be.an(\"array\"); });",
+                  "}",
+                  "",
+                  "expectStatus([200]);",
+                  "expectObject();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{API_BASE_URL}}/tags/{{tagId}}",
+              "host": [
+                "{{API_BASE_URL}}"
+              ],
+              "path": [
+                "tags",
+                "{{tagId}}"
+              ]
+            },
+            "description": "20. Cập nhật nhãn",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Nhãn kiểm thử Postman - Đã sửa\",\n  \"color\": \"#2ecc71\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "21. Gắn nhãn vào học phần",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function json() { try { return pm.response.json(); } catch (e) { return {}; } }",
+                  "function pick(obj, paths) {",
+                  "  for (const path of paths) {",
+                  "    const value = path.split(\".\").reduce((acc, key) => acc && acc[key] !== undefined ? acc[key] : undefined, obj);",
+                  "    if (value !== undefined && value !== null && value !== \"\") return value;",
+                  "  }",
+                  "  return undefined;",
+                  "}",
+                  "function expectStatus(codes) {",
+                  "  pm.test(\"Mã trạng thái hợp lệ: \" + codes.join(\"/\"), function () { pm.expect(pm.response.code).to.be.oneOf(codes); });",
+                  "}",
+                  "function expectObject() { pm.test(\"Phản hồi là JSON object\", function () { pm.expect(json()).to.be.an(\"object\"); }); }",
+                  "function saveEnv(name, paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Lưu biến môi trường \" + name, function () { pm.expect(value, name).to.exist; });",
+                  "  if (value) pm.environment.set(name, value);",
+                  "}",
+                  "function expectArray(paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Dữ liệu trả về là danh sách\", function () { pm.expect(value).to.be.an(\"array\"); });",
+                  "}",
+                  "",
+                  "expectStatus([200]);",
+                  "expectObject();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{API_BASE_URL}}/flashcard-sets/{{setId}}",
+              "host": [
+                "{{API_BASE_URL}}"
+              ],
+              "path": [
+                "flashcard-sets",
+                "{{setId}}"
+              ]
+            },
+            "description": "21. Gắn nhãn vào học phần",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tags\": [\n    \"{{tagId}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "22. Xóa nhãn",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function json() { try { return pm.response.json(); } catch (e) { return {}; } }",
+                  "function pick(obj, paths) {",
+                  "  for (const path of paths) {",
+                  "    const value = path.split(\".\").reduce((acc, key) => acc && acc[key] !== undefined ? acc[key] : undefined, obj);",
+                  "    if (value !== undefined && value !== null && value !== \"\") return value;",
+                  "  }",
+                  "  return undefined;",
+                  "}",
+                  "function expectStatus(codes) {",
+                  "  pm.test(\"Mã trạng thái hợp lệ: \" + codes.join(\"/\"), function () { pm.expect(pm.response.code).to.be.oneOf(codes); });",
+                  "}",
+                  "function expectObject() { pm.test(\"Phản hồi là JSON object\", function () { pm.expect(json()).to.be.an(\"object\"); }); }",
+                  "function saveEnv(name, paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Lưu biến môi trường \" + name, function () { pm.expect(value, name).to.exist; });",
+                  "  if (value) pm.environment.set(name, value);",
+                  "}",
+                  "function expectArray(paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Dữ liệu trả về là danh sách\", function () { pm.expect(value).to.be.an(\"array\"); });",
+                  "}",
+                  "",
+                  "expectStatus([200, 204]);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{API_BASE_URL}}/tags/{{tagId}}",
+              "host": [
+                "{{API_BASE_URL}}"
+              ],
+              "path": [
+                "tags",
+                "{{tagId}}"
+              ]
+            },
+            "description": "22. Xóa nhãn"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "UC17 - Chia sẻ học phần công khai",
+      "description": "Công khai bộ thẻ, tạo share code, mở link chia sẻ và bookmark bộ thẻ.",
+      "item": [
+        {
+          "name": "23. Chuyển bộ thẻ sang trạng thái công khai",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function json() { try { return pm.response.json(); } catch (e) { return {}; } }",
+                  "function pick(obj, paths) {",
+                  "  for (const path of paths) {",
+                  "    const value = path.split(\".\").reduce((acc, key) => acc && acc[key] !== undefined ? acc[key] : undefined, obj);",
+                  "    if (value !== undefined && value !== null && value !== \"\") return value;",
+                  "  }",
+                  "  return undefined;",
+                  "}",
+                  "function expectStatus(codes) {",
+                  "  pm.test(\"Mã trạng thái hợp lệ: \" + codes.join(\"/\"), function () { pm.expect(pm.response.code).to.be.oneOf(codes); });",
+                  "}",
+                  "function expectObject() { pm.test(\"Phản hồi là JSON object\", function () { pm.expect(json()).to.be.an(\"object\"); }); }",
+                  "function saveEnv(name, paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Lưu biến môi trường \" + name, function () { pm.expect(value, name).to.exist; });",
+                  "  if (value) pm.environment.set(name, value);",
+                  "}",
+                  "function expectArray(paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Dữ liệu trả về là danh sách\", function () { pm.expect(value).to.be.an(\"array\"); });",
+                  "}",
+                  "",
+                  "expectStatus([200]);",
+                  "expectObject();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{API_BASE_URL}}/flashcard-sets/{{setId}}",
+              "host": [
+                "{{API_BASE_URL}}"
+              ],
+              "path": [
+                "flashcard-sets",
+                "{{setId}}"
+              ]
+            },
+            "description": "23. Chuyển bộ thẻ sang trạng thái công khai",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isPublic\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "24. Tạo mã chia sẻ học phần",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function json() { try { return pm.response.json(); } catch (e) { return {}; } }",
+                  "function pick(obj, paths) {",
+                  "  for (const path of paths) {",
+                  "    const value = path.split(\".\").reduce((acc, key) => acc && acc[key] !== undefined ? acc[key] : undefined, obj);",
+                  "    if (value !== undefined && value !== null && value !== \"\") return value;",
+                  "  }",
+                  "  return undefined;",
+                  "}",
+                  "function expectStatus(codes) {",
+                  "  pm.test(\"Mã trạng thái hợp lệ: \" + codes.join(\"/\"), function () { pm.expect(pm.response.code).to.be.oneOf(codes); });",
+                  "}",
+                  "function expectObject() { pm.test(\"Phản hồi là JSON object\", function () { pm.expect(json()).to.be.an(\"object\"); }); }",
+                  "function saveEnv(name, paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Lưu biến môi trường \" + name, function () { pm.expect(value, name).to.exist; });",
+                  "  if (value) pm.environment.set(name, value);",
+                  "}",
+                  "function expectArray(paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Dữ liệu trả về là danh sách\", function () { pm.expect(value).to.be.an(\"array\"); });",
+                  "}",
+                  "",
+                  "expectStatus([201]);",
+                  "expectObject();",
+                  "saveEnv(\"shareCode\", [\"shareCode\",\"code\",\"data.shareCode\",\"data.code\",\"data.share.shareCode\",\"data.share.code\"]);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{API_BASE_URL}}/shares",
+              "host": [
+                "{{API_BASE_URL}}"
+              ],
+              "path": [
+                "shares"
+              ]
+            },
+            "description": "24. Tạo mã chia sẻ học phần",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"setId\": \"{{setId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "25. Xem bộ thẻ công khai qua mã chia sẻ",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function json() { try { return pm.response.json(); } catch (e) { return {}; } }",
+                  "function pick(obj, paths) {",
+                  "  for (const path of paths) {",
+                  "    const value = path.split(\".\").reduce((acc, key) => acc && acc[key] !== undefined ? acc[key] : undefined, obj);",
+                  "    if (value !== undefined && value !== null && value !== \"\") return value;",
+                  "  }",
+                  "  return undefined;",
+                  "}",
+                  "function expectStatus(codes) {",
+                  "  pm.test(\"Mã trạng thái hợp lệ: \" + codes.join(\"/\"), function () { pm.expect(pm.response.code).to.be.oneOf(codes); });",
+                  "}",
+                  "function expectObject() { pm.test(\"Phản hồi là JSON object\", function () { pm.expect(json()).to.be.an(\"object\"); }); }",
+                  "function saveEnv(name, paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Lưu biến môi trường \" + name, function () { pm.expect(value, name).to.exist; });",
+                  "  if (value) pm.environment.set(name, value);",
+                  "}",
+                  "function expectArray(paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Dữ liệu trả về là danh sách\", function () { pm.expect(value).to.be.an(\"array\"); });",
+                  "}",
+                  "",
+                  "expectStatus([200]);",
+                  "expectObject();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{API_BASE_URL}}/shares/shared/{{shareCode}}",
+              "host": [
+                "{{API_BASE_URL}}"
+              ],
+              "path": [
+                "shares",
+                "shared",
+                "{{shareCode}}"
+              ]
+            },
+            "description": "25. Xem bộ thẻ công khai qua mã chia sẻ"
+          },
+          "response": []
+        },
+        {
+          "name": "26. Lưu bộ thẻ công khai vào bookmark",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function json() { try { return pm.response.json(); } catch (e) { return {}; } }",
+                  "function pick(obj, paths) {",
+                  "  for (const path of paths) {",
+                  "    const value = path.split(\".\").reduce((acc, key) => acc && acc[key] !== undefined ? acc[key] : undefined, obj);",
+                  "    if (value !== undefined && value !== null && value !== \"\") return value;",
+                  "  }",
+                  "  return undefined;",
+                  "}",
+                  "function expectStatus(codes) {",
+                  "  pm.test(\"Mã trạng thái hợp lệ: \" + codes.join(\"/\"), function () { pm.expect(pm.response.code).to.be.oneOf(codes); });",
+                  "}",
+                  "function expectObject() { pm.test(\"Phản hồi là JSON object\", function () { pm.expect(json()).to.be.an(\"object\"); }); }",
+                  "function saveEnv(name, paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Lưu biến môi trường \" + name, function () { pm.expect(value, name).to.exist; });",
+                  "  if (value) pm.environment.set(name, value);",
+                  "}",
+                  "function expectArray(paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Dữ liệu trả về là danh sách\", function () { pm.expect(value).to.be.an(\"array\"); });",
+                  "}",
+                  "",
+                  "expectStatus([200, 201]);",
+                  "expectObject();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{API_BASE_URL}}/bookmarks",
+              "host": [
+                "{{API_BASE_URL}}"
+              ],
+              "path": [
+                "bookmarks"
+              ]
+            },
+            "description": "26. Lưu bộ thẻ công khai vào bookmark",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"setId\": \"{{setId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "27. Lấy danh sách bookmark",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function json() { try { return pm.response.json(); } catch (e) { return {}; } }",
+                  "function pick(obj, paths) {",
+                  "  for (const path of paths) {",
+                  "    const value = path.split(\".\").reduce((acc, key) => acc && acc[key] !== undefined ? acc[key] : undefined, obj);",
+                  "    if (value !== undefined && value !== null && value !== \"\") return value;",
+                  "  }",
+                  "  return undefined;",
+                  "}",
+                  "function expectStatus(codes) {",
+                  "  pm.test(\"Mã trạng thái hợp lệ: \" + codes.join(\"/\"), function () { pm.expect(pm.response.code).to.be.oneOf(codes); });",
+                  "}",
+                  "function expectObject() { pm.test(\"Phản hồi là JSON object\", function () { pm.expect(json()).to.be.an(\"object\"); }); }",
+                  "function saveEnv(name, paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Lưu biến môi trường \" + name, function () { pm.expect(value, name).to.exist; });",
+                  "  if (value) pm.environment.set(name, value);",
+                  "}",
+                  "function expectArray(paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Dữ liệu trả về là danh sách\", function () { pm.expect(value).to.be.an(\"array\"); });",
+                  "}",
+                  "",
+                  "expectStatus([200]);",
+                  "expectObject();",
+                  "expectArray([\"data\", \"bookmarks\", \"items\"]);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{API_BASE_URL}}/bookmarks",
+              "host": [
+                "{{API_BASE_URL}}"
+              ],
+              "path": [
+                "bookmarks"
+              ]
+            },
+            "description": "27. Lấy danh sách bookmark"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "UC18 - Chọn khóa học theo lộ trình",
+      "description": "Học viên xem và chọn khóa học đang hoạt động trong roadmap.",
+      "item": [
+        {
+          "name": "28. Xem danh sách khóa học lộ trình",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function json() { try { return pm.response.json(); } catch (e) { return {}; } }",
+                  "function pick(obj, paths) {",
+                  "  for (const path of paths) {",
+                  "    const value = path.split(\".\").reduce((acc, key) => acc && acc[key] !== undefined ? acc[key] : undefined, obj);",
+                  "    if (value !== undefined && value !== null && value !== \"\") return value;",
+                  "  }",
+                  "  return undefined;",
+                  "}",
+                  "function expectStatus(codes) {",
+                  "  pm.test(\"Mã trạng thái hợp lệ: \" + codes.join(\"/\"), function () { pm.expect(pm.response.code).to.be.oneOf(codes); });",
+                  "}",
+                  "function expectObject() { pm.test(\"Phản hồi là JSON object\", function () { pm.expect(json()).to.be.an(\"object\"); }); }",
+                  "function saveEnv(name, paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Lưu biến môi trường \" + name, function () { pm.expect(value, name).to.exist; });",
+                  "  if (value) pm.environment.set(name, value);",
+                  "}",
+                  "function expectArray(paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Dữ liệu trả về là danh sách\", function () { pm.expect(value).to.be.an(\"array\"); });",
+                  "}",
+                  "",
+                  "expectStatus([200]);",
+                  "expectObject();",
+                  "expectArray([\"data\", \"courses\", \"items\"]);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{API_BASE_URL}}/duolingo/courses",
+              "host": [
+                "{{API_BASE_URL}}"
+              ],
+              "path": [
+                "duolingo",
+                "courses"
+              ]
+            },
+            "description": "28. Xem danh sách khóa học lộ trình"
+          },
+          "response": []
+        },
+        {
+          "name": "29. Chọn khóa học hoạt động",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function json() { try { return pm.response.json(); } catch (e) { return {}; } }",
+                  "function pick(obj, paths) {",
+                  "  for (const path of paths) {",
+                  "    const value = path.split(\".\").reduce((acc, key) => acc && acc[key] !== undefined ? acc[key] : undefined, obj);",
+                  "    if (value !== undefined && value !== null && value !== \"\") return value;",
+                  "  }",
+                  "  return undefined;",
+                  "}",
+                  "function expectStatus(codes) {",
+                  "  pm.test(\"Mã trạng thái hợp lệ: \" + codes.join(\"/\"), function () { pm.expect(pm.response.code).to.be.oneOf(codes); });",
+                  "}",
+                  "function expectObject() { pm.test(\"Phản hồi là JSON object\", function () { pm.expect(json()).to.be.an(\"object\"); }); }",
+                  "function saveEnv(name, paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Lưu biến môi trường \" + name, function () { pm.expect(value, name).to.exist; });",
+                  "  if (value) pm.environment.set(name, value);",
+                  "}",
+                  "function expectArray(paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Dữ liệu trả về là danh sách\", function () { pm.expect(value).to.be.an(\"array\"); });",
+                  "}",
+                  "",
+                  "expectStatus([200, 201]);",
+                  "expectObject();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{API_BASE_URL}}/duolingo/courses/select",
+              "host": [
+                "{{API_BASE_URL}}"
+              ],
+              "path": [
+                "duolingo",
+                "courses",
+                "select"
+              ]
+            },
+            "description": "29. Chọn khóa học hoạt động",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"courseId\": \"{{courseId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "UC19 - Học theo lộ trình bài học",
+      "description": "Học viên lấy roadmap, mở bài học, trả lời thử thách và hoàn thành bài.",
+      "item": [
+        {
+          "name": "30. Lấy cây chương học",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function json() { try { return pm.response.json(); } catch (e) { return {}; } }",
+                  "function pick(obj, paths) {",
+                  "  for (const path of paths) {",
+                  "    const value = path.split(\".\").reduce((acc, key) => acc && acc[key] !== undefined ? acc[key] : undefined, obj);",
+                  "    if (value !== undefined && value !== null && value !== \"\") return value;",
+                  "  }",
+                  "  return undefined;",
+                  "}",
+                  "function expectStatus(codes) {",
+                  "  pm.test(\"Mã trạng thái hợp lệ: \" + codes.join(\"/\"), function () { pm.expect(pm.response.code).to.be.oneOf(codes); });",
+                  "}",
+                  "function expectObject() { pm.test(\"Phản hồi là JSON object\", function () { pm.expect(json()).to.be.an(\"object\"); }); }",
+                  "function saveEnv(name, paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Lưu biến môi trường \" + name, function () { pm.expect(value, name).to.exist; });",
+                  "  if (value) pm.environment.set(name, value);",
+                  "}",
+                  "function expectArray(paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Dữ liệu trả về là danh sách\", function () { pm.expect(value).to.be.an(\"array\"); });",
+                  "}",
+                  "",
+                  "expectStatus([200]);",
+                  "expectObject();",
+                  "expectArray([\"data\", \"units\", \"items\"]);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{API_BASE_URL}}/duolingo/units",
+              "host": [
+                "{{API_BASE_URL}}"
+              ],
+              "path": [
+                "duolingo",
+                "units"
+              ]
+            },
+            "description": "30. Lấy cây chương học"
+          },
+          "response": []
+        },
+        {
+          "name": "31. Lấy bài học tiếp theo",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function json() { try { return pm.response.json(); } catch (e) { return {}; } }",
+                  "function pick(obj, paths) {",
+                  "  for (const path of paths) {",
+                  "    const value = path.split(\".\").reduce((acc, key) => acc && acc[key] !== undefined ? acc[key] : undefined, obj);",
+                  "    if (value !== undefined && value !== null && value !== \"\") return value;",
+                  "  }",
+                  "  return undefined;",
+                  "}",
+                  "function expectStatus(codes) {",
+                  "  pm.test(\"Mã trạng thái hợp lệ: \" + codes.join(\"/\"), function () { pm.expect(pm.response.code).to.be.oneOf(codes); });",
+                  "}",
+                  "function expectObject() { pm.test(\"Phản hồi là JSON object\", function () { pm.expect(json()).to.be.an(\"object\"); }); }",
+                  "function saveEnv(name, paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Lưu biến môi trường \" + name, function () { pm.expect(value, name).to.exist; });",
+                  "  if (value) pm.environment.set(name, value);",
+                  "}",
+                  "function expectArray(paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Dữ liệu trả về là danh sách\", function () { pm.expect(value).to.be.an(\"array\"); });",
+                  "}",
+                  "",
+                  "expectStatus([200]);",
+                  "expectObject();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{API_BASE_URL}}/duolingo/lessons/next",
+              "host": [
+                "{{API_BASE_URL}}"
+              ],
+              "path": [
+                "duolingo",
+                "lessons",
+                "next"
+              ]
+            },
+            "description": "31. Lấy bài học tiếp theo"
+          },
+          "response": []
+        },
+        {
+          "name": "32. Xem chi tiết bài học",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function json() { try { return pm.response.json(); } catch (e) { return {}; } }",
+                  "function pick(obj, paths) {",
+                  "  for (const path of paths) {",
+                  "    const value = path.split(\".\").reduce((acc, key) => acc && acc[key] !== undefined ? acc[key] : undefined, obj);",
+                  "    if (value !== undefined && value !== null && value !== \"\") return value;",
+                  "  }",
+                  "  return undefined;",
+                  "}",
+                  "function expectStatus(codes) {",
+                  "  pm.test(\"Mã trạng thái hợp lệ: \" + codes.join(\"/\"), function () { pm.expect(pm.response.code).to.be.oneOf(codes); });",
+                  "}",
+                  "function expectObject() { pm.test(\"Phản hồi là JSON object\", function () { pm.expect(json()).to.be.an(\"object\"); }); }",
+                  "function saveEnv(name, paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Lưu biến môi trường \" + name, function () { pm.expect(value, name).to.exist; });",
+                  "  if (value) pm.environment.set(name, value);",
+                  "}",
+                  "function expectArray(paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Dữ liệu trả về là danh sách\", function () { pm.expect(value).to.be.an(\"array\"); });",
+                  "}",
+                  "",
+                  "expectStatus([200]);",
+                  "expectObject();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{API_BASE_URL}}/duolingo/lessons/{{lessonId}}",
+              "host": [
+                "{{API_BASE_URL}}"
+              ],
+              "path": [
+                "duolingo",
+                "lessons",
+                "{{lessonId}}"
+              ]
+            },
+            "description": "32. Xem chi tiết bài học"
+          },
+          "response": []
+        },
+        {
+          "name": "33. Nộp câu trả lời thử thách",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function json() { try { return pm.response.json(); } catch (e) { return {}; } }",
+                  "function pick(obj, paths) {",
+                  "  for (const path of paths) {",
+                  "    const value = path.split(\".\").reduce((acc, key) => acc && acc[key] !== undefined ? acc[key] : undefined, obj);",
+                  "    if (value !== undefined && value !== null && value !== \"\") return value;",
+                  "  }",
+                  "  return undefined;",
+                  "}",
+                  "function expectStatus(codes) {",
+                  "  pm.test(\"Mã trạng thái hợp lệ: \" + codes.join(\"/\"), function () { pm.expect(pm.response.code).to.be.oneOf(codes); });",
+                  "}",
+                  "function expectObject() { pm.test(\"Phản hồi là JSON object\", function () { pm.expect(json()).to.be.an(\"object\"); }); }",
+                  "function saveEnv(name, paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Lưu biến môi trường \" + name, function () { pm.expect(value, name).to.exist; });",
+                  "  if (value) pm.environment.set(name, value);",
+                  "}",
+                  "function expectArray(paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Dữ liệu trả về là danh sách\", function () { pm.expect(value).to.be.an(\"array\"); });",
+                  "}",
+                  "",
+                  "expectStatus([200, 201]);",
+                  "expectObject();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{API_BASE_URL}}/duolingo/quiz/answer",
+              "host": [
+                "{{API_BASE_URL}}"
+              ],
+              "path": [
+                "duolingo",
+                "quiz",
+                "answer"
+              ]
+            },
+            "description": "33. Nộp câu trả lời thử thách",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"challengeId\": \"{{challengeId}}\",\n  \"selectedOptionId\": \"Xin chào\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "34. Hoàn thành bài học",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function json() { try { return pm.response.json(); } catch (e) { return {}; } }",
+                  "function pick(obj, paths) {",
+                  "  for (const path of paths) {",
+                  "    const value = path.split(\".\").reduce((acc, key) => acc && acc[key] !== undefined ? acc[key] : undefined, obj);",
+                  "    if (value !== undefined && value !== null && value !== \"\") return value;",
+                  "  }",
+                  "  return undefined;",
+                  "}",
+                  "function expectStatus(codes) {",
+                  "  pm.test(\"Mã trạng thái hợp lệ: \" + codes.join(\"/\"), function () { pm.expect(pm.response.code).to.be.oneOf(codes); });",
+                  "}",
+                  "function expectObject() { pm.test(\"Phản hồi là JSON object\", function () { pm.expect(json()).to.be.an(\"object\"); }); }",
+                  "function saveEnv(name, paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Lưu biến môi trường \" + name, function () { pm.expect(value, name).to.exist; });",
+                  "  if (value) pm.environment.set(name, value);",
+                  "}",
+                  "function expectArray(paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Dữ liệu trả về là danh sách\", function () { pm.expect(value).to.be.an(\"array\"); });",
+                  "}",
+                  "",
+                  "expectStatus([200, 201]);",
+                  "expectObject();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{API_BASE_URL}}/duolingo/lessons/{{lessonId}}/complete",
+              "host": [
+                "{{API_BASE_URL}}"
+              ],
+              "path": [
+                "duolingo",
+                "lessons",
+                "{{lessonId}}",
+                "complete"
+              ]
+            },
+            "description": "34. Hoàn thành bài học"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "UC20 - Luyện tập bộ thẻ với các chế độ",
+      "description": "Tạo phiên học, trả lời từng thẻ, ghi nhận thống kê và hoàn tất phiên ôn tập.",
+      "item": [
+        {
+          "name": "35. Bắt đầu phiên ôn tập",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function json() { try { return pm.response.json(); } catch (e) { return {}; } }",
+                  "function pick(obj, paths) {",
+                  "  for (const path of paths) {",
+                  "    const value = path.split(\".\").reduce((acc, key) => acc && acc[key] !== undefined ? acc[key] : undefined, obj);",
+                  "    if (value !== undefined && value !== null && value !== \"\") return value;",
+                  "  }",
+                  "  return undefined;",
+                  "}",
+                  "function expectStatus(codes) {",
+                  "  pm.test(\"Mã trạng thái hợp lệ: \" + codes.join(\"/\"), function () { pm.expect(pm.response.code).to.be.oneOf(codes); });",
+                  "}",
+                  "function expectObject() { pm.test(\"Phản hồi là JSON object\", function () { pm.expect(json()).to.be.an(\"object\"); }); }",
+                  "function saveEnv(name, paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Lưu biến môi trường \" + name, function () { pm.expect(value, name).to.exist; });",
+                  "  if (value) pm.environment.set(name, value);",
+                  "}",
+                  "function expectArray(paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Dữ liệu trả về là danh sách\", function () { pm.expect(value).to.be.an(\"array\"); });",
+                  "}",
+                  "",
+                  "expectStatus([201]);",
+                  "expectObject();",
+                  "saveEnv(\"sessionId\", [\"data.session._id\",\"data.session.id\",\"session._id\",\"session.id\",\"data._id\",\"data.id\",\"_id\",\"id\"]);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{API_BASE_URL}}/study-sessions/start",
+              "host": [
+                "{{API_BASE_URL}}"
+              ],
+              "path": [
+                "study-sessions",
+                "start"
+              ]
+            },
+            "description": "35. Bắt đầu phiên ôn tập",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"setId\": \"{{setId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "36. Trả lời thẻ ghi nhớ riêng lẻ",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function json() { try { return pm.response.json(); } catch (e) { return {}; } }",
+                  "function pick(obj, paths) {",
+                  "  for (const path of paths) {",
+                  "    const value = path.split(\".\").reduce((acc, key) => acc && acc[key] !== undefined ? acc[key] : undefined, obj);",
+                  "    if (value !== undefined && value !== null && value !== \"\") return value;",
+                  "  }",
+                  "  return undefined;",
+                  "}",
+                  "function expectStatus(codes) {",
+                  "  pm.test(\"Mã trạng thái hợp lệ: \" + codes.join(\"/\"), function () { pm.expect(pm.response.code).to.be.oneOf(codes); });",
+                  "}",
+                  "function expectObject() { pm.test(\"Phản hồi là JSON object\", function () { pm.expect(json()).to.be.an(\"object\"); }); }",
+                  "function saveEnv(name, paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Lưu biến môi trường \" + name, function () { pm.expect(value, name).to.exist; });",
+                  "  if (value) pm.environment.set(name, value);",
+                  "}",
+                  "function expectArray(paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Dữ liệu trả về là danh sách\", function () { pm.expect(value).to.be.an(\"array\"); });",
+                  "}",
+                  "",
+                  "expectStatus([200, 201]);",
+                  "expectObject();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{API_BASE_URL}}/study-sessions/{{sessionId}}/answer",
+              "host": [
+                "{{API_BASE_URL}}"
+              ],
+              "path": [
+                "study-sessions",
+                "{{sessionId}}",
+                "answer"
+              ]
+            },
+            "description": "36. Trả lời thẻ ghi nhớ riêng lẻ",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cardId\": \"{{cardId}}\",\n  \"isCorrect\": true,\n  \"mode\": \"multiple-choice\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "37. Cập nhật stats hàng loạt",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function json() { try { return pm.response.json(); } catch (e) { return {}; } }",
+                  "function pick(obj, paths) {",
+                  "  for (const path of paths) {",
+                  "    const value = path.split(\".\").reduce((acc, key) => acc && acc[key] !== undefined ? acc[key] : undefined, obj);",
+                  "    if (value !== undefined && value !== null && value !== \"\") return value;",
+                  "  }",
+                  "  return undefined;",
+                  "}",
+                  "function expectStatus(codes) {",
+                  "  pm.test(\"Mã trạng thái hợp lệ: \" + codes.join(\"/\"), function () { pm.expect(pm.response.code).to.be.oneOf(codes); });",
+                  "}",
+                  "function expectObject() { pm.test(\"Phản hồi là JSON object\", function () { pm.expect(json()).to.be.an(\"object\"); }); }",
+                  "function saveEnv(name, paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Lưu biến môi trường \" + name, function () { pm.expect(value, name).to.exist; });",
+                  "  if (value) pm.environment.set(name, value);",
+                  "}",
+                  "function expectArray(paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Dữ liệu trả về là danh sách\", function () { pm.expect(value).to.be.an(\"array\"); });",
+                  "}",
+                  "",
+                  "expectStatus([200, 201]);",
+                  "expectObject();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{API_BASE_URL}}/study-sessions/{{sessionId}}/answer",
+              "host": [
+                "{{API_BASE_URL}}"
+              ],
+              "path": [
+                "study-sessions",
+                "{{sessionId}}",
+                "answer"
+              ]
+            },
+            "description": "37. Cập nhật stats hàng loạt",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cardsStudied\": 10,\n  \"correctCount\": 8,\n  \"incorrectCount\": 2,\n  \"duration\": 30\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "38. Hoàn thành phiên ôn tập",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function json() { try { return pm.response.json(); } catch (e) { return {}; } }",
+                  "function pick(obj, paths) {",
+                  "  for (const path of paths) {",
+                  "    const value = path.split(\".\").reduce((acc, key) => acc && acc[key] !== undefined ? acc[key] : undefined, obj);",
+                  "    if (value !== undefined && value !== null && value !== \"\") return value;",
+                  "  }",
+                  "  return undefined;",
+                  "}",
+                  "function expectStatus(codes) {",
+                  "  pm.test(\"Mã trạng thái hợp lệ: \" + codes.join(\"/\"), function () { pm.expect(pm.response.code).to.be.oneOf(codes); });",
+                  "}",
+                  "function expectObject() { pm.test(\"Phản hồi là JSON object\", function () { pm.expect(json()).to.be.an(\"object\"); }); }",
+                  "function saveEnv(name, paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Lưu biến môi trường \" + name, function () { pm.expect(value, name).to.exist; });",
+                  "  if (value) pm.environment.set(name, value);",
+                  "}",
+                  "function expectArray(paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Dữ liệu trả về là danh sách\", function () { pm.expect(value).to.be.an(\"array\"); });",
+                  "}",
+                  "",
+                  "expectStatus([200, 201]);",
+                  "expectObject();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{API_BASE_URL}}/study-sessions/{{sessionId}}/complete",
+              "host": [
+                "{{API_BASE_URL}}"
+              ],
+              "path": [
+                "study-sessions",
+                "{{sessionId}}",
+                "complete"
+              ]
+            },
+            "description": "38. Hoàn thành phiên ôn tập",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"durationMs\": 45000\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Cleanup - Dọn dẹp dữ liệu kiểm thử",
+      "description": "Dọn dữ liệu được tạo trong quá trình chạy collection.",
+      "item": [
+        {
+          "name": "39. Teacher xóa khóa học kiểm thử",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function json() { try { return pm.response.json(); } catch (e) { return {}; } }",
+                  "function pick(obj, paths) {",
+                  "  for (const path of paths) {",
+                  "    const value = path.split(\".\").reduce((acc, key) => acc && acc[key] !== undefined ? acc[key] : undefined, obj);",
+                  "    if (value !== undefined && value !== null && value !== \"\") return value;",
+                  "  }",
+                  "  return undefined;",
+                  "}",
+                  "function expectStatus(codes) {",
+                  "  pm.test(\"Mã trạng thái hợp lệ: \" + codes.join(\"/\"), function () { pm.expect(pm.response.code).to.be.oneOf(codes); });",
+                  "}",
+                  "function expectObject() { pm.test(\"Phản hồi là JSON object\", function () { pm.expect(json()).to.be.an(\"object\"); }); }",
+                  "function saveEnv(name, paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Lưu biến môi trường \" + name, function () { pm.expect(value, name).to.exist; });",
+                  "  if (value) pm.environment.set(name, value);",
+                  "}",
+                  "function expectArray(paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Dữ liệu trả về là danh sách\", function () { pm.expect(value).to.be.an(\"array\"); });",
+                  "}",
+                  "",
+                  "expectStatus([200, 204]);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{teacherAccessToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{API_BASE_URL}}/teacher/courses/{{courseId}}",
+              "host": [
+                "{{API_BASE_URL}}"
+              ],
+              "path": [
+                "teacher",
+                "courses",
+                "{{courseId}}"
+              ]
+            },
+            "description": "39. Teacher xóa khóa học kiểm thử"
+          },
+          "response": []
+        },
+        {
+          "name": "40. Student xóa thư mục kiểm thử",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function json() { try { return pm.response.json(); } catch (e) { return {}; } }",
+                  "function pick(obj, paths) {",
+                  "  for (const path of paths) {",
+                  "    const value = path.split(\".\").reduce((acc, key) => acc && acc[key] !== undefined ? acc[key] : undefined, obj);",
+                  "    if (value !== undefined && value !== null && value !== \"\") return value;",
+                  "  }",
+                  "  return undefined;",
+                  "}",
+                  "function expectStatus(codes) {",
+                  "  pm.test(\"Mã trạng thái hợp lệ: \" + codes.join(\"/\"), function () { pm.expect(pm.response.code).to.be.oneOf(codes); });",
+                  "}",
+                  "function expectObject() { pm.test(\"Phản hồi là JSON object\", function () { pm.expect(json()).to.be.an(\"object\"); }); }",
+                  "function saveEnv(name, paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Lưu biến môi trường \" + name, function () { pm.expect(value, name).to.exist; });",
+                  "  if (value) pm.environment.set(name, value);",
+                  "}",
+                  "function expectArray(paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Dữ liệu trả về là danh sách\", function () { pm.expect(value).to.be.an(\"array\"); });",
+                  "}",
+                  "",
+                  "expectStatus([200, 204]);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{API_BASE_URL}}/folders/{{folderId}}",
+              "host": [
+                "{{API_BASE_URL}}"
+              ],
+              "path": [
+                "folders",
+                "{{folderId}}"
+              ]
+            },
+            "description": "40. Student xóa thư mục kiểm thử"
+          },
+          "response": []
+        },
+        {
+          "name": "41. Student xóa bộ thẻ học chính",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function json() { try { return pm.response.json(); } catch (e) { return {}; } }",
+                  "function pick(obj, paths) {",
+                  "  for (const path of paths) {",
+                  "    const value = path.split(\".\").reduce((acc, key) => acc && acc[key] !== undefined ? acc[key] : undefined, obj);",
+                  "    if (value !== undefined && value !== null && value !== \"\") return value;",
+                  "  }",
+                  "  return undefined;",
+                  "}",
+                  "function expectStatus(codes) {",
+                  "  pm.test(\"Mã trạng thái hợp lệ: \" + codes.join(\"/\"), function () { pm.expect(pm.response.code).to.be.oneOf(codes); });",
+                  "}",
+                  "function expectObject() { pm.test(\"Phản hồi là JSON object\", function () { pm.expect(json()).to.be.an(\"object\"); }); }",
+                  "function saveEnv(name, paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Lưu biến môi trường \" + name, function () { pm.expect(value, name).to.exist; });",
+                  "  if (value) pm.environment.set(name, value);",
+                  "}",
+                  "function expectArray(paths) {",
+                  "  const value = pick(json(), paths);",
+                  "  pm.test(\"Dữ liệu trả về là danh sách\", function () { pm.expect(value).to.be.an(\"array\"); });",
+                  "}",
+                  "",
+                  "expectStatus([200, 204]);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{API_BASE_URL}}/flashcard-sets/{{setId}}",
+              "host": [
+                "{{API_BASE_URL}}"
+              ],
+              "path": [
+                "flashcard-sets",
+                "{{setId}}"
+              ]
+            },
+            "description": "41. Student xóa bộ thẻ học chính"
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

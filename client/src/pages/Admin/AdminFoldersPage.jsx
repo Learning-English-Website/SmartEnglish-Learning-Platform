@@ -111,6 +111,52 @@ export default function AdminFoldersPage() {
     });
   };
 
+  const formatDateTime = (date) => {
+    if (!date) return '—';
+    return new Date(date).toLocaleString('vi-VN', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const ownerLabel = (user) => {
+    if (!user) return '—';
+    if (user.email && user.username) return `${user.username} (${user.email})`;
+    return user.username || user.email || '—';
+  };
+
+  const renderTags = (tags = []) => {
+    if (!tags.length) return <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>Chưa có nhãn</span>;
+    return (
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 8 }}>
+        {tags.map((tag, idx) => {
+          const tagName = tag?.name || tag;
+          const tagColor = tag?.color || '#6366f1';
+          return (
+            <span
+              key={tag?._id || tagName || idx}
+              style={{
+                display: 'inline-block',
+                padding: '2px 8px',
+                borderRadius: 6,
+                fontSize: '0.7rem',
+                fontWeight: 700,
+                background: `${tagColor}15`,
+                color: tagColor,
+                border: `1px solid ${tagColor}25`,
+              }}
+            >
+              {tagName}
+            </span>
+          );
+        })}
+      </div>
+    );
+  };
+
   const getPageNumbers = () => {
     const range = [];
     const delta = 2;
@@ -252,61 +298,75 @@ export default function AdminFoldersPage() {
             </div>
           ) : viewItem ? (
             <>
-              <div className="form-group">
-                <label>Mô tả</label>
-                <p style={{ color: 'var(--text-body)', margin: 0 }}>{viewItem.description || 'Không có mô tả'}</p>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Tên thư mục</label>
+                  <div style={{ padding: '10px 16px', background: 'var(--bg-page)', borderRadius: 10, fontWeight: 700, color: 'var(--text-heading)', border: '1px solid var(--border-subtle)' }}>{viewItem.name || '—'}</div>
+                </div>
+                <div className="form-group">
+                  <label>Chủ sở hữu</label>
+                  <div style={{ padding: '10px 16px', background: 'var(--bg-page)', borderRadius: 10, fontWeight: 600, color: 'var(--text-heading)', border: '1px solid var(--border-subtle)' }}>{ownerLabel(viewItem.user)}</div>
+                </div>
               </div>
-              <div className="form-group">
-                <label>Chủ sở hữu</label>
-                <p style={{ color: 'var(--text-body)', margin: 0 }}>
-                  {viewItem.user ? (
-                    <span>{viewItem.user.username || viewItem.user.email}</span>
-                  ) : '—'}
-                </p>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Thư mục cha</label>
+                  <div style={{ padding: '10px 16px', background: 'var(--bg-page)', borderRadius: 10, color: 'var(--text-body)', border: '1px solid var(--border-subtle)' }}>{viewItem.parent?.name || 'Không có'}</div>
+                </div>
+                <div className="form-group">
+                  <label>ID thư mục</label>
+                  <div style={{ padding: '10px 16px', background: 'var(--bg-page)', borderRadius: 10, fontSize: '0.8rem', color: 'var(--text-muted)', border: '1px solid var(--border-subtle)', wordBreak: 'break-all' }}>{viewItem._id || '—'}</div>
+                </div>
               </div>
               <div className="form-row">
                 <div className="form-group">
                   <label>Ngày tạo</label>
-                  <p style={{ color: 'var(--text-body)', margin: 0 }}>{formatDate(viewItem.createdAt)}</p>
+                  <div style={{ padding: '10px 16px', background: 'var(--bg-page)', borderRadius: 10, color: 'var(--text-body)', border: '1px solid var(--border-subtle)' }}>{formatDateTime(viewItem.createdAt)}</div>
                 </div>
                 <div className="form-group">
                   <label>Ngày cập nhật</label>
-                  <p style={{ color: 'var(--text-body)', margin: 0 }}>{formatDate(viewItem.updatedAt)}</p>
+                  <div style={{ padding: '10px 16px', background: 'var(--bg-page)', borderRadius: 10, color: 'var(--text-body)', border: '1px solid var(--border-subtle)' }}>{formatDateTime(viewItem.updatedAt)}</div>
                 </div>
               </div>
               <div className="form-group">
                 <label>Số lượng Sets ({viewItem.sets?.length ?? 0})</label>
                 {viewItem.sets && viewItem.sets.length > 0 ? (
-                  <div style={{ marginTop: '0.75rem' }}>
+                  <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 360, overflowY: 'auto' }}>
                     {viewItem.sets.map((s, idx) => (
                       <div
                         key={s._id || idx}
                         style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          padding: '10px 14px',
+                          display: 'grid',
+                          gridTemplateColumns: 'minmax(0, 1fr) auto',
+                          gap: 14,
+                          padding: '12px 14px',
                           background: 'rgba(99, 102, 241, 0.03)',
                           border: '1px solid var(--border-subtle)',
                           borderRadius: 10,
-                          marginBottom: 8,
                         }}
                       >
-                        <div>
-                          <div style={{ fontWeight: 600, color: 'var(--text-heading)', fontSize: '0.9rem' }}>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontWeight: 750, color: 'var(--text-heading)', fontSize: '0.92rem', wordBreak: 'break-word' }}>
                             {s.title || s.name || `Set ${idx + 1}`}
                           </div>
-                          {s.description && (
-                            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 2 }}>
-                              {s.description}
-                            </div>
-                          )}
+                          <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: 4, wordBreak: 'break-word' }}>
+                            {s.description || 'Không có mô tả'}
+                          </div>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 8, fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                            <span>Chủ sở hữu: {ownerLabel(s.user)}</span>
+                            <span>Số thẻ: {s.cardCount ?? 0}</span>
+                            <span>Cập nhật: {formatDate(s.updatedAt)}</span>
+                          </div>
+                          {renderTags(s.tags || [])}
                         </div>
-                        {s.isPublic !== undefined && (
-                          <span className={`admin-badge ${s.isPublic ? 'published' : 'draft'}`}>
-                            {s.isPublic ? 'Public' : 'Private'}
-                          </span>
-                        )}
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8, whiteSpace: 'nowrap' }}>
+                          {s.isPublic !== undefined && (
+                            <span className={`admin-badge ${s.isPublic ? 'published' : 'draft'}`}>
+                              {s.isPublic ? 'Public' : 'Private'}
+                            </span>
+                          )}
+                          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>#{idx + 1}</span>
+                        </div>
                       </div>
                     ))}
                   </div>

@@ -491,11 +491,16 @@ const getAllFolders = async (req, res) => {
 const getFolder = async (req, res) => {
   const folder = await Folder.findById(req.params.id)
     .populate('user', 'username avatar email')
+    .populate('parent', 'name')
     .populate({
       path: 'sets',
-      populate: { path: 'user', select: 'username avatar' },
+      populate: [
+        { path: 'user', select: 'username avatar email' },
+        { path: 'tags', select: 'name color' },
+      ],
       options: { sort: { updatedAt: -1 } },
-    });
+    })
+    .lean();
   if (!folder) throw new AppError('Folder not found', 404);
   res.json(ApiResponse.success(folder, 'Folder fetched'));
 };
