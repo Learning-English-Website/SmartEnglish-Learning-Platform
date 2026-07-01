@@ -54,6 +54,16 @@ export const aiService = {
     }),
 
   /**
+   * Generate an AI mistake coach report from wrong answers in a finished lesson
+   * POST /api/ai/lessons/mistake-coach
+   * @param {{ lessonTitle?: string, level?: string, mistakes: Array<object> }} data
+   */
+  generateMistakeCoach: (data) =>
+    axiosClient.post('/ai/lessons/mistake-coach', data, {
+      timeout: AI_REQUEST_TIMEOUT_MS,
+    }),
+
+  /**
    * Create a new AI chatbot session (uses local greeting, no Gemini call)
    * POST /api/ai/chat/sessions
    * @param {{ persona: string, topic: string, level: string }} data

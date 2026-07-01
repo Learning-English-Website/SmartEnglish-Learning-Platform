@@ -20,6 +20,7 @@ router.delete('/key', aiController.clearAiKey);
 // --- AI Generation Features ---
 router.post('/flashcards/generate', rateLimitUserFeature('flashcard', 30, 60), aiController.generateFlashcards);
 router.post('/lessons/generate', authorize('teacher', 'admin'), rateLimitUserFeature('lesson_plan', 30, 60), aiController.generateLesson);
+router.post('/lessons/mistake-coach', rateLimitUserFeature('mistake_coach', 20, 60), aiController.generateMistakeCoach);
 
 // --- AI Chatbot Endpoints ---
 router.post('/chat/sessions', rateLimitUserFeature('create_chat_session', 10, 60), aiController.createChatSession);

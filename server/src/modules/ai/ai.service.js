@@ -411,6 +411,154 @@ exports.generateLessonDraft = async (apiKey, { topic, level, count, challengeTyp
   };
 };
 
+const mistakeCoachResponseSchema = {
+  type: "OBJECT",
+  properties: {
+    summary: {
+      type: "STRING",
+      description: "Vietnamese summary of the learner's recurring mistake patterns"
+    },
+    weakPoints: {
+      type: "ARRAY",
+      items: { type: "STRING" },
+      description: "Short Vietnamese bullet points naming weak grammar or vocabulary areas"
+    },
+    explanations: {
+      type: "ARRAY",
+      items: {
+        type: "OBJECT",
+        properties: {
+          question: { type: "STRING" },
+          userAnswer: { type: "STRING" },
+          correctAnswer: { type: "STRING" },
+          issue: { type: "STRING" },
+          explanationVi: { type: "STRING" },
+          tip: { type: "STRING" }
+        },
+        required: ["question", "userAnswer", "correctAnswer", "issue", "explanationVi", "tip"]
+      }
+    },
+    practiceItems: {
+      type: "ARRAY",
+      items: {
+        type: "OBJECT",
+        properties: {
+          prompt: { type: "STRING" },
+          answer: { type: "STRING" },
+          explanationVi: { type: "STRING" }
+        },
+        required: ["prompt", "answer", "explanationVi"]
+      }
+    },
+    reviewPlan: {
+      type: "ARRAY",
+      items: { type: "STRING" },
+      description: "Three concise Vietnamese review steps"
+    }
+  },
+  required: ["summary", "weakPoints", "explanations", "practiceItems", "reviewPlan"]
+};
+
+const trimString = (value, maxLength) =>
+  String(value || '').trim().replace(/\s+/g, ' ').slice(0, maxLength);
+
+const cleanMistakesForCoach = (mistakes) => {
+  if (!Array.isArray(mistakes)) return [];
+
+  return mistakes
+    .map((mistake) => ({
+      type: trimString(mistake?.type, 30).toUpperCase(),
+      question: trimString(mistake?.question, 240),
+      sentence: trimString(mistake?.sentence, 240),
+      userAnswer: trimString(mistake?.userAnswer, 240),
+      correctAnswer: trimString(mistake?.correctAnswer, 240),
+      options: Array.isArray(mistake?.options)
+        ? mistake.options.map(option => trimString(option, 80)).filter(Boolean).slice(0, 6)
+        : [],
+      wordBank: Array.isArray(mistake?.wordBank)
+        ? mistake.wordBank.map(word => trimString(word, 50)).filter(Boolean).slice(0, 12)
+        : [],
+      pairs: Array.isArray(mistake?.pairs)
+        ? mistake.pairs
+            .map(pair => ({
+              left: trimString(pair?.left, 80),
+              right: trimString(pair?.right, 80)
+            }))
+            .filter(pair => pair.left && pair.right)
+            .slice(0, 6)
+        : []
+    }))
+    .filter(mistake => mistake.question && mistake.correctAnswer)
+    .slice(0, 10);
+};
+
+const cleanCoachResponse = (result) => ({
+  summary: trimString(result?.summary, 500),
+  weakPoints: Array.isArray(result?.weakPoints)
+    ? result.weakPoints.map(item => trimString(item, 160)).filter(Boolean).slice(0, 5)
+    : [],
+  explanations: Array.isArray(result?.explanations)
+    ? result.explanations
+        .map(item => ({
+          question: trimString(item?.question, 240),
+          userAnswer: trimString(item?.userAnswer, 240),
+          correctAnswer: trimString(item?.correctAnswer, 240),
+          issue: trimString(item?.issue, 160),
+          explanationVi: trimString(item?.explanationVi, 500),
+          tip: trimString(item?.tip, 240)
+        }))
+        .filter(item => item.question && item.correctAnswer && item.explanationVi)
+        .slice(0, 10)
+    : [],
+  practiceItems: Array.isArray(result?.practiceItems)
+    ? result.practiceItems
+        .map(item => ({
+          prompt: trimString(item?.prompt, 240),
+          answer: trimString(item?.answer, 160),
+          explanationVi: trimString(item?.explanationVi, 320)
+        }))
+        .filter(item => item.prompt && item.answer)
+        .slice(0, 5)
+    : [],
+  reviewPlan: Array.isArray(result?.reviewPlan)
+    ? result.reviewPlan.map(item => trimString(item, 180)).filter(Boolean).slice(0, 3)
+    : []
+});
+
+exports.generateMistakeCoach = async (apiKey, { lessonTitle, level, mistakes }) => {
+  const cleanedMistakes = cleanMistakesForCoach(mistakes);
+  if (cleanedMistakes.length === 0) {
+    const error = new Error("Không có dữ liệu câu sai hợp lệ để AI phân tích.");
+    error.status = 400;
+    throw error;
+  }
+
+  const prompt = `You are an AI English mistake coach for Vietnamese learners.
+Analyze only the mistake data provided below. Do not invent extra answers, scores, users, or lesson progress.
+
+Lesson: "${trimString(lessonTitle, 160) || 'Duolingo lesson'}"
+Level: "${trimString(level, 60) || 'unknown'}"
+Mistakes JSON:
+${JSON.stringify(cleanedMistakes)}
+
+OUTPUT RULES:
+1. Return only JSON matching the schema.
+2. Write explanations, weakPoints, tips, and reviewPlan in Vietnamese.
+3. Keep English examples short and aligned with the provided mistakes.
+4. For each explanation, compare the learner answer with the correct answer and name the concrete grammar/vocabulary issue.
+5. Generate 3 to 5 new practiceItems based on the same mistake patterns, not exact duplicates of the original questions.
+6. Be concise enough for a learner to read immediately after finishing a lesson.`;
+
+  const result = await geminiProvider.generateStructuredData(apiKey, prompt, mistakeCoachResponseSchema);
+  const cleaned = cleanCoachResponse(result);
+
+  if (!cleaned.summary || cleaned.explanations.length === 0) {
+    throw new Error("AI returned an invalid mistake coach response structure.");
+  }
+
+  return cleaned;
+};
+
 // JSON Schema for Chatbot Structured Output response format
 const chatResponseSchema = {
   type: "OBJECT",

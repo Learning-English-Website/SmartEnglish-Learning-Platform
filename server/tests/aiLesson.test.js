@@ -338,6 +338,107 @@ describe('AI Lesson & Teacher Save API', () => {
     });
   });
 
+  describe('POST /api/ai/lessons/mistake-coach', () => {
+    it('should return 428 if student has not configured Gemini API key', async () => {
+      const res = await request(app)
+        .post('/api/ai/lessons/mistake-coach')
+        .set('Origin', mockClientUrl)
+        .set('Authorization', `Bearer ${studentToken}`)
+        .send({
+          lessonTitle: 'Greetings',
+          mistakes: [
+            {
+              type: 'TYPE',
+              question: 'Translate: Xin chao',
+              userAnswer: 'Hello.',
+              correctAnswer: 'Hello'
+            }
+          ]
+        });
+
+      expect(res.status).toBe(428);
+      expect(res.body.message).toContain('Gemini API Key');
+    });
+
+    it('should generate a mistake coach report for student lesson mistakes', async () => {
+      const encryptedKey = cryptoHelper.encrypt('mock-gemini-api-key');
+      const cookieHeader = getSignedCookieHeader(encryptedKey);
+
+      geminiProvider.generateStructuredData.mockResolvedValueOnce({
+        summary: 'Bạn thường sai ở cấu trúc câu đơn và dấu câu.',
+        weakPoints: ['Trật tự từ trong câu', 'Không cần thêm dấu chấm ở đáp án ngắn'],
+        explanations: [
+          {
+            question: 'Arrange: are / you / Where / from',
+            userAnswer: 'you Where are from',
+            correctAnswer: 'Where are you from',
+            issue: 'Sai trật tự từ câu hỏi Wh-',
+            explanationVi: 'Câu hỏi với Where cần đặt Where trước trợ động từ are, sau đó mới đến chủ ngữ you.',
+            tip: 'Ghi nhớ mẫu: Where + be + subject + from?'
+          }
+        ],
+        practiceItems: [
+          {
+            prompt: 'Arrange: is / she / Where / from',
+            answer: 'Where is she from',
+            explanationVi: 'Where đứng đầu câu hỏi, sau đó là động từ be.'
+          }
+        ],
+        reviewPlan: ['Ôn mẫu câu hỏi Wh-', 'Làm 3 câu ORDER tương tự', 'Đọc lại câu trước khi kiểm tra']
+      });
+
+      const res = await request(app)
+        .post('/api/ai/lessons/mistake-coach')
+        .set('Origin', mockClientUrl)
+        .set('Authorization', `Bearer ${studentToken}`)
+        .set('Cookie', [cookieHeader])
+        .send({
+          lessonTitle: 'Basic questions',
+          level: 'A1-A2',
+          mistakes: [
+            {
+              type: 'ORDER',
+              question: 'Arrange: are / you / Where / from',
+              userAnswer: 'you Where are from',
+              correctAnswer: 'Where are you from',
+              wordBank: ['are', 'you', 'Where', 'from']
+            }
+          ]
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.coach.summary).toContain('cấu trúc câu');
+      expect(res.body.coach.explanations).toHaveLength(1);
+      expect(res.body.coach.practiceItems).toHaveLength(1);
+
+      const [, prompt, schema] = geminiProvider.generateStructuredData.mock.calls[0];
+      expect(prompt).toContain('Basic questions');
+      expect(prompt).toContain('Where are you from');
+      expect(schema.required).toContain('explanations');
+
+      const logs = await AiUsageLog.find({ user: studentUser._id });
+      expect(logs).toHaveLength(1);
+      expect(logs[0].feature).toBe('mistake_coach');
+      expect(logs[0].status).toBe('success');
+    });
+
+    it('should reject empty mistake payloads before calling Gemini', async () => {
+      const encryptedKey = cryptoHelper.encrypt('mock-gemini-api-key');
+      const cookieHeader = getSignedCookieHeader(encryptedKey);
+
+      const res = await request(app)
+        .post('/api/ai/lessons/mistake-coach')
+        .set('Origin', mockClientUrl)
+        .set('Authorization', `Bearer ${studentToken}`)
+        .set('Cookie', [cookieHeader])
+        .send({ lessonTitle: 'Empty', mistakes: [] });
+
+      expect(res.status).toBe(400);
+      expect(geminiProvider.generateStructuredData).not.toHaveBeenCalled();
+    });
+  });
+
   describe('POST /api/teacher/units/:unitId/lessons/ai-save', () => {
     it('should return 403 if save request is made by a student role', async () => {
       const res = await request(app)
