@@ -342,6 +342,67 @@ describe('Duolingo API', () => {
       expect(secondRes.body.data.pointsEarned).toBe(0);
     });
 
+    it('should not award XP or reset challenge progress when replaying a completed lesson in practice mode', async () => {
+      await UserProgress.findOneAndUpdate(
+        { user: testUser._id },
+        { user: testUser._id, activeCourse: testCourse._id, points: 0, totalXP: 0, hearts: 5 },
+        { upsert: true, new: true }
+      );
+
+      const firstAnswerRes = await request(app)
+        .post('/api/duolingo/quiz/answer')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ challengeId: testChallenge._id.toString(), selectedOptionId: testChallenge.options[0].text });
+
+      expect(firstAnswerRes.status).toBe(200);
+      expect(firstAnswerRes.body.data.pointsEarned).toBe(10);
+
+      const completeRes = await request(app)
+        .post(`/api/duolingo/lessons/${testLesson._id}/complete`)
+        .set('Authorization', `Bearer ${authToken}`);
+
+      expect(completeRes.status).toBe(200);
+
+      const storedProgress = await ChallengeProgress.findOne({
+        user: testUser._id,
+        challenge: testChallenge._id,
+      });
+      expect(storedProgress).toBeTruthy();
+
+      const beforePractice = await UserProgress.findOne({ user: testUser._id });
+
+      const practiceRes = await request(app)
+        .post(`/api/duolingo/lessons/${testLesson._id}/practice`)
+        .set('Authorization', `Bearer ${authToken}`);
+
+      expect(practiceRes.status).toBe(200);
+      expect(practiceRes.body.data.sessionMode).toBe('practice');
+
+      const progressAfterPracticeLoad = await ChallengeProgress.findOne({
+        user: testUser._id,
+        challenge: testChallenge._id,
+      });
+      expect(progressAfterPracticeLoad._id.toString()).toBe(storedProgress._id.toString());
+
+      const practiceAnswerRes = await request(app)
+        .post('/api/duolingo/quiz/answer')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({
+          challengeId: testChallenge._id.toString(),
+          selectedOptionId: testChallenge.options[0].text,
+          mode: 'practice',
+        });
+
+      expect(practiceAnswerRes.status).toBe(200);
+      expect(practiceAnswerRes.body.data.isCorrect).toBe(true);
+      expect(practiceAnswerRes.body.data.pointsEarned).toBe(0);
+      expect(practiceAnswerRes.body.data.mode).toBe('practice');
+
+      const afterPractice = await UserProgress.findOne({ user: testUser._id });
+      expect(afterPractice.points).toBe(beforePractice.points);
+      expect(afterPractice.totalXP).toBe(beforePractice.totalXP);
+    });
+
     it('should preserve challenge completion and XP idempotency when challenge ObjectId is recreated', async () => {
       await UserProgress.findOneAndUpdate(
         { user: testUser._id },

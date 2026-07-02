@@ -434,6 +434,11 @@ td.admin-td-title {
   max-width: 780px;
 }
 
+.modal-xl {
+  max-width: min(1120px, calc(100vw - 56px));
+  max-height: 90vh;
+}
+
 .modal-header {
   display: flex;
   align-items: center;

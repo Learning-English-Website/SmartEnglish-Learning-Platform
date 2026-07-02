@@ -137,6 +137,25 @@ export default function LearnPage() {
     }
   };
 
+  const findStartLessonInUnit = (unit) => {
+    const lessons = unit.lessons || [];
+    const targetId = userStats.currentLessonTarget?._id || userStats.currentLessonTarget;
+
+    if (targetId) {
+      const targetInUnit = lessons.find(
+        (lesson) => lesson._id === targetId && !lesson.completed && !lesson.isLocked
+      );
+      if (targetInUnit) return targetInUnit;
+    }
+
+    return (
+      lessons.find((lesson) => !lesson.completed && !lesson.isLocked) ||
+      lessons.find((lesson) => !lesson.isLocked) ||
+      lessons[0] ||
+      null
+    );
+  };
+
   const handleStartUnit = (unit) => {
     const totalUnitLessons = unit.lessons?.length || 0;
     const completedUnitLessons = unit.lessons?.filter(l => l.completed)?.length || 0;
@@ -147,33 +166,9 @@ export default function LearnPage() {
         handleLessonClick(unit.lessons[0]);
       }
     } else {
-      // Prefer the first available lesson inside the selected zone so jump learning
-      // does not pull the learner back to an older unfinished zone.
-      let activeLesson = unit.lessons?.find((l) => !l.completed && !l.isLocked && (l.challengesCount ?? 0) > 0) || null;
-
-      if (!activeLesson) {
-        const targetId = userStats.currentLessonTarget?._id || userStats.currentLessonTarget;
-        activeLesson = units
-          .flatMap((u) => u.lessons || [])
-          .find((l) => l._id === targetId && !l.completed && !l.isLocked && (l.challengesCount ?? 0) > 0) || null;
-      }
-
-      if (!activeLesson) {
-        for (const u of units) {
-          const incomplete = u.lessons?.find((l) => !l.completed && !l.isLocked && (l.challengesCount ?? 0) > 0);
-          if (incomplete) {
-            activeLesson = incomplete;
-            break;
-          }
-        }
-      }
+      const activeLesson = findStartLessonInUnit(unit);
       if (activeLesson) {
         handleLessonClick(activeLesson);
-      } else {
-        // Fallback: practice first lesson if no unlocked incomplete lesson is found
-        if (unit.lessons?.length > 0) {
-          handleLessonClick(unit.lessons[0]);
-        }
       }
     }
   };

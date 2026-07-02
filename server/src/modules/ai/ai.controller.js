@@ -405,6 +405,94 @@ exports.generateLesson = async (req, res, next) => {
   }
 };
 
+// ── AI Chatbot Scenarios & Local Greeting Templates ─────────────────────────────
+/**
+ * Decrypts cookie key and generates a concise AI coach report for lesson mistakes.
+ */
+exports.generateMistakeCoach = async (req, res, next) => {
+  const startTime = Date.now();
+  const { lessonTitle, level, mistakes } = req.body;
+  const userId = req.userId;
+
+  try {
+    if (!Array.isArray(mistakes) || mistakes.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Không có câu sai nào để AI phân tích."
+      });
+    }
+
+    if (mistakes.length > 10) {
+      return res.status(400).json({
+        success: false,
+        message: "Mỗi lần chỉ phân tích tối đa 10 câu sai."
+      });
+    }
+
+    const hasCookie = req.cookies.byok_gemini_key !== undefined || req.signedCookies.byok_gemini_key !== undefined;
+    const encryptedKey = req.signedCookies.byok_gemini_key;
+
+    if (hasCookie && (!encryptedKey || encryptedKey === false)) {
+      res.clearCookie('byok_gemini_key', getClearCookieOptions());
+      return res.status(428).json({
+        success: false,
+        message: "Cấu hình bảo mật API Key của bạn không còn hợp lệ. Vui lòng thiết lập lại."
+      });
+    }
+
+    if (!encryptedKey || encryptedKey === false) {
+      return res.status(428).json({
+        success: false,
+        message: "Vui lòng cấu hình Gemini API Key cá nhân trong phần Cài đặt để sử dụng."
+      });
+    }
+
+    const apiKey = cryptoHelper.decrypt(encryptedKey);
+    if (!apiKey) {
+      res.clearCookie('byok_gemini_key', getClearCookieOptions());
+      return res.status(428).json({
+        success: false,
+        message: "Cấu hình bảo mật API Key của bạn không còn hợp lệ. Vui lòng thiết lập lại."
+      });
+    }
+
+    const coach = await aiService.generateMistakeCoach(apiKey, {
+      lessonTitle,
+      level,
+      mistakes
+    });
+
+    const latencyMs = Date.now() - startTime;
+    await AiUsageLog.create({
+      user: userId,
+      feature: 'mistake_coach',
+      status: 'success',
+      latencyMs,
+      inputSize: JSON.stringify(mistakes).length,
+      outputSize: JSON.stringify(coach).length
+    }).catch(err => console.error("Error creating AiUsageLog:", err));
+
+    return res.json({
+      success: true,
+      coach
+    });
+  } catch (error) {
+    const latencyMs = Date.now() - startTime;
+    await AiUsageLog.create({
+      user: userId,
+      feature: 'mistake_coach',
+      status: 'error',
+      latencyMs,
+      errorCode: error.status ? `HTTP_${error.status}` : error.name || 'UNKNOWN_ERROR'
+    }).catch(err => console.error("Error creating AiUsageLog:", err));
+
+    return res.status(error.status || 500).json({
+      success: false,
+      message: error.message || "Đã xảy ra lỗi hệ thống trong quá trình phân tích câu sai."
+    });
+  }
+};
+
 const greetingTemplates = {
   barista: {
     'A1-A2': "Hi! Welcome to Starbucks. What can I get for you today?",

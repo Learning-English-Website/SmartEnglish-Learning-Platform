@@ -3,8 +3,8 @@ import { expect } from '@playwright/test';
 export class LoginPage {
   constructor(page) {
     this.page = page;
-    this.emailInput = page.getByPlaceholder(/email address/i);
-    this.passwordInput = page.getByPlaceholder(/password/i);
+    this.emailInput = page.locator('#login-email');
+    this.passwordInput = page.locator('#login-password');
     this.submitButton = page.locator('button[id="login-submit"]');
   }
 

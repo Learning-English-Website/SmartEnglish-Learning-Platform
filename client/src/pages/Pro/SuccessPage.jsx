@@ -3,7 +3,17 @@ import { useSearchParams, Link } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { loadUser } from '../../store/slices/authSlice';
 import { paymentService } from '../../services/paymentService';
-import { FiCheck, FiAlertTriangle, FiArrowRight, FiUser } from 'react-icons/fi';
+import {
+  FiAlertTriangle,
+  FiArrowRight,
+  FiCheck,
+  FiClock,
+  FiCreditCard,
+  FiRefreshCw,
+  FiShield,
+  FiUser,
+  FiXCircle
+} from 'react-icons/fi';
 import './ProPage.css';
 
 export default function SuccessPage() {
@@ -76,33 +86,60 @@ export default function SuccessPage() {
     return m;
   };
 
+  const getSafeOrderInfo = () => {
+    if (!orderInfo) return '';
+    try {
+      return decodeURIComponent(orderInfo);
+    } catch {
+      return orderInfo;
+    }
+  };
+
   return (
-    <div className="payment-status-container clean-layout">
+    <div className="payment-status-container">
+      <div className="payment-status-bg" aria-hidden="true" />
+
       {status === 'verifying' && (
-        <div className="premium-status-card clean-card loading-card">
-          <div className="spinner-glow-container">
-            <div className="premium-spinner"></div>
+        <div className="premium-status-card payment-status-card loading-card animate-fade-in">
+          <div className="payment-status-icon payment-status-icon--loading">
+            <div className="premium-spinner" />
           </div>
-          <h2 className="loading-text">Đang xác minh giao dịch</h2>
-          <p>Vui lòng đợi giây lát để hệ thống cập nhật gói của bạn...</p>
+          <span className="payment-status-label">Đang đồng bộ</span>
+          <h2 className="payment-status-title">Đang xác minh giao dịch</h2>
+          <p className="payment-status-subtitle">
+            Vui lòng giữ trang này trong vài giây để hệ thống cập nhật trạng thái Premium.
+          </p>
         </div>
       )}
 
       {status === 'success' && (
-        <div className="premium-status-card clean-card success-card animate-fade-in">
-          {/* Minimalist checkmark */}
-          <div className="checkmark-wrapper-clean">
-            <div className="checkmark-circle-clean">
-              <FiCheck className="checkmark-icon-clean" />
-            </div>
+        <div className="premium-status-card payment-status-card success-card animate-fade-in">
+          <div className="payment-status-topbar">
+            <span className="payment-provider-pill">{getMethodName(method)}</span>
+            <span className="payment-status-mini success">Đã kích hoạt</span>
           </div>
 
-          <h2 className="success-title-clean">Thanh toán thành công</h2>
-          <p className="success-subtitle-clean">Tài khoản của bạn đã được nâng cấp lên gói **Memoris Pro**.</p>
+          <div className="payment-status-icon payment-status-icon--success">
+            <FiCheck />
+          </div>
 
-          {/* Receipt Section */}
-          <div className="premium-receipt-clean">
-            <h3 className="receipt-title-clean">Thông tin giao dịch</h3>
+          <span className="payment-status-label">Memoris Premium</span>
+          <h2 className="payment-status-title">Thanh toán thành công</h2>
+          <p className="payment-status-subtitle">
+            Tài khoản của bạn đã được nâng cấp lên <strong>Memoris Pro</strong>. Các quyền lợi Premium đã sẵn sàng để sử dụng.
+          </p>
+
+          <div className="payment-benefit-strip" aria-label="Premium benefits">
+            <span><FiShield /> Mở khóa giới hạn</span>
+            <span><FiClock /> Đồng bộ tức thì</span>
+            <span><FiCreditCard /> Biên nhận giao dịch</span>
+          </div>
+
+          <div className="premium-receipt-clean payment-receipt-card">
+            <div className="receipt-header-clean">
+              <h3 className="receipt-title-clean">Thông tin giao dịch</h3>
+              <span className="receipt-status-dot">Thành công</span>
+            </div>
             <div className="receipt-grid">
               <div className="receipt-row">
                 <span className="receipt-label">Mã giao dịch</span>
@@ -123,13 +160,12 @@ export default function SuccessPage() {
               {orderInfo && (
                 <div className="receipt-row full-width">
                   <span className="receipt-label">Nội dung</span>
-                  <span className="receipt-value message-value">{decodeURIComponent(orderInfo)}</span>
+                  <span className="receipt-value message-value">{getSafeOrderInfo()}</span>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Action Buttons */}
           <div className="premium-action-group">
             <Link to="/dashboard" className="btn-clean-primary">
               Bắt đầu học ngay <FiArrowRight className="btn-icon" />
@@ -142,16 +178,19 @@ export default function SuccessPage() {
       )}
 
       {status === 'pending' && (
-        <div className="premium-status-card clean-card pending-card animate-fade-in">
-          <div className="warning-icon-wrapper-clean">
-            <FiAlertTriangle className="warning-icon" />
+        <div className="premium-status-card payment-status-card pending-card animate-fade-in">
+          <div className="payment-status-icon payment-status-icon--pending">
+            <FiAlertTriangle />
           </div>
-          <h2 className="pending-title-clean">Giao dịch đang xử lý</h2>
-          <p className="success-subtitle-clean">Thanh toán đang được hệ thống xử lý. Vui lòng kiểm tra lại sau ít phút.</p>
+          <span className="payment-status-label">Đang chờ xác nhận</span>
+          <h2 className="payment-status-title">Giao dịch đang xử lý</h2>
+          <p className="payment-status-subtitle">
+            Cổng thanh toán chưa trả kết quả cuối cùng. Bạn có thể kiểm tra lại sau vài giây hoặc quay về trang Premium.
+          </p>
           
           <div className="premium-action-group">
             <button onClick={verifyPayment} className="btn-clean-primary">
-              Kiểm tra lại
+              <FiRefreshCw className="btn-icon-left" /> Kiểm tra lại
             </button>
             <Link to="/premium" className="btn-clean-secondary">
               Quay lại trang Premium
@@ -161,14 +200,17 @@ export default function SuccessPage() {
       )}
 
       {(status === 'error' || status === 'invalid') && (
-        <div className="premium-status-card clean-card error-card animate-fade-in">
-          <div className="error-icon-wrapper-clean">
-            <span className="error-cross-clean">×</span>
+        <div className="premium-status-card payment-status-card error-card animate-fade-in">
+          <div className="payment-status-icon payment-status-icon--error">
+            <FiXCircle />
           </div>
-          <h2 className="error-title-clean">Thanh toán thất bại</h2>
-          <p className="success-subtitle-clean">Có lỗi xảy ra trong quá trình xác minh thanh toán.</p>
+          <span className="payment-status-label">Chưa kích hoạt Premium</span>
+          <h2 className="payment-status-title">Thanh toán thất bại</h2>
+          <p className="payment-status-subtitle">
+            Hệ thống chưa thể xác minh giao dịch này. Bạn có thể thử lại hoặc liên hệ hỗ trợ nếu tài khoản đã bị trừ tiền.
+          </p>
           <div className="error-help-box-clean">
-            Nếu tài khoản của bạn đã bị trừ tiền, vui lòng liên hệ bộ phận hỗ trợ để được kích hoạt gói thủ công.
+            Nếu tài khoản của bạn đã bị trừ tiền, vui lòng gửi mã đơn hàng cho bộ phận hỗ trợ để được kiểm tra và kích hoạt thủ công.
           </div>
 
           <div className="premium-action-group">

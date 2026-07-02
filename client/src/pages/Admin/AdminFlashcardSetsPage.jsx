@@ -105,6 +105,57 @@ export default function AdminFlashcardSetsPage() {
     return new Date(dateStr).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
 
+  const formatDateTime = (dateStr) => {
+    if (!dateStr) return '—';
+    return new Date(dateStr).toLocaleString('vi-VN', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const ownerLabel = (user) => {
+    if (!user) return '—';
+    if (user.email && user.username) return `${user.username} (${user.email})`;
+    return user.username || user.email || '—';
+  };
+
+  const cardFront = (card) => card.front || card.term || card.word || card.question || card.vocabulary || card.english || 'Chưa có mặt trước';
+  const cardBack = (card) => card.back || card.definition || card.meaning || card.answer || card.translation || card.vietnamese || 'Chưa có mặt sau';
+  const cardImage = (card) => card.imageUrl || card.image || card.thumbnail;
+
+  const renderTags = (tags = []) => {
+    if (!tags.length) return <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Chưa gắn nhãn</span>;
+    return (
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        {tags.map((tag, idx) => {
+          const tagName = tag?.name || tag;
+          const tagColor = tag?.color || '#6366f1';
+          return (
+            <span
+              key={tag?._id || tagName || idx}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                padding: '4px 9px',
+                borderRadius: 8,
+                fontSize: '0.75rem',
+                fontWeight: 700,
+                background: `${tagColor}16`,
+                color: tagColor,
+                border: `1px solid ${tagColor}30`,
+              }}
+            >
+              {tagName}
+            </span>
+          );
+        })}
+      </div>
+    );
+  };
+
   const getPageNumbers = () => {
     const range = [];
     const delta = 2;
@@ -255,7 +306,7 @@ export default function AdminFlashcardSetsPage() {
                 </div>
                 <div className="form-group">
                   <label>Chủ sở hữu</label>
-                  <div style={{ padding: '10px 16px', background: 'var(--bg-page)', borderRadius: 10, fontWeight: 600, color: 'var(--text-heading)', border: '1px solid var(--border-subtle)' }}>{viewItem.user?.username || viewItem.user?.email || '—'}</div>
+                  <div style={{ padding: '10px 16px', background: 'var(--bg-page)', borderRadius: 10, fontWeight: 600, color: 'var(--text-heading)', border: '1px solid var(--border-subtle)' }}>{ownerLabel(viewItem.user)}</div>
                 </div>
               </div>
               <div className="form-row">
@@ -275,8 +326,28 @@ export default function AdminFlashcardSetsPage() {
                 <div style={{ padding: '10px 16px', background: 'var(--bg-page)', borderRadius: 10, fontSize: '0.9rem', color: 'var(--text-body)', border: '1px solid var(--border-subtle)', minHeight: 60 }}>{viewItem.description || '—'}</div>
               </div>
               <div className="form-group">
-                <label>Ngày tạo</label>
-                <div style={{ padding: '10px 16px', background: 'var(--bg-page)', borderRadius: 10, fontSize: '0.85rem', color: 'var(--text-muted)', border: '1px solid var(--border-subtle)' }}>{formatDate(viewItem.createdAt)}</div>
+                <label>Nhãn</label>
+                <div style={{ padding: '10px 16px', background: 'var(--bg-page)', borderRadius: 10, border: '1px solid var(--border-subtle)' }}>{renderTags(viewItem.tags || [])}</div>
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Số lượng thẻ</label>
+                  <div style={{ padding: '10px 16px', background: 'var(--bg-page)', borderRadius: 10, fontSize: '0.85rem', color: 'var(--text-muted)', border: '1px solid var(--border-subtle)' }}>{viewItem.cards?.length ?? viewItem.cardCount ?? 0}</div>
+                </div>
+                <div className="form-group">
+                  <label>ID bộ thẻ</label>
+                  <div style={{ padding: '10px 16px', background: 'var(--bg-page)', borderRadius: 10, fontSize: '0.8rem', color: 'var(--text-muted)', border: '1px solid var(--border-subtle)', wordBreak: 'break-all' }}>{viewItem._id || '—'}</div>
+                </div>
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Ngày tạo</label>
+                  <div style={{ padding: '10px 16px', background: 'var(--bg-page)', borderRadius: 10, fontSize: '0.85rem', color: 'var(--text-muted)', border: '1px solid var(--border-subtle)' }}>{formatDateTime(viewItem.createdAt)}</div>
+                </div>
+                <div className="form-group">
+                  <label>Ngày cập nhật</label>
+                  <div style={{ padding: '10px 16px', background: 'var(--bg-page)', borderRadius: 10, fontSize: '0.85rem', color: 'var(--text-muted)', border: '1px solid var(--border-subtle)' }}>{formatDateTime(viewItem.updatedAt)}</div>
+                </div>
               </div>
 
               <div style={{ marginTop: '1.5rem' }}>
@@ -286,18 +357,55 @@ export default function AdminFlashcardSetsPage() {
                   </label>
                 </div>
                 {viewItem.cards && viewItem.cards.length > 0 ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 350, overflowY: 'auto' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxHeight: 420, overflowY: 'auto', paddingRight: 6 }}>
                     {viewItem.cards.map((card, idx) => (
-                      <div key={card._id || idx} style={{ display: 'flex', alignItems: 'stretch', background: 'var(--bg-page)', border: '1px solid var(--border-subtle)', borderRadius: 12, overflow: 'hidden' }}>
-                        <div style={{ width: 4, background: 'linear-gradient(to bottom, #6366f1, #7c3aed)', flexShrink: 0 }} />
-                        <div style={{ padding: '12px 16px', flex: 1 }}>
-                          <div style={{ fontWeight: 700, color: 'var(--text-heading)', marginBottom: 4 }}>{card.front || card.term || '—'}</div>
-                          <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{card.back || card.definition || '—'}</div>
-                          {card.pronunciation && <div style={{ fontSize: '0.775rem', color: '#a855f7', marginTop: 4, fontStyle: 'italic' }}>{card.pronunciation}</div>}
+                      <div
+                        key={card._id || idx}
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: cardImage(card) ? 'minmax(0, 1fr) 120px' : 'minmax(0, 1fr)',
+                          minHeight: 118,
+                          background: 'var(--bg-elevated)',
+                          border: '1px solid var(--border-subtle)',
+                          borderLeft: '4px solid #6366f1',
+                          borderRadius: 12,
+                          overflow: 'hidden',
+                          boxShadow: '0 4px 14px rgba(15, 23, 42, 0.04)',
+                        }}
+                      >
+                        <div style={{ padding: '14px 16px', minWidth: 0 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 12 }}>
+                            <div style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--text-heading)' }}>Thẻ #{idx + 1}</div>
+                            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                              <span className="admin-badge" style={{ fontSize: '0.68rem' }}>Order {card.order ?? idx + 1}</span>
+                              <span className="admin-badge draft" style={{ fontSize: '0.68rem' }}>Độ khó {card.difficulty ?? 0}/5</span>
+                              {card.nextReviewAt && <span className="admin-badge draft" style={{ fontSize: '0.68rem' }}>Ôn {formatDate(card.nextReviewAt)}</span>}
+                            </div>
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 14 }}>
+                            <div style={{ minWidth: 0 }}>
+                              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 800, marginBottom: 5, textTransform: 'uppercase' }}>Mặt trước</div>
+                              <div style={{ fontWeight: 750, color: 'var(--text-heading)', wordBreak: 'break-word', whiteSpace: 'normal', lineHeight: 1.45 }}>{cardFront(card)}</div>
+                            </div>
+                            <div style={{ minWidth: 0 }}>
+                              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 800, marginBottom: 5, textTransform: 'uppercase' }}>Mặt sau</div>
+                              <div style={{ fontSize: '0.9rem', color: 'var(--text-body)', wordBreak: 'break-word', whiteSpace: 'normal', lineHeight: 1.45 }}>{cardBack(card)}</div>
+                            </div>
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 12, marginTop: 10 }}>
+                            {card.pronunciation && <div style={{ fontSize: '0.8rem', color: '#7c3aed', fontStyle: 'italic', wordBreak: 'break-word' }}><strong>Phát âm:</strong> {card.pronunciation}</div>}
+                            {card.example && <div style={{ fontSize: '0.82rem', color: 'var(--text-body)', wordBreak: 'break-word' }}><strong>Ví dụ:</strong> {card.example}</div>}
+                            {card.note && <div style={{ fontSize: '0.82rem', color: 'var(--text-body)', wordBreak: 'break-word' }}><strong>Ghi chú:</strong> {card.note}</div>}
+                            {card.collocation && <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', wordBreak: 'break-word' }}><strong>Cụm từ:</strong> {card.collocation}</div>}
+                            {card.relatedWords && <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', wordBreak: 'break-word' }}><strong>Từ liên quan:</strong> {card.relatedWords}</div>}
+                          </div>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 10 }}>
+                            Tạo: {formatDate(card.createdAt)} · Cập nhật: {formatDate(card.updatedAt)}
+                          </div>
                         </div>
-                        {card.image && (
-                          <div style={{ width: 80, flexShrink: 0 }}>
-                            <img src={card.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { e.target.parentElement.style.display = 'none'; }} />
+                        {cardImage(card) && (
+                          <div style={{ minHeight: 118, background: 'var(--bg-soft)', borderLeft: '1px solid var(--border-subtle)' }}>
+                            <img src={cardImage(card)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { e.target.parentElement.style.display = 'none'; }} />
                           </div>
                         )}
                       </div>

@@ -457,7 +457,7 @@ class AuthService {
     const data = await redis.get(key);
 
     let userId;
-    // Legacy path: if key still exists, verify OTP again (for clients calling reset directly)
+    
     if (data) {
       const parsed = JSON.parse(data);
       const hashedOtp = hashOtp(otp);
@@ -467,7 +467,7 @@ class AuthService {
       userId = parsed.userId;
       await redis.del(key);
     } else {
-      // New path: use resetToken from verifyResetOtp
+      
       if (!resetToken) {
         throw new AppError('Reset token required', 400);
       }

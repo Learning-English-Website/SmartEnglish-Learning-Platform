@@ -35,34 +35,15 @@ async function registerTestUser(page) {
 }
 
 async function loginAsTestUser(page) {
-  // Try to login with seeded credentials first
+  // Log in with the seeded student account from AGENTS.md.
   await page.goto('/login');
   await page.waitForLoadState('networkidle');
 
-  // Fill login form
-  await page.locator('#login-email').fill('test@example.com');
-  await page.locator('#login-password').fill('TestPass123!');
+  await page.locator('#login-email').fill('student@gmail.com');
+  await page.locator('#login-password').fill('Memoris123');
   
-  // Submit
   await page.locator('#login-submit').click();
-  await page.waitForTimeout(3000);
-
-  // Check if login succeeded
-  if (page.url().includes('/login')) {
-    // Seeded user doesn't exist, register new user
-    const { email, password } = await registerTestUser(page);
-    
-    // Now login with new credentials
-    await page.goto('/login');
-    await page.waitForLoadState('networkidle');
-    await page.locator('#login-email').fill(email);
-    await page.locator('#login-password').fill(password);
-    await page.locator('#login-submit').click();
-    await page.waitForTimeout(3000);
-  }
-
-  // Verify we're logged in
-  await page.waitForTimeout(1000);
+  await page.waitForURL(/\/(dashboard|quizlet|$)/, { timeout: 15000 });
 }
 
 export { loginAsTestUser, registerTestUser, generateTestEmail };

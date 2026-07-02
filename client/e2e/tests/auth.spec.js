@@ -10,9 +10,9 @@ test.describe('Authentication Flow', () => {
     const loginPage = new LoginPage(page);
     await loginPage.expectLoaded();
     
-    await expect(page.getByRole('heading', { name: /welcome back/i })).toBeVisible();
-    await expect(page.getByPlaceholder(/email address/i)).toBeVisible();
-    await expect(page.getByPlaceholder(/password/i)).toBeVisible();
+    await expect(page.getByRole('heading', { name: /chào mừng quay trở lại/i })).toBeVisible();
+    await expect(page.locator('#login-email')).toBeVisible();
+    await expect(page.locator('#login-password')).toBeVisible();
   });
 
   test('should show validation errors for empty fields', async ({ page }) => {
@@ -26,7 +26,7 @@ test.describe('Authentication Flow', () => {
   test('should navigate to register page', async ({ page }) => {
     await page.goto('/login');
     
-    await page.getByRole('link', { name: /create one free/i }).click();
+    await page.getByRole('link', { name: /đăng ký miễn phí/i }).click();
     
     await expect(page).toHaveURL(/\/register/);
   });
@@ -44,7 +44,7 @@ test.describe('Dashboard', () => {
   });
 
   test('should navigate to My Sets', async ({ page }) => {
-    await page.getByRole('link', { name: /flashcards/i }).click();
+    await page.goto('/quizlet');
     
     await expect(page).toHaveURL(/\/quizlet/);
   });

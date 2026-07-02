@@ -1,6 +1,9 @@
 const rateLimit = require('express-rate-limit');
 const { ApiResponse } = require('../shared/utils/apiResponse');
 
+const skipForAutomatedTests = () =>
+  process.env.NODE_ENV === 'test' || process.env.E2E_TEST === 'true';
+
 /**
  * Strict rate limiter for login endpoint: 20 requests per 15 minutes.
  * Protects against brute-force attacks.
@@ -8,6 +11,7 @@ const { ApiResponse } = require('../shared/utils/apiResponse');
 const loginRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100, // relaxed for development (was 20)
+  skip: skipForAutomatedTests,
   standardHeaders: true,
   legacyHeaders: false,
   handler: (req, res) => {
@@ -23,6 +27,7 @@ const loginRateLimiter = rateLimit({
 const verifyOtpRateLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
   max: 10,
+  skip: skipForAutomatedTests,
   standardHeaders: true,
   legacyHeaders: false,
   handler: (req, res) => {
@@ -38,6 +43,7 @@ const verifyOtpRateLimiter = rateLimit({
 const resendOtpRateLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
   max: 5,
+  skip: skipForAutomatedTests,
   standardHeaders: true,
   legacyHeaders: false,
   handler: (req, res) => {
@@ -57,6 +63,7 @@ const resendOtpRateLimiter = rateLimit({
 const generalRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
+  skip: skipForAutomatedTests,
   standardHeaders: true,
   legacyHeaders: false,
   handler: (req, res) => {

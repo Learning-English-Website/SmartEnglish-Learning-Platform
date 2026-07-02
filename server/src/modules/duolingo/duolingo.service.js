@@ -453,12 +453,13 @@ class DuolingoService {
     if (!lesson) throw new Error('Lesson not found');
 
     const isDailyChallenge = context.mode === 'daily';
+    const isPractice = context.mode === 'practice';
     if (isDailyChallenge) {
       await dailyChallengeService.assertActiveChallengeForLesson(lessonId, context.dailyChallengeId);
     }
 
     // Check if lesson is locked for user
-    const isLocked = !isDailyChallenge && await this.isLessonLocked(userId, lessonId);
+    const isLocked = !isDailyChallenge && !isPractice && await this.isLessonLocked(userId, lessonId);
     if (isLocked) {
       throw new AppError('Bài học đang bị khóa. Hãy hoàn thành các bài học trước đó.', 403);
     }
@@ -489,7 +490,7 @@ class DuolingoService {
       ...lesson.toObject(),
       challenges: challengesWithOptions,
       totalChallenges: challenges.length,
-      sessionMode: isDailyChallenge ? 'daily' : 'roadmap',
+      sessionMode: isDailyChallenge ? 'daily' : (isPractice ? 'practice' : 'roadmap'),
     };
   }
 
@@ -543,6 +544,7 @@ class DuolingoService {
     if (!challenge) throw new Error('Challenge not found');
     const lesson = await Lesson.findById(challenge.lesson);
     const isDailyChallenge = context.mode === 'daily';
+    const isPractice = context.mode === 'practice';
     let dailyChallenge = null;
     if (isDailyChallenge) {
       dailyChallenge = await dailyChallengeService.assertActiveChallengeForLesson(lesson._id, context.dailyChallengeId);
@@ -553,7 +555,7 @@ class DuolingoService {
     // Security check: Make sure user has hearts if it's a non-practice lesson
     const progress = await UserProgress.findOne({ user: userId });
     if (progress && !progress.isPro && progress.hearts <= 0) {
-      if (lesson && lesson.type !== 'practice') {
+      if (!isPractice && lesson && lesson.type !== 'practice') {
         throw new AppError('Bạn đã hết tim. Vui lòng nạp thêm tim để tiếp tục học.', 403);
       }
     }
@@ -659,6 +661,10 @@ class DuolingoService {
         mode: 'daily',
         dailyScore,
       };
+    }
+
+    if (isPractice) {
+      return { isCorrect, pointsEarned: 0, mode: 'practice' };
     }
 
     let pointsEarned = 0;
@@ -987,19 +993,7 @@ class DuolingoService {
       throw this.getCourseLockedError();
     }
     
-    if (lesson.type !== 'practice') {
-      lesson.type = 'practice';
-      await lesson.save();
-    }
-
-    // Reset progress for this lesson's challenges so user can practice
-    const challenges = await Challenge.find({ lesson: lessonId });
-    await ChallengeProgress.deleteMany({
-      user: userId,
-      challenge: { $in: challenges.map(c => c._id) }
-    });
-
-    return this.getLesson(lessonId, userId);
+    return this.getLesson(lessonId, userId, { mode: 'practice' });
   }
 
   // === LEADERBOARD ===
