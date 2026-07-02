@@ -84,9 +84,70 @@ export default function ChatPage() {
   const [supportsTTS] = useState('speechSynthesis' in window);
   const [supportsSTT] = useState('SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
   const [isRecording, setIsRecording] = useState(false);
+  const [speechInterimText, setSpeechInterimText] = useState('');
+  const [speechLevel, setSpeechLevel] = useState(0);
+  const [speechLang, setSpeechLang] = useState('en-US');
   const [activeAudioMsgId, setActiveAudioMsgId] = useState(null);
   
   const recognitionRef = useRef(null);
+  const micStreamRef = useRef(null);
+  const audioContextRef = useRef(null);
+  const analyserRef = useRef(null);
+  const meterFrameRef = useRef(null);
+
+  const stopMicMeter = () => {
+    if (meterFrameRef.current) {
+      cancelAnimationFrame(meterFrameRef.current);
+      meterFrameRef.current = null;
+    }
+    if (micStreamRef.current) {
+      micStreamRef.current.getTracks().forEach(track => track.stop());
+      micStreamRef.current = null;
+    }
+    if (audioContextRef.current) {
+      audioContextRef.current.close().catch(() => {});
+      audioContextRef.current = null;
+    }
+    analyserRef.current = null;
+    setSpeechLevel(0);
+  };
+
+  const startMicMeter = async () => {
+    if (!navigator.mediaDevices?.getUserMedia) return;
+
+    try {
+      stopMicMeter();
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContext) {
+        stream.getTracks().forEach(track => track.stop());
+        return;
+      }
+
+      const audioContext = new AudioContext();
+      const analyser = audioContext.createAnalyser();
+      analyser.fftSize = 256;
+      analyser.smoothingTimeConstant = 0.72;
+
+      const source = audioContext.createMediaStreamSource(stream);
+      source.connect(analyser);
+
+      micStreamRef.current = stream;
+      audioContextRef.current = audioContext;
+      analyserRef.current = analyser;
+
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      const tick = () => {
+        analyser.getByteFrequencyData(dataArray);
+        const average = dataArray.reduce((sum, value) => sum + value, 0) / dataArray.length;
+        setSpeechLevel(Math.min(100, Math.round((average / 128) * 100)));
+        meterFrameRef.current = requestAnimationFrame(tick);
+      };
+      tick();
+    } catch (err) {
+      console.warn('Mic meter unavailable:', err);
+    }
+  };
 
   // Initialize Speech Recognition
   useEffect(() => {
@@ -94,18 +155,35 @@ export default function ChatPage() {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       const rec = new SpeechRecognition();
       rec.continuous = false;
-      rec.interimResults = false;
-      rec.lang = 'en-US';
+      rec.interimResults = true;
+      rec.maxAlternatives = 3;
+      rec.lang = speechLang;
 
       rec.onstart = () => {
         setIsRecording(true);
+        setSpeechInterimText('');
+        startMicMeter();
       };
 
       rec.onresult = (event) => {
-        const transcript = event.results[0][0].transcript;
-        if (transcript) {
-          setInputMsg(prev => (prev ? prev + ' ' : '') + transcript);
+        let finalTranscript = '';
+        let interimTranscript = '';
+
+        for (let i = event.resultIndex; i < event.results.length; i += 1) {
+          const transcript = event.results[i][0]?.transcript?.trim();
+          if (!transcript) continue;
+
+          if (event.results[i].isFinal) {
+            finalTranscript += `${transcript} `;
+          } else {
+            interimTranscript += `${transcript} `;
+          }
         }
+
+        if (finalTranscript.trim()) {
+          setInputMsg(prev => `${prev ? `${prev.trim()} ` : ''}${finalTranscript.trim()}`.slice(0, 500));
+        }
+        setSpeechInterimText(interimTranscript.trim());
       };
 
       rec.onerror = (event) => {
@@ -116,15 +194,25 @@ export default function ChatPage() {
           toast.error(`Lỗi nhận diện giọng nói: ${event.error}`);
         }
         setIsRecording(false);
+        setSpeechInterimText('');
+        stopMicMeter();
       };
 
       rec.onend = () => {
         setIsRecording(false);
+        setSpeechInterimText('');
+        stopMicMeter();
       };
 
       recognitionRef.current = rec;
     }
-  }, [supportsSTT]);
+  }, [supportsSTT, speechLang]);
+
+  useEffect(() => {
+    return () => {
+      stopMicMeter();
+    };
+  }, []);
 
   // Clean up speech synthesis when session changes or component unmounts
   useEffect(() => {
@@ -141,9 +229,14 @@ export default function ChatPage() {
       recognitionRef.current?.stop();
     } else {
       try {
+        setSpeechInterimText('');
+        if (recognitionRef.current) {
+          recognitionRef.current.lang = speechLang;
+        }
         recognitionRef.current?.start();
       } catch (err) {
         console.error('Start recognition failed:', err);
+        toast.error('Micro đang bận hoặc trình duyệt chưa sẵn sàng. Vui lòng thử lại sau vài giây.');
       }
     }
   };
@@ -1108,6 +1201,26 @@ export default function ChatPage() {
               {/* Chat Input Bar */}
               <div className="chat-footer p-3 border-top bg-light-trans">
                 <Form onSubmit={handleSendMessage}>
+                  {isRecording && (
+                    <div className="speech-live-panel" role="status" aria-live="polite">
+                      <div className="speech-live-main">
+                        <span className="speech-live-dot" />
+                        <span className="speech-live-label">Đang nghe tiếng Anh</span>
+                        <div className="speech-level-bars" aria-label={`Mức âm thanh ${speechLevel}%`}>
+                          {[18, 34, 50, 66, 82].map((threshold, index) => (
+                            <span
+                              key={threshold}
+                              className={speechLevel >= threshold ? 'active' : ''}
+                              style={{ transitionDelay: `${index * 25}ms` }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                      <div className="speech-live-copy">
+                        {speechInterimText || 'Hãy nói rõ từng cụm ngắn, ví dụ: I would like a latte, please.'}
+                      </div>
+                    </div>
+                  )}
                   <div className="d-flex align-items-center gap-2">
                     <div className="flex-grow-1 position-relative">
                       <Form.Control
@@ -1136,12 +1249,27 @@ export default function ChatPage() {
                       </span>
                     </div>
 
+                    {supportsSTT && (
+                      <Form.Select
+                        value={speechLang}
+                        onChange={(e) => setSpeechLang(e.target.value)}
+                        className="speech-lang-select"
+                        disabled={sending || isRecording || isLimitReached || isCompleted || !hasKey}
+                        title="Chọn giọng nhận diện"
+                        aria-label="Chọn giọng nhận diện"
+                      >
+                        <option value="en-US">US</option>
+                        <option value="en-GB">UK</option>
+                        <option value="en-AU">AU</option>
+                      </Form.Select>
+                    )}
+
                     {/* Microphone button (STT) */}
                     {supportsSTT ? (
                       <Button
                         type="button"
                         variant={isRecording ? "danger" : "outline-secondary"}
-                        className={`rounded-circle p-2 d-flex align-items-center justify-content-center ${isRecording ? 'animate-pulse' : ''}`}
+                        className={`speech-mic-btn rounded-circle p-2 d-flex align-items-center justify-content-center ${isRecording ? 'is-recording' : ''}`}
                         onClick={handleToggleListening}
                         disabled={sending || isLimitReached || isCompleted || !hasKey}
                         title={isRecording ? "Đang lắng nghe... Bấm để dừng" : "Luyện nói qua Micro"}
