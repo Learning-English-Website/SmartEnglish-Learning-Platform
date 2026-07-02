@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Modal, Button, Form, InputGroup } from 'react-bootstrap';
-import { FiCopy, FiCheck, FiShare2, FiGlobe, FiLock } from 'react-icons/fi';
+import { FiCopy, FiCheck, FiShare2, FiGlobe, FiLock, FiDownload } from 'react-icons/fi';
+import QRCode from 'qrcode';
 import { setService } from '../../../api/setService';
 import { toast } from 'react-hot-toast';
 import './ShareModal.css';
@@ -22,6 +23,8 @@ export default function ShareModal({ show, setId, setTitle, isPublic, onHide, on
   const [copiedDeepLink, setCopiedDeepLink] = useState(false);
   const [currentIsPublic, setCurrentIsPublic] = useState(isPublic);
   const [makingPublic, setMakingPublic] = useState(false);
+  const [qrDataUrl, setQrDataUrl] = useState('');
+  const [qrError, setQrError] = useState('');
 
   useEffect(() => {
     setCurrentIsPublic(isPublic);
@@ -36,6 +39,46 @@ export default function ShareModal({ show, setId, setTitle, isPublic, onHide, on
 
   const shareUrl = `${APP_URL}/flashcards/sets/${setId}`;
   const deepLinkUrl = `smartenglish://set/${setId}`;
+
+  useEffect(() => {
+    let isActive = true;
+
+    const generateQrCode = async () => {
+      if (!show || !currentIsPublic || !setId) {
+        setQrDataUrl('');
+        setQrError('');
+        return;
+      }
+
+      try {
+        const dataUrl = await QRCode.toDataURL(shareUrl, {
+          errorCorrectionLevel: 'M',
+          margin: 2,
+          width: 220,
+          color: {
+            dark: '#111827',
+            light: '#FFFFFF'
+          }
+        });
+
+        if (isActive) {
+          setQrDataUrl(dataUrl);
+          setQrError('');
+        }
+      } catch {
+        if (isActive) {
+          setQrDataUrl('');
+          setQrError('Không thể tạo mã QR cho liên kết này.');
+        }
+      }
+    };
+
+    generateQrCode();
+
+    return () => {
+      isActive = false;
+    };
+  }, [show, currentIsPublic, setId, shareUrl]);
 
   const handleMakePublic = async () => {
     setMakingPublic(true);
@@ -71,6 +114,26 @@ export default function ShareModal({ show, setId, setTitle, isPublic, onHide, on
     } catch {
       toast.error('Không thể sao chép deep link');
     }
+  };
+
+  const handleDownloadQr = () => {
+    if (!qrDataUrl) return;
+
+    const safeTitle = (setTitle || 'hoc-phan')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 60) || 'hoc-phan';
+
+    const link = document.createElement('a');
+    link.href = qrDataUrl;
+    link.download = `memoris-share-${safeTitle}.png`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    toast.success('Đã tải mã QR chia sẻ!');
   };
 
   const handleClose = () => {
@@ -119,6 +182,32 @@ export default function ShareModal({ show, setId, setTitle, isPublic, onHide, on
           </div>
         ) : (
           <div className="share-link-section">
+            <div className="share-qr-card">
+              <div className="share-qr-content">
+                <span className="share-qr-kicker">Chia sẻ nhanh bằng QR</span>
+                <h4>Quét mã để mở học phần</h4>
+                <p>Người nhận có thể dùng camera điện thoại để mở ngay liên kết web của học phần.</p>
+                <Button
+                  variant="outline-secondary"
+                  className="share-qr-download-btn"
+                  onClick={handleDownloadQr}
+                  disabled={!qrDataUrl}
+                >
+                  <FiDownload className="me-1" /> Tải mã QR
+                </Button>
+              </div>
+
+              <div className="share-qr-preview" aria-live="polite">
+                {qrDataUrl ? (
+                  <img src={qrDataUrl} alt={`Mã QR chia sẻ học phần ${setTitle || ''}`.trim()} />
+                ) : qrError ? (
+                  <span className="share-qr-error">{qrError}</span>
+                ) : (
+                  <span className="share-qr-loading">Đang tạo QR...</span>
+                )}
+              </div>
+            </div>
+
             <p className="share-link-label">Chia sẻ học phần công khai này (Web)</p>
 
             <InputGroup className="share-link-input-group mb-3">
