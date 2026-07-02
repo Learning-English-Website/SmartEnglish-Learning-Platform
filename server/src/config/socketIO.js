@@ -356,6 +356,8 @@ const initSocketIO = (httpServer) => {
           sessionId,
           agentId: String(socket.userId),
           studentId: targetUserId,
+          agentSocketId: socket.id,
+          studentSocketId: null,
           status: 'ringing',
           createdAt: Date.now(),
           timeoutId: null,
@@ -408,8 +410,9 @@ const initSocketIO = (httpServer) => {
 
       clearCallTimeout(call);
       call.status = 'accepted';
-      io.to(`user:${call.agentId}`).emit('call:accepted', { callId, byUserId: socket.userId });
-      io.to(`user:${call.studentId}`).emit('call:answered_elsewhere', {
+      call.studentSocketId = socket.id;
+      io.to(call.agentSocketId).emit('call:accepted', { callId, byUserId: socket.userId });
+      socket.to(`user:${call.studentId}`).emit('call:answered_elsewhere', {
         callId,
         answeredBySocketId: socket.id,
       });
@@ -436,8 +439,12 @@ const initSocketIO = (httpServer) => {
         return emitCallError(socket, 'Bạn không thuộc cuộc gọi này.', 'forbidden', callId);
       }
 
-      const toUserId = isAgent ? call.studentId : call.agentId;
-      io.to(`user:${toUserId}`).emit('call:signal', {
+      const targetSocketId = isAgent ? call.studentSocketId : call.agentSocketId;
+      if (!targetSocketId) {
+        return emitCallError(socket, 'Thiếu thiết bị nhận tín hiệu cuộc gọi.', 'missing_target_socket', callId);
+      }
+
+      io.to(targetSocketId).emit('call:signal', {
         callId,
         fromUserId,
         signal,
@@ -468,7 +475,9 @@ const initSocketIO = (httpServer) => {
       console.log(`[Socket.IO] Client disconnected: ${socket.id}, reason: ${reason}`);
       if (socket.userId) {
         const activeCall = findActiveCallForUser(socket.userId);
-        if (activeCall && getRoomSize(`user:${socket.userId}`) <= 1) {
+        const isCallMediaSocket = activeCall &&
+          (activeCall.agentSocketId === socket.id || activeCall.studentSocketId === socket.id);
+        if (activeCall && (isCallMediaSocket || getRoomSize(`user:${socket.userId}`) <= 1)) {
           endCall(activeCall.callId, 'disconnect', socket.userId);
         }
         socket.broadcast.emit('user:offline', { userId: socket.userId });

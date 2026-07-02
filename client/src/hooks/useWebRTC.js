@@ -353,6 +353,9 @@ export function useWebRTC({ socket, currentUser } = {}) {
         const { signal } = payload;
 
         if (signal.type === 'offer') {
+          if (roleRef.current !== 'receiver' || pc.signalingState !== 'stable') {
+            return;
+          }
           await pc.setRemoteDescription(new RTCSessionDescription(signal.sdp));
           await flushPendingCandidates();
           const answer = await pc.createAnswer();
@@ -362,6 +365,9 @@ export function useWebRTC({ socket, currentUser } = {}) {
         }
 
         if (signal.type === 'answer') {
+          if (roleRef.current !== 'caller' || pc.signalingState !== 'have-local-offer') {
+            return;
+          }
           await pc.setRemoteDescription(new RTCSessionDescription(signal.sdp));
           await flushPendingCandidates();
           setCallStatus('connecting');
