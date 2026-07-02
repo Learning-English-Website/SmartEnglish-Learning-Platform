@@ -7,10 +7,13 @@ const aiChatSessionSchema = new Schema(
     persona: { 
       type: String, 
       required: true, 
-      enum: ['barista', 'receptionist', 'interviewer', 'friend', 'professor'] 
+      enum: ['barista', 'receptionist', 'interviewer', 'friend', 'professor', 'doctor', 'customs_officer', 'server', 'ielts_examiner', 'support_agent', 'recruiter', 'custom'] 
     },
     topic: { type: String, required: true },
-    level: { type: String, required: true, enum: ['A1-A2', 'B1-B2', 'C1-C2'] }
+    level: { type: String, required: true, enum: ['A1-A2', 'B1-B2', 'C1-C2'] },
+    status: { type: String, enum: ['active', 'completed'], default: 'active' },
+    summary: { type: Schema.Types.Mixed, default: null },
+    customScenario: { type: String, default: "" }
   },
   { 
     timestamps: true 

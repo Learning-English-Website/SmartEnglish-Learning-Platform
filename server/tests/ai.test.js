@@ -417,6 +417,30 @@ describe('AI Module API', () => {
       expect(logs[0].feature).toBe('flashcard');
     });
 
+    it('should return 200 and draft results without setId for create-set flow', async () => {
+      const ciphertext = cryptoHelper.encrypt('test_api_key');
+      const cookieHeader = getSignedCookieHeader(ciphertext);
+      const mockFlashcards = [
+        { front: 'Airport', back: 'San bay', pronunciation: '/airport/', example: 'The airport is crowded.', difficulty: 2 }
+      ];
+      geminiProvider.generateStructuredData.mockResolvedValueOnce({
+        flashcards: mockFlashcards
+      });
+
+      const { setId, ...paramsWithoutSetId } = validParams;
+      const res = await request(app)
+        .post('/api/ai/flashcards/generate')
+        .set('Authorization', `Bearer ${tokenA}`)
+        .set('Origin', mockClientUrl)
+        .set('Cookie', [cookieHeader])
+        .send(paramsWithoutSetId);
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.flashcards).toHaveLength(1);
+      expect(res.body.flashcards[0].front).toBe('Airport');
+    });
+
     it('should return correct status code and write error logs on AI provider failure', async () => {
       const ciphertext = cryptoHelper.encrypt('test_api_key');
       const cookieHeader = getSignedCookieHeader(ciphertext);
@@ -442,6 +466,122 @@ describe('AI Module API', () => {
       expect(logs).toHaveLength(1);
       expect(logs[0].status).toBe('error');
       expect(logs[0].errorCode).toBe('HTTP_422');
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────
+  // 6. POST /api/ai/flashcards/enhance
+  // ─────────────────────────────────────────────────────────────────
+  describe('POST /api/ai/flashcards/enhance', () => {
+    const validParams = {
+      front: 'make up',
+      back: 'trang điểm',
+      level: 'B1-B2',
+      context: 'phrasal verb in conversation'
+    };
+
+    it('should return 428 if Gemini API key cookie is missing', async () => {
+      const res = await request(app)
+        .post('/api/ai/flashcards/enhance')
+        .set('Authorization', `Bearer ${tokenA}`)
+        .set('Origin', mockClientUrl)
+        .send(validParams);
+
+      expect(res.status).toBe(428);
+      expect(res.body.success).toBe(false);
+      expect(res.body.message).toContain('cấu hình Gemini API Key');
+    });
+
+    it('should return 400 if front (term) is missing or empty', async () => {
+      const ciphertext = cryptoHelper.encrypt('test_api_key');
+      const cookieHeader = getSignedCookieHeader(ciphertext);
+
+      const res = await request(app)
+        .post('/api/ai/flashcards/enhance')
+        .set('Authorization', `Bearer ${tokenA}`)
+        .set('Origin', mockClientUrl)
+        .set('Cookie', [cookieHeader])
+        .send({ ...validParams, front: '' });
+
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+      expect(res.body.message).toContain('không được để trống');
+    });
+
+    it('should return 400 if inputs exceed length restrictions', async () => {
+      const ciphertext = cryptoHelper.encrypt('test_api_key');
+      const cookieHeader = getSignedCookieHeader(ciphertext);
+
+      const res = await request(app)
+        .post('/api/ai/flashcards/enhance')
+        .set('Authorization', `Bearer ${tokenA}`)
+        .set('Origin', mockClientUrl)
+        .set('Cookie', [cookieHeader])
+        .send({ ...validParams, front: 'a'.repeat(121) });
+
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+      expect(res.body.message).toContain('không được vượt quá 120 ký tự');
+    });
+
+    it('should call Gemini structured data, return enhanced draft card, and write success log', async () => {
+      const ciphertext = cryptoHelper.encrypt('test_api_key');
+      const cookieHeader = getSignedCookieHeader(ciphertext);
+
+      const mockResponse = {
+        front: 'make up',
+        back: 'trang điểm / bịa chuyện / làm hòa',
+        pronunciation: '/meɪk ʌp/',
+        example: 'She made up an excuse for being late.',
+        collocation: 'make up a story, make up with someone',
+        relatedWords: 'invent, reconcile, cosmetics',
+        difficulty: 3,
+        note: 'Đây là phrasal verb có nhiều nghĩa, nên học theo ngữ cảnh.'
+      };
+
+      geminiProvider.generateStructuredData.mockResolvedValueOnce(mockResponse);
+
+      const res = await request(app)
+        .post('/api/ai/flashcards/enhance')
+        .set('Authorization', `Bearer ${tokenA}`)
+        .set('Origin', mockClientUrl)
+        .set('Cookie', [cookieHeader])
+        .send(validParams);
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.enhancedCard.front).toBe('make up');
+      expect(res.body.enhancedCard.back).toBe('trang điểm / bịa chuyện / làm hòa');
+      expect(res.body.enhancedCard.difficulty).toBe(3);
+
+      // Verify usage log
+      const logs = await AiUsageLog.find({ user: userA._id, feature: 'flashcard_enhance' });
+      expect(logs).toHaveLength(1);
+      expect(logs[0].status).toBe('success');
+    });
+
+    it('should return error status and log error on Gemini API failure', async () => {
+      const ciphertext = cryptoHelper.encrypt('test_api_key');
+      const cookieHeader = getSignedCookieHeader(ciphertext);
+
+      const providerError = new Error('Quota exceeded');
+      providerError.status = 429;
+      geminiProvider.generateStructuredData.mockRejectedValueOnce(providerError);
+
+      const res = await request(app)
+        .post('/api/ai/flashcards/enhance')
+        .set('Authorization', `Bearer ${tokenA}`)
+        .set('Origin', mockClientUrl)
+        .set('Cookie', [cookieHeader])
+        .send(validParams);
+
+      expect(res.status).toBe(429);
+      expect(res.body.success).toBe(false);
+
+      // Verify usage log
+      const logs = await AiUsageLog.find({ user: userA._id, feature: 'flashcard_enhance' });
+      expect(logs).toHaveLength(1);
+      expect(logs[0].status).toBe('error');
     });
   });
 });

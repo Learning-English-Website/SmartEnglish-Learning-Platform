@@ -19,6 +19,7 @@ router.delete('/key', aiController.clearAiKey);
 
 // --- AI Generation Features ---
 router.post('/flashcards/generate', rateLimitUserFeature('flashcard', 30, 60), aiController.generateFlashcards);
+router.post('/flashcards/enhance', rateLimitUserFeature('flashcard_enhance', 30, 60), aiController.enhanceFlashcard);
 router.post('/lessons/generate', authorize('teacher', 'admin'), rateLimitUserFeature('lesson_plan', 30, 60), aiController.generateLesson);
 
 // --- AI Chatbot Endpoints ---
@@ -27,5 +28,8 @@ router.get('/chat/sessions', aiController.getChatSessions);
 router.get('/chat/sessions/:id/messages', aiController.getChatMessages);
 router.post('/chat/sessions/:id/messages', rateLimitUserFeature('chatbot', 10, 60), aiController.sendChatMessage);
 router.delete('/chat/sessions/:id', aiController.deleteChatSession);
+router.post('/chat/sessions/:id/end', rateLimitUserFeature('chat_summary', 10, 60), aiController.endChatSession);
+router.get('/chat/sessions/:id/summary', aiController.getChatSummary);
+router.post('/chat/sessions/:id/save-vocab', aiController.saveVocabToFlashcard);
 
 module.exports = router;

@@ -1,6 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { FiSave, FiX, FiVolume2, FiZap, FiSearch, FiImage, FiUpload } from 'react-icons/fi';
+import { Sparkles } from 'lucide-react';
+import { Modal, Button } from 'react-bootstrap';
 import { lookupWord, searchWords, fetchRelatedWords, fetchCollocations, translateEnToVi } from '../../../api/dictionaryService';
+import { aiService } from '../../../api/aiService';
+import GeminiKeyModal from '../GeminiKeyModal/GeminiKeyModal';
+import { toast } from 'react-hot-toast';
 import ImagePicker from '../ImagePicker/ImagePicker';
 import ImageUploader from '../../media/ImageUploader';
 import './CardEditor.css';
@@ -10,7 +15,7 @@ import './CardEditor.css';
  * - Phase 1 (auto): typing debounce → Datamuse word list
  * - Phase 2 (click word / Suggest btn): lookup IPA + definitions
  */
-export default function CardEditor({ card, onSave, onCancel, loading = false, inlineMode = false }) {
+export default function CardEditor({ card, onSave, onCancel, loading = false, inlineMode = false, onOpenKeyModal }) {
   const [form, setForm] = useState({
     id:            card?.id || null,
     front:         card?.front         ?? '',
@@ -21,11 +26,16 @@ export default function CardEditor({ card, onSave, onCancel, loading = false, in
     collocation:   card?.collocation   ?? '',
     relatedWords:  card?.relatedWords  ?? '',
     imageUrl:      card?.imageUrl      ?? '',
+    difficulty:    card?.difficulty    ?? 0,
   });
   const [errors, setErrors] = useState({});
   const [showImagePicker, setShowImagePicker] = useState(false);
   const [imageTab, setImageTab] = useState('search'); // 'search' | 'upload'
   const [autoFilling, setAutoFilling] = useState(false); // loading state for auto-fill all
+  const [aiLoading, setAiLoading] = useState(false); // loading state for AI auto-enrichment
+  const [enhancedDraft, setEnhancedDraft] = useState(null); // draft object from AI
+  const [showPreviewModal, setShowPreviewModal] = useState(false); // preview modal state
+  const [showLocalKeyModal, setShowLocalKeyModal] = useState(false); // local key modal fallback
   const [showExtra, setShowExtra] = useState(() => {
     return !!(card?.pronunciation || card?.example || card?.collocation || card?.relatedWords || card?.note);
   });
@@ -69,6 +79,7 @@ export default function CardEditor({ card, onSave, onCancel, loading = false, in
           collocation:   form.collocation.trim() || null,
           relatedWords:  form.relatedWords.trim() || null,
           imageUrl:      form.imageUrl || null,
+          difficulty:    form.difficulty,
         });
       }, 500);
     }
@@ -233,6 +244,98 @@ export default function CardEditor({ card, onSave, onCancel, loading = false, in
     if (name === 'front') triggerWordSearch(value);
   };
 
+  /* ── AI Auto-Enrichment (✨ icon button) ────────────────────────── */
+  const handleAiEnhance = async () => {
+    const term = form.front.trim();
+    if (!term) {
+      toast.error("Vui lòng nhập thuật ngữ trước khi sử dụng AI");
+      return;
+    }
+
+    setAiLoading(true);
+    try {
+      const res = await aiService.enhanceFlashcard({
+        front: term,
+        back: form.back.trim()
+      });
+
+      const data = res?.data ?? res;
+
+      if (data?.success && data?.enhancedCard) {
+        setEnhancedDraft(data.enhancedCard);
+        setShowPreviewModal(true);
+      } else {
+        toast.error("Không nhận được dữ liệu đề xuất từ AI.");
+      }
+    } catch (err) {
+      console.error('[AI Enhance] Error:', err);
+      const status = err?.response?.status;
+      if (status === 428) {
+        if (onOpenKeyModal) {
+          onOpenKeyModal();
+        } else {
+          setShowLocalKeyModal(true);
+        }
+      } else {
+        const errorMsg = err?.response?.data?.message || err.message || "Không thể kết nối AI.";
+        toast.error(`Lỗi AI: ${errorMsg}`);
+      }
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const handleApplyAiDraft = () => {
+    if (!enhancedDraft) return;
+
+    // A field is empty if value === null || value === undefined || String(value).trim() === ''
+    const isEmpty = (val) => val === null || val === undefined || String(val).trim() === '';
+
+    setForm((prev) => {
+      const updated = { ...prev };
+      
+      const fields = ['back', 'pronunciation', 'example', 'collocation', 'relatedWords', 'note'];
+      fields.forEach((field) => {
+        if (isEmpty(prev[field]) && !isEmpty(enhancedDraft[field])) {
+          updated[field] = enhancedDraft[field];
+        }
+      });
+      
+      // Also apply difficulty if the current is 0
+      if ((prev.difficulty === 0 || !prev.difficulty) && enhancedDraft.difficulty) {
+        updated.difficulty = enhancedDraft.difficulty;
+      }
+
+      return updated;
+    });
+
+    toast.success("Đã áp dụng các trường còn trống từ AI!");
+    setShowPreviewModal(false);
+    setShowExtra(true);
+  };
+
+  const handleReplaceAiDraft = () => {
+    if (!enhancedDraft) return;
+
+    const confirmReplace = window.confirm("Thay thế toàn bộ nội dung hiện tại bằng đề xuất AI?");
+    if (!confirmReplace) return;
+
+    setForm((prev) => ({
+      ...prev,
+      back: enhancedDraft.back || prev.back,
+      pronunciation: enhancedDraft.pronunciation || prev.pronunciation,
+      example: enhancedDraft.example || prev.example,
+      collocation: enhancedDraft.collocation || prev.collocation,
+      relatedWords: enhancedDraft.relatedWords || prev.relatedWords,
+      note: enhancedDraft.note || prev.note,
+      difficulty: enhancedDraft.difficulty || prev.difficulty,
+    }));
+
+    toast.success("Đã ghi đè toàn bộ nội dung bằng bản đề xuất AI!");
+    setShowPreviewModal(false);
+    setShowExtra(true);
+  };
+
   /* ── Validate + Submit ───────────────────────────────────────────── */
   const validate = () => {
     const errs = {};
@@ -254,6 +357,7 @@ export default function CardEditor({ card, onSave, onCancel, loading = false, in
       collocation:   form.collocation.trim() || null,
       relatedWords:  form.relatedWords.trim() || null,
       imageUrl:      form.imageUrl || null,
+      difficulty:    form.difficulty,
     });
   };
 
@@ -276,7 +380,8 @@ export default function CardEditor({ card, onSave, onCancel, loading = false, in
 
   /* ── Render ──────────────────────────────────────────────────────── */
   return (
-    <form className="ce-form" onSubmit={handleSubmit} noValidate>
+    <>
+      <form className="ce-form" onSubmit={handleSubmit} noValidate>
 
       {/* ── Row 1: TERM + DEFINITION ─────────────────────────────── */}
       <div className="ce-row">
@@ -296,6 +401,17 @@ export default function CardEditor({ card, onSave, onCancel, loading = false, in
                 style={{ minWidth: 32 }}
               >
                 {autoFilling ? <span className="ce-spinner" /> : <FiZap size={12} />}
+              </button>
+              {/* ✨ AI Enhance (new) */}
+              <button
+                type="button"
+                className={`ce-suggest-btn ce-ai-enhance-btn ${aiLoading ? 'ce-ai-enhance-btn--loading active' : ''}`}
+                onClick={handleAiEnhance}
+                disabled={!form.front.trim() || loading || aiLoading}
+                title="AI hoàn thiện thẻ"
+                style={{ minWidth: 32 }}
+              >
+                 {aiLoading ? <span className="ce-spinner" /> : <Sparkles size={12} />}
               </button>
               {/* 📖 Manual suggest (existing) */}
               <button
@@ -608,5 +724,86 @@ export default function CardEditor({ card, onSave, onCancel, loading = false, in
         </div>
       )}
     </form>
+
+      {/* ── AI Auto-Enrichment Preview Modal ── */}
+      <Modal show={showPreviewModal} onHide={() => setShowPreviewModal(false)} size="lg" centered className="ce-ai-preview-modal">
+        <Modal.Header closeButton>
+          <Modal.Title className="d-flex align-items-center gap-2">
+            <Sparkles className="text-warning" size={18} />
+            AI hoàn thiện thẻ cho từ: <strong className="text-primary">"{form.front}"</strong>
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <div className="ce-ai-preview-container">
+            <p className="ce-ai-preview-desc">
+              Hệ thống đã phân tích từ vựng bằng AI. Dưới đây là bảng so sánh dữ hiện tại của bạn và đề xuất từ AI:
+            </p>
+            <table className="table ce-ai-preview-table">
+              <thead>
+                <tr>
+                  <th>Trường thông tin</th>
+                  <th>Hiện tại của bạn</th>
+                  <th>AI đề xuất</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td className="fw-bold">Nghĩa (Back)</td>
+                  <td className={!form.back.trim() ? "text-muted italic" : ""}>{form.back.trim() || "(Trống)"}</td>
+                  <td className="text-success fw-semibold">{enhancedDraft?.back}</td>
+                </tr>
+                <tr>
+                  <td className="fw-bold">Phát âm (IPA)</td>
+                  <td className={!form.pronunciation.trim() ? "text-muted italic" : ""}>{form.pronunciation.trim() || "(Trống)"}</td>
+                  <td className="text-success">{enhancedDraft?.pronunciation}</td>
+                </tr>
+                <tr>
+                  <td className="fw-bold">Ví dụ (Example)</td>
+                  <td className={!form.example.trim() ? "text-muted italic" : ""}>{form.example.trim() || "(Trống)"}</td>
+                  <td className="text-success">{enhancedDraft?.example}</td>
+                </tr>
+                <tr>
+                  <td className="fw-bold">Collocation</td>
+                  <td className={!form.collocation.trim() ? "text-muted italic" : ""}>{form.collocation.trim() || "(Trống)"}</td>
+                  <td className="text-success">{enhancedDraft?.collocation}</td>
+                </tr>
+                <tr>
+                  <td className="fw-bold">Từ liên quan</td>
+                  <td className={!form.relatedWords.trim() ? "text-muted italic" : ""}>{form.relatedWords.trim() || "(Trống)"}</td>
+                  <td className="text-success">{enhancedDraft?.relatedWords}</td>
+                </tr>
+                <tr>
+                  <td className="fw-bold">Độ khó</td>
+                  <td>{form.difficulty || "0 (Trống)"}</td>
+                  <td className="text-success">{enhancedDraft?.difficulty}/5</td>
+                </tr>
+                <tr>
+                  <td className="fw-bold">Ghi chú (Note)</td>
+                  <td className={!form.note.trim() ? "text-muted italic" : ""}>{form.note.trim() || "(Trống)"}</td>
+                  <td className="text-success">{enhancedDraft?.note}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowPreviewModal(false)}>
+            Bỏ qua (Cancel)
+          </Button>
+          <Button variant="info" onClick={handleApplyAiDraft} className="text-white">
+            Áp dụng trường trống (Apply)
+          </Button>
+          <Button variant="primary" onClick={handleReplaceAiDraft}>
+            Ghi đè tất cả (Replace)
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* ── Gemini Key Modal fallback ── */}
+      <GeminiKeyModal
+        show={showLocalKeyModal}
+        onHide={() => setShowLocalKeyModal(false)}
+      />
+    </>
   );
 }

@@ -44,6 +44,16 @@ export const aiService = {
     }),
 
   /**
+   * Auto-enhance a single flashcard term using Gemini AI
+   * POST /api/ai/flashcards/enhance
+   * @param {{ front: string, back?: string, level?: string, context?: string }} data
+   */
+  enhanceFlashcard: (data) =>
+    axiosClient.post('/ai/flashcards/enhance', data, {
+      timeout: AI_REQUEST_TIMEOUT_MS,
+    }),
+
+  /**
    * Generate lesson and exercises using AI
    * POST /api/ai/lessons/generate
    * @param {{ topic: string, level?: string, count?: number, challengeTypes?: string[] }} data
@@ -88,4 +98,24 @@ export const aiService = {
    * DELETE /api/ai/chat/sessions/:id
    */
   deleteChatSession: (sessionId) => axiosClient.delete(`/ai/chat/sessions/${sessionId}`),
+
+  /**
+   * End a chat session and generate an AI report card summary
+   * POST /api/ai/chat/sessions/:id/end
+   */
+  endChatSession: (sessionId) => axiosClient.post(`/ai/chat/sessions/${sessionId}/end`),
+
+  /**
+   * Fetch saved AI report card summary for a session
+   * GET /api/ai/chat/sessions/:id/summary
+   */
+  getChatSummary: (sessionId) => axiosClient.get(`/ai/chat/sessions/${sessionId}/summary`),
+
+  /**
+   * Save selected vocabulary to a flashcard set
+   * POST /api/ai/chat/sessions/:id/save-vocab
+   * @param {string} sessionId
+   * @param {{ setId?: string, createNew?: boolean, setName?: string, words: Array<{word, meaning, pronunciation, example}> }} data
+   */
+  saveVocabToFlashcard: (sessionId, data) => axiosClient.post(`/ai/chat/sessions/${sessionId}/save-vocab`, data)
 };

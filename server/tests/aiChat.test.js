@@ -15,7 +15,8 @@ jest.mock('../src/shared/events/eventBus', () => ({
 const geminiProvider = require('../src/modules/ai/providers/gemini.provider');
 jest.mock('../src/modules/ai/providers/gemini.provider', () => ({
   generateStructuredData: jest.fn(),
-  generateChatStructuredData: jest.fn()
+  generateChatStructuredData: jest.fn(),
+  generateText: jest.fn()
 }));
 
 const User = require('../src/modules/user/user.model');
@@ -429,6 +430,179 @@ describe('AI Chatbot API', () => {
       expect(dbSession).toBeNull();
       const dbMsgs = await AiChatMessage.find({ session: session._id });
       expect(dbMsgs).toHaveLength(0);
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────
+  // 5. POST /api/ai/chat/sessions/:id/end (End Session & Summary)
+  // ─────────────────────────────────────────────────────────────────
+  describe('POST /api/ai/chat/sessions/:id/end', () => {
+    it('should return 401 if key cookie is missing', async () => {
+      const session = await AiChatSession.create({ user: userA._id, persona: 'barista', topic: 'Topic 1', level: 'A1-A2' });
+      await AiChatMessage.create({ session: session._id, sender: 'ai', text: 'Hello' });
+      await AiChatMessage.create({ session: session._id, sender: 'user', text: 'Hi' });
+
+      const res = await request(app)
+        .post(`/api/ai/chat/sessions/${session._id}/end`)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .set('Origin', mockClientUrl);
+
+      expect(res.status).toBe(401);
+      expect(res.body.success).toBe(false);
+      expect(res.body.message).toContain('BYOK');
+    });
+
+    it('should generate summary using Gemini and save it when valid key is present', async () => {
+      const session = await AiChatSession.create({ user: userA._id, persona: 'barista', topic: 'Topic 1', level: 'A1-A2' });
+      await AiChatMessage.create({ session: session._id, sender: 'ai', text: 'Hello' });
+      await AiChatMessage.create({ session: session._id, sender: 'user', text: 'Hi' });
+
+      const ciphertext = cryptoHelper.encrypt('test_api_key_chat');
+      const cookieHeader = getSignedCookieHeader(ciphertext);
+
+      const mockSummary = {
+        grammarScore: 90,
+        vocabularyScore: 85,
+        pronunciationScore: 80,
+        overallFeedback: "Rất tốt.",
+        commonMistakes: [{ original: "Me goes", corrected: "I go", explanation: "Subject pronoun" }],
+        recommendedExpressions: ["Have a good one"],
+        vocabularyHighlight: [{ word: "latte", definition: "cà phê sữa", ipa: "/ˈlɑːteɪ/", example: "One latte please" }]
+      };
+
+      geminiProvider.generateChatStructuredData.mockResolvedValueOnce(mockSummary);
+
+      const res = await request(app)
+        .post(`/api/ai/chat/sessions/${session._id}/end`)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .set('Origin', mockClientUrl)
+        .set('Cookie', [cookieHeader]);
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.session.status).toBe('completed');
+      expect(res.body.summary.grammarScore).toBe(90);
+
+      // Verify DB updated
+      const dbSession = await AiChatSession.findById(session._id);
+      expect(dbSession.status).toBe('completed');
+      expect(dbSession.summary.grammarScore).toBe(90);
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────
+  // 6. GET /api/ai/chat/sessions/:id/summary (Get Summary)
+  // ─────────────────────────────────────────────────────────────────
+  describe('GET /api/ai/chat/sessions/:id/summary', () => {
+    it('should return session status and summary', async () => {
+      const session = await AiChatSession.create({ 
+        user: userA._id, 
+        persona: 'barista', 
+        topic: 'Topic 1', 
+        level: 'A1-A2',
+        status: 'completed',
+        summary: { grammarScore: 95, overallFeedback: "Excellent" }
+      });
+
+      const res = await request(app)
+        .get(`/api/ai/chat/sessions/${session._id}/summary`)
+        .set('Authorization', `Bearer ${tokenA}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.status).toBe('completed');
+      expect(res.body.summary.grammarScore).toBe(95);
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────
+  // 7. POST /api/ai/chat/sessions/:id/save-vocab (Save Vocab to Flashcard)
+  // ─────────────────────────────────────────────────────────────────
+  describe('POST /api/ai/chat/sessions/:id/save-vocab', () => {
+    const FlashcardSet = require('../src/models/flashcardSet.model');
+    const Flashcard = require('../src/models/flashcard.model');
+
+    it('should create new flashcard set and save vocabulary successfully', async () => {
+      const session = await AiChatSession.create({ user: userA._id, persona: 'barista', topic: 'Coffee topic', level: 'A1-A2' });
+
+      const res = await request(app)
+        .post(`/api/ai/chat/sessions/${session._id}/save-vocab`)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .set('Origin', mockClientUrl)
+        .send({
+          vocab: [
+            { word: "latte", definition: "cà phê sữa", ipa: "/ˈlɑːteɪ/", example: "One latte please" },
+            { word: "croissant", definition: "bánh sừng bò", ipa: "/ˈkwæ̃sɒ̃/", example: "I want a croissant" }
+          ],
+          newSetName: "My AI Coffee Vocabulary"
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.flashcardSet.title).toBe("My AI Coffee Vocabulary");
+
+      // Verify DB
+      const dbSet = await FlashcardSet.findOne({ title: "My AI Coffee Vocabulary" });
+      expect(dbSet).toBeDefined();
+      expect(dbSet.cardCount).toBe(2);
+
+      const dbCards = await Flashcard.find({ set: dbSet._id }).sort({ order: 1 });
+      expect(dbCards).toHaveLength(2);
+      expect(dbCards[0].front).toBe("latte");
+      expect(dbCards[1].front).toBe("croissant");
+    });
+
+    it('should return 400 if user tries to save more than 30 vocabulary items', async () => {
+      const session = await AiChatSession.create({ user: userA._id, persona: 'barista', topic: 'Coffee topic', level: 'A1-A2' });
+      const largeVocab = Array.from({ length: 31 }, (_, idx) => ({
+        word: `word-${idx}`,
+        definition: `definition-${idx}`
+      }));
+
+      const res = await request(app)
+        .post(`/api/ai/chat/sessions/${session._id}/save-vocab`)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .set('Origin', mockClientUrl)
+        .send({
+          vocab: largeVocab,
+          newSetName: "Large Set"
+        });
+
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+      expect(res.body.message).toContain('Không thể lưu quá 30 từ');
+    });
+
+    it('should return 400 if a vocab item is missing the required word or definition field', async () => {
+      const session = await AiChatSession.create({ user: userA._id, persona: 'barista', topic: 'Coffee topic', level: 'A1-A2' });
+
+      const res = await request(app)
+        .post(`/api/ai/chat/sessions/${session._id}/save-vocab`)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .set('Origin', mockClientUrl)
+        .send({
+          vocab: [
+            { word: "", definition: "cà phê sữa" }
+          ],
+          newSetName: "Invalid Set"
+        });
+
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+      expect(res.body.message).toContain('thiếu từ tiếng Anh');
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────
+  // 8. Public API Contract checks (Mock vs Real)
+  // ─────────────────────────────────────────────────────────────────
+  describe('Gemini Provider Mock API contract', () => {
+    it('should match the exported methods of the actual provider module', () => {
+      const realProvider = jest.requireActual('../src/modules/ai/providers/gemini.provider');
+      const mockKeys = Object.keys(geminiProvider).filter(k => typeof geminiProvider[k] === 'function');
+      const realKeys = Object.keys(realProvider).filter(k => typeof realProvider[k] === 'function');
+
+      expect(mockKeys.sort()).toEqual(realKeys.sort());
     });
   });
 });
