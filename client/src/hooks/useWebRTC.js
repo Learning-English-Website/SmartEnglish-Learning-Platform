@@ -72,7 +72,9 @@ export function useWebRTC({ socket, currentUser } = {}) {
       clearTimeout(timeoutId);
 
       if (response?.success === false) {
-        reject(new Error(response.message || 'Yêu cầu cuộc gọi thất bại.'));
+        const error = new Error(response.message || 'Yêu cầu cuộc gọi thất bại.');
+        error.code = response.code;
+        reject(error);
       } else {
         resolve(response || { success: true });
       }
@@ -223,11 +225,11 @@ export function useWebRTC({ socket, currentUser } = {}) {
     try {
       await emitWithAck('call:response', { callId: activeCall.callId, accepted: false });
     } catch {
-      socket?.emit('call:hangup', { callId: activeCall.callId, reason: 'rejected' });
+      // Another tab/device may have already answered this call. Do not end an accepted call from this fallback path.
     } finally {
       cleanup('idle');
     }
-  }, [cleanup, emitWithAck, socket]);
+  }, [cleanup, emitWithAck]);
 
   const hangup = useCallback((reason = 'hangup') => {
     const activeCall = callInfoRef.current;
@@ -302,6 +304,14 @@ export function useWebRTC({ socket, currentUser } = {}) {
       cleanup('idle');
     };
 
+    const handleAnsweredElsewhere = (payload) => {
+      if (payload?.callId !== callInfoRef.current?.callId) return;
+      if (payload?.answeredBySocketId === socket.id) return;
+
+      cleanup('idle');
+      toast('Cuộc gọi đã được nhận ở thiết bị khác.');
+    };
+
     const handleCallEnded = (payload) => {
       if (payload?.callId && payload.callId !== callInfoRef.current?.callId) return;
       cleanup('idle');
@@ -373,6 +383,7 @@ export function useWebRTC({ socket, currentUser } = {}) {
 
     socket.on('call:incoming', handleIncomingCall);
     socket.on('call:accepted', handleCallAccepted);
+    socket.on('call:answered_elsewhere', handleAnsweredElsewhere);
     socket.on('call:rejected', handleCallRejected);
     socket.on('call:ended', handleCallEnded);
     socket.on('call:timeout', handleCallTimeout);
@@ -384,6 +395,7 @@ export function useWebRTC({ socket, currentUser } = {}) {
     return () => {
       socket.off('call:incoming', handleIncomingCall);
       socket.off('call:accepted', handleCallAccepted);
+      socket.off('call:answered_elsewhere', handleAnsweredElsewhere);
       socket.off('call:rejected', handleCallRejected);
       socket.off('call:ended', handleCallEnded);
       socket.off('call:timeout', handleCallTimeout);

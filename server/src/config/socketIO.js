@@ -5,6 +5,7 @@ const mongoose = require('mongoose');
 const { verifyAccessToken } = require('../shared/utils/jwt');
 const { getDateKey } = require('../shared/utils/dateKey');
 const SupportSession = require('../models/supportSession.model');
+const SupportMessage = require('../models/supportMessage.model');
 const User = require('../modules/user/user.model');
 
 let io = null;
@@ -64,6 +65,69 @@ const initSocketIO = (httpServer) => {
     }
   };
 
+  const getCallSystemText = (reason) => {
+    switch (reason) {
+      case 'rejected':
+        return 'Học viên đã từ chối cuộc gọi video';
+      case 'timeout':
+        return 'Cuộc gọi video đã hết hạn do học viên không phản hồi';
+      case 'disconnect':
+        return 'Cuộc gọi video đã kết thúc do mất kết nối';
+      case 'media_error':
+        return 'Cuộc gọi video không thể kết nối camera hoặc microphone';
+      default:
+        return 'Cuộc gọi video đã kết thúc';
+    }
+  };
+
+  const recordCallSystemMessage = async (call, reason, endedBy) => {
+    try {
+      if (!call?.sessionId) return;
+
+      const text = getCallSystemText(reason);
+      const sender = endedBy || call.agentId;
+      const session = await SupportSession.findByIdAndUpdate(
+        call.sessionId,
+        {
+          lastMessage: text,
+          lastMessageAt: new Date(),
+        },
+        { new: true }
+      )
+        .populate('student', 'username email avatar premium')
+        .populate('cskh', 'username email avatar')
+        .lean();
+
+      if (!session) return;
+
+      const message = await SupportMessage.create({
+        session: call.sessionId,
+        sender,
+        text,
+        isSystem: true,
+      });
+
+      const populatedMessage = await SupportMessage.findById(message._id)
+        .populate('sender', 'username email avatar')
+        .lean();
+
+      io.to(`user:${call.studentId}`).emit('support:message:receive', {
+        message: populatedMessage,
+        session,
+      });
+
+      const isCskhActive = session.status === 'waiting' || (session.status === 'open' && session.cskh);
+      if (isCskhActive) {
+        io.to('cskh-agents').emit('support:message:receive', {
+          message: populatedMessage,
+          session,
+        });
+      }
+    } catch (err) {
+      console.warn('[Socket.IO] Failed to record call system message:', err.message);
+    }
+  };
+
   const endCall = (callId, reason = 'ended', endedBy = null) => {
     const call = activeCalls.get(callId);
     if (!call) return null;
@@ -74,6 +138,7 @@ const initSocketIO = (httpServer) => {
     const payload = { callId, reason, endedBy };
     io.to(`user:${call.agentId}`).emit('call:ended', payload);
     io.to(`user:${call.studentId}`).emit('call:ended', payload);
+    recordCallSystemMessage(call, reason, endedBy);
     return call;
   };
 
@@ -344,6 +409,10 @@ const initSocketIO = (httpServer) => {
       clearCallTimeout(call);
       call.status = 'accepted';
       io.to(`user:${call.agentId}`).emit('call:accepted', { callId, byUserId: socket.userId });
+      io.to(`user:${call.studentId}`).emit('call:answered_elsewhere', {
+        callId,
+        answeredBySocketId: socket.id,
+      });
       reply({ success: true });
     });
 
