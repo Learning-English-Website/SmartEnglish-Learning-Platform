@@ -1,6 +1,7 @@
 const aiService = require('./ai.service');
 const cryptoHelper = require('./helpers/crypto');
 const FlashcardSet = require('../../models/flashcardSet.model');
+const Flashcard = require('../../models/flashcard.model');
 const AiUsageLog = require('../../models/aiUsageLog.model');
 const AiChatSession = require('../../models/aiChatSession.model');
 const AiChatMessage = require('../../models/aiChatMessage.model');
@@ -118,17 +119,14 @@ exports.generateFlashcards = async (req, res, next) => {
   const userId = req.userId;
 
   try {
-    // 1. Ownership & Existence checks
-    if (!setId) {
-      return res.status(400).json({ success: false, message: "Thiếu thông tin setId." });
-    }
-
-    const flashcardSet = await FlashcardSet.findById(setId);
-    if (!flashcardSet) {
+    // 1. Ownership & Existence checks when drafts are generated for an existing set.
+    // Create-set flow can generate drafts before the set exists, so setId is optional.
+    const flashcardSet = setId ? await FlashcardSet.findById(setId) : null;
+    if (setId && !flashcardSet) {
       return res.status(404).json({ success: false, message: "Không tìm thấy bộ thẻ từ vựng yêu cầu." });
     }
 
-    if (flashcardSet.user.toString() !== userId.toString()) {
+    if (setId && flashcardSet.user.toString() !== userId.toString()) {
       return res.status(403).json({ success: false, message: "Bạn không có quyền thực hiện trên bộ thẻ từ vựng này." });
     }
 
@@ -209,6 +207,99 @@ exports.generateFlashcards = async (req, res, next) => {
     return res.status(error.status || 500).json({ 
       success: false, 
       message: error.message || "Đã xảy ra lỗi hệ thống trong quá trình sinh từ vựng." 
+    });
+  }
+};
+
+/**
+ * Auto-enhances a single flashcard based on term, translation, level, and context.
+ */
+exports.enhanceFlashcard = async (req, res, next) => {
+  const startTime = Date.now();
+  const { front, back, level, context } = req.body;
+  const userId = req.userId;
+
+  try {
+    // 1. Validate inputs
+    if (!front || typeof front !== 'string' || !front.trim()) {
+      return res.status(400).json({ success: false, message: "Thuật ngữ tiếng Anh (front) không được để trống." });
+    }
+    if (front.length > 120) {
+      return res.status(400).json({ success: false, message: "Thuật ngữ không được vượt quá 120 ký tự." });
+    }
+    if (back && (typeof back !== 'string' || back.length > 300)) {
+      return res.status(400).json({ success: false, message: "Nghĩa tiếng Việt không được vượt quá 300 ký tự." });
+    }
+    if (context && (typeof context !== 'string' || context.length > 500)) {
+      return res.status(400).json({ success: false, message: "Ngữ cảnh không được vượt quá 500 ký tự." });
+    }
+    if (level && !['A1-A2', 'B1-B2', 'C1-C2'].includes(level)) {
+      return res.status(400).json({ success: false, message: "Trình độ ngôn ngữ không hợp lệ." });
+    }
+
+    // 2. Read and decrypt API key from signed cookie
+    const hasCookie = req.cookies.byok_gemini_key !== undefined || req.signedCookies.byok_gemini_key !== undefined;
+    const encryptedKey = req.signedCookies.byok_gemini_key;
+
+    if (hasCookie && (!encryptedKey || encryptedKey === false)) {
+      res.clearCookie('byok_gemini_key', getClearCookieOptions());
+      return res.status(428).json({ 
+        success: false, 
+        message: "Cấu hình bảo mật API Key của bạn không còn hợp lệ. Vui lòng thiết lập lại." 
+      });
+    }
+
+    if (!encryptedKey || encryptedKey === false) {
+      return res.status(428).json({ 
+        success: false, 
+        message: "Vui lòng cấu hình Gemini API Key cá nhân trong phần Cài đặt để sử dụng." 
+      });
+    }
+
+    const apiKey = cryptoHelper.decrypt(encryptedKey);
+    if (!apiKey) {
+      res.clearCookie('byok_gemini_key', getClearCookieOptions());
+      return res.status(428).json({ 
+        success: false, 
+        message: "Cấu hình bảo mật API Key của bạn không còn hợp lệ. Vui lòng thiết lập lại." 
+      });
+    }
+
+    // 3. Request enhanced flashcard draft from AI service
+    const enhancedCard = await aiService.enhanceFlashcard(apiKey, { front, back, level, context });
+
+    // 4. Log successful usage metrics
+    const latencyMs = Date.now() - startTime;
+    const inputSize = (front || '').length + (back || '').length + (context || '').length;
+    const outputSize = JSON.stringify(enhancedCard).length;
+
+    await AiUsageLog.create({
+      user: userId,
+      feature: 'flashcard_enhance',
+      status: 'success',
+      latencyMs,
+      inputSize,
+      outputSize
+    }).catch(err => console.error("Error creating AiUsageLog:", err));
+
+    return res.json({ 
+      success: true, 
+      enhancedCard 
+    });
+  } catch (error) {
+    // Log error metrics
+    const latencyMs = Date.now() - startTime;
+    await AiUsageLog.create({
+      user: userId,
+      feature: 'flashcard_enhance',
+      status: 'error',
+      latencyMs,
+      errorCode: error.status ? `HTTP_${error.status}` : error.name || 'UNKNOWN_ERROR'
+    }).catch(err => console.error("Error creating AiUsageLog:", err));
+
+    return res.status(error.status || 500).json({ 
+      success: false, 
+      message: error.message || "Đã xảy ra lỗi trong quá trình phân tích và bổ sung thẻ bằng AI." 
     });
   }
 };
@@ -427,6 +518,41 @@ const greetingTemplates = {
     'A1-A2': "Hello. I am Professor Sterling. Today we will talk about basic English grammar. Do you have any questions?",
     'B1-B2': "Welcome. I am Professor Sterling. Today, we will discuss academic writing styles. What are your thoughts on this topic?",
     'C1-C2': "Welcome to the seminar. I am Professor Sterling. Today, we will explore the nuances of critical discourse analysis. What research questions are you hoping to examine in your upcoming thesis?"
+  },
+  doctor: {
+    'A1-A2': "Hello, I am Doctor Kelly. What is the problem today? Where does it hurt?",
+    'B1-B2': "Hello, I'm Doctor Kelly. How can I help you today? What symptoms have you been experiencing lately?",
+    'C1-C2': "Good morning. I'm Doctor Kelly. What seems to be the medical concern that brought you in today? Let's discuss your symptoms."
+  },
+  customs_officer: {
+    'A1-A2': "Hello. Passport please. What is the purpose of your visit?",
+    'B1-B2': "Good day. Please present your passport and declaration form. How long do you intend to stay in the country?",
+    'C1-C2': "Good day, officer speaking. May I inspect your passport, visa, and declaration document? What is the duration and primary objective of your stay?"
+  },
+  server: {
+    'A1-A2': "Welcome! I am your server today. Would you like a drink to start?",
+    'B1-B2': "Welcome! I will be your server today. Can I start you off with some drinks or appetizers while you look over the menu?",
+    'C1-C2': "Good evening, welcome to the restaurant. I am your server tonight. May I introduce our daily specials, or would you prefer to start with a selection from our wine list?"
+  },
+  ielts_examiner: {
+    'A1-A2': "Good afternoon. Welcome to the test. What is your name? Can I see your ID?",
+    'B1-B2': "Good afternoon. Welcome to this Speaking session. Could you tell me your full name, please? And where are you from?",
+    'C1-C2': "Good day. This is the IELTS Speaking examination. I am your examiner. Can you state your full name and show me your identification? Thank you. Let's begin Part 1."
+  },
+  support_agent: {
+    'A1-A2': "Hello! Thanks for contacting support. What is your issue?",
+    'B1-B2': "Hello. Thank you for reaching out to customer support. Could you describe the issue you are facing with your account?",
+    'C1-C2': "Welcome to customer support. My name is Alex. How can I assist you in resolving your technical query or account issue today? Please provide details."
+  },
+  recruiter: {
+    'A1-A2': "Hello, nice to meet you. I am the recruiter. Let's start the interview.",
+    'B1-B2': "Hello, nice to meet you. Thank you for coming in today. Can we discuss your past work experience and qualifications?",
+    'C1-C2': "Good morning. It's a pleasure to meet you. Thank you for attending this interview. To begin, could you walk me through your professional achievements and explain why you're a fit for this role?"
+  },
+  custom: {
+    'A1-A2': "Hello! I am ready for our custom roleplay practice. Let's start speaking English.",
+    'B1-B2': "Hello! I am ready to begin our custom conversation practice. Let's start our conversation now.",
+    'C1-C2': "Welcome. I am prepared for our custom conversation scenario practice. Please initiate the dialogue whenever you're ready."
   }
 };
 
@@ -455,6 +581,41 @@ const greetingTranslations = {
     'A1-A2': "Xin chào. Tôi là Giáo sư Sterling. Hôm nay chúng ta sẽ thảo luận về ngữ pháp tiếng Anh cơ bản. Bạn có câu hỏi nào không?",
     'B1-B2': "Chào mừng. Tôi là Giáo sư Sterling. Hôm nay, chúng ta sẽ thảo luận về các phong cách viết học thuật. Bạn nghĩ gì về chủ đề này?",
     'C1-C2': "Chào mừng đến với buổi chuyên đề. Tôi là Giáo sư Sterling. Hôm nay, chúng ta sẽ khám phá các sắc thái của phân tích diễn ngôn phê phán. Bạn muốn nghiên cứu câu hỏi nào trong luận văn sắp tới của mình?"
+  },
+  doctor: {
+    'A1-A2': "Xin chào, tôi là Bác sĩ Kelly. Hôm nay bạn gặp vấn đề gì? Bạn đau ở đâu?",
+    'B1-B2': "Xin chào, tôi là Bác sĩ Kelly. Tôi có thể giúp gì cho bạn hôm nay? Gần đây bạn gặp những triệu chứng gì?",
+    'C1-C2': "Chào buổi sáng, tôi là Bác sĩ Kelly. Vấn đề sức khỏe nào đưa bạn đến khám hôm nay? Chúng ta cùng thảo luận về triệu chứng của bạn."
+  },
+  customs_officer: {
+    'A1-A2': "Xin chào. Cho tôi xem hộ chiếu. Mục đích chuyến đi của bạn là gì?",
+    'B1-B2': "Xin chào. Vui lòng xuất trình hộ chiếu và tờ khai. Bạn dự định ở lại đất nước này trong bao lâu?",
+    'C1-C2': "Xin chào, tôi là nhân viên hải quan. Tôi có thể kiểm tra hộ chiếu, thị thực và tờ khai của bạn không? Thời gian và mục đích chính của chuyến đi là gì?"
+  },
+  server: {
+    'A1-A2': "Chào mừng! Tôi là người phục vụ của bạn hôm nay. Bạn muốn đồ uống gì trước không?",
+    'B1-B2': "Chào mừng! Tôi sẽ là người phục vụ của bạn hôm nay. Tôi có thể lấy đồ uống hoặc món khai vị gì trước trong lúc bạn xem thực đơn không?",
+    'C1-C2': "Chào buổi tối, chào mừng đến nhà hàng. Tôi là người phục vụ của quý khách tối nay. Tôi có thể giới thiệu các món đặc biệt hôm nay, hay quý khách muốn bắt đầu chọn rượu?"
+  },
+  ielts_examiner: {
+    'A1-A2': "Chào buổi chiều. Chào mừng đến cuộc thi. Tên bạn là gì? Cho tôi xem căn cước?",
+    'B1-B2': "Chào buổi chiều. Chào mừng đến với bài thi Nói này. Bạn có thể cho tôi biết tên đầy đủ không? Bạn đến từ đâu?",
+    'C1-C2': "Xin chào. Đây là bài thi Nói IELTS. Tôi là giám khảo của bạn. Bạn có thể cho biết tên đầy đủ và xuất trình giấy tờ tùy thân không? Cảm ơn. Chúng ta bắt đầu phần 1."
+  },
+  support_agent: {
+    'A1-A2': "Xin chào! Cảm ơn bạn đã liên hệ hỗ trợ. Vấn đề của bạn là gì?",
+    'B1-B2': "Xin chào. Cảm ơn bạn đã liên hệ bộ phận chăm sóc khách hàng. Bạn có thể mô tả sự cố bạn đang gặp phải với tài khoản của mình không?",
+    'C1-C2': "Chào mừng đến bộ phận hỗ trợ khách hàng. Tôi tên là Alex. Tôi có thể giúp gì cho bạn để giải quyết thắc mắc kỹ thuật hoặc sự cố tài khoản hôm nay?"
+  },
+  recruiter: {
+    'A1-A2': "Xin chào, rất vui được gặp bạn. Tôi là người tuyển dụng. Hãy bắt đầu phỏng vấn nhé.",
+    'B1-B2': "Xin chào, rất vui được gặp bạn. Cảm ơn bạn đã đến hôm nay. Chúng ta thảo luận về kinh nghiệm làm việc và năng lực của bạn nhé?",
+    'C1-C2': "Chào buổi sáng. Rất vui được gặp bạn. Cảm ơn bạn đã tham gia buổi phỏng vấn này. Hãy bắt đầu bằng cách giới thiệu các thành tựu nghề nghiệp của bạn."
+  },
+  custom: {
+    'A1-A2': "Xin chào! Tôi đã sẵn sàng cho buổi nhập vai tự chọn. Hãy bắt đầu nói tiếng Anh nhé.",
+    'B1-B2': "Xin chào! Tôi đã sẵn sàng thực hành hội thoại theo tình huống tự chọn của bạn. Chúng ta bắt đầu trò chuyện nhé.",
+    'C1-C2': "Xin chào. Tôi đã chuẩn bị sẵn sàng cho kịch bản hội thoại tự chọn của bạn. Vui lòng bắt đầu cuộc đối thoại khi bạn sẵn sàng."
   }
 };
 
@@ -466,7 +627,11 @@ exports.createChatSession = async (req, res, next) => {
   const userId = req.userId;
 
   try {
-    if (!persona || !['barista', 'receptionist', 'interviewer', 'friend', 'professor'].includes(persona)) {
+    const validPersonas = [
+      'barista', 'receptionist', 'interviewer', 'friend', 'professor', 
+      'doctor', 'customs_officer', 'server', 'ielts_examiner', 'support_agent', 'recruiter', 'custom'
+    ];
+    if (!persona || !validPersonas.includes(persona)) {
       return res.status(400).json({ success: false, message: "Nhân vật nhập vai không hợp lệ." });
     }
     if (!topic || !topic.trim()) {
@@ -476,7 +641,24 @@ exports.createChatSession = async (req, res, next) => {
       return res.status(400).json({ success: false, message: "Trình độ ngôn ngữ không hợp lệ." });
     }
 
-    // Backend hardening: trim and limit topic to max 100 characters
+    let sanitizedCustomScenario = "";
+    if (persona === 'custom') {
+      const { customScenario } = req.body;
+      if (!customScenario || !customScenario.trim()) {
+        return res.status(400).json({ success: false, message: "Yêu cầu cung cấp mô tả kịch bản tự chọn." });
+      }
+      
+      const forbiddenKeywords = ['ignore', 'bypass', 'system prompt', 'jailbreak', 'developer mode', 'reset', 'rule', 'override', 'hacker'];
+      const lowercaseScenario = customScenario.toLowerCase();
+      const hasInjection = forbiddenKeywords.some(keyword => lowercaseScenario.includes(keyword));
+      
+      if (hasInjection) {
+        return res.status(400).json({ success: false, message: "Mô tả kịch bản chứa từ khóa không hợp lệ hoặc không an toàn." });
+      }
+      
+      sanitizedCustomScenario = customScenario.trim().slice(0, 500);
+    }
+
     const sanitizedTopic = topic.trim().slice(0, 100);
 
     // 1. Create session record
@@ -484,7 +666,8 @@ exports.createChatSession = async (req, res, next) => {
       user: userId,
       persona,
       topic: sanitizedTopic,
-      level
+      level,
+      customScenario: sanitizedCustomScenario
     });
 
     // 2. Fetch local greeting template based on persona and level
@@ -590,6 +773,11 @@ exports.sendChatMessage = async (req, res, next) => {
       return res.status(403).json({ success: false, message: "Bạn không có quyền gửi tin nhắn vào phòng này." });
     }
 
+    // Check if session is already completed
+    if (session.status === 'completed') {
+      return res.status(400).json({ success: false, message: "Phòng hội thoại này đã kết thúc. Bạn không thể gửi thêm tin nhắn." });
+    }
+
     let userMsg;
 
     // Support frontend retry using retryMessageId to prevent duplicate message entries
@@ -602,6 +790,13 @@ exports.sendChatMessage = async (req, res, next) => {
       if (!text || !text.trim()) {
         return res.status(400).json({ success: false, message: "Nội dung tin nhắn trống." });
       }
+
+      // Check limit of 30 user messages
+      const userMessageCount = await AiChatMessage.countDocuments({ session: session._id, sender: 'user' });
+      if (userMessageCount >= 30) {
+        return res.status(400).json({ success: false, message: "Bạn đã đạt giới hạn tối đa 30 lượt tin nhắn cho cuộc hội thoại này." });
+      }
+
       // Save user message to database first
       userMsg = await AiChatMessage.create({
         session: session._id,
@@ -646,7 +841,8 @@ exports.sendChatMessage = async (req, res, next) => {
         topic: session.topic,
         level: session.level,
         history,
-        newMessage: userMsg.text
+        newMessage: userMsg.text,
+        customScenario: session.customScenario
       });
     } catch (aiError) {
       // In case of AI provider failure, do NOT rollback userMsg. Log usage and return mapped error status code.
@@ -672,7 +868,7 @@ exports.sendChatMessage = async (req, res, next) => {
       sender: 'ai',
       text: reply.response,
       translation: reply.translation,
-      feedback: reply.feedback
+      feedback: reply.feedback && reply.feedback.hasMistake ? reply.feedback : ''
     });
 
     // Update session timestamp
@@ -739,3 +935,248 @@ exports.deleteChatSession = async (req, res, next) => {
     });
   }
 };
+
+/**
+ * Ends a chat session, generates a summary card using Gemini, and saves it.
+ */
+exports.endChatSession = async (req, res, next) => {
+  const sessionId = req.params.id;
+  const userId = req.userId;
+  const startTime = Date.now();
+
+  try {
+    const session = await AiChatSession.findById(sessionId);
+    if (!session) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy phòng hội thoại." });
+    }
+    if (session.user.toString() !== userId.toString()) {
+      return res.status(403).json({ success: false, message: "Bạn không có quyền kết thúc phòng này." });
+    }
+
+    // Idempotency: Return existing summary if already completed
+    if (session.status === 'completed' && session.summary) {
+      return res.json({
+        success: true,
+        session,
+        summary: session.summary
+      });
+    }
+
+    // Get signed HttpOnly cookie BYOK API Key
+    const encryptedKey = req.signedCookies.byok_gemini_key;
+    if (!encryptedKey) {
+      return res.status(401).json({ 
+        success: false, 
+        message: "Yêu cầu cung cấp Gemini API Key (BYOK) để tạo báo cáo tổng kết." 
+      });
+    }
+
+    let apiKey;
+    try {
+      apiKey = cryptoHelper.decrypt(encryptedKey);
+    } catch (err) {
+      return res.status(401).json({ 
+        success: false, 
+        message: "Gemini API Key không hợp lệ hoặc bị lỗi mã hóa." 
+      });
+    }
+
+    // Fetch all messages in the session
+    const messages = await AiChatMessage.find({ session: session._id }).sort({ createdAt: 1 });
+    if (messages.length <= 1) {
+      // Only initial greeting, no user interaction
+      session.status = 'completed';
+      session.summary = {
+        grammarScore: 100,
+        vocabularyScore: 100,
+        pronunciationScore: 100,
+        overallFeedback: "Bạn chưa gửi tin nhắn nào trong buổi hội thoại này.",
+        commonMistakes: [],
+        recommendedExpressions: [],
+        vocabularyHighlight: []
+      };
+      await session.save();
+      return res.json({
+        success: true,
+        session,
+        summary: session.summary
+      });
+    }
+
+    // Generate summary report
+    const summary = await aiService.generateChatSummary(apiKey, {
+      persona: session.persona,
+      topic: session.topic,
+      level: session.level,
+      messages
+    });
+
+    // Save summary to session and change status
+    session.status = 'completed';
+    session.summary = summary;
+    await session.save();
+
+    // Log usage
+    const latencyMs = Date.now() - startTime;
+    await AiUsageLog.create({
+      user: userId,
+      feature: 'chat_summary',
+      status: 'success',
+      latencyMs
+    }).catch(err => console.error("Error creating AiUsageLog:", err));
+
+    return res.json({
+      success: true,
+      session,
+      summary
+    });
+  } catch (error) {
+    const latencyMs = Date.now() - startTime;
+    await AiUsageLog.create({
+      user: userId,
+      feature: 'chat_summary',
+      status: 'error',
+      latencyMs,
+      errorCode: error.name || 'UNKNOWN_ERROR'
+    }).catch(err => console.error("Error creating AiUsageLog:", err));
+
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Không thể tạo báo cáo tổng kết phòng hội thoại."
+    });
+  }
+};
+
+/**
+ * Gets the summary of a completed chat session.
+ */
+exports.getChatSummary = async (req, res, next) => {
+  const sessionId = req.params.id;
+  const userId = req.userId;
+
+  try {
+    const session = await AiChatSession.findById(sessionId);
+    if (!session) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy phòng hội thoại." });
+    }
+    if (session.user.toString() !== userId.toString()) {
+      return res.status(403).json({ success: false, message: "Bạn không có quyền truy cập báo cáo này." });
+    }
+
+    return res.json({
+      success: true,
+      status: session.status,
+      summary: session.summary
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Không thể tải báo cáo tổng kết."
+    });
+  }
+};
+
+/**
+ * Saves highlighted session vocabulary words directly to user flashcard set.
+ */
+exports.saveVocabToFlashcard = async (req, res, next) => {
+  const sessionId = req.params.id;
+  const userId = req.userId;
+  const { vocab, setId, newSetName } = req.body;
+
+  try {
+    // 1. Verify session ownership
+    const session = await AiChatSession.findById(sessionId);
+    if (!session) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy phòng hội thoại." });
+    }
+    if (session.user.toString() !== userId.toString()) {
+      return res.status(403).json({ success: false, message: "Quyền truy cập bị từ chối." });
+    }
+
+    // 2. Validate input vocab
+    if (!Array.isArray(vocab) || vocab.length === 0) {
+      return res.status(400).json({ success: false, message: "Danh sách từ vựng trống hoặc không hợp lệ." });
+    }
+
+    if (vocab.length > 30) {
+      return res.status(400).json({ success: false, message: "Không thể lưu quá 30 từ cùng một lúc." });
+    }
+
+    for (let i = 0; i < vocab.length; i++) {
+      const item = vocab[i];
+      if (!item || typeof item !== 'object') {
+        return res.status(400).json({ success: false, message: `Mục từ vựng thứ ${i + 1} không hợp lệ.` });
+      }
+      if (!item.word || typeof item.word !== 'string' || !item.word.trim()) {
+        return res.status(400).json({ success: false, message: `Mục từ vựng thứ ${i + 1} thiếu từ tiếng Anh.` });
+      }
+      if (!item.definition || typeof item.definition !== 'string' || !item.definition.trim()) {
+        return res.status(400).json({ success: false, message: `Mục từ vựng thứ ${i + 1} thiếu định nghĩa.` });
+      }
+    }
+
+    let targetSetId = setId;
+
+    if (!targetSetId && newSetName && newSetName.trim()) {
+      const trimmedTitle = newSetName.trim();
+      if (trimmedTitle.length > 200) {
+        return res.status(400).json({ success: false, message: "Tên bộ thẻ mới không được vượt quá 200 ký tự." });
+      }
+
+      // Create new set
+      const newSet = await FlashcardSet.create({
+        user: userId,
+        title: trimmedTitle,
+        description: `Từ vựng tích lũy từ kịch bản AI: ${session.topic}`,
+        cardCount: 0
+      });
+      targetSetId = newSet._id;
+    }
+
+    if (!targetSetId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Vui lòng chọn bộ thẻ từ vựng hiện có hoặc tạo mới." 
+      });
+    }
+
+    // Verify ownership of the target flashcard set
+    const flashcardSet = await FlashcardSet.findById(targetSetId);
+    if (!flashcardSet) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy bộ thẻ từ vựng." });
+    }
+    if (flashcardSet.user.toString() !== userId.toString()) {
+      return res.status(403).json({ success: false, message: "Bạn không có quyền sửa đổi bộ thẻ từ vựng này." });
+    }
+
+    // Insert cards
+    const startOrder = flashcardSet.cardCount || 0;
+    const cardsToInsert = vocab.map((v, index) => ({
+      set: targetSetId,
+      front: String(v.word || '').trim(),
+      back: String(v.definition || '').trim(),
+      pronunciation: v.ipa ? String(v.ipa).trim() : null,
+      example: v.example ? String(v.example).trim() : null,
+      order: startOrder + index
+    }));
+
+    await Flashcard.create(cardsToInsert);
+
+    // Update card count
+    flashcardSet.cardCount += vocab.length;
+    await flashcardSet.save();
+
+    return res.json({
+      success: true,
+      message: `Đã lưu thành công ${vocab.length} từ vào bộ thẻ: ${flashcardSet.title}`,
+      flashcardSet
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Không thể lưu từ vựng vào bộ thẻ."
+    });
+  }
+};
+

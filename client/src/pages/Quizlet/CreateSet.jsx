@@ -4,7 +4,7 @@ import { Container } from 'react-bootstrap';
 import {
   FiPlus, FiSave, FiArrowLeft,
   FiGlobe, FiLock, FiInfo, FiTrash2,
-  FiUpload, FiFolder,
+  FiUpload, FiCpu,
 } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import { setService } from '../../api/setService';
@@ -15,6 +15,8 @@ import CardEditor from '../../components/flashcard/CardEditor/CardEditor';
 import TagPicker from '../../components/common/TagPicker/TagPicker';
 import ImportModal from '../../components/flashcard/ImportModal/ImportModal';
 import PremiumLimitModal from '../../components/common/PremiumLimitModal/PremiumLimitModal';
+import GeminiKeyModal from '../../components/flashcard/GeminiKeyModal/GeminiKeyModal';
+import AiGenerateModal from '../../components/flashcard/AiGenerateModal/AiGenerateModal';
 import './CreateSet.css';
 
 const DRAFT_KEY = 'create-set-draft';
@@ -51,6 +53,9 @@ export default function CreateSet() {
   const [folders, setFolders] = useState([]);
   const [showPremiumModal, setShowPremiumModal] = useState(false);
   const [premiumReason, setPremiumReason] = useState('');
+  const [showGeminiKey, setShowGeminiKey] = useState(false);
+  const [showAiGenerate, setShowAiGenerate] = useState(false);
+  const [aiSaving, setAiSaving] = useState(false);
 
   const lastCardRef = useRef(null);
 
@@ -88,6 +93,47 @@ export default function CreateSet() {
   };
 
   /* ── Auto-save ─────────────────────────────────────────────────────── */
+  const isBlankCard = (card) =>
+    !card.front?.trim()
+    && !card.back?.trim()
+    && !card.pronunciation?.trim()
+    && !card.example?.trim()
+    && !card.note?.trim()
+    && !card.imageUrl;
+
+  const normalizeDraftCards = (draftCards) =>
+    draftCards.map((card) => ({
+      id: cardIdCounter++,
+      front: card.front?.trim() || '',
+      back: card.back?.trim() || '',
+      pronunciation: card.pronunciation?.trim() || '',
+      example: card.example?.trim() || '',
+      note: card.note?.trim() || '',
+      imageUrl: card.imageUrl || '',
+      difficulty: card.difficulty ?? 0,
+    }));
+
+  const handleSaveAiDrafts = async (draftCards) => {
+    const normalizedCards = normalizeDraftCards(draftCards);
+    if (normalizedCards.length === 0) {
+      toast.error('Không có thẻ AI hợp lệ để thêm.');
+      return;
+    }
+
+    setAiSaving(true);
+    try {
+      setCards((prev) => {
+        const existingCards = prev.filter((card) => !isBlankCard(card));
+        return existingCards.length > 0
+          ? [...existingCards, ...normalizedCards]
+          : normalizedCards;
+      });
+      toast.success(`Đã thêm ${normalizedCards.length} thẻ AI vào bản nháp.`);
+    } finally {
+      setAiSaving(false);
+    }
+  };
+
   const draftData = useMemo(() => ({ title, description, isPublic, cards }), [
     title, description, isPublic, cards,
   ]);
@@ -265,20 +311,21 @@ export default function CreateSet() {
               </div>
               <div className="cs-topbar-right">
                 <button
-                  className="cs-btn cs-btn--outline"
-                  onClick={handleCreate}
+                  className="cs-btn cs-btn--ai"
+                  onClick={() => setShowAiGenerate(true)}
                   disabled={submitting}
-                  id="cs-create-btn"
+                  id="cs-ai-generate-btn"
                 >
-                  {submitting ? <span className="spinner-border spinner-border-sm" /> : 'Tạo'}
+                  <FiCpu size={16} />
+                  Tạo bằng AI
                 </button>
                 <button
                   className="cs-btn cs-btn--primary"
                   onClick={handleCreate}
                   disabled={submitting}
-                  id="cs-create-practice-btn"
+                  id="cs-create-btn"
                 >
-                  {submitting ? <span className="spinner-border spinner-border-sm" /> : 'Tạo và luyện tập'}
+                  {submitting ? <span className="spinner-border spinner-border-sm" /> : 'Tạo'}
                 </button>
               </div>
             </div>
@@ -444,6 +491,23 @@ export default function CreateSet() {
         onHide={() => setShowPremiumModal(false)}
         reason={premiumReason}
       />
+
+      {/* AI Modals */}
+      <GeminiKeyModal
+        show={showGeminiKey}
+        onHide={() => setShowGeminiKey(false)}
+      />
+      <AiGenerateModal
+        show={showAiGenerate}
+        onHide={() => setShowAiGenerate(false)}
+        onConfirmSave={handleSaveAiDrafts}
+        saving={aiSaving}
+        onOpenKeyModal={() => {
+          setShowAiGenerate(false);
+          setShowGeminiKey(true);
+        }}
+      />
     </>
   );
 }
+

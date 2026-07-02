@@ -7,7 +7,7 @@ const aiChatMessageSchema = new Schema(
     sender: { type: String, required: true, enum: ['user', 'ai'] },
     text: { type: String, required: true, maxlength: 1000 },
     translation: { type: String, default: null }, // Only for AI messages
-    feedback: { type: String, default: null }      // Only for AI replies correcting user grammar
+    feedback: { type: Schema.Types.Mixed, default: null }      // Only for AI replies correcting user grammar (can be String or Object)
   },
   {
     timestamps: { createdAt: true, updatedAt: false }

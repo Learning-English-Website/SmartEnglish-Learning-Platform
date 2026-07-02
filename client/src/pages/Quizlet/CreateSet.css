@@ -105,6 +105,8 @@ kbd {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 /* Buttons */
@@ -149,6 +151,19 @@ kbd {
 .cs-btn--primary:hover:not(:disabled) {
   filter: brightness(1.08);
   box-shadow: 0 4px 12px rgba(44, 94, 245, 0.15);
+}
+
+.cs-btn--ai {
+  background: rgba(44, 94, 245, 0.06);
+  border-color: rgba(44, 94, 245, 0.24);
+  color: var(--gl-tertiary);
+}
+
+.cs-btn--ai:hover:not(:disabled) {
+  background: rgba(44, 94, 245, 0.1);
+  border-color: var(--gl-tertiary);
+  color: var(--gl-tertiary);
+  box-shadow: 0 4px 12px rgba(44, 94, 245, 0.1);
 }
 
 .cs-btn--lg {
@@ -562,6 +577,16 @@ kbd {
 
   .cs-topbar-title {
     font-size: 1.1rem;
+  }
+
+  .cs-topbar-content {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .cs-topbar-right {
+    width: 100%;
+    justify-content: flex-start;
   }
 
   .cs-shortcut-hints {

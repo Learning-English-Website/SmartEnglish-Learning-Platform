@@ -7,7 +7,7 @@ const aiUsageLogSchema = new Schema(
     user: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     feature: { 
       type: String, 
-      enum: ['flashcard', 'lesson_plan', 'mistake_coach', 'chatbot', 'support'],
+      enum: ['flashcard', 'lesson_plan', 'mistake_coach', 'chatbot', 'support', 'chat_summary', 'flashcard_enhance'],
       required: true 
     },
     provider: { type: String, default: 'gemini' },
