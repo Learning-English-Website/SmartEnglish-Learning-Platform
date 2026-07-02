@@ -17,18 +17,20 @@ const buildIceServers = () => {
   }
 };
 
-const getUserMediaStream = () => {
+const getUserMediaStream = (callType = 'video') => {
   if (!navigator.mediaDevices?.getUserMedia) {
     throw new Error('Trình duyệt không hỗ trợ camera hoặc microphone.');
   }
 
   return navigator.mediaDevices.getUserMedia({
     audio: true,
-    video: {
-      width: { ideal: 1280 },
-      height: { ideal: 720 },
-      facingMode: 'user',
-    },
+    video: callType === 'audio'
+      ? false
+      : {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          facingMode: 'user',
+        },
   });
 };
 
@@ -114,7 +116,7 @@ export function useWebRTC({ socket, currentUser } = {}) {
 
   const ensureLocalStream = useCallback(async () => {
     if (localStreamRef.current) return localStreamRef.current;
-    const stream = await getUserMediaStream();
+    const stream = await getUserMediaStream(callInfoRef.current?.callType || 'video');
     localStreamRef.current = stream;
     setLocalStream(stream);
     return stream;
@@ -171,7 +173,7 @@ export function useWebRTC({ socket, currentUser } = {}) {
     return pc;
   }, [ensureLocalStream, sendSignal]);
 
-  const startCall = useCallback(async ({ targetUserId, sessionId, student }) => {
+  const startCall = useCallback(async ({ targetUserId, sessionId, student, callType = 'video' }) => {
     if (!targetUserId || !sessionId) {
       toast.error('Thiếu thông tin học viên để gọi.');
       return;
@@ -180,12 +182,14 @@ export function useWebRTC({ socket, currentUser } = {}) {
     try {
       setError(null);
       setCallStatus('calling');
-      const response = await emitWithAck('call:request', { targetUserId, sessionId });
+      const normalizedCallType = callType === 'audio' ? 'audio' : 'video';
+      const response = await emitWithAck('call:request', { targetUserId, sessionId, callType: normalizedCallType });
       setCurrentCall({
         callId: response.callId,
         sessionId,
         targetUserId,
         peerUser: student,
+        callType: response.callType || normalizedCallType,
         direction: 'outgoing',
       });
       roleRef.current = 'caller';
@@ -276,6 +280,7 @@ export function useWebRTC({ socket, currentUser } = {}) {
         callId: payload.callId,
         sessionId: payload.sessionId,
         peerUser: payload.fromUser,
+        callType: payload.callType === 'audio' ? 'audio' : 'video',
         direction: 'incoming',
       });
       roleRef.current = 'receiver';

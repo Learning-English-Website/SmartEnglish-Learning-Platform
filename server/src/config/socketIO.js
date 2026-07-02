@@ -65,18 +65,21 @@ const initSocketIO = (httpServer) => {
     }
   };
 
-  const getCallSystemText = (reason) => {
+  const getCallSystemText = (reason, callType = 'video') => {
+    const callLabel = callType === 'audio' ? 'thoại' : 'video';
     switch (reason) {
       case 'rejected':
-        return 'Học viên đã từ chối cuộc gọi video';
+        return `Học viên đã từ chối cuộc gọi ${callLabel}`;
       case 'timeout':
-        return 'Cuộc gọi video đã hết hạn do học viên không phản hồi';
+        return `Cuộc gọi ${callLabel} đã hết hạn do học viên không phản hồi`;
       case 'disconnect':
-        return 'Cuộc gọi video đã kết thúc do mất kết nối';
+        return `Cuộc gọi ${callLabel} đã kết thúc do mất kết nối`;
       case 'media_error':
-        return 'Cuộc gọi video không thể kết nối camera hoặc microphone';
+        return callType === 'audio'
+          ? 'Cuộc gọi thoại không thể kết nối microphone'
+          : 'Cuộc gọi video không thể kết nối camera hoặc microphone';
       default:
-        return 'Cuộc gọi video đã kết thúc';
+        return `Cuộc gọi ${callLabel} đã kết thúc`;
     }
   };
 
@@ -84,7 +87,7 @@ const initSocketIO = (httpServer) => {
     try {
       if (!call?.sessionId) return;
 
-      const text = getCallSystemText(reason);
+      const text = getCallSystemText(reason, call.callType);
       const sender = endedBy || call.agentId;
       const session = await SupportSession.findByIdAndUpdate(
         call.sessionId,
@@ -304,6 +307,7 @@ const initSocketIO = (httpServer) => {
 
         const targetUserId = String(payload.targetUserId || payload.studentId || '').trim();
         const sessionId = String(payload.sessionId || '').trim();
+        const callType = payload.callType === 'audio' ? 'audio' : 'video';
         if (!targetUserId || !sessionId) {
           emitCallError(socket, 'Thiếu thông tin học viên hoặc phiên hỗ trợ.', 'invalid_payload');
           return reply({ success: false, code: 'invalid_payload', message: 'Thiếu thông tin học viên hoặc phiên hỗ trợ.' });
@@ -358,6 +362,7 @@ const initSocketIO = (httpServer) => {
           studentId: targetUserId,
           agentSocketId: socket.id,
           studentSocketId: null,
+          callType,
           status: 'ringing',
           createdAt: Date.now(),
           timeoutId: null,
@@ -375,11 +380,12 @@ const initSocketIO = (httpServer) => {
         io.to(`user:${targetUserId}`).emit('call:incoming', {
           callId,
           sessionId,
+          callType,
           fromUser: serializeUser(agent),
           student: serializeUser(student),
         });
 
-        reply({ success: true, callId });
+        reply({ success: true, callId, callType });
       } catch (err) {
         console.error('[Socket.IO] call:request error:', err.message);
         emitCallError(socket, 'Không thể bắt đầu cuộc gọi.', 'server_error');

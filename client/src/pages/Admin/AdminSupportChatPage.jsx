@@ -3,7 +3,7 @@ import { useSocket } from '../../context/SocketContext';
 import { useAuth } from '../../hooks/useAuth';
 import { useWebRTC } from '../../hooks/useWebRTC';
 import axiosClient from '../../api/axiosClient';
-import { MessageSquare, Send, Check, ShieldAlert, Award, UserCheck, XCircle, User, Image as ImageIcon, Video } from 'lucide-react';
+import { MessageSquare, Send, Check, ShieldAlert, Award, UserCheck, XCircle, User, Image as ImageIcon, Phone, Video } from 'lucide-react';
 import toast from 'react-hot-toast';
 import VideoCallOverlay from '../../components/common/VideoCall/VideoCallOverlay';
 import './AdminPage.css';
@@ -330,13 +330,14 @@ export default function AdminSupportChatPage() {
   const isAssignedToMe = selectedSession && selectedSession.cskh && (selectedSession.cskh._id === currentUser?._id || selectedSession.cskh === currentUser?._id);
   const isInputDisabled = isClosed || !isAssignedToMe;
 
-  const handleStartVideoCall = () => {
+  const handleStartCall = (callType) => {
     if (!selectedSession?.student?._id) return;
 
     webRTC.startCall({
       targetUserId: selectedSession.student._id,
       sessionId: selectedSession._id,
       student: selectedSession.student,
+      callType,
     });
   };
 
@@ -549,16 +550,28 @@ export default function AdminSupportChatPage() {
                   )}
 
                   {isAssignedToMe && !isClosed && (
-                    <button
-                      className="btn-secondary-admin"
-                      onClick={handleStartVideoCall}
-                      disabled={webRTC.callStatus !== 'idle'}
-                      title="Gọi video"
-                      style={{ padding: '6px 12px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px' }}
-                    >
-                      <Video size={14} />
-                      Gọi video
-                    </button>
+                    <>
+                      <button
+                        className="btn-secondary-admin"
+                        onClick={() => handleStartCall('audio')}
+                        disabled={webRTC.callStatus !== 'idle'}
+                        title="Gọi thoại"
+                        style={{ padding: '6px 12px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+                      >
+                        <Phone size={14} />
+                        Gọi thoại
+                      </button>
+                      <button
+                        className="btn-secondary-admin"
+                        onClick={() => handleStartCall('video')}
+                        disabled={webRTC.callStatus !== 'idle'}
+                        title="Gọi video"
+                        style={{ padding: '6px 12px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+                      >
+                        <Video size={14} />
+                        Gọi video
+                      </button>
+                    </>
                   )}
 
                   {!isClosed && (
