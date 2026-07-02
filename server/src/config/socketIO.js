@@ -1,9 +1,26 @@
 const { Server } = require('socket.io');
 const cookie = require('cookie');
+const { randomUUID } = require('crypto');
+const mongoose = require('mongoose');
 const { verifyAccessToken } = require('../shared/utils/jwt');
 const { getDateKey } = require('../shared/utils/dateKey');
+const SupportSession = require('../models/supportSession.model');
+const SupportMessage = require('../models/supportMessage.model');
+const User = require('../modules/user/user.model');
 
 let io = null;
+const CALL_TIMEOUT_MS = 45000;
+
+const serializeUser = (user) => {
+  if (!user) return null;
+  return {
+    _id: String(user._id || user.id),
+    username: user.username,
+    email: user.email,
+    avatar: user.avatar,
+    role: user.role,
+  };
+};
 
 /**
  * Initialize Socket.IO server attached to the Express HTTP server.
@@ -28,6 +45,106 @@ const initSocketIO = (httpServer) => {
     },
     transports: ['websocket', 'polling'],
   });
+
+  const activeCalls = new Map();
+
+  const getRoomSize = (room) => io.sockets.adapter.rooms.get(room)?.size || 0;
+
+  const findActiveCallForUser = (userId) => {
+    const normalizedUserId = String(userId);
+    return Array.from(activeCalls.values()).find(call =>
+      call.status !== 'ended' &&
+      (call.agentId === normalizedUserId || call.studentId === normalizedUserId)
+    );
+  };
+
+  const clearCallTimeout = (call) => {
+    if (call?.timeoutId) {
+      clearTimeout(call.timeoutId);
+      call.timeoutId = null;
+    }
+  };
+
+  const getCallSystemText = (reason) => {
+    switch (reason) {
+      case 'rejected':
+        return 'Học viên đã từ chối cuộc gọi video';
+      case 'timeout':
+        return 'Cuộc gọi video đã hết hạn do học viên không phản hồi';
+      case 'disconnect':
+        return 'Cuộc gọi video đã kết thúc do mất kết nối';
+      case 'media_error':
+        return 'Cuộc gọi video không thể kết nối camera hoặc microphone';
+      default:
+        return 'Cuộc gọi video đã kết thúc';
+    }
+  };
+
+  const recordCallSystemMessage = async (call, reason, endedBy) => {
+    try {
+      if (!call?.sessionId) return;
+
+      const text = getCallSystemText(reason);
+      const sender = endedBy || call.agentId;
+      const session = await SupportSession.findByIdAndUpdate(
+        call.sessionId,
+        {
+          lastMessage: text,
+          lastMessageAt: new Date(),
+        },
+        { new: true }
+      )
+        .populate('student', 'username email avatar premium')
+        .populate('cskh', 'username email avatar')
+        .lean();
+
+      if (!session) return;
+
+      const message = await SupportMessage.create({
+        session: call.sessionId,
+        sender,
+        text,
+        isSystem: true,
+      });
+
+      const populatedMessage = await SupportMessage.findById(message._id)
+        .populate('sender', 'username email avatar')
+        .lean();
+
+      io.to(`user:${call.studentId}`).emit('support:message:receive', {
+        message: populatedMessage,
+        session,
+      });
+
+      const isCskhActive = session.status === 'waiting' || (session.status === 'open' && session.cskh);
+      if (isCskhActive) {
+        io.to('cskh-agents').emit('support:message:receive', {
+          message: populatedMessage,
+          session,
+        });
+      }
+    } catch (err) {
+      console.warn('[Socket.IO] Failed to record call system message:', err.message);
+    }
+  };
+
+  const endCall = (callId, reason = 'ended', endedBy = null) => {
+    const call = activeCalls.get(callId);
+    if (!call) return null;
+
+    clearCallTimeout(call);
+    activeCalls.delete(callId);
+
+    const payload = { callId, reason, endedBy };
+    io.to(`user:${call.agentId}`).emit('call:ended', payload);
+    io.to(`user:${call.studentId}`).emit('call:ended', payload);
+    recordCallSystemMessage(call, reason, endedBy);
+    return call;
+  };
+
+  const emitCallError = (socket, message, code = 'call_error', callId = null) => {
+    socket.emit('call:error', { callId, code, message });
+  };
 
   // ── Authentication middleware ───────────────────────────────────────────────
   io.use(async (socket, next) => {
@@ -176,10 +293,184 @@ const initSocketIO = (httpServer) => {
       }
     });
 
+    socket.on('call:request', async (payload = {}, callback) => {
+      const reply = typeof callback === 'function' ? callback : () => {};
+
+      try {
+        if (!socket.userId || !['admin', 'cskh'].includes(socket.userRole)) {
+          emitCallError(socket, 'Bạn không có quyền bắt đầu cuộc gọi.', 'unauthorized');
+          return reply({ success: false, code: 'unauthorized', message: 'Bạn không có quyền bắt đầu cuộc gọi.' });
+        }
+
+        const targetUserId = String(payload.targetUserId || payload.studentId || '').trim();
+        const sessionId = String(payload.sessionId || '').trim();
+        if (!targetUserId || !sessionId) {
+          emitCallError(socket, 'Thiếu thông tin học viên hoặc phiên hỗ trợ.', 'invalid_payload');
+          return reply({ success: false, code: 'invalid_payload', message: 'Thiếu thông tin học viên hoặc phiên hỗ trợ.' });
+        }
+
+        if (!mongoose.Types.ObjectId.isValid(targetUserId) || !mongoose.Types.ObjectId.isValid(sessionId)) {
+          emitCallError(socket, 'Thông tin cuộc gọi không hợp lệ.', 'invalid_payload');
+          return reply({ success: false, code: 'invalid_payload', message: 'Thông tin cuộc gọi không hợp lệ.' });
+        }
+
+        const session = await SupportSession.findOne({ _id: sessionId, student: targetUserId })
+          .populate('student', 'username email avatar role')
+          .populate('cskh', 'username email avatar role');
+
+        if (!session) {
+          emitCallError(socket, 'Không tìm thấy phiên hỗ trợ hợp lệ.', 'session_not_found');
+          return reply({ success: false, code: 'session_not_found', message: 'Không tìm thấy phiên hỗ trợ hợp lệ.' });
+        }
+
+        if (session.status === 'closed') {
+          emitCallError(socket, 'Phiên hỗ trợ đã đóng.', 'session_closed');
+          return reply({ success: false, code: 'session_closed', message: 'Phiên hỗ trợ đã đóng.' });
+        }
+
+        if (socket.userRole !== 'admin' && String(session.cskh?._id || session.cskh) !== String(socket.userId)) {
+          emitCallError(socket, 'Bạn cần nhận hỗ trợ phiên này trước khi gọi.', 'not_assigned');
+          return reply({ success: false, code: 'not_assigned', message: 'Bạn cần nhận hỗ trợ phiên này trước khi gọi.' });
+        }
+
+        const student = session.student?.role ? session.student : await User.findById(targetUserId).select('username email avatar role');
+        if (!student || student.role !== 'student') {
+          emitCallError(socket, 'Người nhận cuộc gọi không phải học viên hợp lệ.', 'invalid_target');
+          return reply({ success: false, code: 'invalid_target', message: 'Người nhận cuộc gọi không phải học viên hợp lệ.' });
+        }
+
+        if (getRoomSize(`user:${targetUserId}`) === 0) {
+          socket.emit('call:unavailable', { targetUserId, message: 'Học viên hiện không trực tuyến.' });
+          return reply({ success: false, code: 'unavailable', message: 'Học viên hiện không trực tuyến.' });
+        }
+
+        if (findActiveCallForUser(socket.userId) || findActiveCallForUser(targetUserId)) {
+          socket.emit('call:busy', { targetUserId, message: 'Một trong hai bên đang có cuộc gọi khác.' });
+          return reply({ success: false, code: 'busy', message: 'Một trong hai bên đang có cuộc gọi khác.' });
+        }
+
+        const agent = await User.findById(socket.userId).select('username email avatar role');
+        const callId = randomUUID();
+        const call = {
+          callId,
+          sessionId,
+          agentId: String(socket.userId),
+          studentId: targetUserId,
+          status: 'ringing',
+          createdAt: Date.now(),
+          timeoutId: null,
+        };
+
+        call.timeoutId = setTimeout(() => {
+          if (!activeCalls.has(callId)) return;
+          io.to(`user:${socket.userId}`).emit('call:timeout', { callId, targetUserId, message: 'Học viên không phản hồi cuộc gọi.' });
+          io.to(`user:${targetUserId}`).emit('call:timeout', { callId, message: 'Cuộc gọi đã hết hạn.' });
+          endCall(callId, 'timeout', null);
+        }, CALL_TIMEOUT_MS);
+
+        activeCalls.set(callId, call);
+
+        io.to(`user:${targetUserId}`).emit('call:incoming', {
+          callId,
+          sessionId,
+          fromUser: serializeUser(agent),
+          student: serializeUser(student),
+        });
+
+        reply({ success: true, callId });
+      } catch (err) {
+        console.error('[Socket.IO] call:request error:', err.message);
+        emitCallError(socket, 'Không thể bắt đầu cuộc gọi.', 'server_error');
+        reply({ success: false, code: 'server_error', message: 'Không thể bắt đầu cuộc gọi.' });
+      }
+    });
+
+    socket.on('call:response', (payload = {}, callback) => {
+      const reply = typeof callback === 'function' ? callback : () => {};
+      const callId = String(payload.callId || '').trim();
+      const accepted = Boolean(payload.accepted);
+      const call = activeCalls.get(callId);
+
+      if (!call || call.studentId !== String(socket.userId)) {
+        emitCallError(socket, 'Cuộc gọi không còn hợp lệ.', 'invalid_call', callId || null);
+        return reply({ success: false, code: 'invalid_call', message: 'Cuộc gọi không còn hợp lệ.' });
+      }
+
+      if (call.status !== 'ringing') {
+        return reply({ success: false, code: 'call_already_answered', message: 'Cuộc gọi đã được xử lý.' });
+      }
+
+      if (!accepted) {
+        io.to(`user:${call.agentId}`).emit('call:rejected', { callId, byUserId: socket.userId });
+        endCall(callId, 'rejected', socket.userId);
+        return reply({ success: true });
+      }
+
+      clearCallTimeout(call);
+      call.status = 'accepted';
+      io.to(`user:${call.agentId}`).emit('call:accepted', { callId, byUserId: socket.userId });
+      io.to(`user:${call.studentId}`).emit('call:answered_elsewhere', {
+        callId,
+        answeredBySocketId: socket.id,
+      });
+      reply({ success: true });
+    });
+
+    socket.on('call:signal', (payload = {}) => {
+      const callId = String(payload.callId || '').trim();
+      const signal = payload.signal || payload.signalData;
+      const call = activeCalls.get(callId);
+
+      if (!call || !signal) {
+        return emitCallError(socket, 'Tín hiệu cuộc gọi không hợp lệ.', 'invalid_signal', callId || null);
+      }
+
+      if (call.status !== 'accepted') {
+        return emitCallError(socket, 'Cuộc gọi chưa được chấp nhận.', 'call_not_accepted', callId);
+      }
+
+      const fromUserId = String(socket.userId);
+      const isAgent = call.agentId === fromUserId;
+      const isStudent = call.studentId === fromUserId;
+      if (!isAgent && !isStudent) {
+        return emitCallError(socket, 'Bạn không thuộc cuộc gọi này.', 'forbidden', callId);
+      }
+
+      const toUserId = isAgent ? call.studentId : call.agentId;
+      io.to(`user:${toUserId}`).emit('call:signal', {
+        callId,
+        fromUserId,
+        signal,
+      });
+    });
+
+    socket.on('call:hangup', (payload = {}, callback) => {
+      const reply = typeof callback === 'function' ? callback : () => {};
+      const callId = String(payload.callId || '').trim();
+      const call = activeCalls.get(callId);
+
+      if (!call) {
+        return reply({ success: true });
+      }
+
+      const userId = String(socket.userId);
+      if (call.agentId !== userId && call.studentId !== userId) {
+        emitCallError(socket, 'Bạn không thuộc cuộc gọi này.', 'forbidden', callId);
+        return reply({ success: false, code: 'forbidden' });
+      }
+
+      endCall(callId, payload.reason || 'hangup', userId);
+      reply({ success: true });
+    });
+
     // Disconnect
     socket.on('disconnect', (reason) => {
       console.log(`[Socket.IO] Client disconnected: ${socket.id}, reason: ${reason}`);
       if (socket.userId) {
+        const activeCall = findActiveCallForUser(socket.userId);
+        if (activeCall && getRoomSize(`user:${socket.userId}`) <= 1) {
+          endCall(activeCall.callId, 'disconnect', socket.userId);
+        }
         socket.broadcast.emit('user:offline', { userId: socket.userId });
       }
     });

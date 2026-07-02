@@ -1,15 +1,18 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSocket } from '../../../context/SocketContext';
 import { useAuth } from '../../../hooks/useAuth';
+import { useWebRTC } from '../../../hooks/useWebRTC';
 import axiosClient from '../../../api/axiosClient';
 import { adminService } from '../../../services/adminService';
 import { MessageSquare, MessageCircle, Send, X, Plus, AlertCircle, Trash2, Image as ImageIcon, Headphones } from 'lucide-react';
 import toast from 'react-hot-toast';
+import VideoCallOverlay from '../VideoCall/VideoCallOverlay';
 import './SupportChatWidget.css';
 
 export default function SupportChatWidget() {
   const { user, isAuthenticated } = useAuth();
   const { socket, socketRef } = useSocket();
+  const webRTC = useWebRTC({ socket, currentUser: user });
 
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('chat'); // 'chat' or 'feedback'
@@ -635,6 +638,20 @@ export default function SupportChatWidget() {
           )}
         </div>
       )}
+      <VideoCallOverlay
+        callStatus={webRTC.callStatus}
+        callInfo={webRTC.callInfo}
+        localStream={webRTC.localStream}
+        remoteStream={webRTC.remoteStream}
+        isMicMuted={webRTC.isMicMuted}
+        isCameraOff={webRTC.isCameraOff}
+        error={webRTC.error}
+        onAccept={webRTC.acceptCall}
+        onReject={webRTC.rejectCall}
+        onHangup={() => webRTC.hangup()}
+        onToggleMic={webRTC.toggleMic}
+        onToggleCamera={webRTC.toggleCamera}
+      />
     </div>
   );
 }

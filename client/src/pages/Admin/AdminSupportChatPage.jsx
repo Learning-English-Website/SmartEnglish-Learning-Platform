@@ -1,14 +1,17 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSocket } from '../../context/SocketContext';
 import { useAuth } from '../../hooks/useAuth';
+import { useWebRTC } from '../../hooks/useWebRTC';
 import axiosClient from '../../api/axiosClient';
-import { MessageSquare, Send, Check, ShieldAlert, Award, UserCheck, XCircle, User, Image as ImageIcon } from 'lucide-react';
+import { MessageSquare, Send, Check, ShieldAlert, Award, UserCheck, XCircle, User, Image as ImageIcon, Video } from 'lucide-react';
 import toast from 'react-hot-toast';
+import VideoCallOverlay from '../../components/common/VideoCall/VideoCallOverlay';
 import './AdminPage.css';
 
 export default function AdminSupportChatPage() {
   const { user: currentUser } = useAuth();
   const { socket, socketRef } = useSocket();
+  const webRTC = useWebRTC({ socket, currentUser });
 
   const [sessions, setSessions] = useState([]);
   const [activeFilter, setActiveFilter] = useState('active'); // 'active' or 'closed'
@@ -327,6 +330,16 @@ export default function AdminSupportChatPage() {
   const isAssignedToMe = selectedSession && selectedSession.cskh && (selectedSession.cskh._id === currentUser?._id || selectedSession.cskh === currentUser?._id);
   const isInputDisabled = isClosed || !isAssignedToMe;
 
+  const handleStartVideoCall = () => {
+    if (!selectedSession?.student?._id) return;
+
+    webRTC.startCall({
+      targetUserId: selectedSession.student._id,
+      sessionId: selectedSession._id,
+      student: selectedSession.student,
+    });
+  };
+
   let placeholderText = "Nhập tin nhắn hỗ trợ học sinh...";
   if (isClosed) {
     placeholderText = "Phiên trò chuyện đã đóng. Không thể gửi tin nhắn.";
@@ -535,6 +548,19 @@ export default function AdminSupportChatPage() {
                     </span>
                   )}
 
+                  {isAssignedToMe && !isClosed && (
+                    <button
+                      className="btn-secondary-admin"
+                      onClick={handleStartVideoCall}
+                      disabled={webRTC.callStatus !== 'idle'}
+                      title="Gọi video"
+                      style={{ padding: '6px 12px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      <Video size={14} />
+                      Gọi video
+                    </button>
+                  )}
+
                   {!isClosed && (
                     <button
                       className="btn-danger-admin"
@@ -721,6 +747,20 @@ export default function AdminSupportChatPage() {
         </div>
 
       </div>
+      <VideoCallOverlay
+        callStatus={webRTC.callStatus}
+        callInfo={webRTC.callInfo}
+        localStream={webRTC.localStream}
+        remoteStream={webRTC.remoteStream}
+        isMicMuted={webRTC.isMicMuted}
+        isCameraOff={webRTC.isCameraOff}
+        error={webRTC.error}
+        onAccept={webRTC.acceptCall}
+        onReject={webRTC.rejectCall}
+        onHangup={() => webRTC.hangup()}
+        onToggleMic={webRTC.toggleMic}
+        onToggleCamera={webRTC.toggleCamera}
+      />
     </div>
   );
 }
