@@ -660,28 +660,28 @@ export default function StudyPage() {
 
         <div className="ql2-header__right">
           <button
-            className="ql2-header__btn"
+            className="ql2-header__btn ql2-header__btn--reset"
             onClick={handleReset}
             title="Học lại"
           >
             <RotateCcw size={18} />
           </button>
           <button
-            className={`ql2-header__btn ${isShuffled ? 'active' : ''}`}
+            className={`ql2-header__btn ql2-header__btn--shuffle ${isShuffled ? 'active' : ''}`}
             onClick={handleShuffle}
             title="Xáo trộn"
           >
             <Shuffle size={18} />
           </button>
           <button
-            className={`ql2-header__btn ${soundEnabled ? 'active' : ''}`}
+            className={`ql2-header__btn ql2-header__btn--sound ${soundEnabled ? 'active' : ''}`}
             onClick={() => setSoundEnabled(!soundEnabled)}
             title="Âm thanh"
           >
             {soundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
           </button>
           <button
-            className="ql2-header__btn"
+            className="ql2-header__btn ql2-header__btn--fullscreen"
             onClick={handleFullscreenClick}
             title="Toàn màn hình"
           >
@@ -727,6 +727,7 @@ export default function StudyPage() {
                 className={`review-flashcard ${isFlipped ? 'flipped' : ''}`}
                 onClick={handleFlip}
                 animate={{ rotateY: isFlipped ? 180 : 0 }}
+                whileTap={{ scale: 0.98 }}
                 transition={{ duration: 0.4 }}
                 style={{ transformStyle: 'preserve-3d' }}
                 role="button"
@@ -735,55 +736,68 @@ export default function StudyPage() {
               >
                 {/* Front Side */}
                 <div className="card-face card-front">
-                  <div className="card-top-hint">THẺ GHI NHỚ</div>
-
-                  {/* Top-left Star & Hint buttons */}
-                  {currentCard && (
+                  <div className="card-top-header-row">
                     <div className="card-top-left-group">
-                      <button
-                        className={`card-star-btn ${starredCards.has(currentCard._id) ? 'active' : ''}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleStar(currentCard._id);
-                        }}
-                        title="Đánh dấu sao"
-                      >
-                        <Star
-                          size={20}
-                          fill={starredCards.has(currentCard._id) ? '#f59e0b' : 'none'}
-                          color={starredCards.has(currentCard._id) ? '#f59e0b' : 'currentColor'}
-                        />
-                      </button>
+                      {currentCard && (
+                        <>
+                          <motion.button
+                            whileHover={{ scale: 1.12 }}
+                            whileTap={{ scale: 0.88 }}
+                            transition={{ type: 'spring', stiffness: 400, damping: 17 }}
+                            className={`card-star-btn ${starredCards.has(currentCard._id) ? 'active' : ''}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleStar(currentCard._id);
+                            }}
+                            title="Đánh dấu sao"
+                          >
+                            <Star
+                              size={18}
+                              fill={starredCards.has(currentCard._id) ? '#f59e0b' : 'none'}
+                              color={starredCards.has(currentCard._id) ? '#f59e0b' : 'currentColor'}
+                            />
+                          </motion.button>
 
-                      <button
-                        className={`card-hint-btn ${showHint ? 'active' : ''}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setShowHint(!showHint);
-                        }}
-                        title="Gợi ý"
+                          <motion.button
+                            whileHover={{ scale: 1.12 }}
+                            whileTap={{ scale: 0.88 }}
+                            transition={{ type: 'spring', stiffness: 400, damping: 17 }}
+                            className={`card-hint-btn ${showHint ? 'active' : ''}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setShowHint(!showHint);
+                            }}
+                            title="Gợi ý"
+                          >
+                            <Lightbulb size={18} />
+                            {showHint && (
+                              <span className="card-hint-tooltip" onClick={(e) => e.stopPropagation()}>
+                                {currentCard.hint || `Gợi ý: ${getWordHint(currentCard.front)}`}
+                              </span>
+                            )}
+                          </motion.button>
+                        </>
+                      )}
+                    </div>
+
+                    <div className="card-top-hint">THẺ GHI NHỚ</div>
+
+                    <div className="card-top-right-group">
+                      <motion.button
+                        whileHover={{ scale: 1.12 }}
+                        whileTap={{ scale: 0.88 }}
+                        transition={{ type: 'spring', stiffness: 400, damping: 17 }}
+                        className="card-audio-top-right"
+                        onClick={(e) => { e.stopPropagation(); speakCard(currentCard.front); }}
+                        title="Phát âm"
                       >
-                        <Lightbulb size={20} />
-                        {showHint && (
-                          <span className="card-hint-tooltip" onClick={(e) => e.stopPropagation()}>
-                            {currentCard.hint || `Gợi ý: ${getWordHint(currentCard.front)}`}
-                          </span>
+                        <Volume2 size={18} className="speak-icon" />
+                        {currentCard?.pronunciation && (
+                          <span className="card-ipa-tooltip">{currentCard.pronunciation}</span>
                         )}
-                      </button>
+                      </motion.button>
                     </div>
-                  )}
-
-                  {/* Top-right Pronunciation button */}
-                  {currentCard?.pronunciation && (
-                    <div 
-                      className="card-audio-top-right" 
-                      onClick={(e) => { e.stopPropagation(); speakCard(currentCard.front); }}
-                      title="Phát âm"
-                    >
-                      <Volume2 size={20} className="speak-icon" />
-                      <span className="card-ipa-tooltip">{currentCard.pronunciation}</span>
-                    </div>
-                  )}
+                  </div>
 
                   <div className="card-front-center-group">
                     <div className="card-main-word">
@@ -792,33 +806,52 @@ export default function StudyPage() {
                   </div>
 
                   <div className="flip-prompt">
-                    <Eye size={16} /> Click vào thẻ hoặc nhấn Phím Cách để xem đáp án
+                    <Eye size={15} className="eye-prompt-icon" />
+                    <span className="desktop-prompt">Click vào thẻ hoặc nhấn Phím Cách để xem đáp án</span>
+                    <span className="mobile-prompt">Chạm vào thẻ để xem đáp án</span>
                   </div>
                 </div>
 
                 {/* Back Side */}
                 <div className="card-face card-back">
-                  <div className="card-top-hint">ĐỊNH NGHĨA</div>
-
-                  {/* Top-left Star button */}
-                  {currentCard && (
+                  <div className="card-top-header-row">
                     <div className="card-top-left-group">
-                      <button
-                        className={`card-star-btn ${starredCards.has(currentCard._id) ? 'active' : ''}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleStar(currentCard._id);
-                        }}
-                        title="Đánh dấu sao"
-                      >
-                        <Star
-                          size={20}
-                          fill={starredCards.has(currentCard._id) ? '#f59e0b' : 'none'}
-                          color={starredCards.has(currentCard._id) ? '#f59e0b' : 'currentColor'}
-                        />
-                      </button>
+                      {currentCard && (
+                        <motion.button
+                          whileHover={{ scale: 1.12 }}
+                          whileTap={{ scale: 0.88 }}
+                          transition={{ type: 'spring', stiffness: 400, damping: 17 }}
+                          className={`card-star-btn ${starredCards.has(currentCard._id) ? 'active' : ''}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleStar(currentCard._id);
+                          }}
+                          title="Đánh dấu sao"
+                        >
+                          <Star
+                            size={18}
+                            fill={starredCards.has(currentCard._id) ? '#f59e0b' : 'none'}
+                            color={starredCards.has(currentCard._id) ? '#f59e0b' : 'currentColor'}
+                          />
+                        </motion.button>
+                      )}
                     </div>
-                  )}
+
+                    <div className="card-top-hint">ĐỊNH NGHĨA</div>
+
+                    <div className="card-top-right-group">
+                      <motion.button
+                        whileHover={{ scale: 1.12 }}
+                        whileTap={{ scale: 0.88 }}
+                        transition={{ type: 'spring', stiffness: 400, damping: 17 }}
+                        className="card-audio-top-right"
+                        onClick={(e) => { e.stopPropagation(); speakCard(currentCard.back); }}
+                        title="Phát âm"
+                      >
+                        <Volume2 size={18} className="speak-icon" />
+                      </motion.button>
+                    </div>
+                  </div>
 
                   <div className={`card-back-content ${currentCard?.imageUrl ? 'has-image' : 'no-image'}`}>
                     <div className="card-back-info">
@@ -828,18 +861,6 @@ export default function StudyPage() {
 
                       {currentCard?.example && (
                         <p className="card-back-example">"{currentCard.example}"</p>
-                      )}
-
-                      {currentCard?.collocation && (
-                        <div className="card-back-extra">
-                          <strong>Cụm từ:</strong> {currentCard.collocation}
-                        </div>
-                      )}
-
-                      {currentCard?.relatedWords && (
-                        <div className="card-back-extra">
-                          <strong>Từ liên quan:</strong> {currentCard.relatedWords}
-                        </div>
                       )}
                     </div>
 
@@ -856,7 +877,9 @@ export default function StudyPage() {
                   </div>
 
                   <div className="flip-prompt">
-                    <Eye size={16} /> Click vào thẻ để quay lại mặt trước
+                    <Eye size={15} className="eye-prompt-icon" />
+                    <span className="desktop-prompt">Click vào thẻ để quay lại mặt trước</span>
+                    <span className="mobile-prompt">Chạm vào thẻ để quay lại mặt trước</span>
                   </div>
                 </div>
               </motion.div>
@@ -880,22 +903,38 @@ export default function StudyPage() {
           </button>
         </div>
 
-        {/* Rating buttons (always visible) */}
+        {/* Rating buttons (circular spring design) */}
         <div className="rating-container-circle">
-          <button 
+          <motion.button 
+            whileHover={{ scale: 1.15 }}
+            whileTap={{ scale: 0.88 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 17 }}
             className="rate-circle-btn rate-circle-again" 
-            onClick={(e) => { e.stopPropagation(); handleIncorrect(); }} 
+            onClick={(e) => { 
+              e.stopPropagation(); 
+              e.currentTarget.blur();
+              handleIncorrect(); 
+            }} 
             title="Đang học (Phím 1)"
+            aria-label="Đang học"
           >
-            <X size={24} />
-          </button>
-          <button 
+            <X size={26} strokeWidth={2.5} />
+          </motion.button>
+          <motion.button 
+            whileHover={{ scale: 1.15 }}
+            whileTap={{ scale: 0.88 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 17 }}
             className="rate-circle-btn rate-circle-remembered" 
-            onClick={(e) => { e.stopPropagation(); handleCorrect(); }} 
+            onClick={(e) => { 
+              e.stopPropagation(); 
+              e.currentTarget.blur();
+              handleCorrect(); 
+            }} 
             title="Đã biết (Phím 2)"
+            aria-label="Đã biết"
           >
-            <Check size={24} />
-          </button>
+            <Check size={26} strokeWidth={2.5} />
+          </motion.button>
         </div>
 
       </div>

@@ -7,8 +7,8 @@
   background: var(--bg-card);
   border: 1.5px solid var(--border-subtle);
   border-radius: 10px;
-  max-height: 320px;
-  overflow: hidden;
+  max-height: 480px;
+  overflow-y: auto;
 }
 
 /* Custom scrollbar */
@@ -142,18 +142,26 @@
 /* Selected preview */
 .ip-selected-preview {
   position: relative;
-  border-radius: 8px;
+  border-radius: 10px;
   overflow: hidden;
-  height: 72px;
+  height: 160px;
   border: 2px solid #2c5ef5;
-  background: var(--bg-page);
+  background: #0f1419;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
 }
 
 .ip-selected-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: 6px;
   display: block;
+  margin: auto;
 }
 
 .ip-selected-img-error {

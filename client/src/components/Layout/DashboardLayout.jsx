@@ -476,6 +476,7 @@ export default function DashboardLayout({ children }) {
           {children}
         </main>
       </div>
+
       <SupportChatWidget />
     </div>
   );

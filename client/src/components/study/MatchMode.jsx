@@ -790,11 +790,15 @@ export default function MatchMode({ cards = [], setTitle = '', onClose, onComple
         .match-card__text {
           font-size: 0.9rem;
           font-weight: 600;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
+          white-space: normal;
+          word-break: break-word;
+          line-height: 1.25;
           flex: 1;
           text-align: center;
+          display: -webkit-box;
+          -webkit-line-clamp: 3;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
         }
 
         /* Footer */
@@ -817,6 +821,7 @@ export default function MatchMode({ cards = [], setTitle = '', onClose, onComple
           font-weight: 600;
           cursor: pointer;
           transition: all 0.15s;
+          touch-action: manipulation;
         }
         [data-theme='dark'] .match-mode__restart-btn {
           background: #1e2332;
@@ -833,11 +838,13 @@ export default function MatchMode({ cards = [], setTitle = '', onClose, onComple
         /* Tablet */
         @media (max-width: 768px) {
           .match-mode__grid {
-            grid-template-columns: 1fr 1fr;
-            gap: 16px;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
           }
           .match-card {
-            height: 64px;
+            min-height: 64px;
+            height: auto;
+            padding: 8px;
           }
           .match-card__text {
             font-size: 0.8rem;
@@ -850,23 +857,32 @@ export default function MatchMode({ cards = [], setTitle = '', onClose, onComple
         /* Mobile */
         @media (max-width: 580px) {
           .match-mode__grid {
-            grid-template-columns: 1fr;
-            gap: 20px;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
           }
           .match-mode__cards {
-            flex-direction: row;
-            flex-wrap: wrap;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
           }
           .match-card {
-            width: calc(50% - 5px);
-            height: 64px;
+            width: 100%;
+            min-height: 64px;
+            height: auto;
             flex: none;
+            padding: 8px 6px;
+          }
+          .match-card__face {
+            padding: 8px 6px;
+            gap: 6px;
           }
           .match-card__text {
-            font-size: 0.75rem;
+            font-size: 0.78rem;
+            line-height: 1.2;
+            -webkit-line-clamp: 4;
           }
           .match-mode {
-            padding: 12px;
+            padding: 10px 8px;
           }
         }
       `}</style>

@@ -1954,6 +1954,9 @@ export default function TestMode({ cards = [], setTitle = '', onClose, onModeCha
 
         /* Responsive */
         @media (max-width: 640px) {
+          .ql-test-page {
+            padding: 12px 10px 80px;
+          }
           .ql-tf-cols {
             flex-direction: column;
             gap: 16px;
@@ -1966,13 +1969,35 @@ export default function TestMode({ cards = [], setTitle = '', onClose, onModeCha
           }
           .ql-tf-options-group {
             flex-direction: column;
-            gap: 12px;
+            gap: 10px;
+          }
+          .ql-tf-choice-btn {
+            min-height: 48px;
+            padding: 12px 16px;
+            touch-action: manipulation;
           }
           .ql-mcq-grid {
             grid-template-columns: 1fr;
+            gap: 10px;
+          }
+          .ql-mcq-option {
+            min-height: 48px;
+            padding: 12px 14px;
+            touch-action: manipulation;
           }
           .ql-options-group {
             flex-direction: column;
+          }
+          .ql-test-footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--gl-surface);
+            border-top: 1px solid var(--border-subtle);
+            padding: 12px 16px max(16px, env(safe-area-inset-bottom, 16px));
+            z-index: 200;
+            box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
           }
         }
       `}</style>

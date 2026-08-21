@@ -170,13 +170,23 @@ export default function FlashcardMode({ cards = [], setTitle = '', onClose, onCo
             <span className="flashcard-mode__counter-total">{totalCards}</span>
           </div>
 
-          {/* Flashcard */}
+          {/* Flashcard with Swipe Gestures */}
           <div className="flashcard-mode__card-area">
             <AnimatePresence mode="wait">
               <motion.div
                 key={`${currentIndex}-${shuffleSeed}`}
                 className="flashcard"
                 onClick={handleFlip}
+                drag="x"
+                dragConstraints={{ left: 0, right: 0 }}
+                dragElastic={0.4}
+                onDragEnd={(e, info) => {
+                  if (info.offset.x < -80) {
+                    handleNext();
+                  } else if (info.offset.x > 80) {
+                    handlePrev();
+                  }
+                }}
                 initial={{ opacity: 0, x: 60 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -60 }}
@@ -233,7 +243,7 @@ export default function FlashcardMode({ cards = [], setTitle = '', onClose, onCo
           </div>
 
           {/* Hint text */}
-          <p className="flashcard-mode__hint">Nhấn hoặc nhấn phím cách để lật thẻ</p>
+          <p className="flashcard-mode__hint">Chạm để lật thẻ • Vuốt trái/phải để chuyển thẻ</p>
 
           {/* Navigation controls */}
           <div className="flashcard-mode__controls">

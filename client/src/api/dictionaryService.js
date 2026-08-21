@@ -22,40 +22,124 @@ const DATAMUSE_URL = 'https://api.datamuse.com/words';
  *   }>
  * }>}
  */
+/**
+ * Fallback to fetch IPA from Datamuse if dictionary API has no phonetic
+ *
+ * @param {string} word
+ * @returns {Promise<string>} e.g. "/ˈsuːpɝ/"
+ */
+export async function fetchDatamuseIPA(word) {
+  if (!word?.trim()) return '';
+  const cleanWord = word.trim().toLowerCase();
+  try {
+    const resp = await fetch(`${DATAMUSE_URL}?sp=${encodeURIComponent(cleanWord)}&md=r&ipa=1&max=1`);
+    if (!resp.ok) return '';
+    const data = await resp.json();
+    if (!data || !data.length) return '';
+    
+    const tags = data[0].tags || [];
+    const ipaTag = tags.find((t) => t && typeof t === 'string' && t.startsWith('ipa_pron:'));
+    if (ipaTag) {
+      const rawIpa = ipaTag.replace('ipa_pron:', '').trim();
+      if (rawIpa) {
+        return `/${rawIpa}/`;
+      }
+    }
+  } catch (err) {
+    console.warn('Datamuse IPA lookup error:', err);
+  }
+  return '';
+}
+
+/**
+ * Look up a word and return pronunciation + definitions.
+ * Robust multi-level extraction across all API entries + Datamuse fallback.
+ *
+ * @param {string} word
+ * @returns {Promise<{
+ *   word: string,
+ *   phonetic: string,       // IPA e.g. "/həˈloʊ/"
+ *   audio: string,          // URL to pronunciation mp3
+ *   meanings: Array<{
+ *     partOfSpeech: string,
+ *     definitions: Array<{ definition: string, example?: string }>
+ *   }>
+ * }>}
+ */
 export async function lookupWord(word) {
   if (!word?.trim()) throw new Error('Word is required');
+  const cleanWord = word.trim().toLowerCase();
 
-  const resp = await fetch(`${DICT_URL}/${encodeURIComponent(word.trim().toLowerCase())}`);
+  let phonetic = '';
+  let audioUrl = '';
+  let meanings = [];
 
-  if (resp.status === 404) throw new Error('Word not found in dictionary');
-  if (!resp.ok)            throw new Error(`API error: ${resp.status}`);
+  try {
+    const resp = await fetch(`${DICT_URL}/${encodeURIComponent(cleanWord)}`);
+    if (resp.ok) {
+      const data = await resp.json();
+      const entries = Array.isArray(data) ? data : [data];
+      
+      // Search across ALL entries in data array for phonetic & audio
+      for (const entry of entries) {
+        if (!phonetic) {
+          if (entry.phonetic && entry.phonetic.trim()) {
+            phonetic = entry.phonetic.trim();
+          } else if (entry.phonetics && entry.phonetics.length) {
+            const foundText = entry.phonetics.find((p) => p.text && p.text.trim());
+            if (foundText) phonetic = foundText.text.trim();
+          }
+        }
 
-  const data = await resp.json();
-  const entry = Array.isArray(data) ? data[0] : data;
+        if (!audioUrl && entry.phonetics && entry.phonetics.length) {
+          const foundAudio = entry.phonetics.find((p) => p.audio && p.audio.trim());
+          if (foundAudio) {
+            const rawAudio = foundAudio.audio.trim();
+            audioUrl = rawAudio.startsWith('//') ? `https:${rawAudio}` : rawAudio;
+          }
+        }
 
-  if (!entry) throw new Error('No entry found');
+        if (meanings.length === 0 && entry.meanings && entry.meanings.length) {
+          meanings = (entry.meanings ?? []).slice(0, 3).map((m) => ({
+            partOfSpeech: m.partOfSpeech,
+            definitions: (m.definitions ?? []).slice(0, 2).map((d) => ({
+              definition: d.definition ?? '',
+              example:    d.example ?? '',
+            })),
+          }));
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('Free Dictionary API lookup error:', err);
+  }
 
-  // Extract best phonetic + audio
-  const phonetics = (entry.phonetics ?? []).filter((p) => p.text || p.audio);
-  const phonetic  = phonetics.find((p) => p.text)?.text ?? entry.phonetic ?? '';
-  const audio     = phonetics.find((p) => p.audio && p.audio.startsWith('http'))?.audio
-                  ?? phonetics.find((p) => p.audio)?.audio
-                  ?? '';
+  // Level 2 Fallback: If phonetic is missing, call Datamuse IPA API!
+  if (!phonetic) {
+    phonetic = await fetchDatamuseIPA(cleanWord);
+  }
 
-  // Absolute URL for audio
-  const audioUrl = audio.startsWith('//') ? `https:${audio}` : audio;
+  // Level 3 Fallback: If compound word (e.g. "super power"), lookup each word's IPA!
+  if (!phonetic && cleanWord.includes(' ')) {
+    const subWords = cleanWord.split(/\s+/);
+    const subPhonetics = await Promise.all(
+      subWords.map(async (w) => {
+        const ipa = await fetchDatamuseIPA(w);
+        return ipa ? ipa.replace(/^\/|\/$/g, '') : w;
+      })
+    );
+    if (subPhonetics.some((p) => p)) {
+      phonetic = `/${subPhonetics.join(' ')}/`;
+    }
+  }
 
-  // Extract top meanings
-  const meanings = (entry.meanings ?? []).slice(0, 3).map((m) => ({
-    partOfSpeech: m.partOfSpeech,
-    definitions: (m.definitions ?? []).slice(0, 2).map((d) => ({
-      definition: d.definition ?? '',
-      example:    d.example ?? '',
-    })),
-  }));
+  // Ensure /.../ wrapping if not empty
+  if (phonetic && !phonetic.startsWith('/')) {
+    phonetic = `/${phonetic}/`;
+  }
 
   return {
-    word:     entry.word ?? word,
+    word:     cleanWord,
     phonetic,
     audio:    audioUrl,
     meanings,

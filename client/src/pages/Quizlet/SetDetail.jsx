@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Container } from 'react-bootstrap';
+import { motion } from 'framer-motion';
 import {
   FiArrowLeft, FiEdit2, FiTrash2, FiPlus,
   FiGlobe, FiLock, FiPlay, FiRefreshCw,
@@ -503,9 +504,13 @@ export default function SetDetail() {
         <Container>
           <div className="sd-header-content">
             <div className="sd-header-left">
-              <button className="sd-back-btn" onClick={() => navigate('/flashcards')}>
+              <motion.button 
+                whileTap={{ scale: 0.9 }}
+                className="sd-back-btn" 
+                onClick={() => navigate('/flashcards')}
+              >
                 <FiArrowLeft size={18} />
-              </button>
+              </motion.button>
               <div className="sd-title-section">
                 <h1 className="sd-set-title">{set.title}</h1>
                 <div className="sd-set-meta">
@@ -520,11 +525,16 @@ export default function SetDetail() {
               </div>
             </div>
             <div className="sd-header-actions">
-              <button className="sd-action-btn sd-action-btn--ghost" onClick={() => setShowShare(true)}>
+              <motion.button 
+                whileTap={{ scale: 0.94 }}
+                className="sd-action-btn sd-action-btn--ghost" 
+                onClick={() => setShowShare(true)}
+              >
                 <FiShare2 size={16} />
-                Chia sẻ
-              </button>
-              <button
+                <span className="sd-action-text">Chia sẻ</span>
+              </motion.button>
+              <motion.button
+                whileTap={{ scale: 0.94 }}
                 className={`sd-action-btn sd-action-btn--ghost ${isBookmarked ? 'active' : ''}`}
                 onClick={handleBookmark}
                 disabled={bookmarkLoading}
@@ -532,17 +542,26 @@ export default function SetDetail() {
                 title={isBookmarked ? 'Bỏ khỏi danh sách đã lưu' : 'Lưu bộ thẻ'}
               >
                 <FiBookmark size={16} fill={isBookmarked ? 'currentColor' : 'none'} />
-                {bookmarkLoading ? 'Đang lưu...' : (isBookmarked ? 'Đã lưu' : 'Lưu')}
-              </button>
+                <span className="sd-action-text">{bookmarkLoading ? 'Lưu...' : (isBookmarked ? 'Đã lưu' : 'Lưu')}</span>
+              </motion.button>
               {isOwner && (
                 <>
-                  <button className="sd-action-btn sd-action-btn--ghost" onClick={() => navigate(`/flashcards/sets/${id}/edit`)}>
+                  <motion.button 
+                    whileTap={{ scale: 0.94 }}
+                    className="sd-action-btn sd-action-btn--ghost" 
+                    onClick={() => navigate(`/flashcards/sets/${id}/edit`)}
+                  >
                     <FiEdit2 size={16} />
-                    Chỉnh sửa
-                  </button>
-                  <button className="sd-action-btn sd-action-btn--icon" onClick={() => setShowDeleteSet(true)}>
+                    <span className="sd-action-text">Chỉnh sửa</span>
+                  </motion.button>
+                  <motion.button 
+                    whileTap={{ scale: 0.9 }}
+                    className="sd-action-btn sd-action-btn--icon sd-action-btn--delete" 
+                    onClick={() => setShowDeleteSet(true)}
+                    title="Xóa học phần"
+                  >
                     <FiTrash2 size={16} />
-                  </button>
+                  </motion.button>
                 </>
               )}
             </div>
@@ -557,30 +576,50 @@ export default function SetDetail() {
           {/* ── Mode Cards Grid ───────────────────────────────────────── */}
           <div className="sd-modes-section">
             <div className="sd-modes-grid">
-              <button className="sd-mode-card" onClick={() => navigate(`/flashcards/sets/${id}/flashcards`, { state: { returnTo: location.pathname } })}>
+              <motion.button 
+                whileHover={{ y: -3 }}
+                whileTap={{ scale: 0.95 }}
+                className="sd-mode-card" 
+                onClick={() => navigate(`/flashcards/sets/${id}/flashcards`, { state: { returnTo: location.pathname } })}
+              >
                 <div className="sd-mode-icon sd-mode-icon--blue">
                   <FiBookOpen size={24} />
                 </div>
                 <span className="sd-mode-label">Thẻ ghi nhớ</span>
-              </button>
-              <button className="sd-mode-card" onClick={() => navigate(`/flashcards/sets/${id}/learn`, { state: { returnTo: location.pathname } })}>
+              </motion.button>
+              <motion.button 
+                whileHover={{ y: -3 }}
+                whileTap={{ scale: 0.95 }}
+                className="sd-mode-card" 
+                onClick={() => navigate(`/flashcards/sets/${id}/learn`, { state: { returnTo: location.pathname } })}
+              >
                 <div className="sd-mode-icon sd-mode-icon--purple">
                   <FiZap size={24} />
                 </div>
                 <span className="sd-mode-label">Học</span>
-              </button>
-              <button className="sd-mode-card" onClick={() => navigate(`/flashcards/sets/${id}/test`, { state: { returnTo: location.pathname } })}>
+              </motion.button>
+              <motion.button 
+                whileHover={{ y: -3 }}
+                whileTap={{ scale: 0.95 }}
+                className="sd-mode-card" 
+                onClick={() => navigate(`/flashcards/sets/${id}/test`, { state: { returnTo: location.pathname } })}
+              >
                 <div className="sd-mode-icon sd-mode-icon--green">
                   <FiTarget size={24} />
                 </div>
                 <span className="sd-mode-label">Kiểm tra</span>
-              </button>
-              <button className="sd-mode-card" onClick={() => navigate(`/flashcards/sets/${id}/match`, { state: { returnTo: location.pathname } })}>
+              </motion.button>
+              <motion.button 
+                whileHover={{ y: -3 }}
+                whileTap={{ scale: 0.95 }}
+                className="sd-mode-card" 
+                onClick={() => navigate(`/flashcards/sets/${id}/match`, { state: { returnTo: location.pathname } })}
+              >
                 <div className="sd-mode-icon sd-mode-icon--orange">
                   <FiGrid size={24} />
                 </div>
                 <span className="sd-mode-label">Khớp thẻ</span>
-              </button>
+              </motion.button>
             </div>
           </div>
 

@@ -44,10 +44,11 @@
 /* Base Page */
 .ql2-page {
   height: 100vh;
+  height: 100dvh;
   background: linear-gradient(135deg, var(--ql2-surface-2) 0%, var(--ql2-surface) 100%);
   font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
   position: relative;
-  overflow: hidden;
+  overflow: auto;
   display: flex;
   flex-direction: column;
 }

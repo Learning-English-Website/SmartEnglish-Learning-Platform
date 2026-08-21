@@ -236,22 +236,30 @@ export default function ReviewPage() {
             className={`review-flashcard ${flipped ? 'flipped' : ''}`}
             onClick={() => setFlipped(prev => !prev)}
             animate={{ rotateY: flipped ? 180 : 0 }}
+            whileTap={{ scale: 0.98 }}
             transition={{ duration: 0.4 }}
           >
             {/* Front Side */}
             <div className="card-face card-front">
-              <div className="card-top-hint">THẺ GHI NHỚ</div>
-              
-              {currentCard?.pronunciation && (
-                <div 
-                  className="card-audio-top-right" 
-                  onClick={(e) => { e.stopPropagation(); speak(currentCard.front); }}
-                  title="Phát âm"
-                >
-                  <Volume2 size={20} className="speak-icon" />
-                  <span className="card-ipa-tooltip">{currentCard.pronunciation}</span>
+              <div className="card-top-header-row">
+                <div className="card-top-left-group"></div>
+                <div className="card-top-hint">THẺ GHI NHỚ</div>
+                <div className="card-top-right-group">
+                  <motion.button 
+                    whileHover={{ scale: 1.12 }}
+                    whileTap={{ scale: 0.88 }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 17 }}
+                    className="card-audio-top-right" 
+                    onClick={(e) => { e.stopPropagation(); speak(currentCard.front); }}
+                    title="Phát âm"
+                  >
+                    <Volume2 size={18} className="speak-icon" />
+                    {currentCard?.pronunciation && (
+                      <span className="card-ipa-tooltip">{currentCard.pronunciation}</span>
+                    )}
+                  </motion.button>
                 </div>
-              )}
+              </div>
 
               <div className="card-front-center-group">
                 <div className="card-main-word">
@@ -260,13 +268,30 @@ export default function ReviewPage() {
               </div>
 
               <div className="flip-prompt">
-                <Eye size={16} /> Click vào thẻ hoặc nhấn Phím Cách để xem đáp án
+                <Eye size={15} className="eye-prompt-icon" />
+                <span className="desktop-prompt">Click vào thẻ hoặc nhấn Phím Cách để xem đáp án</span>
+                <span className="mobile-prompt">Chạm vào thẻ để xem đáp án</span>
               </div>
             </div>
 
             {/* Back Side */}
             <div className="card-face card-back">
-              <div className="card-top-hint">ĐỊNH NGHĨA</div>
+              <div className="card-top-header-row">
+                <div className="card-top-left-group"></div>
+                <div className="card-top-hint">ĐỊNH NGHĨA</div>
+                <div className="card-top-right-group">
+                  <motion.button 
+                    whileHover={{ scale: 1.12 }}
+                    whileTap={{ scale: 0.88 }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 17 }}
+                    className="card-audio-top-right" 
+                    onClick={(e) => { e.stopPropagation(); speak(currentCard.back); }}
+                    title="Phát âm"
+                  >
+                    <Volume2 size={18} className="speak-icon" />
+                  </motion.button>
+                </div>
+              </div>
               
               <div className={`card-back-content ${currentCard?.imageUrl ? 'has-image' : 'no-image'}`}>
                 <div className="card-back-info">
@@ -274,18 +299,6 @@ export default function ReviewPage() {
                   
                   {currentCard?.example && (
                     <div className="card-back-example">"{currentCard.example}"</div>
-                  )}
-                  
-                  {currentCard?.collocation && (
-                    <div className="card-back-extra">
-                      <strong>Cụm từ:</strong> {currentCard.collocation}
-                    </div>
-                  )}
-
-                  {currentCard?.relatedWords && (
-                    <div className="card-back-extra">
-                      <strong>Từ liên quan:</strong> {currentCard.relatedWords}
-                    </div>
                   )}
                 </div>
 
@@ -302,30 +315,48 @@ export default function ReviewPage() {
               </div>
 
               <div className="flip-prompt">
-                <Eye size={16} /> Click vào thẻ để quay lại mặt trước
+                <Eye size={15} className="eye-prompt-icon" />
+                <span className="desktop-prompt">Click vào thẻ để quay lại mặt trước</span>
+                <span className="mobile-prompt">Chạm vào thẻ để quay lại mặt trước</span>
               </div>
             </div>
           </motion.div>
         </div>
 
-        {/* Rating buttons (always visible) */}
+        {/* Rating buttons (circular spring design) */}
         <div className="rating-container-circle">
-          <button 
+          <motion.button 
+            whileHover={{ scale: 1.15 }}
+            whileTap={{ scale: 0.88 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 17 }}
             className="rate-circle-btn rate-circle-again" 
-            onClick={(e) => { e.stopPropagation(); handleRate(0); }} 
+            onClick={(e) => { 
+              e.stopPropagation(); 
+              e.currentTarget.blur();
+              handleRate(0); 
+            }} 
             disabled={isSubmitting}
             title="Chưa nhớ (Phím 1 hoặc Mũi tên Trái)"
+            aria-label="Đang học"
           >
-            <X size={24} />
-          </button>
-          <button 
+            <X size={26} strokeWidth={2.5} />
+          </motion.button>
+          <motion.button 
+            whileHover={{ scale: 1.15 }}
+            whileTap={{ scale: 0.88 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 17 }}
             className="rate-circle-btn rate-circle-remembered" 
-            onClick={(e) => { e.stopPropagation(); handleRate(4); }} 
+            onClick={(e) => { 
+              e.stopPropagation(); 
+              e.currentTarget.blur();
+              handleRate(4); 
+            }} 
             disabled={isSubmitting}
             title="Đã nhớ (Phím 2 hoặc Mũi tên Phải)"
+            aria-label="Đã biết"
           >
-            <Check size={24} />
-          </button>
+            <Check size={26} strokeWidth={2.5} />
+          </motion.button>
         </div>
       </div>
     </div>

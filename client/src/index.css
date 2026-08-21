@@ -30,6 +30,12 @@
   --font-sans: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   --font-mono: 'Geist Mono Variable', 'Geist Mono', ui-monospace, monospace;
 
+  /* Mobile safe area insets */
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+
   /* Legacy aliases (older components) */
   --bg-primary: var(--bg-page);
   --text-primary: var(--text-body);
@@ -232,4 +238,35 @@ a:hover {
 
 .page-padded {
   padding-top: 90px;
+}
+
+/* ── Mobile & Touch Utilities ────────────────────────────────────────────────── */
+.min-h-dvh {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.h-dvh {
+  height: 100vh;
+  height: 100dvh;
+}
+
+.touch-target {
+  min-width: 44px;
+  min-height: 44px;
+  touch-action: manipulation;
+}
+
+.safe-pb {
+  padding-bottom: max(16px, env(safe-area-inset-bottom, 16px));
+}
+
+.safe-pt {
+  padding-top: max(12px, env(safe-area-inset-top, 12px));
+}
+
+@media (max-width: 768px) {
+  body {
+    -webkit-tap-highlight-color: transparent;
+  }
 }

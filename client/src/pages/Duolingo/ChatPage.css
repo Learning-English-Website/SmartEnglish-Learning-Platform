@@ -713,6 +713,11 @@
 }
 
 @media (max-width: 640px) {
+  .chatpage-container {
+    min-height: calc(100dvh - 120px);
+    padding-bottom: max(65px, env(safe-area-inset-bottom, 65px));
+  }
+
   .speech-live-panel {
     align-items: flex-start;
     flex-direction: column;
@@ -728,6 +733,16 @@
     width: 62px !important;
     min-width: 62px;
     padding-left: 0.55rem !important;
+  }
+
+  .chat-input-bar {
+    padding: 8px 12px;
+  }
+
+  .btn-send {
+    width: 44px;
+    height: 44px;
+    touch-action: manipulation;
   }
 }
 

@@ -127,21 +127,47 @@ export default function CardEditor({ card, onSave, onCancel, loading = false, in
 
       setForm((prev) => ({
         ...prev,
-        pronunciation: prev.pronunciation || dictData?.phonetic || '',
-        back:          prev.back          || definitionVi       || '',
-        example:       prev.example       || firstExample       || '',
-        relatedWords:  prev.relatedWords  || related            || '',
-        collocation:   prev.collocation   || collocations       || '',
+        pronunciation: dictData?.phonetic || prev.pronunciation || '',
+        back:          definitionVi       || prev.back          || '',
+        example:       firstExample       || prev.example       || '',
+        relatedWords:  related            || prev.relatedWords  || '',
+        collocation:   collocations       || prev.collocation   || '',
       }));
       setShowExtra(true);
+      if (dictData?.phonetic) {
+        toast.success(`Đã tự động điền phát âm: ${dictData.phonetic}`);
+      } else {
+        toast.success('Đã tự động điền chi tiết từ vựng!');
+      }
       // store audio for playback
       if (dictData?.audio && !dictData_ref.current) dictData_ref.current = dictData;
     } catch (err) {
       console.error('[Auto-fill] Error:', err);
+      toast.error('Tự động điền thất bại');
     } finally {
       setAutoFilling(false);
     }
   }, [form.front, autoFilling]);
+
+  /* ── Fetch IPA only button ───────────────────────────────────────── */
+  const handleFetchIpaOnly = async () => {
+    const term = form.front.trim();
+    if (!term) {
+      toast.error('Vui lòng nhập Thuật ngữ trước');
+      return;
+    }
+    try {
+      const data = await lookupWord(term);
+      if (data?.phonetic) {
+        setForm((prev) => ({ ...prev, pronunciation: data.phonetic }));
+        toast.success(`Đã cập nhật phát âm: ${data.phonetic}`);
+      } else {
+        toast.error('Không tìm thấy phiên âm cho từ này');
+      }
+    } catch {
+      toast.error('Lỗi khi tra cứu phát âm');
+    }
+  };
 
   // ref to store last dict data for audio playback after autoFill
   const dictData_ref = useRef(null);
@@ -593,7 +619,17 @@ export default function CardEditor({ card, onSave, onCancel, loading = false, in
       {showExtra && (
         <div className="ce-row ce-row--extra animate-slide-down">
           <div className="ce-field-block">
-            <label className="ce-label">PHÁT ÂM</label>
+            <div className="ce-field-header">
+              <label className="ce-label">PHÁT ÂM</label>
+              <button
+                type="button"
+                className="ce-btn-ipa-auto"
+                onClick={handleFetchIpaOnly}
+                title="Tự động tìm phát âm IPA cho từ này"
+              >
+                <FiZap size={12} /> Auto IPA
+              </button>
+            </div>
             <input
               name="pronunciation"
               className="ce-input"
