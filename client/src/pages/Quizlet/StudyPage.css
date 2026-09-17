@@ -1943,31 +1943,34 @@ div.study-header__mode-selector {
 
 @media (max-width: 640px) {
   .review-body {
-    padding: 2px 10px 16px;
+    padding: 6px 12px 14px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: flex-start;
+    justify-content: space-between;
     flex: 1;
-    min-height: calc(100vh - 100px);
+    min-height: calc(100vh - 80px);
     width: 100%;
     box-sizing: border-box;
+    gap: 8px;
   }
 
   /* 1. Đang học / Đã biết sát ở trên cùng ngay dưới Header */
   .ql-flashcard-bucket-counter {
-    margin-top: 0;
-    margin-bottom: 0;
+    margin-top: 4px;
+    margin-bottom: 4px;
     flex-shrink: 0;
+    max-width: 580px;
+    width: 100%;
+    padding: 0 16px;
   }
 
-  /* 2. Card: margin-top: auto đẩy xuống giữa */
+  /* 2. Card: Cân đối ở giữa, không bị dồn xuống đáy */
   .review-card-perspective {
-    width: calc(100% - 36px);
+    width: calc(100% - 24px);
     max-width: 580px;
-    height: clamp(260px, 44vh, 390px);
-    margin-top: auto;
-    margin-bottom: 0;
+    height: clamp(300px, 48vh, 460px);
+    margin: auto 0;
     position: relative;
     flex: 0 0 auto;
   }
@@ -2059,8 +2062,8 @@ div.study-header__mode-selector {
   /* 3. Cặp nút ❌ / ✔️ nằm ngay dưới chân card (không tràn mép dưới màn hình) */
   .rating-container-circle {
     gap: 28px;
-    margin-top: 10px;
-    margin-bottom: 10px;
+    margin-top: 6px;
+    margin-bottom: max(10px, env(safe-area-inset-bottom, 10px));
     flex-shrink: 0;
     z-index: 40;
   }
