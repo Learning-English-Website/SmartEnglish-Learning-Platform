@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  CheckCircle, XCircle, ClipboardCheck, X, Volume2, Maximize2, Minimize2,
+  XCircle, ClipboardCheck, X, Volume2, Maximize2, Minimize2,
   ArrowLeft, FileText, ChevronDown, Check, BookOpen, Brain, Box
 } from 'lucide-react';
 import { progressService } from '../../services/progressService';
@@ -36,10 +36,24 @@ const normalizeText = (str) => {
 };
 
 // ─── Test Header ─────────────────────────────────────────────────────────────
-function TestHeader({ setTitle, onClose, onModeChange, soundEnabled, onSoundToggle, isFullscreen, onFullscreen }) {
+function TestHeader({
+  setTitle,
+  onClose,
+  onModeChange,
+  soundEnabled,
+  onSoundToggle,
+  isFullscreen,
+  onFullscreen,
+  started,
+  totalQuestions = 0,
+  answeredCount = 0,
+}) {
   const [modeDropdownOpen, setModeDropdownOpen] = useState(false);
   const currentModeConfig = MODES.find((m) => m.id === 'test') || MODES[2];
   const CurrentIcon = currentModeConfig.icon;
+
+  const showProgress = Boolean(started && totalQuestions > 0);
+  const progressPct = totalQuestions > 0 ? Math.min(100, Math.round((answeredCount / totalQuestions) * 100)) : 0;
 
   return (
     <header className="ql2-header">
@@ -92,6 +106,39 @@ function TestHeader({ setTitle, onClose, onModeChange, soundEnabled, onSoundTogg
         <span className="ql2-header__divider">|</span>
         <span className="ql2-header__title" title={setTitle || 'Kiểm tra'}>{setTitle || 'Kiểm tra'}</span>
       </div>
+
+      {showProgress && (
+        <div className="ql2-header__center">
+          <div
+            className="ql2-progress-bar ql-test-progress-bar"
+            role="progressbar"
+            aria-valuenow={answeredCount}
+            aria-valuemin={0}
+            aria-valuemax={totalQuestions}
+            aria-label="Tiến độ làm bài kiểm tra"
+            data-testid="test-progress-bar"
+            data-answered={answeredCount}
+            data-total={totalQuestions}
+          >
+            <div className="ql2-progress-bar__track">
+              <div
+                className="ql2-progress-bar__batch current"
+                style={{ '--puck-pos': 0 }}
+                data-tooltip={`${answeredCount} / ${totalQuestions}`}
+              >
+                <div className="ql2-progress-bar__batch-bg" />
+                <div
+                  className="ql2-progress-bar__batch-fill"
+                  style={{ width: `${progressPct}%` }}
+                />
+              </div>
+            </div>
+            <div className="ql2-progress-label ql-test-progress-count" aria-hidden="true">
+              {answeredCount} / {totalQuestions}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="ql2-header__right">
         <button
@@ -148,6 +195,7 @@ function SetupModal({ cards, onStart, onClose }) {
     setTypes(newTypes);
   };
 
+  // eslint-disable-next-line no-unused-vars
   const handleStarToggle = () => {
     if (!starOnly && starredCount === 0) {
       toast.error('Không có thẻ gắn sao nào trong bộ này!');
@@ -171,6 +219,7 @@ function SetupModal({ cards, onStart, onClose }) {
 
   // Clamp the questionCount value when toggle changes without converting empty string input to 20
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setQuestionCount(prev => {
       if (prev === '') return '';
       if (maxQuestions === 0) return 0;
@@ -389,7 +438,7 @@ export default function TestMode({ cards = [], setTitle = '', onClose, onModeCha
     }
 
     const activeTypes = Object.entries(types)
-      .filter(([k, v]) => v)
+      .filter(([, v]) => v)
       .map(([k]) => k);
 
     if (activeTypes.length === 0) {
@@ -634,6 +683,14 @@ export default function TestMode({ cards = [], setTitle = '', onClose, onModeCha
       : 'Hãy đối tốt với bản thân, và tiếp tục ôn luyện!';
   }
 
+  const totalQuestions = questions.length;
+  const answeredCount = allDone
+    ? totalQuestions
+    : questions.filter(q => {
+        const a = answers[q.id];
+        return a && a.status === 'answered' && a.value !== undefined && a.value !== '';
+      }).length;
+
   return (
     <div className="ql-test-wrap">
       <TestHeader
@@ -644,6 +701,9 @@ export default function TestMode({ cards = [], setTitle = '', onClose, onModeCha
         onSoundToggle={() => setSoundEnabled(!soundEnabled)}
         isFullscreen={isFullscreen}
         onFullscreen={handleFullscreen}
+        started={started}
+        totalQuestions={totalQuestions}
+        answeredCount={answeredCount}
       />
 
       {/* Main conditional views inside the single return block to ensure <style> is always loaded */}
@@ -1028,6 +1088,68 @@ export default function TestMode({ cards = [], setTitle = '', onClose, onModeCha
         }
         [data-theme='dark'] .ql-test-wrap {
           background: var(--bg-page);
+        }
+
+        /* Test Header Progress Bar */
+        .ql2-header__center {
+          flex: 1;
+          max-width: 600px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 12px;
+          min-width: 0;
+        }
+        .ql-test-progress-bar {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          flex: 1;
+          width: 100%;
+          min-width: 0;
+        }
+        .ql2-progress-bar__track {
+          display: flex;
+          align-items: center;
+          flex: 1;
+          gap: 6px;
+          height: 16px;
+          min-width: 0;
+        }
+        .ql2-progress-bar__batch {
+          position: relative;
+          height: 12px;
+          flex: 1;
+          border-radius: 100px;
+          overflow: visible;
+          display: flex;
+          align-items: center;
+        }
+        .ql2-progress-bar__batch-bg {
+          position: absolute;
+          inset: 0;
+          border-radius: 100px;
+          background: #d1d5db;
+        }
+        [data-theme='dark'] .ql2-progress-bar__batch-bg {
+          background: rgba(255, 255, 255, 0.15);
+        }
+        .ql2-progress-bar__batch-fill {
+          position: absolute;
+          left: 0;
+          top: 0;
+          bottom: 0;
+          border-radius: 100px;
+          background: var(--ql2-success, #18AE79);
+          transition: width 0.3s ease;
+        }
+        .ql-test-progress-count {
+          font-size: 0.8rem;
+          font-weight: 600;
+          color: var(--text-muted, #9ca3af);
+          white-space: nowrap;
+          font-variant-numeric: tabular-nums;
+          flex-shrink: 0;
         }
 
 
@@ -2057,6 +2179,21 @@ export default function TestMode({ cards = [], setTitle = '', onClose, onModeCha
             max-width: 320px;
             padding: 12px 20px;
             font-size: 0.95rem;
+          }
+          .ql2-header__center {
+            order: 3;
+            width: 100%;
+            flex: 0 0 100%;
+            margin: 4px 0 0 0;
+            display: flex;
+            justify-content: center;
+          }
+          .ql-test-progress-bar {
+            width: 100%;
+            gap: 8px;
+          }
+          .ql-test-progress-count {
+            font-size: 0.75rem;
           }
         }
       `}</style>

@@ -8,6 +8,7 @@ import GeminiKeyModal from '../GeminiKeyModal/GeminiKeyModal';
 import { toast } from 'react-hot-toast';
 import ImagePicker from '../ImagePicker/ImagePicker';
 import ImageUploader from '../../media/ImageUploader';
+import { getMediaUrl } from '../../../utils/mediaUtils';
 import './CardEditor.css';
 
 /**
@@ -735,7 +736,7 @@ export default function CardEditor({ card, onSave, onCancel, loading = false, in
 
         {form.imageUrl && !showImagePicker && (
           <div className="ce-image-thumb-wrap">
-            <img src={form.imageUrl} alt="Card visual" className="ce-image-thumb" />
+            <img src={getMediaUrl(form.imageUrl)} alt="Card visual" className="ce-image-thumb" />
             <button
               type="button"
               className="ce-image-remove"

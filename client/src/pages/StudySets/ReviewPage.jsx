@@ -10,6 +10,7 @@ import { toast } from 'react-hot-toast';
 import { progressService } from '../../services/progressService';
 import { gamificationService } from '../../api/gamificationService';
 import { useGamification } from '../../context/GamificationContext';
+import { getMediaUrl } from '../../utils/mediaUtils';
 import './ReviewPage.css';
 
 export default function ReviewPage() {
@@ -293,11 +294,11 @@ export default function ReviewPage() {
 
                 {currentCard?.imageUrl && (
                   <div className="card-back-image-wrapper">
-                    <img 
-                      src={currentCard.imageUrl} 
-                      alt={currentCard.back} 
-                      className="card-back-image" 
-                      onClick={(e) => e.stopPropagation()} 
+                    <img
+                      src={getMediaUrl(currentCard.imageUrl)}
+                      alt={currentCard.back}
+                      className="card-back-image"
+                      onClick={(e) => e.stopPropagation()}
                     />
                   </div>
                 )}

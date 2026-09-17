@@ -13,6 +13,7 @@ import { updateProfile } from '../../store/slices/authSlice';
 import { selectAuthLoading } from '../../store/slices/authSlice';
 import XPProgressBar from '../../components/gamification/XPProgressBar/XPProgressBar';
 import AchievementBadge from '../../components/gamification/AchievementBadge/AchievementBadge';
+import { getMediaUrl } from '../../utils/mediaUtils';
 import './ProfilePage.css';
 
 export default function ProfilePage() {
@@ -59,7 +60,7 @@ export default function ProfilePage() {
             <div className="profile-avatar-wrap">
               <div className="profile-avatar">
                 {user.avatar ? (
-                  <img src={user.avatar} alt={user.username} />
+                  <img src={getMediaUrl(user.avatar)} alt={user.username} />
                 ) : (
                   <span>{user.username?.[0]?.toUpperCase()}</span>
                 )}

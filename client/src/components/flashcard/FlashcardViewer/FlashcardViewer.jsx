@@ -4,6 +4,7 @@ import {
   FiRotateCcw, FiThumbsUp, FiThumbsDown, FiVolume2,
 } from 'react-icons/fi';
 import { lookupWord } from '../../../api/dictionaryService';
+import { getMediaUrl } from '../../../utils/mediaUtils';
 import './FlashcardViewer.css';
 
 /**
@@ -212,7 +213,7 @@ export default function FlashcardViewer({ cards = [], showKnowButtons = false, o
             {current.imageUrl && (
               <div className="fcv-front-image">
                 <img
-                  src={current.imageUrl}
+                  src={getMediaUrl(current.imageUrl)}
                   alt={current.front}
                   className="fcv-card-img"
                   loading="lazy"
@@ -238,7 +239,7 @@ export default function FlashcardViewer({ cards = [], showKnowButtons = false, o
             {current.imageUrl && (
               <div className="fcv-back-image">
                 <img
-                  src={current.imageUrl}
+                  src={getMediaUrl(current.imageUrl)}
                   alt={current.front}
                   className="fcv-card-img"
                   loading="lazy"

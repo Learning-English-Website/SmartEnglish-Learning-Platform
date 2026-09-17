@@ -3,6 +3,7 @@ import { Navbar, Nav, Container, Button, Dropdown } from 'react-bootstrap';
 import { FiUser, FiLogOut, FiSettings, FiSun, FiMoon } from 'react-icons/fi';
 import { useAuth } from '../../../hooks/useAuth';
 import StreakCounter from '../../gamification/StreakCounter/StreakCounter';
+import { getMediaUrl } from '../../../utils/mediaUtils';
 import './Navbar.css';
 
 export default function AppNavbar({ darkMode, onToggleDark }) {
@@ -51,7 +52,7 @@ export default function AppNavbar({ darkMode, onToggleDark }) {
                 <Dropdown.Toggle as="div" className="user-dropdown-toggle" id="user-dropdown">
                   <div className="avatar-circle">
                     {user?.avatar ? (
-                      <img src={user.avatar} alt={user.username} />
+                      <img src={getMediaUrl(user.avatar)} alt={user.username} />
                     ) : (
                       <span>{user?.username?.[0]?.toUpperCase() || 'U'}</span>
                     )}

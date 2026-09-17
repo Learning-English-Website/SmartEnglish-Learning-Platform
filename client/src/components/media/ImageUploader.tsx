@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { FiUpload, FiImage, FiX, FiFolder, FiRefreshCw } from 'react-icons/fi';
 import axiosClient from '../../api/axiosClient';
+import { getMediaUrl } from '../../utils/mediaUtils';
 import './ImageUploader.css';
 
 /**
@@ -24,17 +25,6 @@ export default function ImageUploader({ onUpload, onClear, currentUrl }) {
     setPreviewError(false);
     setError('');
   }, [currentUrl]);
-
-  const getFullImageUrl = (url) => {
-    if (!url) return '';
-    if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:') || url.startsWith('blob:')) {
-      return url;
-    }
-    const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-    const hostUrl = apiBase.endsWith('/api') ? apiBase.slice(0, -4) : apiBase;
-    const cleanUrl = url.startsWith('/') ? url : `/${url}`;
-    return `${hostUrl}${cleanUrl}`;
-  };
 
   const uploadFile = useCallback(async (file) => {
     if (!file) return;
@@ -176,7 +166,7 @@ export default function ImageUploader({ onUpload, onClear, currentUrl }) {
       {currentUrl && !previewError && (
         <div className="iu-preview">
           <img
-            src={getFullImageUrl(currentUrl)}
+            src={getMediaUrl(currentUrl)}
             alt="Preview"
             className="iu-preview-img"
             onError={() => setPreviewError(true)}

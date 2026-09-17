@@ -16,6 +16,7 @@ import { setService } from '../../api/setService';
 import { cardService } from '../../api/cardService';
 import { progressService } from '../../services/progressService';
 import { TestMode, MatchMode } from '../../components/study';
+import { getMediaUrl } from '../../utils/mediaUtils';
 import './StudyPage.css';
 
 const STUDY_MODES = [
@@ -861,7 +862,7 @@ export default function StudyPage() {
                       <div className="card-back-image-wrapper">
                         <img
                           alt={currentCard?.back}
-                          src={currentCard.imageUrl}
+                          src={getMediaUrl(currentCard.imageUrl)}
                           className="card-back-image"
                           onClick={(e) => e.stopPropagation()}
                         />

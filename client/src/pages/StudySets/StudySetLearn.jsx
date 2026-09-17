@@ -16,6 +16,7 @@ import { gamificationService } from '../../api/gamificationService';
 import { useGamification } from '../../context/GamificationContext';
 import { progressService } from '../../services/progressService';
 import { getBatchSize, getBatchesOffset, computeBatchItemState } from '../../utils/learnProgress';
+import { getMediaUrl } from '../../utils/mediaUtils';
 import './StudySetLearn.css';
 
 const BATCH_SIZE = 7;
@@ -1039,7 +1040,7 @@ export default function StudySetLearn() {
 
                     {currentItem?.imageUrl && (
                       <div className="ql2-learn-image-container">
-                        <img alt={currentItem?.back} className="ql2-learn-image" src={currentItem.imageUrl} />
+                        <img alt={currentItem?.back} className="ql2-learn-image" src={getMediaUrl(currentItem.imageUrl)} />
                       </div>
                     )}
                   </div>
