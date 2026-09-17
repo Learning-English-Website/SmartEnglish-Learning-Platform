@@ -121,6 +121,7 @@
 .iu-error {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 6px;
   padding: 8px 12px;
   font-size: 0.78rem;
@@ -128,6 +129,27 @@
   background: rgba(239, 68, 68, 0.08);
   border: 1px solid rgba(239, 68, 68, 0.2);
   border-radius: 8px;
+}
+
+.iu-retry-btn {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  background: var(--bg-card, #ffffff);
+  color: #ef4444;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.iu-retry-btn:hover {
+  background: #ef4444;
+  color: white;
 }
 
 /* Preview */

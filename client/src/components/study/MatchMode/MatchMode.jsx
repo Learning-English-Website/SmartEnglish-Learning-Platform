@@ -287,7 +287,7 @@ export default function MatchMode({ cards, setId, setTitle, onClose, onModeChang
           <div className="match-progress-track">
             <div
               className="match-progress-fill"
-              style={{ width: `${(matchCount / MAX_PAIRS) * 100}%` }}
+              style={{ width: `${MAX_PAIRS > 0 ? Math.min(100, Math.max(0, (matchCount / MAX_PAIRS) * 100)) : 0}%` }}
             />
           </div>
         </div>

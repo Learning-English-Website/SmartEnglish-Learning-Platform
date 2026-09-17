@@ -583,8 +583,12 @@ export default function StudyPage() {
     );
   }
 
-  const overallProgressNum = cards.length > 0 ? (cards.length - roundCards.length + currentIdx + 1) : 0;
-  const progressPct = cards.length > 0 ? (overallProgressNum / cards.length) * 100 : 0;
+  const overallProgressNum = cards.length > 0
+    ? Math.min(cards.length, Math.max(1, cards.length - roundCards.length + currentIdx + 1))
+    : 0;
+  const progressPct = cards.length > 0
+    ? Math.min(100, Math.max(0, (overallProgressNum / cards.length) * 100))
+    : 0;
 
   return (
     <div className="ql2-page">
@@ -839,18 +843,7 @@ export default function StudyPage() {
 
                     <div className="card-top-hint">ĐỊNH NGHĨA</div>
 
-                    <div className="card-top-right-group">
-                      <motion.button
-                        whileHover={{ scale: 1.12 }}
-                        whileTap={{ scale: 0.88 }}
-                        transition={{ type: 'spring', stiffness: 400, damping: 17 }}
-                        className="card-audio-top-right"
-                        onClick={(e) => { e.stopPropagation(); speakCard(currentCard.back); }}
-                        title="Phát âm"
-                      >
-                        <Volume2 size={18} className="speak-icon" />
-                      </motion.button>
-                    </div>
+                    <div className="card-top-right-group"></div>
                   </div>
 
                   <div className={`card-back-content ${currentCard?.imageUrl ? 'has-image' : 'no-image'}`}>

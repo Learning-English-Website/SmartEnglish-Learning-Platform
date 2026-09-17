@@ -472,6 +472,70 @@
   }
 }
 
+@media (max-width: 480px) {
+  .library-page {
+    padding: 16px 8px 48px;
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow-x: hidden;
+  }
+
+  .library-profile-header {
+    margin-left: 0;
+    padding: 0 4px 8px;
+  }
+
+  .library-profile-name {
+    font-size: 1.4rem;
+  }
+
+  .library-tabs {
+    gap: 8px;
+    margin-bottom: 20px;
+    min-width: 0;
+    max-width: 100%;
+    padding: 0 4px;
+  }
+
+  .library-tab {
+    padding: 6px 14px;
+    font-size: 0.8rem;
+    flex-shrink: 0;
+  }
+
+  .library-sets-content,
+  .library-folders-section {
+    min-width: 0;
+    max-width: 100%;
+    padding: 0;
+  }
+
+  .library-folder-card {
+    padding: 12px 14px;
+    gap: 12px;
+  }
+
+  .lfc-icon-wrapper {
+    width: 36px;
+    height: 36px;
+  }
+
+  .lfc-name {
+    font-size: 1rem;
+  }
+
+  .lfc-count {
+    font-size: 0.75rem;
+    padding: 3px 8px;
+  }
+
+  .library-search-input {
+    padding: 8px 36px 8px 14px;
+    font-size: 0.85rem;
+  }
+}
+
 .lfc-delete-btn {
   background: transparent;
   border: none;

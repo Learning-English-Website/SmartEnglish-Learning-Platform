@@ -206,7 +206,7 @@ export default function ReviewPage() {
     );
   }
 
-  const progressPercent = totalDue > 0 ? Math.round((reviewedCount / totalDue) * 100) : 0;
+  const progressPercent = totalDue > 0 ? Math.min(100, Math.max(0, Math.round((reviewedCount / totalDue) * 100))) : 0;
 
   return (
     <div className="review-page">
@@ -279,18 +279,7 @@ export default function ReviewPage() {
               <div className="card-top-header-row">
                 <div className="card-top-left-group"></div>
                 <div className="card-top-hint">ĐỊNH NGHĨA</div>
-                <div className="card-top-right-group">
-                  <motion.button 
-                    whileHover={{ scale: 1.12 }}
-                    whileTap={{ scale: 0.88 }}
-                    transition={{ type: 'spring', stiffness: 400, damping: 17 }}
-                    className="card-audio-top-right" 
-                    onClick={(e) => { e.stopPropagation(); speak(currentCard.back); }}
-                    title="Phát âm"
-                  >
-                    <Volume2 size={18} className="speak-icon" />
-                  </motion.button>
-                </div>
+                <div className="card-top-right-group"></div>
               </div>
               
               <div className={`card-back-content ${currentCard?.imageUrl ? 'has-image' : 'no-image'}`}>

@@ -65,7 +65,7 @@ export default function StudyHeader({
 
   const currentModeConfig = MODES.find((m) => m.id === mode) || MODES[0];
   const CurrentIcon = currentModeConfig.icon;
-  const progressPercent = totalCards > 0 ? (currentCard / totalCards) * 100 : 0;
+  const progressPercent = totalCards > 0 ? Math.min(100, Math.max(0, (currentCard / totalCards) * 100)) : 0;
 
   return (
     <div className="study-header">
@@ -428,8 +428,9 @@ export default function StudyHeader({
         /* Mobile responsive */
         @media (max-width: 640px) {
           .study-header {
-            padding: 10px 16px;
-            min-height: 54px;
+            padding: 8px 12px;
+            min-height: 52px;
+            gap: 8px;
           }
 
           .study-header__left {
@@ -440,13 +441,40 @@ export default function StudyHeader({
             display: none;
           }
 
+          .study-header__mode-btn {
+            padding: 6px 10px;
+          }
+
           .study-header__right {
             min-width: auto;
-            gap: 0;
+            gap: 2px;
+          }
+
+          .study-header__icon-btn {
+            width: 36px;
+            height: 36px;
+            padding: 0;
+            position: relative;
+          }
+
+          .study-header__icon-btn::after {
+            content: '';
+            position: absolute;
+            top: -4px;
+            bottom: -4px;
+            left: -4px;
+            right: -4px;
+          }
+
+          .study-header__progress-wrap {
+            min-width: 80px;
+            max-width: 140px;
+            gap: 6px;
           }
 
           .study-header__progress-label {
-            display: none;
+            font-size: 0.72rem;
+            white-space: nowrap;
           }
 
           .study-header__title {

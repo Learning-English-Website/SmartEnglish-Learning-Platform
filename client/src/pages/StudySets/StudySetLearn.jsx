@@ -15,22 +15,11 @@ import { cardService } from '../../api/cardService';
 import { gamificationService } from '../../api/gamificationService';
 import { useGamification } from '../../context/GamificationContext';
 import { progressService } from '../../services/progressService';
+import { getBatchSize, getBatchesOffset, computeBatchItemState } from '../../utils/learnProgress';
 import './StudySetLearn.css';
 
 const BATCH_SIZE = 7;
 const TING_SOUND_URL = 'https://assets.mixkit.co/active_storage/sfx/953/953-preview.mp4';
-
-/** Returns the actual number of items in a given batch (last batch may be smaller) */
-const getBatchSize = (batchIdx, totalItems, totalBatches) => {
-  const effectiveSize = Math.ceil(totalItems / totalBatches);
-  const start = batchIdx * effectiveSize;
-  return Math.min(effectiveSize, Math.max(0, totalItems - start));
-};
-
-/** Returns total items in all batches up to (but not including) batchIdx */
-const getBatchesOffset = (batchIdx, totalItems, totalBatches) =>
-  Array.from({ length: batchIdx }, (_, idx) => getBatchSize(idx, totalItems, totalBatches))
-    .reduce((sum, size) => sum + size, 0);
 
 function shuffleArray(arr) {
   const a = [...arr];
@@ -76,12 +65,13 @@ const QuizletProgressBar = ({
       <div className="ql2-progress-bar__track">
         {Array.from({ length: visibleCount }).map((_, i) => {
           const batchIdx = visibleStart + i;
-          const progress = batchProgress.get(batchIdx) || { correct: 0 };
-          const actualBatchSize = getBatchSize(batchIdx, totalItems, totalBatches);
-          const isCompleted = progress.correct >= actualBatchSize;
-          const isCurrent = batchIdx === currentBatchIndex;
-          const isFuture = batchIdx > currentBatchIndex;
-          const puckPos = isCurrent ? currentQueueIdx / actualBatchSize : 0;
+          const { isCompleted, isCurrent, isFuture, puckPos } = computeBatchItemState(batchIdx, {
+            totalItems,
+            totalBatches,
+            currentBatchIndex,
+            currentQueueIdx,
+            batchProgress,
+          });
 
           return (
             <div
@@ -533,7 +523,6 @@ export default function StudySetLearn() {
 
     const totalItems = sessionItems.length;
     const totalBatches = Math.max(1, Math.ceil(totalItems / BATCH_SIZE));
-    const effectiveSize = Math.ceil(totalItems / totalBatches);
 
     const initialItemResults = new Map();
     const initialBatchProgress = new Map();
@@ -639,13 +628,26 @@ export default function StudySetLearn() {
     const handleKey = (e) => {
       if (screen !== 'learning') return;
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) {
-        if (e.key === 'Enter' && currentItem?.mode === 'ta' && !answered && typedAnswer.trim()) {
-          handleTypeAnswer();
+        if (e.key === 'Enter') {
+          if (!answered && currentItem?.mode === 'ta') {
+            if (typedAnswer.trim()) {
+              e.preventDefault();
+              handleTypeAnswer();
+            }
+          } else if (answered) {
+            e.preventDefault();
+            handleNext();
+          }
         }
         return;
       }
-      if (e.key === 'Enter' && currentItem?.mode === 'ta' && !answered && typedAnswer.trim()) {
-        handleTypeAnswer();
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (currentItem?.mode === 'ta' && !answered && typedAnswer.trim()) {
+          handleTypeAnswer();
+        } else if (answered) {
+          handleNext();
+        }
       } else if (e.key === ' ' && answered) {
         e.preventDefault();
         handleNext();

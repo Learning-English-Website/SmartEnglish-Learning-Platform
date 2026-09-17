@@ -292,12 +292,39 @@
   opacity: 0.8;
 }
 
+.card-front-center-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  margin: auto 0;
+}
+
+.card-main-word {
+  font-size: 3.5rem;
+  font-weight: 800;
+  color: var(--text-heading);
+  text-align: center;
+  margin: 0;
+  line-height: 1.2;
+  word-break: break-word;
+}
+
 .flip-prompt {
   font-size: 0.8rem;
   color: var(--text-muted);
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.desktop-prompt {
+  display: inline;
+}
+
+.mobile-prompt {
+  display: none;
 }
 
 .card-back .flip-prompt {
@@ -495,46 +522,86 @@
 
 /* Responsive */
 @media (max-width: 600px) {
-  .card-face {
-    padding: 28px 22px;
-  }
-  .card-back {
-    gap: 12px;
-    padding: 26px 20px 22px;
-  }
-  .card-back-hero {
-    min-height: 100px;
-    padding: 4px 8px;
-  }
-  .card-main-meaning {
-    font-size: 2.15rem;
-  }
-  .card-details-scroll {
-    max-height: 120px;
-    gap: 8px;
-  }
-  .detail-item {
-    flex-basis: 100%;
-    max-width: none;
-    padding: 10px 12px;
-  }
-  .detail-value {
-    font-size: 0.92rem;
-  }
-  .rating-buttons {
-    grid-template-columns: 1fr;
+  .review-header {
+    padding: 12px 16px;
     gap: 12px;
   }
-  .rate-btn {
-    flex-direction: row;
-    justify-content: space-between;
-    padding: 16px 20px;
-    border-radius: 16px;
-  }
-  .rate-desc {
+
+  .header-icon-box {
     display: none;
   }
-  .review-flashcard {
-    height: 320px;
+
+  .review-body {
+    padding: 0 12px;
+    gap: 16px;
+  }
+
+  .review-card-perspective {
+    height: 380px;
+  }
+
+  .card-face {
+    padding: 24px 16px;
+  }
+
+  .card-top-header-row {
+    top: 14px;
+    padding: 0 16px;
+  }
+
+  .card-main-word {
+    font-size: clamp(1.8rem, 7vw, 2.6rem);
+  }
+
+  .card-back {
+    padding: 24px 16px;
+    gap: 12px;
+  }
+
+  .card-back-content {
+    margin: 12px 0;
+  }
+
+  .card-back-content.has-image {
+    flex-direction: column;
+    gap: 12px;
+    padding: 0;
+    text-align: center;
+  }
+
+  .card-back-meaning {
+    font-size: clamp(1.5rem, 6vw, 2.2rem);
+  }
+
+  .card-back-example {
+    font-size: 0.95rem;
+  }
+
+  .card-back-image-wrapper {
+    max-width: 100%;
+    max-height: 140px;
+  }
+
+  .card-back-image {
+    max-height: 130px;
+  }
+
+  .desktop-prompt {
+    display: none;
+  }
+
+  .mobile-prompt {
+    display: inline;
+  }
+
+  .rating-container-circle {
+    gap: 32px;
+    margin-top: 8px;
+    margin-bottom: 16px;
+  }
+
+  .rate-circle-btn {
+    width: 50px;
+    height: 50px;
   }
 }

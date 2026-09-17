@@ -226,16 +226,6 @@ export default function FlashcardMode({ cards = [], setTitle = '', onClose, onCo
                     <div className="flashcard__content">
                       <p className="flashcard__text">{currentCard.back}</p>
                     </div>
-                    <button
-                      className="flashcard__audio-btn"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        speakCard(currentCard.back);
-                      }}
-                      aria-label="Phát âm"
-                    >
-                      <Volume2 size={20} />
-                    </button>
                   </div>
                 </motion.div>
               </motion.div>

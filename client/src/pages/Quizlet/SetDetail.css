@@ -843,10 +843,16 @@
     flex-direction: column;
     align-items: stretch;
     gap: 14px;
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
   }
   
   .sd-header-actions {
     width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
     display: flex;
     align-items: center;
     justify-content: flex-start;
@@ -945,18 +951,25 @@
 }
 
 @media (max-width: 480px) {
+  .sd-header-content {
+    padding: 0 4px;
+  }
+
   .sd-set-title {
     font-size: 1.35rem;
   }
 
   .sd-header-actions {
     gap: 6px;
+    min-width: 0;
+    max-width: 100%;
   }
 
   .sd-action-btn {
     padding: 8px 10px;
     font-size: 0.78rem;
     gap: 6px;
+    flex: 0 0 auto;
   }
 
   .sd-action-btn svg {

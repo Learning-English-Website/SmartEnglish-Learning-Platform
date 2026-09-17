@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { FiUpload, FiImage, FiX, FiFolder } from 'react-icons/fi';
+import { FiUpload, FiImage, FiX, FiFolder, FiRefreshCw } from 'react-icons/fi';
 import axiosClient from '../../api/axiosClient';
 import './ImageUploader.css';
 
@@ -12,9 +12,10 @@ import './ImageUploader.css';
  *   currentUrl    — currently selected/uploaded image URL
  */
 export default function ImageUploader({ onUpload, onClear, currentUrl }) {
-  const [dragging, setDragging]     = useState(false);
-  const [uploading, setUploading]     = useState(false);
-  const [error, setError]           = useState('');
+  const [dragging, setDragging]         = useState(false);
+  const [uploading, setUploading]       = useState(false);
+  const [error, setError]               = useState('');
+  const [lastFailedFile, setLastFailedFile] = useState(null);
   const [previewError, setPreviewError] = useState(false);
 
   const inputRef = useRef(null);
@@ -26,7 +27,7 @@ export default function ImageUploader({ onUpload, onClear, currentUrl }) {
 
   const getFullImageUrl = (url) => {
     if (!url) return '';
-    if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
+    if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:') || url.startsWith('blob:')) {
       return url;
     }
     const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -41,36 +42,42 @@ export default function ImageUploader({ onUpload, onClear, currentUrl }) {
     const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
     if (!validTypes.includes(file.type)) {
       setError('Chỉ hỗ trợ ảnh: JPG, PNG, GIF, WebP, SVG');
+      setLastFailedFile(null);
       return;
     }
 
     const maxSize = 5 * 1024 * 1024; // 5MB
     if (file.size > maxSize) {
       setError('Kích thước tối đa: 5MB');
+      setLastFailedFile(null);
       return;
     }
 
     setError('');
+    setLastFailedFile(null);
     setUploading(true);
 
     try {
       const formData = new FormData();
       formData.append('image', file);
 
-      const data = await axiosClient.post('/media/upload', formData, {
+      // Explicitly set Content-Type to undefined to let Axios/browser set multipart/form-data with boundary
+      const res = await axiosClient.post('/media/upload', formData, {
         headers: {
-          'Content-Type': 'multipart/form-data',
+          'Content-Type': undefined,
         },
       });
 
-      if (!data || !data.url) {
+      const returnedUrl = res?.url || res?.data?.url;
+      if (!returnedUrl) {
         throw new Error('Không nhận được URL ảnh từ máy chủ');
       }
 
-      onUpload(data.url);
+      onUpload(returnedUrl);
     } catch (err) {
       console.error('[ImageUploader] Upload failed:', err);
-      setError(err.response?.data?.message || err.message || 'Upload thất bại. Thử lại.');
+      setError(err.response?.data?.message || err.message || 'Upload thất bại. Vui lòng thử lại.');
+      setLastFailedFile(file);
     } finally {
       setUploading(false);
     }
@@ -149,7 +156,19 @@ export default function ImageUploader({ onUpload, onClear, currentUrl }) {
       {/* Error message */}
       {error && (
         <div className="iu-error">
-          <FiX size={13} /> {error}
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+            <FiX size={13} /> {error}
+          </span>
+          {lastFailedFile && (
+            <button
+              type="button"
+              className="iu-retry-btn"
+              onClick={() => uploadFile(lastFailedFile)}
+              title="Thử tải lại ảnh này"
+            >
+              <FiRefreshCw size={11} /> Thử lại
+            </button>
+          )}
         </div>
       )}
 

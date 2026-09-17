@@ -1,19 +1,22 @@
 import { useState } from 'react';
 import { Modal as BsModal, Button } from 'react-bootstrap';
 import { FiEye, FiUpload } from 'react-icons/fi';
+import { parseBulkText, BULK_FORMATS, FORMAT_LABELS } from '../../../utils/bulkParser';
 import './BulkAddModal.css';
 
 /**
- * BulkAddModal — paste "term | definition" lines to bulk create cards.
+ * BulkAddModal — paste delimited lines to bulk create cards.
+ * Supports 2, 3, and 4 field formats.
  *
  * Props:
  *   show        — boolean
  *   onHide()    — close modal
- *   onConfirm(cards: {front,back}[]) — called with parsed cards array
+ *   onConfirm(cards: Array<{front, back, pronunciation?, example?}>) — called with parsed cards array
  *   loading?    — disables confirm button
  */
 export default function BulkAddModal({ show, onHide, onConfirm, loading = false }) {
   const [text, setText] = useState('');
+  const [format, setFormat] = useState(BULK_FORMATS.TWO_FIELD);
   const [parsed, setParsed] = useState([]);
   const [previewing, setPreviewing] = useState(false);
   const [parseError, setParseError] = useState('');
@@ -22,41 +25,18 @@ export default function BulkAddModal({ show, onHide, onConfirm, loading = false 
 
   const parseLines = () => {
     setParseError('');
-    const lines = text
-      .split('\n')
-      .map((l) => l.trim())
-      .filter(Boolean);
+    const { cards, error } = parseBulkText(text, format, SEPARATOR);
 
-    if (lines.length === 0) {
-      setParseError('Chưa có dữ liệu nào để xử lý.');
+    if (cards.length === 0) {
+      setParseError(error || 'Chưa có dữ liệu hợp lệ để xử lý.');
       return;
     }
 
-    const result = [];
-    const invalid = [];
-
-    lines.forEach((line, idx) => {
-      const parts = line.split(SEPARATOR);
-      if (parts.length < 2) {
-        invalid.push(idx + 1);
-        return;
-      }
-      const front = parts[0].trim();
-      const back  = parts.slice(1).join(SEPARATOR).trim();
-      if (front && back) result.push({ front, back });
-      else invalid.push(idx + 1);
-    });
-
-    if (result.length === 0) {
-      setParseError(`Không phân tích được dòng nào. Định dạng chuẩn: "Từ tiếng Anh ${SEPARATOR} Nghĩa tiếng Việt"`);
-      return;
+    if (error) {
+      setParseError(error);
     }
 
-    if (invalid.length > 0) {
-      setParseError(`Bỏ qua ${invalid.length} dòng không hợp lệ (dòng: ${invalid.join(', ')})`);
-    }
-
-    setParsed(result);
+    setParsed(cards);
     setPreviewing(true);
   };
 
@@ -72,6 +52,26 @@ export default function BulkAddModal({ show, onHide, onConfirm, loading = false 
     onHide();
   };
 
+  const getFormatExample = () => {
+    if (format === BULK_FORMATS.THREE_FIELD) {
+      return `Hello | Xin chào | Hello, how are you?\nGood morning | Chào buổi sáng | Good morning teacher!\nThank you | Cảm ơn | Thank you very much!`;
+    }
+    if (format === BULK_FORMATS.FOUR_FIELD) {
+      return `Hello | Xin chào | /ˈhɛloʊ/ | Hello, how are you?\nGood morning | Chào buổi sáng | /ɡʊd ˈmɔːrnɪŋ/ | Good morning teacher!\nThank you | Cảm ơn | /ˈθæŋk juː/ | Thank you very much!`;
+    }
+    return `Hello | Xin chào\nGood morning | Chào buổi sáng\nThank you | Cảm ơn`;
+  };
+
+  const getFormatSyntax = () => {
+    if (format === BULK_FORMATS.THREE_FIELD) {
+      return `Từ tiếng Anh ${SEPARATOR} Nghĩa tiếng Việt ${SEPARATOR} Câu ví dụ`;
+    }
+    if (format === BULK_FORMATS.FOUR_FIELD) {
+      return `Từ tiếng Anh ${SEPARATOR} Nghĩa tiếng Việt ${SEPARATOR} Phiên âm (IPA) ${SEPARATOR} Câu ví dụ`;
+    }
+    return `Từ tiếng Anh ${SEPARATOR} Nghĩa tiếng Việt`;
+  };
+
   return (
     <BsModal show={show} onHide={handleClose} centered size="lg" className="bulk-modal">
       <BsModal.Header closeButton className="bulk-modal-header">
@@ -83,22 +83,40 @@ export default function BulkAddModal({ show, onHide, onConfirm, loading = false 
       <BsModal.Body className="bulk-modal-body">
         {!previewing ? (
           <>
+            {/* Format Selector */}
+            <div className="bulk-format-selector-group">
+              <label className="bulk-format-selector-label">Chọn cấu trúc dữ liệu:</label>
+              <div className="bulk-format-pills">
+                {Object.values(BULK_FORMATS).map((fKey) => (
+                  <button
+                    key={fKey}
+                    type="button"
+                    className={`bulk-format-pill ${format === fKey ? 'active' : ''}`}
+                    onClick={() => {
+                      setFormat(fKey);
+                      setParseError('');
+                    }}
+                  >
+                    {FORMAT_LABELS[fKey]}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Instructions */}
             <div className="bulk-instructions">
               <p>Nhập mỗi thẻ trên một dòng theo định dạng:</p>
-              <code className="bulk-format">Từ tiếng Anh {SEPARATOR} Nghĩa tiếng Việt</code>
-              <p className="bulk-example-label">Ví dụ:</p>
+              <code className="bulk-format">{getFormatSyntax()}</code>
+              <p className="bulk-example-label">Ví dụ minh họa:</p>
               <pre className="bulk-example">
-{`Hello | Xin chào
-Good morning | Chào buổi sáng
-Thank you | Cảm ơn`}
+                {getFormatExample()}
               </pre>
             </div>
 
             {/* Textarea */}
             <textarea
               className="bulk-textarea"
-              placeholder={`Hello | Xin chào\nGood morning | Chào buổi sáng\nThank you | Cảm ơn`}
+              placeholder={getFormatExample()}
               value={text}
               onChange={(e) => { setText(e.target.value); setParseError(''); }}
               rows={10}
@@ -124,14 +142,24 @@ Thank you | Cảm ơn`}
                     <th>#</th>
                     <th>TỪ TIẾNG ANH</th>
                     <th>NGHĨA TIẾNG VIỆT</th>
+                    {format === BULK_FORMATS.FOUR_FIELD && <th>PHÁT ÂM (IPA)</th>}
+                    {(format === BULK_FORMATS.THREE_FIELD || format === BULK_FORMATS.FOUR_FIELD) && (
+                      <th>VÍ DỤ</th>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
                   {parsed.map((c, i) => (
                     <tr key={i}>
                       <td className="bulk-preview-num">{i + 1}</td>
-                      <td>{c.front}</td>
-                      <td>{c.back}</td>
+                      <td className="bulk-preview-front">{c.front}</td>
+                      <td className="bulk-preview-back">{c.back}</td>
+                      {format === BULK_FORMATS.FOUR_FIELD && (
+                        <td className="bulk-preview-ipa">{c.pronunciation || '—'}</td>
+                      )}
+                      {(format === BULK_FORMATS.THREE_FIELD || format === BULK_FORMATS.FOUR_FIELD) && (
+                        <td className="bulk-preview-example">{c.example || '—'}</td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -157,17 +185,15 @@ Thank you | Cảm ơn`}
               onClick={() => setPreviewing(false)}
               disabled={loading}
             >
-              ← Sửa
+              ← Sửa lại
             </button>
             <button
               className="bulk-btn bulk-btn--confirm"
               onClick={handleConfirm}
               disabled={loading || parsed.length === 0}
             >
-              {loading
-                ? <span className="spinner-border spinner-border-sm" />
-                : <><FiUpload size={14} /> Thêm {parsed.length} Thẻ</>
-              }
+              <FiUpload size={14} />
+              {loading ? 'Đang tạo...' : `Thêm ${parsed.length} thẻ`}
             </button>
           </>
         )}

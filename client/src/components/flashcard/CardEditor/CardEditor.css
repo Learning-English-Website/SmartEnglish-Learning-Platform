@@ -64,10 +64,27 @@
   transition: all 0.2s ease;
 }
 
-.ce-btn-ipa-auto:hover {
+.ce-btn-ipa-auto:hover:not(:disabled) {
   background: var(--gl-tertiary, #2c5ef5);
   color: white;
   transform: translateY(-1px);
+}
+
+.ce-btn-ipa-auto:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.ce-btn-ipa-auto.error {
+  border-color: rgba(239, 68, 68, 0.4);
+  background: rgba(239, 68, 68, 0.08);
+  color: #ef4444;
+}
+
+.ce-btn-ipa-auto.error:hover:not(:disabled) {
+  background: #ef4444;
+  color: white;
 }
 
 .ce-suggest-btn {

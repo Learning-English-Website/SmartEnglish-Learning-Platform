@@ -10,9 +10,10 @@ import {
   FiChevronLeft, FiChevronRight, FiList,
   FiClock, FiUser, FiBookOpen, FiZap,
   FiGrid, FiLayers, FiTarget, FiCopy, FiUsers,
-  FiCpu,
+  FiCpu, FiDownload,
 } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
+import { exportCardsToCsv } from '../../utils/csvExport';
 import { useAuth } from '../../hooks/useAuth';
 import { useSelector } from 'react-redux';
 import { selectIsAuthenticated, selectAuthLoading } from '../../store/slices/authSlice';
@@ -393,6 +394,21 @@ export default function SetDetail() {
     }
   };
 
+  /* ── Export CSV ──────────────────────────────────────────────────────── */
+  const handleExportCsv = () => {
+    if (!cards || cards.length === 0) {
+      toast.error('Không có thẻ nào để xuất.');
+      return;
+    }
+    try {
+      exportCardsToCsv(cards, set?.title || 'flashcards');
+      toast.success('Đã xuất file CSV thành công!');
+    } catch (err) {
+      console.error('[SetDetail] Export CSV failed:', err);
+      toast.error('Xuất file CSV thất bại.');
+    }
+  };
+
   /* ── Delete Set ──────────────────────────────────────────────────────── */
   const handleDeleteSet = async () => {
     setDeletingSet(true);
@@ -671,6 +687,15 @@ export default function SetDetail() {
                       <FiRefreshCw size={14} />
                       Nhập
                     </button>
+                    <button
+                      className="sd-term-action-btn"
+                      onClick={handleExportCsv}
+                      disabled={cards.length === 0}
+                      title={cards.length === 0 ? 'Không có thẻ để xuất' : 'Xuất bộ thẻ ra file CSV (UTF-8 BOM)'}
+                    >
+                      <FiDownload size={14} />
+                      Xuất CSV
+                    </button>
                   </>
                 )}
                 <div className="sd-view-toggle">
@@ -707,17 +732,6 @@ export default function SetDetail() {
                     <span className="sd-group-count">{learningGroups.mastered.length}</span>
                   </div>
                 </div>
-              </div>
-            )}
-
-            {/* Add Card Form */}
-            {isOwner && showAddCard && (
-              <div className="sd-add-card-form">
-                <CardEditor
-                  onSave={handleAddCard}
-                  onCancel={() => setShowAddCard(false)}
-                  loading={addingCard}
-                />
               </div>
             )}
 
@@ -805,6 +819,17 @@ export default function SetDetail() {
                     )}
                   </div>
                 ))}
+              </div>
+            )}
+
+            {/* Add Card Form - rendered below card list per MEMORIS-UX-FR-007 */}
+            {isOwner && showAddCard && (
+              <div className="sd-add-card-form" style={{ marginTop: '20px' }}>
+                <CardEditor
+                  onSave={handleAddCard}
+                  onCancel={() => setShowAddCard(false)}
+                  loading={addingCard}
+                />
               </div>
             )}
 

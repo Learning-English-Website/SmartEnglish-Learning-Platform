@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { FiSave, FiX, FiVolume2, FiZap, FiSearch, FiImage, FiUpload } from 'react-icons/fi';
+import { FiSave, FiX, FiVolume2, FiZap, FiSearch, FiImage, FiUpload, FiRefreshCw } from 'react-icons/fi';
 import { Sparkles } from 'lucide-react';
 import { Modal, Button } from 'react-bootstrap';
 import { lookupWord, searchWords, fetchRelatedWords, fetchCollocations, translateEnToVi } from '../../../api/dictionaryService';
@@ -53,11 +53,14 @@ export default function CardEditor({ card, onSave, onCancel, loading = false, in
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [audioPlaying, setAudioPlaying] = useState(false);
+  const [ipaLoading, setIpaLoading]     = useState(false);
+  const [ipaError, setIpaError]         = useState(false);
 
-  const audioRef    = useRef(null);
-  const wrapRef     = useRef(null);
-  const debounceRef = useRef(null);
-  const saveTimerRef = useRef(null);
+  const audioRef        = useRef(null);
+  const wrapRef         = useRef(null);
+  const debounceRef     = useRef(null);
+  const saveTimerRef    = useRef(null);
+  const ipaRequestIdRef = useRef(0);
 
   /* ── Auto-sync (Inline Mode) ─────────────────────────────────────── */
   // In inline mode, auto-save with debounce when form is valid
@@ -156,16 +159,34 @@ export default function CardEditor({ card, onSave, onCancel, loading = false, in
       toast.error('Vui lòng nhập Thuật ngữ trước');
       return;
     }
+
+    const currentReqId = ++ipaRequestIdRef.current;
+    setIpaLoading(true);
+    setIpaError(false);
+
     try {
       const data = await lookupWord(term);
+      // Stale response check: discard if newer request initiated or term changed
+      if (currentReqId !== ipaRequestIdRef.current || form.front.trim() !== term) {
+        return;
+      }
       if (data?.phonetic) {
         setForm((prev) => ({ ...prev, pronunciation: data.phonetic }));
+        setIpaError(false);
         toast.success(`Đã cập nhật phát âm: ${data.phonetic}`);
       } else {
+        setIpaError(true);
         toast.error('Không tìm thấy phiên âm cho từ này');
       }
     } catch {
-      toast.error('Lỗi khi tra cứu phát âm');
+      if (currentReqId === ipaRequestIdRef.current) {
+        setIpaError(true);
+        toast.error('Lỗi khi tra cứu phát âm');
+      }
+    } finally {
+      if (currentReqId === ipaRequestIdRef.current) {
+        setIpaLoading(false);
+      }
     }
   };
 
@@ -267,7 +288,12 @@ export default function CardEditor({ card, onSave, onCancel, loading = false, in
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: '' }));
-    if (name === 'front') triggerWordSearch(value);
+    if (name === 'front') {
+      ipaRequestIdRef.current++;
+      setIpaError(false);
+      setIpaLoading(false);
+      triggerWordSearch(value);
+    }
   };
 
   /* ── AI Auto-Enrichment (✨ icon button) ────────────────────────── */
@@ -623,11 +649,25 @@ export default function CardEditor({ card, onSave, onCancel, loading = false, in
               <label className="ce-label">PHÁT ÂM</label>
               <button
                 type="button"
-                className="ce-btn-ipa-auto"
+                className={`ce-btn-ipa-auto ${ipaLoading ? 'loading' : ''} ${ipaError ? 'error' : ''}`}
                 onClick={handleFetchIpaOnly}
-                title="Tự động tìm phát âm IPA cho từ này"
+                disabled={ipaLoading || !form.front.trim()}
+                title={ipaError ? 'Thử lại tìm phát âm IPA' : 'Tự động tìm phát âm IPA cho từ này'}
               >
-                <FiZap size={12} /> Auto IPA
+                {ipaLoading ? (
+                  <>
+                    <span className="spinner-border spinner-border-sm" style={{ width: 10, height: 10, borderWidth: 1.5, display: 'inline-block' }} />
+                    <span>Đang tìm...</span>
+                  </>
+                ) : ipaError ? (
+                  <>
+                    <FiRefreshCw size={11} /> Thử lại IPA
+                  </>
+                ) : (
+                  <>
+                    <FiZap size={11} /> Auto IPA
+                  </>
+                )}
               </button>
             </div>
             <input

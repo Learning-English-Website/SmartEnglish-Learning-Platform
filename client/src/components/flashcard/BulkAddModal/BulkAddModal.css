@@ -21,6 +21,50 @@
   padding: 20px 24px !important;
 }
 
+/* Format Selector */
+.bulk-format-selector-group {
+  margin-bottom: 16px;
+}
+
+.bulk-format-selector-label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-heading);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.bulk-format-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.bulk-format-pill {
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  border: 1.5px solid var(--border-subtle);
+  background: var(--bg-page);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.bulk-format-pill:hover {
+  border-color: var(--gl-tertiary);
+  color: var(--text-heading);
+}
+
+.bulk-format-pill.active {
+  background: rgba(44, 94, 245, 0.1);
+  border-color: var(--gl-tertiary);
+  color: var(--gl-tertiary);
+}
+
 /* Instructions */
 .bulk-instructions p {
   font-size: 0.875rem;
