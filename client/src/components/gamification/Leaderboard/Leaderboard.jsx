@@ -51,7 +51,10 @@ export default function Leaderboard({ setId }) {
     );
   }
 
-  if (!data || data.totalPlayers === 0) {
+  const topScores = Array.isArray(data?.topScores) ? data.topScores : [];
+  const totalPlayers = data?.totalPlayers ?? topScores.length;
+
+  if (!data || totalPlayers === 0 || topScores.length === 0) {
     return (
       <div className="lb-container lb-container--empty">
         <div className="lb-empty-icon">🏆</div>
@@ -73,49 +76,49 @@ export default function Leaderboard({ setId }) {
     <div className={`lb-container ${flash ? 'lb-container--flash' : ''}`}>
       <div className="lb-header">
         <h3 className="lb-title">🏆 Bảng xếp hạng Match</h3>
-        <span className="lb-total">{data.totalPlayers} người tham gia</span>
+        <span className="lb-total">{totalPlayers} người tham gia</span>
       </div>
 
       {/* Top 3 podium */}
-      {data.topScores.length >= 3 && (
+      {topScores.length >= 3 && (
         <div className="lb-podium">
           {/* Hạng 2 */}
           <div className="lb-podium__item lb-podium__item--2">
             <div className="lb-podium__avatar">
-              {data.topScores[1].avatar
-                ? <img src={data.topScores[1].avatar} alt={data.topScores[1].username} />
-                : <span>{data.topScores[1].username?.[0]?.toUpperCase()}</span>
+              {topScores[1].avatar
+                ? <img src={topScores[1].avatar} alt={topScores[1].username} />
+                : <span>{topScores[1].username?.[0]?.toUpperCase()}</span>
               }
             </div>
             <div className="lb-podium__medal">🥈</div>
-            <div className="lb-podium__name">{data.topScores[1].username}</div>
-            <div className="lb-podium__time">{formatTime(data.topScores[1].timeMs)}</div>
+            <div className="lb-podium__name">{topScores[1].username}</div>
+            <div className="lb-podium__time">{formatTime(topScores[1].timeMs)}</div>
             <div className="lb-podium__bar lb-podium__bar--2" />
           </div>
           {/* Hạng 1 */}
           <div className="lb-podium__item lb-podium__item--1">
             <div className="lb-podium__avatar lb-podium__avatar--gold">
-              {data.topScores[0].avatar
-                ? <img src={data.topScores[0].avatar} alt={data.topScores[0].username} />
-                : <span>{data.topScores[0].username?.[0]?.toUpperCase()}</span>
+              {topScores[0].avatar
+                ? <img src={topScores[0].avatar} alt={topScores[0].username} />
+                : <span>{topScores[0].username?.[0]?.toUpperCase()}</span>
               }
             </div>
             <div className="lb-podium__medal">🥇</div>
-            <div className="lb-podium__name">{data.topScores[0].username}</div>
-            <div className="lb-podium__time">{formatTime(data.topScores[0].timeMs)}</div>
+            <div className="lb-podium__name">{topScores[0].username}</div>
+            <div className="lb-podium__time">{formatTime(topScores[0].timeMs)}</div>
             <div className="lb-podium__bar lb-podium__bar--1" />
           </div>
           {/* Hạng 3 */}
           <div className="lb-podium__item lb-podium__item--3">
             <div className="lb-podium__avatar">
-              {data.topScores[2].avatar
-                ? <img src={data.topScores[2].avatar} alt={data.topScores[2].username} />
-                : <span>{data.topScores[2].username?.[0]?.toUpperCase()}</span>
+              {topScores[2].avatar
+                ? <img src={topScores[2].avatar} alt={topScores[2].username} />
+                : <span>{topScores[2].username?.[0]?.toUpperCase()}</span>
               }
             </div>
             <div className="lb-podium__medal">🥉</div>
-            <div className="lb-podium__name">{data.topScores[2].username}</div>
-            <div className="lb-podium__time">{formatTime(data.topScores[2].timeMs)}</div>
+            <div className="lb-podium__name">{topScores[2].username}</div>
+            <div className="lb-podium__time">{formatTime(topScores[2].timeMs)}</div>
             <div className="lb-podium__bar lb-podium__bar--3" />
           </div>
         </div>
@@ -123,7 +126,7 @@ export default function Leaderboard({ setId }) {
 
       {/* Full list từ hạng 4+ hoặc tất cả nếu < 3 người */}
       <div className="lb-list">
-        {data.topScores.map((entry, idx) => (
+        {topScores.map((entry, idx) => (
           <div
             key={entry.username + idx}
             className={`lb-row ${entry.isCurrentUser ? 'lb-row--current' : ''} ${idx < 3 ? 'lb-row--top3' : ''}`}
@@ -147,7 +150,7 @@ export default function Leaderboard({ setId }) {
       </div>
 
       {/* User's personal best nếu không nằm trong top 10 */}
-      {data.userBest && !data.topScores.some((e) => e.isCurrentUser) && (
+      {data.userBest && !topScores.some((e) => e.isCurrentUser) && (
         <div className="lb-your-rank">
           <span>Kỷ lục của bạn: <strong>{formatTime(data.userBest.timeMs)}</strong></span>
           <span>Hạng #{data.userBest.rank}</span>

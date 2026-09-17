@@ -242,7 +242,7 @@ export default function MatchMode({ cards, setId, setTitle, onClose, onModeChang
               </AnimatePresence>
             </div>
 
-            <span style={{ color: 'var(--border-subtle)', marginLeft: '12px', fontSize: '1.2rem', fontWeight: 300 }}>|</span>
+            <span className="ql2-header__divider">|</span>
             <span className="ql2-header__title">{setTitle || 'Khớp thẻ'}</span>
           </div>
 

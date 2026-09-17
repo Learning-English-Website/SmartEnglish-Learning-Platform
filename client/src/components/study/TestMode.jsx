@@ -89,8 +89,8 @@ function TestHeader({ setTitle, onClose, onModeChange, soundEnabled, onSoundTogg
           </AnimatePresence>
         </div>
 
-        <span style={{ color: 'var(--border-subtle)', marginLeft: '12px', fontSize: '1.2rem', fontWeight: 300 }}>|</span>
-        <span className="ql2-header__title">{setTitle || 'Kiểm tra'}</span>
+        <span className="ql2-header__divider">|</span>
+        <span className="ql2-header__title" title={setTitle || 'Kiểm tra'}>{setTitle || 'Kiểm tra'}</span>
       </div>
 
       <div className="ql2-header__right">
@@ -1050,15 +1050,19 @@ export default function TestMode({ cards = [], setTitle = '', onClose, onModeCha
 
         /* Modal Settings Options */
         .ql-setup-modal-overlay {
-          position: absolute;
+          position: fixed;
           inset: 0;
-          background: rgba(15, 20, 25, 0.5);
+          background: rgba(15, 20, 25, 0.6);
           backdrop-filter: blur(12px);
           display: flex;
           align-items: center;
           justify-content: center;
-          z-index: 10;
+          z-index: 1000;
           width: 100%;
+          height: 100%;
+          padding: 16px;
+          overflow-y: auto;
+          box-sizing: border-box;
         }
         [data-theme='dark'] .ql-setup-modal-overlay {
           background: rgba(11, 14, 23, 0.85);
@@ -1066,26 +1070,30 @@ export default function TestMode({ cards = [], setTitle = '', onClose, onModeCha
         .ql-setup-modal {
           background: var(--bg-elevated);
           border: 1px solid var(--border-subtle);
-          border-radius: 24px;
+          border-radius: 20px;
           width: 100%;
-          max-width: 520px;
-          box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
+          max-width: 480px;
+          max-height: min(90vh, 620px);
+          max-height: min(90dvh, 620px);
+          box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
           overflow: hidden;
           display: flex;
           flex-direction: column;
+          margin: auto;
         }
         [data-theme='dark'] .ql-setup-modal {
           box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
         }
         .ql-setup-modal__header {
-          padding: 24px 28px;
+          padding: 18px 24px;
           border-bottom: 1px solid var(--border-subtle);
           display: flex;
           align-items: center;
           justify-content: space-between;
+          flex-shrink: 0;
         }
         .ql-setup-modal__title {
-          font-size: 1.4rem;
+          font-size: 1.25rem;
           font-weight: 800;
           color: var(--text-heading);
           margin: 0;
@@ -1095,8 +1103,8 @@ export default function TestMode({ cards = [], setTitle = '', onClose, onModeCha
           border: 1px solid var(--border-subtle);
           color: var(--text-muted);
           border-radius: 50%;
-          width: 36px;
-          height: 36px;
+          width: 34px;
+          height: 34px;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -1108,12 +1116,13 @@ export default function TestMode({ cards = [], setTitle = '', onClose, onModeCha
           color: #fff;
         }
         .ql-setup-modal__body {
-          padding: 24px 28px;
+          padding: 20px 24px;
           overflow-y: auto;
-          max-height: 400px;
+          flex: 1;
+          min-height: 0;
           display: flex;
           flex-direction: column;
-          gap: 18px;
+          gap: 16px;
         }
 
         /* Row Layout */
@@ -1253,12 +1262,13 @@ export default function TestMode({ cards = [], setTitle = '', onClose, onModeCha
 
         /* Setup Modal Footer */
         .ql-setup-modal__footer {
-          padding: 24px 28px;
+          padding: 16px 24px;
           background: var(--bg-elevated);
           border-top: 1px solid var(--border-subtle);
           display: flex;
           flex-direction: column;
-          gap: 16px;
+          gap: 12px;
+          flex-shrink: 0;
         }
         .ql-setup-btn-start {
           background: var(--gl-tertiary);
@@ -1954,50 +1964,99 @@ export default function TestMode({ cards = [], setTitle = '', onClose, onModeCha
 
         /* Responsive */
         @media (max-width: 640px) {
-          .ql-test-page {
-            padding: 12px 10px 80px;
+          .ql-setup-modal-overlay {
+            padding: 12px;
+            align-items: flex-start;
+          }
+          .ql-setup-modal {
+            max-height: calc(100vh - 24px);
+            max-height: calc(100dvh - 24px);
+            border-radius: 16px;
+            margin: auto 0;
+          }
+          .ql-setup-modal__header {
+            padding: 14px 18px;
+          }
+          .ql-setup-modal__title {
+            font-size: 1.15rem;
+          }
+          .ql-setup-modal__body {
+            padding: 14px 18px;
+            gap: 12px;
+          }
+          .ql-setup-modal__footer {
+            padding: 14px 18px;
+            gap: 10px;
+          }
+          .ql-setup-btn-start {
+            padding: 12px;
+            font-size: 0.95rem;
+          }
+          .ql-test-body {
+            padding: 14px 10px 48px;
+          }
+          .ql-test-body.scrollable-questions, .ql-test-body.results-mode {
+            padding: 14px 10px 48px;
+            max-height: none;
+          }
+          .ql-questions-container, .ql-results-container {
+            gap: 14px;
+          }
+          .ql-question-card, .ql-review-card {
+            padding: 18px 14px;
+            border-radius: 14px;
+            gap: 14px;
+          }
+          .ql-meta-definition {
+            font-size: 1.05rem;
+            line-height: 1.35;
           }
           .ql-tf-cols {
             flex-direction: column;
-            gap: 16px;
+            gap: 12px;
           }
           .ql-tf-col:first-child {
             border-right: none;
             border-bottom: 1px solid var(--border-subtle);
             padding-right: 0;
-            padding-bottom: 16px;
+            padding-bottom: 12px;
           }
           .ql-tf-options-group {
-            flex-direction: column;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
             gap: 10px;
           }
-          .ql-tf-choice-btn {
-            min-height: 48px;
-            padding: 12px 16px;
+          .ql-tf-choice-btn, .ql-tf-btn-choice {
+            min-height: 44px;
+            padding: 10px 14px;
             touch-action: manipulation;
           }
           .ql-mcq-grid {
             grid-template-columns: 1fr;
-            gap: 10px;
+            gap: 8px;
           }
-          .ql-mcq-option {
-            min-height: 48px;
-            padding: 12px 14px;
+          .ql-mcq-choice-btn, .ql-mcq-btn-choice {
+            min-height: 44px;
+            padding: 10px 14px;
             touch-action: manipulation;
           }
-          .ql-options-group {
+          .ql-written-input-box {
             flex-direction: column;
+            gap: 8px;
           }
-          .ql-test-footer {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: var(--gl-surface);
-            border-top: 1px solid var(--border-subtle);
-            padding: 12px 16px max(16px, env(safe-area-inset-bottom, 16px));
-            z-index: 200;
-            box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
+          .ql-written-btn-next {
+            width: 100%;
+            min-height: 44px;
+          }
+          .ql-test-submit-footer {
+            padding: 20px 12px;
+            margin-top: 12px;
+          }
+          .ql-btn-submit-test {
+            width: 100%;
+            max-width: 320px;
+            padding: 12px 20px;
+            font-size: 0.95rem;
           }
         }
       `}</style>

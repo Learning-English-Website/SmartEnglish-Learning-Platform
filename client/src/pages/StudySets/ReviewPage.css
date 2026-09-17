@@ -522,6 +522,13 @@
 
 /* Responsive */
 @media (max-width: 600px) {
+  .review-page {
+    height: auto;
+    min-height: 100vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
   .review-header {
     padding: 12px 16px;
     gap: 12px;
@@ -531,13 +538,22 @@
     display: none;
   }
 
+  .progress-text {
+    margin-top: 4px;
+    font-size: 0.85rem;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    max-width: 180px;
+  }
+
   .review-body {
     padding: 0 12px;
     gap: 16px;
   }
 
   .review-card-perspective {
-    height: 380px;
+    height: clamp(260px, 44vh, 380px);
   }
 
   .card-face {
@@ -595,13 +611,38 @@
   }
 
   .rating-container-circle {
-    gap: 32px;
+    gap: 28px;
     margin-top: 8px;
     margin-bottom: 16px;
   }
 
   .rate-circle-btn {
-    width: 50px;
-    height: 50px;
+    width: clamp(48px, 14vw, 56px);
+    height: clamp(48px, 14vw, 56px);
+  }
+}
+
+@media (max-width: 380px) {
+  .review-header {
+    padding: 8px 10px;
+    gap: 8px;
+  }
+
+  .back-btn span {
+    display: none;
+  }
+
+  .review-card-perspective {
+    height: clamp(240px, 40vh, 320px);
+  }
+
+  .card-face {
+    padding: 16px 12px;
+    border-radius: 20px;
+  }
+
+  .rate-circle-btn {
+    width: 48px;
+    height: 48px;
   }
 }

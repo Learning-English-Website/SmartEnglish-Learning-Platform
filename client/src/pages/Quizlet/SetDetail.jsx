@@ -480,18 +480,22 @@ export default function SetDetail() {
   };
 
   /* ── Card IDs for DnD ────────────────────────────────────────────────── */
-  const cardIds = useMemo(() => cards.map((c) => c._id), [cards]);
+  const cardIds = useMemo(() => (Array.isArray(cards) ? cards.map((c) => c._id) : []), [cards]);
 
   /* ── Learning Groups ─────────────────────────────────────────────────── */
   const learningGroups = useMemo(() => {
     const learning = [];
     const mastered = [];
-    for (const card of cards) {
-      const prog = schedules.find(s => String(s.cardId || s.card) === String(card._id));
-      if (prog && prog.correctReviews > 0) {
-        mastered.push(card);
-      } else {
-        learning.push(card);
+    if (Array.isArray(cards)) {
+      for (const card of cards) {
+        const prog = Array.isArray(schedules)
+          ? schedules.find(s => String(s.cardId || s.card) === String(card._id))
+          : null;
+        if (prog && prog.correctReviews > 0) {
+          mastered.push(card);
+        } else {
+          learning.push(card);
+        }
       }
     }
     return { learning, mastered };
